@@ -1,0 +1,67 @@
+Date : 2025-06-10 15:07:59
+Directory : c:\Users\marie\Documents\GitHub\GBO-Updated
+Total : 28 files,  12047 codes, 544 comments, 792 blanks, all 13383 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Dart     |         23 |     11,951 |        448 |        759 |     13,158 |
+| JSON     |          1 |         35 |          0 |          1 |         36 |
+| YAML     |          2 |         32 |         81 |         20 |        133 |
+| HTML     |          1 |         19 |         15 |          5 |         39 |
+| Markdown |          1 |         10 |          0 |          7 |         17 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                      | files      | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                         |         28 |     12,047 |        544 |        792 |     13,383 |
+| . (Files)                                                                                 |          3 |         42 |         81 |         27 |        150 |
+| lib                                                                                       |         22 |     11,937 |        438 |        752 |     13,127 |
+| lib (Files)                                                                               |          2 |         47 |          0 |          6 |         53 |
+| lib\data                                                                                  |          1 |      2,131 |          2 |         10 |      2,143 |
+| lib\models                                                                                |          4 |        734 |         32 |         72 |        838 |
+| lib\screens                                                                               |          6 |      5,294 |        208 |        335 |      5,837 |
+| lib\services                                                                              |          3 |        294 |         39 |         45 |        378 |
+| lib\utils                                                                                 |          2 |        429 |         33 |         43 |        505 |
+| lib\widgets                                                                               |          4 |      3,008 |        124 |        241 |      3,373 |
+| test                                                                                      |          1 |         14 |         10 |          7 |         31 |
+| web                                                                                       |          2 |         54 |         15 |          6 |         75 |
++-------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                                  | language | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\marie\Documents\GitHub\GBO-Updated\README.md                                     | Markdown |         10 |          0 |          7 |         17 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\analysis_options.yaml                         | YAML     |          3 |         22 |          4 |         29 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\data\german_cities.dart                   | Dart     |      2,131 |          2 |         10 |      2,143 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\firebase_config.dart                      | Dart     |         12 |          0 |          1 |         13 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\main.dart                                 | Dart     |         35 |          0 |          5 |         40 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\models\court.dart                         | Dart     |         94 |          3 |          7 |        104 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\models\team.dart                          | Dart     |         47 |          0 |          5 |         52 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\models\tournament.dart                    | Dart     |        296 |          3 |         33 |        332 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\models\tournament_criteria.dart           | Dart     |        297 |         26 |         27 |        350 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\bulk_add_teams_screen.dart        | Dart     |        644 |         39 |         44 |        727 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\home_screen.dart                  | Dart     |         62 |          2 |          5 |         69 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\team_management_screen.dart       | Dart     |        498 |          7 |         26 |        531 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\tournament_detail_screen.dart     | Dart     |        591 |         14 |         18 |        623 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\tournament_edit_screen.dart       | Dart     |      3,270 |        144 |        227 |      3,641 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\screens\tournament_management_screen.dart | Dart     |        229 |          2 |         15 |        246 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\services\court_service.dart               | Dart     |        118 |         15 |         20 |        153 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\services\team_service.dart                | Dart     |         62 |         11 |         11 |         84 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\services\tournament_service.dart          | Dart     |        114 |         13 |         14 |        141 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\utils\bracket_id_helper.dart              | Dart     |        137 |         15 |         16 |        168 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\utils\bracket_templates.dart              | Dart     |        292 |         18 |         27 |        337 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\widgets\custom_bracket_builder.dart       | Dart     |      2,373 |        108 |        197 |      2,678 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\widgets\side_navigation.dart              | Dart     |        175 |          4 |         10 |        189 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\widgets\team_avatar.dart                  | Dart     |        103 |          2 |         11 |        116 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\lib\widgets\tournament_overview.dart          | Dart     |        357 |         10 |         23 |        390 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\pubspec.yaml                                  | YAML     |         29 |         59 |         16 |        104 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\test\widget_test.dart                         | Dart     |         14 |         10 |          7 |         31 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\web\index.html                                | HTML     |         19 |         15 |          5 |         39 |
+| c:\Users\marie\Documents\GitHub\GBO-Updated\web\manifest.json                             | JSON     |         35 |          0 |          1 |         36 |
+| Total                                                                                     |          |     12,047 |        544 |        792 |     13,383 |
++-------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
