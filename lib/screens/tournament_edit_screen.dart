@@ -6213,14 +6213,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         children: timeSlots.asMap().entries.map((entry) {
           final index = entry.key;
           final timeSlot = entry.value;
-          return Container(
-            height: 60.0, // Fixed height per time slot
+                return Container(
+        height: 80.0, // Fixed height per time slot
             child: Row(
               children: [
                 // Time label
                 Container(
                   width: 110,
-                  height: 60.0,
+                  height: 80.0,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
@@ -6265,7 +6265,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       },
       builder: (context, candidateData, rejectedData) {
         return Container(
-          height: 60.0,
+          height: 80.0,
           decoration: BoxDecoration(
             color: candidateData.isNotEmpty 
                 ? Colors.blue.shade50 
@@ -6396,62 +6396,160 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   Widget _buildModernGameCardContent(Game game) {
     final division = _getGameDivision(game);
+    final color = _getGameColor(game);
     
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Game title with division indicator
-          Row(
+    // Get team names from team IDs
+    String teamAName = 'Team A';
+    String teamBName = 'Team B';
+    
+    if (game.teamAId != null) {
+      final teamA = _allTeams.firstWhere(
+        (team) => team.id == game.teamAId,
+        orElse: () => Team(
+          id: '',
+          name: '',
+          city: '',
+          bundesland: '',
+          division: 'Men\'s Seniors',
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (teamA.id.isNotEmpty) teamAName = teamA.name;
+    }
+    
+    if (game.teamBId != null) {
+      final teamB = _allTeams.firstWhere(
+        (team) => team.id == game.teamBId,
+        orElse: () => Team(
+          id: '',
+          name: '',
+          city: '',
+          bundesland: '',
+          division: 'Men\'s Seniors',
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (teamB.id.isNotEmpty) teamBName = teamB.name;
+    }
+    
+    // Fallback to game.teamAName/teamBName if available
+    if (teamAName == 'Team A' && game.teamAName.isNotEmpty) {
+      teamAName = game.teamAName;
+    }
+    if (teamBName == 'Team B' && game.teamBName.isNotEmpty) {
+      teamBName = game.teamBName;
+    }
+    
+    // Create abbreviations from team names (first 2 characters)
+    String getAbbreviation(String teamName) {
+      if (teamName.length <= 2) return teamName.toUpperCase();
+      
+      // Try to get first letter + first consonant/vowel
+      String abbrev = teamName[0].toUpperCase();
+      for (int i = 1; i < teamName.length && abbrev.length < 2; i++) {
+        if (teamName[i] != ' ') {
+          abbrev += teamName[i].toUpperCase();
+          break;
+        }
+      }
+      return abbrev.length >= 2 ? abbrev.substring(0, 2) : abbrev;
+    }
+    
+    final teamAAbbrev = getAbbreviation(teamAName);
+    final teamBAbbrev = getAbbreviation(teamBName);
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Header with gradient background
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                color,
+                color.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(8),
+              topRight: Radius.circular(8),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
+              Flexible(
                 child: Text(
                   _getSimpleGameTitle(game),
                   style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
                     color: Colors.white,
-                    letterSpacing: 0.3,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
                   ),
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _getDivisionShort(division),
-                  style: const TextStyle(
-                    fontSize: 6,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+              Text(
+                _getDivisionShort(division),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 2),
-          // Team matchup
-          if (game.teamAName.isNotEmpty && game.teamBName.isNotEmpty)
-            Text(
-              '${_formatTeamNameShort(game.teamAName)} - ${_formatTeamNameShort(game.teamBName)}',
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withOpacity(0.95),
-                letterSpacing: 0.2,
+        ),
+        // Main content with light background
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(8),
+                bottomRight: Radius.circular(8),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-        ],
-      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Large abbreviated team names
+                Text(
+                  '$teamAAbbrev - $teamBAbbrev',
+                  style: TextStyle(
+                    color: color.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    height: 1.0,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 2),
+                // Full team names in single line
+                Text(
+                  '$teamAName    $teamBName',
+                  style: TextStyle(
+                    color: color.withOpacity(0.7),
+                    fontSize: 7,
+                    fontWeight: FontWeight.w500,
+                    height: 1.0,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -6502,13 +6600,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         final index = entry.key;
         final timeSlot = entry.value;
         return Container(
-          height: 60.0, // Fixed 60px height per time slot
+          height: 80.0, // Fixed 80px height per time slot
           child: Row(
             children: [
                               // Time label
                 Container(
                   width: 80,
-                  height: 60.0,
+                  height: 80.0,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
@@ -6543,7 +6641,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                    },
                   builder: (context, candidateData, rejectedData) {
                     return Container(
-                      height: 60.0,
+                      height: 80.0,
                       decoration: BoxDecoration(
                         color: candidateData.isNotEmpty 
                             ? Colors.blue.shade50 
