@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../models/tournament_criteria.dart';
@@ -16,6 +17,23 @@ import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_ti
 import '../widgets/custom_bracket_builder.dart';
 import 'package:toastification/toastification.dart';
 import 'tournament_games_screen.dart';
+import '../services/game_scheduler.dart';
+import '../widgets/advanced_scheduling_dialog.dart';
+
+// Add this class at the top of the file after imports
+class GamePosition {
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+
+  GamePosition({
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+  });
+}
 
 class TournamentEditScreen extends StatefulWidget {
   final Tournament? tournament; // null for creating new tournament
@@ -67,7 +85,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   ];
 
   // Navigation state
-  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, courts, settings
+  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, settings
   
   // Tournament Criteria
   TournamentCriteria _criteria = TournamentCriteria();
@@ -111,6 +129,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   // Court management
   List<Court> _allCourts = [];
   List<String> _selectedCourtIds = [];
+  List<Court> _tournamentCourts = [];
   final MapController _mapController = MapController();
   LatLng _mapCenter = const LatLng(51.1657, 10.4515); // Germany center
   double _mapZoom = 6.0;
@@ -153,6 +172,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     _initializeData();
     _loadTeams();
     _loadCourts();
+    _loadScheduledGames();
     
     _teamSearchController.addListener(() {
       setState(() {
@@ -227,6 +247,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         final customBracket = tournament.customBrackets[division]!;
         _divisionCustomBrackets[division] = List<CustomBracketNode>.from(customBracket.nodes);
       }
+      
+      // Load tournament courts
+      _tournamentCourts = List<Court>.from(tournament.courts);
     } else {
       // Default values for new tournament
       _pointsController.text = '20';
@@ -487,6 +510,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 if (_selectedCategories.contains('GBO Seniors Cup'))
                   _buildNavItem('criteria', 'Kriterien', Icons.assignment_turned_in),
                 _buildNavItem('games', 'Spiele', Icons.sports_volleyball),
+              _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
                 _buildNavItem('courts', 'Plätze', Icons.location_on),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
@@ -635,6 +659,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Divisionen';
       case 'criteria':
         return 'Turnier Kriterien';
+      case 'scheduling':
+        return 'Spielplanung';
       case 'courts':
         return 'Plätze';
       case 'settings':
@@ -661,6 +687,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildCriteriaTab();
       case 'games':
         return _buildGamesTab();
+      case 'scheduling':
+        return _buildSchedulingTab();
       case 'courts':
         return _buildCourtsTab();
       case 'settings':
@@ -2172,112 +2200,374 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildCourtsTab() {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with controls
+        // Left Panel - Court Management
         Container(
-          padding: const EdgeInsets.all(24),
+          width: 350,
+          height: MediaQuery.of(context).size.height - 140,
+          decoration: BoxDecoration(
           color: Colors.white,
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
           child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+                // Tournament Courts Management
               Row(
                 children: [
-                  Icon(Icons.location_on, color: Colors.green),
+                    const Icon(Icons.location_on, color: Colors.blue),
                   const SizedBox(width: 12),
-                  Text(
-                    'Plätze verwalten',
+                    const Text(
+                      'Plätze',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                   ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Erstellen Sie Plätze für dieses Turnier und positionieren Sie sie auf der Karte.',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Tournament Courts List
+                Row(
+                  children: [
+                    const Text(
+                      'Turnier-Plätze',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   const Spacer(),
-                  if (_isEditingCourt) ...[
                     ElevatedButton.icon(
-                      onPressed: _updateCourtPosition,
-                      icon: const Icon(Icons.save),
-                      label: const Text('Änderungen speichern'),
+                      onPressed: _addTournamentCourt,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Hinzufügen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: _cancelCourtEditing,
-                      icon: const Icon(Icons.close),
-                      label: const Text('Abbrechen'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ] else ...[
-                    ElevatedButton.icon(
-                      onPressed: _saveCourtPosition,
-                      icon: const Icon(Icons.add_location),
-                      label: const Text('Neuen Platz hinzufügen'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+                        minimumSize: const Size(120, 36),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                
+                if (_tournamentCourts.isEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue.shade700),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Noch keine Plätze erstellt.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  // Tournament Courts List
+                  ...(_tournamentCourts.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final court = entry.value;
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        border: Border.all(color: Colors.green.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(
+                              Icons.sports_volleyball,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  court.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  court.type.toUpperCase(),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.delete,
+                              color: Colors.red.shade400,
+                              size: 18,
+                            ),
+                            onPressed: () => _removeTournamentCourt(index),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList()),
                 ],
+                
+                const SizedBox(height: 32),
+                
+                // Global Courts Section
+                const Divider(),
+                const SizedBox(height: 16),
+                
+                Row(
+                  children: [
+                    const Icon(Icons.map, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Globale Plätze',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Verwalten Sie alle Plätze auf der Karte.',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Map controls
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _isPlacingCourt = true;
+                                  _isEditingCourt = false;
+                                });
+                              },
+                              icon: const Icon(Icons.add_location, size: 18),
+                              label: const Text('Platz platzieren'),
+                      style: ElevatedButton.styleFrom(
+                                backgroundColor: _isPlacingCourt ? Colors.green : Colors.blue,
+                        foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 36),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_isPlacingCourt) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.orange.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info, color: Colors.orange.shade700, size: 16),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Klicken Sie auf die Karte um einen Platz zu platzieren',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                      onPressed: _saveCourtPosition,
+                                child: const Text('Position speichern'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                                  minimumSize: const Size(0, 32),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isPlacingCourt = false;
+                                  });
+                                },
+                                child: const Text('Abbrechen'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 32),
+                                ),
+                      ),
+                    ),
+                  ],
+                        ),
+                      ],
+                      if (_isEditingCourt && _selectedCourtForEditing != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.blue.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Colors.blue.shade700, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Bearbeite: ${_selectedCourtForEditing!.name}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
               ),
               const SizedBox(height: 8),
-              Text(
-                _isEditingCourt 
-                    ? 'Bewegen Sie die Karte, um Platz "${_selectedCourtForEditing?.name}" zu repositionieren.'
-                    : 'Bewegen Sie die Karte, um den neuen Platz zu positionieren. Klicken Sie auf bestehende Plätze zum Bearbeiten.',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _updateCourtPosition,
+                                child: const Text('Position aktualisieren'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(0, 32),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _cancelCourtEditing,
+                                child: const Text('Abbrechen'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(0, 32),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         
-        // Map with court overlay - takes remaining space
+        // Right Panel - Map
         Expanded(
-          child: Stack(
-            children: [
-              // Map
-              FlutterMap(
+          child: Container(
+            height: MediaQuery.of(context).size.height - 140,
+            child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
                   initialCenter: _mapCenter,
                   initialZoom: _mapZoom,
-                  minZoom: 10.0,
-                  maxZoom: 20.0,
+                minZoom: 3.0,
+                maxZoom: 18.0,
+                onTap: (tapPosition, point) {
+                  if (_isPlacingCourt) {
+                    // Move map center to tapped location
+                    _mapController.move(point, _mapController.camera.zoom);
+                  }
+                },
                 ),
                 children: [
                   TileLayer(
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.gbo.updated',
+                  userAgentPackageName: 'com.example.gbo_updated',
                     tileProvider: CancellableNetworkTileProvider(),
                   ),
-                  // Existing court markers
                   MarkerLayer(
                     markers: _buildCourtMarkers(),
+                ),
+                if (_isPlacingCourt || _isEditingCourt)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: _mapController.camera.center,
+                        width: 50,
+                        height: 50,
+                        alignment: Alignment.center,
+                        child: _buildCourtIconOverlay(),
                   ),
                 ],
               ),
-              
-              // Court icon overlay in center
-              _buildCourtIconOverlay(),
-              
-              // Center crosshair
-              Center(
-                child: Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.red.withValues(alpha: 0.8),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -2935,6 +3225,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         divisionBrackets: divisionBrackets,
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
+        courts: _tournamentCourts,
       );
       
       print('Tournament object created');
@@ -4756,8 +5047,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           ),
           if (stats['total']! > 0) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
+            Row(
+              children: [
+                Expanded(
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
@@ -4775,6 +5067,20 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   foregroundColor: Colors.white,
                 ),
               ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _deleteAllGames(),
+                    icon: const Icon(Icons.delete_sweep),
+                    label: const Text('Alle Spiele löschen'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -5045,26 +5351,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
           ),
           
-          // Generate button
-          Tooltip(
-            message: _getPoolTooltip(poolId, teamIds, poolGames),
-            child: ElevatedButton.icon(
-              onPressed: teamIds.length > 1 ? () => _generatePoolGamesForPool(division, pool) : null,
-              icon: Icon(
-                poolGames.isNotEmpty ? Icons.refresh : Icons.add_circle,
-                size: 16,
-              ),
-              label: Text(
-                poolGames.isNotEmpty ? 'Neu generieren' : 'Spiele erstellen',
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: poolGames.isNotEmpty ? Colors.orange : Colors.blue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-            ),
-          ),
+
         ],
       ),
     );
@@ -5093,15 +5380,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _generateEliminationBracket(),
-                  icon: const Icon(Icons.account_tree),
-                  label: const Text('K.O.-Spiele generieren'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
+
               ],
             ),
           ],
@@ -5139,16 +5418,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   color: Colors.purple.shade700,
                 ),
               ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () => _generateEliminationBracket(),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Neu generieren'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-              ),
+
             ],
           ),
           const SizedBox(height: 16),
@@ -5230,15 +5500,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
-  String _formatTeamNameShort(String teamName) {
-    if (teamName.contains('. aus Pool ')) {
-      return teamName.replaceAll('. aus Pool ', ' Pool ');
-    }
-    if (teamName.startsWith('Sieger:')) {
-      return 'Sieger';
-    }
-    return teamName.length > 15 ? '${teamName.substring(0, 15)}...' : teamName;
-  }
+
 
   String _getPoolTooltip(String poolId, List<String> teamIds, List<Game> poolGames) {
     List<String> teamNames = teamIds.map((id) {
@@ -5289,53 +5551,1850 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }
   }
 
-  void _generatePoolGamesForPool(String division, String pool) async {
-    try {
-      String poolId = '${division}_${pool}';
-      List<String> teamIds = _poolTeams[poolId] ?? [];
-      
-      if (teamIds.length < 2) {
+  
+
+  void _deleteAllGames() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alle Spiele löschen'),
+        content: const Text('Sind Sie sicher, dass Sie alle Spiele löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ja, löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      // Implement the logic to delete all games
+      print('Alle Spiele werden gelöscht');
+      // Add your code here to delete all games
+      // For example, you can call a deleteAllGames method in your game service
+             await _gameService.deleteAllGamesForTournament(widget.tournament!.id);
+       setState(() {}); // Refresh the UI
+      // Refresh the UI or show a success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Mindestens 2 Teams erforderlich für Pool-Spiele'),
-            backgroundColor: Colors.orange,
+          content: Text('Alle Spiele wurden erfolgreich gelöscht'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  // Add scheduling state variables
+  TimeOfDay _scheduleStartTime = const TimeOfDay(hour: 18, minute: 0);
+  TimeOfDay _scheduleEndTime = const TimeOfDay(hour: 21, minute: 0);
+  int _timeSlotDuration = 30; // minutes
+  int _selectedDayIndex = 0;
+  
+  // Game scheduling storage
+  Map<String, Game> _scheduledGames = {}; // key: "courtId_timeSlot_dayIndex"
+  
+  // Ctrl key detection
+  bool _isCtrlPressed = false;
+
+  Widget _buildSchedulingTab() {
+    return widget.tournament == null
+        ? _buildSaveFirstMessage()
+        : KeyboardListener(
+            focusNode: FocusNode(),
+            autofocus: true,
+            onKeyEvent: (KeyEvent event) {
+              if (event.logicalKey == LogicalKeyboardKey.controlLeft ||
+                  event.logicalKey == LogicalKeyboardKey.controlRight) {
+                setState(() {
+                  _isCtrlPressed = event is KeyDownEvent;
+                });
+              }
+            },
+            child: Row(
+              children: [
+                // Unassigned Games Sidebar
+                Container(
+                  width: 300,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Sidebar Header
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade700,
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(8),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.games, color: Colors.white),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Nicht zugewiesene Spiele',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_getUnassignedGames().length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Instructions
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Drag & Drop Anleitung',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '• Ziehen Sie Spiele in Zeitfenster\n• Jedes Spiel dauert 30 Minuten\n• Zeitskala: ${_timeSlotDuration}min Markierungen\n• Strg gedrückt halten = minutengenaue Positionierung\n${_isCtrlPressed ? "• STRG-Modus: Minutengenaue Positionierung aktiv" : "• Einrast-Modus aktiv"}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Games List
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.all(8),
+                          children: _getUnassignedGames().map((game) => _buildUnassignedGameCard(game)).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Main Scheduling Area
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Time Configuration Header
+                      _buildTimeConfigHeader(),
+                      
+                      // Day Tabs
+                      _buildDayTabs(),
+                      
+                      // Schedule Grid with Overlay
+                      Expanded(
+                        child: _buildScheduleGridWithOverlay(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
+
+  Widget _buildSaveFirstMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.save,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Turnier zuerst speichern',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Speichern Sie das Turnier, um die Spielplanung zu verwenden.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Game> _getUnassignedGames() {
+    if (widget.tournament == null) return [];
+    final allGames = _gameService.getGamesForTournament(widget.tournament!.id);
+    return allGames.where((game) => game.scheduledTime == null && game.courtId == null).toList();
+  }
+
+  void _loadScheduledGames() {
+    if (widget.tournament == null) return;
+    
+    final allGames = _gameService.getGamesForTournament(widget.tournament!.id);
+    final scheduledGames = allGames.where((game) => game.scheduledTime != null && game.courtId != null).toList();
+    
+    _scheduledGames.clear();
+    
+    for (final game in scheduledGames) {
+      if (game.scheduledTime != null && game.courtId != null) {
+        // Find which day this game belongs to
+        final tournamentDays = _getTournamentDays();
+        final gameDate = DateTime(
+          game.scheduledTime!.year,
+          game.scheduledTime!.month,
+          game.scheduledTime!.day,
+        );
+        
+        int dayIndex = -1;
+        for (int i = 0; i < tournamentDays.length; i++) {
+          final tournamentDate = DateTime(
+            tournamentDays[i].year,
+            tournamentDays[i].month,
+            tournamentDays[i].day,
+          );
+          if (gameDate.isAtSameMomentAs(tournamentDate)) {
+            dayIndex = i;
+            break;
+          }
+        }
+        
+        if (dayIndex >= 0) {
+          // Create time slot in the new format (start-end)
+          final startTime = '${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}';
+          final endTime = game.scheduledTime!.add(Duration(minutes: _timeSlotDuration));
+          final endTimeStr = '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
+          final timeSlot = '$startTime-$endTimeStr';
+          final key = "${game.courtId}_${timeSlot}_$dayIndex";
+          _scheduledGames[key] = game;
+        }
+      }
+    }
+  }
+
+  Widget _buildUnassignedGameCard(Game game) {
+    return Draggable<Game>(
+      data: game,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 280,
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: _getGameColor(game),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(2, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGameTitle(game),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_formatTeamNameShort(game.teamAName)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  '${_formatTeamNameShort(game.teamBName)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: _getGameColor(game).withOpacity(0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _getGameTitle(game),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.black87.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_formatTeamNameShort(game.teamAName)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87.withOpacity(0.5),
+                ),
+              ),
+              Text(
+                '${_formatTeamNameShort(game.teamBName)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: _getGameColor(game),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _getGameTitle(game),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.drag_indicator,
+                    color: Colors.grey.shade600,
+                    size: 16,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_formatTeamNameShort(game.teamAName)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                '${_formatTeamNameShort(game.teamBName)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getGameTitle(Game game) {
+    if (game.gameType == GameType.pool) {
+      final poolId = game.poolId?.toUpperCase() ?? '';
+      
+      // Get all pool games for this pool and sort them to get consistent numbering
+      final allPoolGames = _gameService.getPoolGames(widget.tournament!.id, game.poolId ?? '');
+      allPoolGames.sort((a, b) => a.id.compareTo(b.id)); // Sort by ID for consistency
+      
+      // Find the index of this game in the sorted list
+      final gameIndex = allPoolGames.indexWhere((g) => g.id == game.id);
+      final gameNumber = gameIndex >= 0 ? gameIndex + 1 : 1;
+      
+      return 'Pool $poolId - Spiel $gameNumber';
+    } else {
+      // Extract node title from game ID for elimination games
+      final parts = game.id.split('_match_');
+      if (parts.length > 1) {
+        final titleParts = parts[1].split('_');
+        if (titleParts.length >= 3) {
+          return titleParts.sublist(0, titleParts.length - 2).join(' ');
+        }
+      }
+      return 'K.O. Spiel';
+    }
+  }
+
+  String _getSimpleGameTitle(Game game) {
+    if (game.gameType == GameType.pool) {
+      final poolId = game.poolId?.toUpperCase() ?? '';
+      final allPoolGames = _gameService.getPoolGames(widget.tournament!.id, game.poolId ?? '');
+      allPoolGames.sort((a, b) => a.id.compareTo(b.id));
+      final gameIndex = allPoolGames.indexWhere((g) => g.id == game.id);
+      final gameNumber = gameIndex >= 0 ? gameIndex + 1 : 1;
+      return '$poolId-$gameNumber';
+    } else {
+      return 'K.O.';
+    }
+  }
+
+  String _formatTeamNameShort(String teamName) {
+    if (teamName.isEmpty) return 'TBD';
+    
+    // Much shorter for the cleaner design
+    if (teamName.length > 8) {
+      return '${teamName.substring(0, 6)}..';
+    }
+    
+    return teamName;
+  }
+
+  bool _checkTeamConflicts(Game game) {
+    if (game.scheduledTime == null || game.courtId == null) return false;
+    
+    final gameStart = game.scheduledTime!;
+    final gameEnd = gameStart.add(Duration(minutes: _timeSlotDuration));
+    
+    // Check all other scheduled games
+    for (final entry in _scheduledGames.entries) {
+      final otherGame = entry.value;
+      if (otherGame.id == game.id || otherGame.scheduledTime == null) continue;
+      
+      final otherStart = otherGame.scheduledTime!;
+      final otherEnd = otherStart.add(Duration(minutes: _timeSlotDuration));
+      
+      // Check if same team is involved
+      final hasCommonTeam = (game.teamAId != null && (game.teamAId == otherGame.teamAId || game.teamAId == otherGame.teamBId)) ||
+                           (game.teamBId != null && (game.teamBId == otherGame.teamAId || game.teamBId == otherGame.teamBId));
+      
+      if (hasCommonTeam) {
+        // Check for time overlap (same time)
+        if ((gameStart.isBefore(otherEnd) && gameEnd.isAfter(otherStart))) {
+          return true;
+        }
+        
+        // Check for back-to-back (less than 15 minutes between games)
+        final timeBetween = gameStart.difference(otherEnd).inMinutes.abs();
+        if (timeBetween < 15 && timeBetween >= 0) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  List<String> _getTeamConflictDetails(Game game) {
+    final conflicts = <String>[];
+    if (game.scheduledTime == null || game.courtId == null) return conflicts;
+    
+    final gameStart = game.scheduledTime!;
+    final gameEnd = gameStart.add(Duration(minutes: _timeSlotDuration));
+    
+    // Check all other scheduled games for detailed conflict info
+    for (final entry in _scheduledGames.entries) {
+      final otherGame = entry.value;
+      if (otherGame.id == game.id || otherGame.scheduledTime == null) continue;
+      
+      final otherStart = otherGame.scheduledTime!;
+      final otherEnd = otherStart.add(Duration(minutes: _timeSlotDuration));
+      
+      // Find which teams are in conflict
+      final conflictingTeams = <String>[];
+      if (game.teamAId != null && (game.teamAId == otherGame.teamAId || game.teamAId == otherGame.teamBId)) {
+        conflictingTeams.add(game.teamAName);
+      }
+      if (game.teamBId != null && (game.teamBId == otherGame.teamAId || game.teamBId == otherGame.teamBId)) {
+        conflictingTeams.add(game.teamBName);
+      }
+      
+      if (conflictingTeams.isNotEmpty) {
+        // Check for time overlap (same time)
+        if ((gameStart.isBefore(otherEnd) && gameEnd.isAfter(otherStart))) {
+          conflicts.add('${conflictingTeams.join(', ')} spielt gleichzeitig');
+        } else {
+          // Check for back-to-back (less than 15 minutes between games)
+          final timeBetween = gameStart.difference(otherEnd).inMinutes.abs();
+          if (timeBetween < 15 && timeBetween >= 0) {
+            conflicts.add('${conflictingTeams.join(', ')} spielt direkt hintereinander');
+          }
+        }
+      }
+    }
+    
+    return conflicts;
+  }
+
+  Color _getGameColor(Game game) {
+    // Get division from teams to determine color
+    final division = _getGameDivision(game);
+    return _getDivisionColor(division);
+  }
+
+  String _getGameDivision(Game game) {
+    // Try to get division from team A first
+    if (game.teamAId != null) {
+      final teamA = _allTeams.firstWhere(
+        (team) => team.id == game.teamAId,
+        orElse: () => Team(
+          id: '',
+          name: '',
+          city: '',
+          bundesland: '',
+          division: 'Men\'s Seniors',
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (teamA.id.isNotEmpty) return teamA.division;
+    }
+    
+    // Fallback to team B
+    if (game.teamBId != null) {
+      final teamB = _allTeams.firstWhere(
+        (team) => team.id == game.teamBId,
+        orElse: () => Team(
+          id: '',
+          name: '',
+          city: '',
+          bundesland: '',
+          division: 'Men\'s Seniors',
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (teamB.id.isNotEmpty) return teamB.division;
+    }
+    
+    // Default fallback
+    return 'Men\'s Seniors';
+  }
+
+  Widget _buildScheduleGridWithOverlay() {
+    final timeSlots = _generateTimeSlots();
+    final courts = widget.tournament!.courts;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Header with court names
+          Container(
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            ),
+            child: Row(
+              children: [
+                // Time column header
+                Container(
+                  width: 110,
+                  padding: const EdgeInsets.all(8),
+                  child: const Text(
+                    'Zeit',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                // Court headers
+                ...courts.map((court) => Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border(left: BorderSide(color: Colors.grey.shade300)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          court.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          court.type.toString().split('.').last.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )),
+              ],
+            ),
+          ),
+          // Scrollable schedule area - Simple Grid
+          Expanded(
+            child: _buildSimpleScheduleGrid(timeSlots, courts),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleScheduleGrid(List<String> timeSlots, List<Court> courts) {
+    return SingleChildScrollView(
+      child: Column(
+        children: timeSlots.asMap().entries.map((entry) {
+          final index = entry.key;
+          final timeSlot = entry.value;
+          return Container(
+            height: 60.0, // Fixed height per time slot
+            child: Row(
+              children: [
+                // Time label
+                Container(
+                  width: 110,
+                  height: 60.0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                      right: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Text(
+                      timeSlot,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                // Court columns with fixed game slots
+                ...courts.map((court) => Expanded(
+                  child: _buildGameSlot(court, timeSlot, index),
+                )),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildGameSlot(Court court, String timeSlot, int timeSlotIndex) {
+    // Find if there's a game scheduled for this court and time slot
+    final slotKey = "${court.id}_${timeSlot}_$_selectedDayIndex";
+    final scheduledGame = _scheduledGames[slotKey];
+
+    return DragTarget<Game>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) {
+        final game = details.data;
+        _handleFixedGameDrop(game, court, timeSlot, timeSlotIndex);
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Container(
+          height: 60.0,
+          decoration: BoxDecoration(
+            color: candidateData.isNotEmpty 
+                ? Colors.blue.shade50 
+                : (scheduledGame != null ? _getGameColor(scheduledGame) : Colors.white),
+            border: Border(
+              left: BorderSide(color: Colors.grey.shade200),
+              bottom: BorderSide(color: Colors.grey.shade200),
+            ),
+          ),
+          child: scheduledGame != null 
+            ? _buildScheduledGameCard(scheduledGame)
+            : (candidateData.isNotEmpty
+                ? Center(
+                    child: Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  )
+                : null),
+        );
+      },
+    );
+  }
+
+  Widget _buildScheduledGameCard(Game game) {
+    final hasConflict = _checkTeamConflicts(game);
+    final division = _getGameDivision(game);
+    final divisionColor = _getDivisionColor(division);
+    
+    return Draggable<Game>(
+      data: game,
+      feedback: Material(
+        color: Colors.transparent,
+      child: Container(
+          width: 180,
+          height: 50,
+          margin: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                divisionColor,
+                divisionColor.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(6),
+            border: hasConflict ? Border.all(color: Colors.red, width: 2) : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(2, 2),
+              ),
+            ],
+          ),
+          child: _buildGameCardContent(game),
+        ),
+      ),
+      childWhenDragging: Container(
+        margin: const EdgeInsets.all(1),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: _buildGameCardContent(game, isPlaceholder: true),
+      ),
+      child: Container(
+        margin: const EdgeInsets.all(1),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              divisionColor,
+              divisionColor.withOpacity(0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(6),
+          border: hasConflict ? Border.all(color: Colors.red, width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            _buildModernGameCardContent(game),
+            // Conflict indicator
+            if (hasConflict)
+              Positioned(
+                top: 2,
+                right: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(1),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.warning,
+                    size: 8,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            // Drag indicator
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Icon(
+                Icons.drag_indicator,
+                size: 8,
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernGameCardContent(Game game) {
+    final division = _getGameDivision(game);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Game title with division indicator
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _getSimpleGameTitle(game),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _getDivisionShort(division),
+                  style: const TextStyle(
+                    fontSize: 6,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          // Team matchup
+          if (game.teamAName.isNotEmpty && game.teamBName.isNotEmpty)
+            Text(
+              '${_formatTeamNameShort(game.teamAName)} - ${_formatTeamNameShort(game.teamBName)}',
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withOpacity(0.95),
+                letterSpacing: 0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGameCardContent(Game game, {bool isPlaceholder = false}) {
+    final opacity = isPlaceholder ? 0.5 : 1.0;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Simple game title
+          Text(
+            _getSimpleGameTitle(game),
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87.withOpacity(opacity),
+              height: 1.0,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          
+          const SizedBox(height: 1),
+          
+          // Team matchup in single line
+          if (game.teamAName.isNotEmpty && game.teamBName.isNotEmpty)
+            Text(
+              '${_formatTeamNameShort(game.teamAName)} vs ${_formatTeamNameShort(game.teamBName)}',
+              style: TextStyle(
+                fontSize: 8,
+                color: Colors.black54.withOpacity(opacity),
+                height: 1.0,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleGrid(List<String> timeSlots, List<Court> courts) {
+    return Column(
+      children: timeSlots.asMap().entries.map((entry) {
+        final index = entry.key;
+        final timeSlot = entry.value;
+        return Container(
+          height: 60.0, // Fixed 60px height per time slot
+          child: Row(
+            children: [
+                              // Time label
+                Container(
+                  width: 80,
+                  height: 60.0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                    right: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    timeSlot,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              // Court columns
+              ...courts.map((court) => Expanded(
+                                 child: DragTarget<Game>(
+                   onWillAcceptWithDetails: (details) => true,
+                   onAcceptWithDetails: (details) {
+                     final game = details.data;
+                     final courtIndex = courts.indexOf(court);
+                     final dropPosition = details.offset;
+                     _handleGameDrop(game, courtIndex, index, dropPosition, timeSlot);
+                   },
+                   onMove: (details) {
+                     // Optional: Could add visual feedback here for snap preview
+                   },
+                  builder: (context, candidateData, rejectedData) {
+                    return Container(
+                      height: 60.0,
+                      decoration: BoxDecoration(
+                        color: candidateData.isNotEmpty 
+                            ? Colors.blue.shade50 
+                            : Colors.white,
+                        border: Border(
+                          left: BorderSide(color: Colors.grey.shade200),
+                          bottom: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: candidateData.isNotEmpty
+                          ? Center(
+                              child: Icon(
+                                Icons.add_circle_outline,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                            )
+                          : null,
+                    );
+                  },
+                ),
+              )),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  List<Widget> _buildPositionedGames(List<Court> courts) {
+    final List<Widget> positionedGames = [];
+    
+    for (var entry in _scheduledGames.entries) {
+      final game = entry.value;
+      if (game.scheduledTime != null && game.courtId != null) {
+        final court = courts.firstWhere((c) => c.id == game.courtId);
+        final courtIndex = courts.indexOf(court);
+        
+        // Calculate position
+        final gamePosition = _calculateGamePosition(game, courtIndex, courts.length);
+        if (gamePosition != null) {
+          positionedGames.add(
+            Positioned(
+              left: gamePosition.left,
+              top: gamePosition.top,
+              width: gamePosition.width,
+              height: gamePosition.height,
+              child: _buildGameWidget(game),
+            ),
+          );
+        }
+      }
+    }
+    
+    return positionedGames;
+  }
+
+  GamePosition? _calculateGamePosition(Game game, int courtIndex, int totalCourts) {
+    if (game.scheduledTime == null) return null;
+    
+    final gameTime = game.scheduledTime!;
+    final scheduleStart = DateTime(gameTime.year, gameTime.month, gameTime.day, 
+                                  _scheduleStartTime.hour, _scheduleStartTime.minute);
+    
+    // Calculate total minutes from schedule start
+    final totalMinutesFromStart = gameTime.difference(scheduleStart).inMinutes;
+    
+    // Calculate which time slot this belongs to and position within that slot
+    final slotIndex = totalMinutesFromStart ~/ _timeSlotDuration;
+    final minutesIntoSlot = totalMinutesFromStart % _timeSlotDuration;
+    
+    // Each time slot is 60px high, position proportionally within the slot
+    final pixelsPerMinute = 60.0 / _timeSlotDuration;
+    final top = (slotIndex * 60.0) + (minutesIntoSlot * pixelsPerMinute);
+    
+    // Calculate horizontal position
+    final screenWidth = MediaQuery.of(context).size.width;
+    final courtWidth = (screenWidth - 80) / totalCourts;
+    final left = 80 + (courtIndex * courtWidth);
+    
+    // Game height: exactly 30 minutes worth of pixels
+    final gameHeight = (30.0 / _timeSlotDuration) * 60.0;
+    
+    return GamePosition(
+      left: left + 2, // Small margin
+      top: top,
+      width: (courtWidth - 4) * 0.71, // Reduce width to 71% for better visual proportion
+      height: gameHeight,
+    );
+  }
+
+  Widget _buildGameWidget(Game game) {
+    return Draggable<Game>(
+      data: game,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 200,
+          height: 30,
+          decoration: BoxDecoration(
+            color: _getGameColor(game),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(2, 2),
+              ),
+            ],
+          ),
+          child: _buildGameContent(game),
+        ),
+      ),
+      childWhenDragging: Container(
+        decoration: BoxDecoration(
+          color: _getGameColor(game).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: _buildGameContent(game, isDragging: true),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _getGameColor(game),
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: _buildGameContent(game),
+      ),
+    );
+  }
+
+  Widget _buildGameContent(Game game, {bool isDragging = false}) {
+    final division = _getGameDivision(game);
+    final divisionColor = _getDivisionColor(division);
+    final backgroundColor = isDragging ? divisionColor.withOpacity(0.3) : divisionColor;
+    final textColor = isDragging ? Colors.grey.shade600 : Colors.white;
+    
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            backgroundColor,
+            backgroundColor.withOpacity(0.8),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            // Game title with division indicator
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                  _getGameTitle(game),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9,
+                    color: textColor,
+                      letterSpacing: 0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: textColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _getDivisionShort(division),
+                    style: TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            // Team matchup
+                Text(
+              '${_formatTeamNameShort(game.teamAName)} - ${_formatTeamNameShort(game.teamBName)}',
+                  style: TextStyle(
+                    fontSize: 8,
+                fontWeight: FontWeight.w500,
+                color: textColor.withOpacity(0.95),
+                letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  String _getDivisionShort(String division) {
+    if (division.contains('Women')) {
+      if (division.contains('FUN')) return 'W Fun';
+      if (division.contains('U14')) return 'W U14';
+      if (division.contains('U16')) return 'W U16';
+      if (division.contains('U18')) return 'W U18';
+      return 'W Senior';
+    } else {
+      if (division.contains('FUN')) return 'M Fun';
+      if (division.contains('U14')) return 'M U14';
+      if (division.contains('U16')) return 'M U16';
+      if (division.contains('U18')) return 'M U18';
+      return 'M Senior';
+    }
+  }
+
+  void _handleFixedGameDrop(Game game, Court court, String timeSlot, int timeSlotIndex) {
+    // Parse the time slot to create exact scheduled time (format: "18:00-18:30")
+    final timeRange = timeSlot.split('-');
+    final startTimeParts = timeRange[0].split(':');
+    final hour = int.parse(startTimeParts[0]);
+    final minute = int.parse(startTimeParts[1]);
+    
+    // Create scheduled date time
+    final tournamentDays = _getTournamentDays();
+    if (_selectedDayIndex < tournamentDays.length) {
+      final selectedDay = tournamentDays[_selectedDayIndex];
+      final scheduledDateTime = DateTime(
+        selectedDay.year,
+        selectedDay.month,
+        selectedDay.day,
+        hour,
+        minute,
+      );
+      
+      // Check for conflicts - simple check if slot is already occupied by a different game
+      final slotKey = "${court.id}_${timeSlot}_$_selectedDayIndex";
+      final existingGame = _scheduledGames[slotKey];
+      if (existingGame != null && existingGame.id != game.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dieser Zeitslot ist bereits belegt von "${_getGameTitle(existingGame)}"'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
         return;
       }
       
-      // Get actual team objects
-      List<Team> teams = teamIds
-          .map((id) => _allTeams.firstWhere((team) => team.id == id, orElse: () => Team(
-            id: id,
-            name: 'Unknown Team',
-            city: '',
-            bundesland: '',
-            division: division,
-            createdAt: DateTime.now(),
-          )))
-          .toList();
+      // Remove game from any previous slot (including the current one if it's the same game)
+      _scheduledGames.removeWhere((key, scheduledGame) => scheduledGame.id == game.id);
       
-      await _gameService.generatePoolGames(widget.tournament!.id, pool, teams);
-      int gamesGenerated = (teams.length * (teams.length - 1)) ~/ 2;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$gamesGenerated Spiele für Pool ${pool.toUpperCase()} generiert!'),
-          backgroundColor: Colors.green,
-        ),
+      // Update game with new time and court
+      final updatedGame = Game(
+        id: game.id,
+        tournamentId: game.tournamentId,
+        teamAId: game.teamAId,
+        teamBId: game.teamBId,
+        teamAName: game.teamAName,
+        teamBName: game.teamBName,
+        gameType: game.gameType,
+        poolId: game.poolId,
+        scheduledTime: scheduledDateTime,
+        courtId: court.id,
+        status: game.status,
+        result: game.result,
+        createdAt: game.createdAt,
+        updatedAt: DateTime.now(),
       );
       
-      setState(() {
-        // Trigger rebuild to update UI
+      // Store in local scheduling map
+      _scheduledGames[slotKey] = updatedGame;
+      
+      // Update in database and refresh UI
+      _gameService.updateGame(updatedGame).then((_) {
+        setState(() {
+          _loadScheduledGames();
+        });
+        
+        final timeRange = timeSlot.split('-');
+        // Check for conflicts after scheduling
+        final conflicts = _getTeamConflictDetails(updatedGame);
+        
+        toastification.show(
+          context: context,
+          title: Text(conflicts.isNotEmpty ? 'Spiel verschoben - Konflikt!' : 'Spiel verschoben'),
+          description: Text(conflicts.isNotEmpty 
+            ? '${_getGameTitle(game)} verschoben\n⚠️ ${conflicts.join(', ')}'
+            : '${_getGameTitle(game)} zu ${timeRange[0]} auf Feld ${court.name} verschoben'),
+          type: conflicts.isNotEmpty ? ToastificationType.warning : ToastificationType.success,
+          style: ToastificationStyle.flat,
+          autoCloseDuration: Duration(seconds: conflicts.isNotEmpty ? 6 : 3),
+        );
       });
-    } catch (e) {
+    }
+  }
+
+  void _handleGameDrop(Game game, int courtIndex, int timeSlotIndex, Offset dropPosition, String timeSlot) {
+    final courts = widget.tournament!.courts;
+    final court = courts[courtIndex];
+    
+    // Calculate which time slot to snap to based on drop position
+    final totalDropY = dropPosition.dy;
+    final pixelsPerMinute = 60.0 / _timeSlotDuration;
+    final minutesFromScheduleStart = (totalDropY / pixelsPerMinute).round();
+    
+    // Snap to nearest time slot boundary
+    final snappedMinutes = (minutesFromScheduleStart ~/ _timeSlotDuration) * _timeSlotDuration;
+    
+    // Calculate final time from schedule start
+    final scheduleStartMinutes = _scheduleStartTime.hour * 60 + _scheduleStartTime.minute;
+    final finalTotalMinutes = scheduleStartMinutes + snappedMinutes;
+    final finalHour = finalTotalMinutes ~/ 60;
+    final finalMinutes = finalTotalMinutes % 60;
+    
+    // Create scheduled date time
+    final tournamentDays = _getTournamentDays();
+    if (_selectedDayIndex < tournamentDays.length) {
+      final selectedDay = tournamentDays[_selectedDayIndex];
+      final scheduledDateTime = DateTime(
+        selectedDay.year,
+        selectedDay.month,
+        selectedDay.day,
+        finalHour,
+        finalMinutes,
+      );
+      
+      // Check for conflicts
+      if (_hasTimeConflict(scheduledDateTime, court.id, game.id)) {
+        _showConflictDialog();
+        return;
+      }
+      
+      // Remove game from any previous slot
+      _scheduledGames.removeWhere((key, scheduledGame) => scheduledGame.id == game.id);
+      
+      // Update game with new time and court
+      final updatedGame = Game(
+        id: game.id,
+        tournamentId: game.tournamentId,
+        teamAId: game.teamAId,
+        teamBId: game.teamBId,
+        teamAName: game.teamAName,
+        teamBName: game.teamBName,
+        gameType: game.gameType,
+        poolId: game.poolId,
+        scheduledTime: scheduledDateTime,
+        courtId: court.id,
+        status: game.status,
+        result: game.result,
+        createdAt: game.createdAt,
+        updatedAt: DateTime.now(),
+      );
+      
+      // Store in local scheduling map
+      final key = "${court.id}_${scheduledDateTime.millisecondsSinceEpoch}_$_selectedDayIndex";
+      _scheduledGames[key] = updatedGame;
+      
+      // Update in database and refresh UI
+      _gameService.updateGame(updatedGame).then((_) {
+        setState(() {
+          _loadScheduledGames();
+        });
+        
+        toastification.show(
+          context: context,
+          title: Text('Spiel zugewiesen'),
+          description: Text('Spiel "${_getGameTitle(game)}" zu ${finalHour.toString().padLeft(2, '0')}:${finalMinutes.toString().padLeft(2, '0')} auf ${court.name} zugewiesen (${_timeSlotDuration}min Raster)'),
+          type: ToastificationType.success,
+          style: ToastificationStyle.flat,
+          autoCloseDuration: const Duration(seconds: 5),
+        );
+      });
+    }
+  }
+
+  bool _hasTimeConflict(DateTime scheduledTime, String courtId, String gameId) {
+    final gameEndTime = scheduledTime.add(const Duration(minutes: 30));
+    
+    for (var entry in _scheduledGames.entries) {
+      final existingGame = entry.value;
+      if (existingGame.id == gameId || existingGame.courtId != courtId) continue;
+      
+      if (existingGame.scheduledTime != null) {
+        final existingStart = existingGame.scheduledTime!;
+        final existingEnd = existingStart.add(const Duration(minutes: 30));
+        
+        // Check for overlap
+        if (scheduledTime.isBefore(existingEnd) && gameEndTime.isAfter(existingStart)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _showConflictDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Zeitkonflikt'),
+        content: const Text('Ein anderes Spiel ist bereits zu dieser Zeit auf diesem Platz geplant.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeConfigHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          // Start Time
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Startzeit',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () => _selectStartTime(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_scheduleStartTime.hour.toString().padLeft(2, '0')}:${_scheduleStartTime.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 20),
+          
+          // End Time
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Endzeit',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () => _selectEndTime(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_scheduleEndTime.hour.toString().padLeft(2, '0')}:${_scheduleEndTime.minute.toString().padLeft(2, '0')}',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 20),
+          
+          // Duration Selector
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Zeitslot-Dauer',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _timeSlotDuration,
+                    isDense: true,
+                    items: [30, 40].map((duration) => DropdownMenuItem(
+                      value: duration,
+                      child: Text('${duration} min', style: const TextStyle(fontSize: 14)),
+                    )).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _timeSlotDuration = value;
+                          // Preserve existing game schedules when changing time scale
+                          final existingGames = Map<String, Game>.from(_scheduledGames);
+                          _scheduledGames.clear();
+                          existingGames.forEach((key, game) {
+                            if (game.scheduledTime != null && game.courtId != null) {
+                              final hour = game.scheduledTime!.hour;
+                              final minute = game.scheduledTime!.minute;
+                              final timeSlot = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+                              final newKey = "${game.courtId}_${timeSlot}_$_selectedDayIndex";
+                              _scheduledGames[newKey] = game;
+                            }
+                          });
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const Spacer(),
+          
+          // Auto Generate Button
+          ElevatedButton.icon(
+            onPressed: _autoGenerateSchedule,
+            icon: const Icon(Icons.auto_fix_high, size: 18),
+            label: const Text('Auto-Planung'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+        ],
+        ),
+      );
+    }
+
+  Widget _buildDayTabs() {
+    final tournamentDays = _getTournamentDays();
+    
+    if (tournamentDays.isEmpty) {
+      return Container();
+    }
+    
+    return Container(
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          // Days Tabs
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: tournamentDays.length,
+              itemBuilder: (context, index) {
+                final day = tournamentDays[index];
+                final isSelected = index == _selectedDayIndex;
+                
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedDayIndex = index;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.blue.shade600 : Colors.white,
+                        border: Border.all(
+                          color: isSelected ? Colors.blue.shade600 : Colors.grey.shade300,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: isSelected ? [
+                          BoxShadow(
+                            color: Colors.blue.shade600.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ] : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white.withOpacity(0.2) : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${day.day}/${day.month}',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _getDayName(day.weekday),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white : Colors.black87,
+                                    height: 1.0,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${day.day}.${day.month}.${day.year}',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: isSelected ? Colors.white.withOpacity(0.8) : Colors.grey.shade600,
+                                    height: 1.0,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<DateTime> _getTournamentDays() {
+    if (widget.tournament == null) return [];
+    
+    final startDate = widget.tournament!.startDate;
+    final endDate = widget.tournament!.endDate;
+    
+    if (endDate == null) {
+      // If no end date, just return the start date
+      return [DateTime(startDate.year, startDate.month, startDate.day)];
+    }
+    
+    final days = <DateTime>[];
+    DateTime current = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    
+    while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
+      days.add(current);
+      current = current.add(const Duration(days: 1));
+    }
+    
+    return days;
+  }
+
+  String _getDayName(int weekday) {
+    switch (weekday) {
+      case 1: return 'Mo';
+      case 2: return 'Di';
+      case 3: return 'Mi';
+      case 4: return 'Do';
+      case 5: return 'Fr';
+      case 6: return 'Sa';
+      case 7: return 'So';
+      default: return '';
+    }
+  }
+
+  Future<void> _selectStartTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduleStartTime,
+    );
+    if (picked != null && picked != _scheduleStartTime) {
+      setState(() {
+        _scheduleStartTime = picked;
+      });
+    }
+  }
+
+  Future<void> _selectEndTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduleEndTime,
+    );
+    if (picked != null && picked != _scheduleEndTime) {
+      setState(() {
+        _scheduleEndTime = picked;
+      });
+    }
+  }
+
+  void _addTournamentCourt() {
+    final courtName = String.fromCharCode(65 + _tournamentCourts.length); // A, B, C, etc.
+    final newCourt = Court(
+      id: '${widget.tournament?.id ?? 'new'}_court_${DateTime.now().millisecondsSinceEpoch}',
+      name: courtName,
+      description: 'Court for ${widget.tournament?.name ?? 'Tournament'}',
+      latitude: 0.0,
+      longitude: 0.0,
+      type: 'outdoor',
+      createdAt: DateTime.now(),
+    );
+    
+    setState(() {
+      _tournamentCourts.add(newCourt);
+    });
+  }
+
+  void _removeTournamentCourt(int index) {
+    setState(() {
+      _tournamentCourts.removeAt(index);
+    });
+  }
+
+  List<String> _generateTimeSlots() {
+    final List<String> slots = [];
+    DateTime start = DateTime(2025, 1, 1, _scheduleStartTime.hour, _scheduleStartTime.minute);
+    DateTime end = DateTime(2025, 1, 1, _scheduleEndTime.hour, _scheduleEndTime.minute);
+    
+    // Generate slots based on time scale duration with start-end times
+    while (start.isBefore(end)) {
+      final slotEnd = start.add(Duration(minutes: _timeSlotDuration));
+      final startTime = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+      final endTime = '${slotEnd.hour.toString().padLeft(2, '0')}:${slotEnd.minute.toString().padLeft(2, '0')}';
+      slots.add('$startTime-$endTime');
+      start = start.add(Duration(minutes: _timeSlotDuration));
+    }
+    
+         return slots;
+   }
+
+   void _autoGenerateSchedule() {
+    if (widget.tournament == null) {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(
+          content: Text('Turnier muss zuerst gespeichert werden'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show advanced scheduling dialog
+    showDialog(
+      context: context,
+      builder: (context) => AdvancedSchedulingDialog(
+        tournament: widget.tournament!,
+        gameService: _gameService,
+        teamService: _teamService,
+        scheduleStartTime: _scheduleStartTime,
+        scheduleEndTime: _scheduleEndTime,
+        timeSlotDuration: _timeSlotDuration,
+        onSchedulingComplete: _handleSchedulingResult,
+      ),
+    );
+  }
+
+  void _handleSchedulingResult(SchedulingResult result) {
+    if (result.success) {
+      setState(() {
+        _loadScheduledGames();
+      });
+      
+      toastification.show(
+        context: context,
+        title: const Text('Spielplanung erfolgreich'),
+        description: Text(
+          '${result.scheduledGames} Spiele auf ${result.fieldsUsed} Felder verteilt.\n'
+          '${result.unscheduledGames} Spiele konnten nicht geplant werden.\n'
+          '${result.warnings.isNotEmpty ? result.warnings.join('\n') : ''}'
+        ),
+        type: ToastificationType.success,
+        style: ToastificationStyle.flat,
+        autoCloseDuration: const Duration(seconds: 8),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Fehler beim Generieren der Spiele: $e'),
+          content: Text('Fehler bei der Spielplanung: ${result.errorMessage}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
         ),
       );
     }
   }
-} 
+
+
+ }  

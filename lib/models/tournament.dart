@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'tournament_criteria.dart';
+import 'court.dart';
 
 class TournamentBracket {
   final Map<String, List<String>> pools; // poolId -> list of team IDs
@@ -254,6 +255,7 @@ class Tournament {
   final Map<String, TournamentBracket> divisionBrackets; // division -> bracket structure
   final Map<String, CustomBracketStructure> customBrackets; // division -> custom bracket structure
   final TournamentCriteria? criteria; // Tournament criteria for Seniors Cup
+  final List<Court> courts; // Courts available for this tournament
 
   Tournament({
     required this.id,
@@ -272,6 +274,7 @@ class Tournament {
     this.divisionBrackets = const {},
     this.customBrackets = const {},
     this.criteria,
+    this.courts = const [],
   });
 
   String get category => categories.isNotEmpty ? categories.first : '';
@@ -374,6 +377,7 @@ class Tournament {
       'divisionBrackets': divisionBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'customBrackets': customBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'criteria': criteria?.toMap(),
+      'courts': courts.map((court) => court.toMap()).toList(),
     };
   }
 
@@ -419,6 +423,9 @@ class Tournament {
           ?.map((key, value) => MapEntry(key, CustomBracketStructure.fromMap(value)))
           ?? {},
       criteria: map['criteria'] != null ? TournamentCriteria.fromMap(map['criteria']) : null,
+      courts: (map['courts'] as List<dynamic>?)
+          ?.map((court) => Court.fromMap(court))
+          .toList() ?? [],
     );
   }
 } 

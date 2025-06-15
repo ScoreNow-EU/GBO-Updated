@@ -2786,15 +2786,23 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   // Match action button with tooltip
   Widget _buildMatchActionButton(CustomBracketNode node, List<String> assignedTeams) {
     final matchId = '${widget.divisionName}_${node.title}';
-    final hasGame = _hasMatchGame(matchId);
-    final canGenerateGame = assignedTeams.length >= 2;
+    final hasGame = _hasMatchGame(node);
+    final connectedInputs = _getConnectedInputs(node);
+    
+    // Count actual teams (assigned) and placeholder teams (connected inputs)
+    int totalTeams = assignedTeams.length;
+    for (String input in connectedInputs) {
+      if (input.isNotEmpty) totalTeams++;
+    }
+    
+    final canGenerateGame = totalTeams >= 2;
     
     return _buildCustomTooltip(
-      content: _buildMatchTooltipContent(node, assignedTeams),
+      content: _buildMatchTooltipContent(node, assignedTeams, connectedInputs),
       child: MouseRegion(
         cursor: canGenerateGame ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
         child: GestureDetector(
-          onTap: canGenerateGame ? () => _generateMatchGame(node, assignedTeams) : null,
+          onTap: canGenerateGame ? () => _generateMatchGame(node, assignedTeams, connectedInputs) : null,
           child: Container(
             width: 20,
             height: 20,
@@ -2905,8 +2913,14 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   }
 
   // Build match tooltip content
-  Widget _buildMatchTooltipContent(CustomBracketNode node, List<String> assignedTeams) {
-    if (assignedTeams.isEmpty) {
+  Widget _buildMatchTooltipContent(CustomBracketNode node, List<String> assignedTeams, List<String> connectedInputs) {
+    // Count total teams available (assigned + connected placeholders)
+    int totalTeams = assignedTeams.length;
+    for (String input in connectedInputs) {
+      if (input.isNotEmpty) totalTeams++;
+    }
+    
+    if (totalTeams == 0) {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
@@ -2921,18 +2935,41 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     }
 
     String gameText;
-    if (assignedTeams.length == 1) {
+    String team1Name = '';
+    String team2Name = '';
+    
+    // Determine team 1
+    if (assignedTeams.isNotEmpty) {
       final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
-      gameText = '${team.name} vs Wartend...';
-    } else if (assignedTeams.length >= 2) {
-      final team1 = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
-      final team2 = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
-      gameText = '${team1.name} vs ${team2.name}';
+      team1Name = team.name;
+    } else if (connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
+      team1Name = connectedInputs[0];
+    }
+    
+    // Determine team 2
+    if (assignedTeams.length >= 2) {
+      final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+      team2Name = team.name;
+    } else if (connectedInputs.length >= 2 && connectedInputs[1].isNotEmpty) {
+      team2Name = connectedInputs[1];
+    } else if (assignedTeams.length == 1 && connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
+      team2Name = connectedInputs[0];
+    }
+    
+    if (team1Name.isNotEmpty && team2Name.isNotEmpty) {
+      gameText = '$team1Name vs $team2Name';
+    } else if (team1Name.isNotEmpty) {
+      gameText = '$team1Name vs Wartend...';
     } else {
-      gameText = 'Kein Spiel möglich';
+      gameText = 'Bereit für Planung';
     }
 
-    return _buildGameItem(gameText, 1);
+    // Smaller constraints for match tooltips since they only show one game
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 250, maxHeight: 100),
+      padding: const EdgeInsets.all(4),
+      child: _buildGameItem(gameText, 1),
+    );
   }
 
   // Build individual game item with team boxes and vs
@@ -3028,17 +3065,28 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
 
   // Check if pool has games
   bool _hasPoolGames(String poolId) {
-    // This would query the actual game service to check if games exist
-    // For now, returning false to always show "create" button
-    // TODO: Implement actual check with GameService.getPoolGames()
-    return false;
+    final games = _gameService.getPoolGames(widget.tournament.id, poolId);
+    return games.isNotEmpty;
   }
 
   // Check if match has game
-  bool _hasMatchGame(String matchId) {
-    // This would query the actual game service to check if game exists
-    // For now, returning false to always show "create" button
-    // TODO: Implement actual check with GameService.getMatchGame()
+  bool _hasMatchGame(CustomBracketNode node) {
+    // Check for games that match this node
+    final allGames = _gameService.getGamesForTournament(widget.tournament.id);
+    
+    // Debug logging
+    print('Checking for games for node: ${node.title}');
+    print('Total games in tournament: ${allGames.length}');
+    
+    for (final game in allGames) {
+      print('Game ID: ${game.id}');
+      if (game.gameType == GameType.elimination && game.id.contains('_match_${node.title}_')) {
+        print('Found matching game for ${node.title}');
+        return true;
+      }
+    }
+    
+    print('No games found for ${node.title}');
     return false;
   }
 
@@ -3078,43 +3126,80 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       _showSuccess(
         'Pool "${poolName}" Spiele generiert:\n${games.join('\n')}\n\nInsgesamt: ${games.length} Spiele'
       );
+      
+      // Refresh the UI to update button states
+      setState(() {});
     } catch (e) {
       _showError('Fehler beim Generieren der Pool-Spiele: $e');
     }
   }
 
   // Generate match game
-  Future<void> _generateMatchGame(CustomBracketNode node, List<String> assignedTeams) async {
-    if (assignedTeams.length < 2) {
+  Future<void> _generateMatchGame(CustomBracketNode node, List<String> assignedTeams, List<String> connectedInputs) async {
+    // Count total teams available (assigned + connected placeholders)
+    int totalTeams = assignedTeams.length;
+    for (String input in connectedInputs) {
+      if (input.isNotEmpty) totalTeams++;
+    }
+    
+    if (totalTeams < 2) {
       _showError('Match "${node.title}" benötigt 2 Teams für ein Spiel');
       return;
     }
 
     try {
-      final team1 = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
-      final team2 = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+      String team1Name = '';
+      String team2Name = '';
+      String? team1Id;
+      String? team2Id;
+      
+      // Determine team 1
+      if (assignedTeams.isNotEmpty) {
+        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+        team1Name = team.name;
+        team1Id = team.id;
+      } else if (connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
+        team1Name = connectedInputs[0]; // Placeholder like "2nd from Pool B"
+        team1Id = null; // No actual team ID yet
+      }
+      
+      // Determine team 2
+      if (assignedTeams.length >= 2) {
+        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+        team2Name = team.name;
+        team2Id = team.id;
+      } else if (connectedInputs.length >= 2 && connectedInputs[1].isNotEmpty) {
+        team2Name = connectedInputs[1]; // Placeholder like "Winner from 2nd Chance 1"
+        team2Id = null; // No actual team ID yet
+      } else if (assignedTeams.length == 1 && connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
+        team2Name = connectedInputs[0];
+        team2Id = null;
+      }
 
-      // Create a single elimination game manually since generateEliminationGame doesn't exist
-      final gameId = '${widget.tournament.id}_match_${node.title}_${team1.id}_${team2.id}';
+      // Create a game with placeholder support
+      final gameId = '${widget.tournament.id}_match_${node.title}_${team1Id ?? 'placeholder1'}_${team2Id ?? 'placeholder2'}';
       final game = Game(
         id: gameId,
         tournamentId: widget.tournament.id,
-        teamAId: team1.id,
-        teamBId: team2.id,
-        teamAName: team1.name,
-        teamBName: team2.name,
+        teamAId: team1Id,
+        teamBId: team2Id,
+        teamAName: team1Name,
+        teamBName: team2Name,
         gameType: GameType.elimination,
         status: GameStatus.scheduled,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      // Add the game to the service (we'll need to add this method)
+      // Add the game to the service
       await _gameService.addGame(game);
 
       _showSuccess(
-        'Match "${node.title}" generiert:\n\n${team1.name}\nvs\n${team2.name}\n\nSpiel erfolgreich erstellt!'
+        'Match "${node.title}" generiert:\n\n$team1Name\nvs\n$team2Name\n\nSpiel erfolgreich erstellt!\n${team1Id == null || team2Id == null ? '\n(Mit Platzhaltern für Planung)' : ''}'
       );
+      
+      // Refresh the UI to update button states
+      setState(() {});
     } catch (e) {
       _showError('Fehler beim Generieren des Spiels: $e');
     }

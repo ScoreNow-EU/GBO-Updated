@@ -14,6 +14,7 @@ class Game {
   final GameResult? result;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? courtId; // Court where the game is scheduled
 
   Game({
     required this.id,
@@ -31,6 +32,7 @@ class Game {
     this.result,
     required this.createdAt,
     required this.updatedAt,
+    this.courtId,
   });
 
   bool get isPlaceholder => teamAId == null || teamBId == null;
@@ -54,6 +56,7 @@ class Game {
       'result': result?.toJson(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'courtId': courtId,
     };
   }
 
@@ -74,6 +77,7 @@ class Game {
       result: json['result'] != null ? GameResult.fromJson(json['result']) : null,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      courtId: json['courtId'],
     );
   }
 
@@ -93,6 +97,7 @@ class Game {
     GameResult? result,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? courtId,
   }) {
     return Game(
       id: id ?? this.id,
@@ -110,6 +115,7 @@ class Game {
       result: result ?? this.result,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      courtId: courtId ?? this.courtId,
     );
   }
 }

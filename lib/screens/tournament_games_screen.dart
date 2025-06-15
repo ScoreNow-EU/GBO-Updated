@@ -29,23 +29,17 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
+            // Header
             Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, size: 28),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Spiele - ${widget.tournament.name}',
+                      widget.tournament.name,
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                     ),
                     Text(
@@ -56,16 +50,6 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                       ),
                     ),
                   ],
-                ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: () => _showAddGameDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Spiel hinzufügen'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
                 ),
               ],
             ),
@@ -337,7 +321,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   child: Text(
                     game.gameType == GameType.pool 
                         ? 'Gruppe ${game.poolId?.toUpperCase() ?? ''}' 
-                        : _gameService.getBracketRoundName(game.bracketRound ?? 1, 4),
+                        : _getCustomMatchName(game),
                     style: TextStyle(
                       color: game.gameType == GameType.pool 
                           ? Colors.blue.shade700 
@@ -602,21 +586,24 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
     }
   }
 
-  void _showAddGameDialog() {
-    // Implementation for adding new games
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Spiel hinzufügen'),
-        content: const Text('Spiel hinzufügen Funktionalität kommt bald...'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+  String _getCustomMatchName(Game game) {
+    // Extract node title from game ID format: tournamentId_match_nodeTitle_team1_team2
+    if (game.id.contains('_match_')) {
+      final parts = game.id.split('_match_');
+      if (parts.length > 1) {
+        final afterMatch = parts[1];
+        // Split by underscore and take all parts except the last two (team IDs)
+        final titleParts = afterMatch.split('_');
+        if (titleParts.length >= 3) {
+          // Join all parts except the last two (which are team IDs)
+          final nodeTitle = titleParts.sublist(0, titleParts.length - 2).join('_');
+          return nodeTitle;
+        }
+      }
+    }
+    
+    // Fallback to generic round names for non-custom bracket games
+    return _gameService.getBracketRoundName(game.bracketRound ?? 1, 4);
   }
 
   void _showResultDialog(Game game) {

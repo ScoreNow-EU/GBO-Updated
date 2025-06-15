@@ -304,6 +304,12 @@ class GameService {
     await _saveGames();
   }
 
+  // Delete all games for a tournament
+  Future<void> deleteAllGamesForTournament(String tournamentId) async {
+    _games.removeWhere((game) => game.tournamentId == tournamentId);
+    await _saveGames();
+  }
+
   // Get game by ID
   Game? getGameById(String gameId) {
     try {
@@ -338,6 +344,99 @@ class GameService {
       'scheduled': tournamentGames.where((g) => g.status == GameStatus.scheduled).length,
       'inProgress': tournamentGames.where((g) => g.status == GameStatus.inProgress).length,
     };
+  }
+
+  // Update placeholder team with actual team
+  Future<void> updatePlaceholderTeam(String tournamentId, String placeholderName, String actualTeamId, String actualTeamName) async {
+    bool hasUpdates = false;
+    
+    for (int i = 0; i < _games.length; i++) {
+      final game = _games[i];
+      if (game.tournamentId != tournamentId) continue;
+      
+      Game? updatedGame;
+      
+      // Check if team A is the placeholder
+      if (game.teamAName == placeholderName) {
+        updatedGame = game.copyWith(
+          teamAId: actualTeamId,
+          teamAName: actualTeamName,
+          updatedAt: DateTime.now(),
+        );
+      }
+      // Check if team B is the placeholder
+      else if (game.teamBName == placeholderName) {
+        updatedGame = game.copyWith(
+          teamBId: actualTeamId,
+          teamBName: actualTeamName,
+          updatedAt: DateTime.now(),
+        );
+      }
+      
+      if (updatedGame != null) {
+        _games[i] = updatedGame;
+        hasUpdates = true;
+      }
+    }
+    
+    if (hasUpdates) {
+      await _saveGames();
+    }
+  }
+
+  // Update multiple placeholder teams at once (for pool completion)
+  Future<void> updatePoolPlaceholders(String tournamentId, String poolId, List<String> rankedTeamIds, List<String> rankedTeamNames) async {
+    if (rankedTeamIds.length != rankedTeamNames.length) return;
+    
+    bool hasUpdates = false;
+    
+    for (int position = 1; position <= rankedTeamIds.length; position++) {
+      final placeholderName = '${position}. aus Pool ${poolId.toUpperCase()}';
+      final actualTeamId = rankedTeamIds[position - 1];
+      final actualTeamName = rankedTeamNames[position - 1];
+      
+      for (int i = 0; i < _games.length; i++) {
+        final game = _games[i];
+        if (game.tournamentId != tournamentId) continue;
+        
+        Game? updatedGame;
+        
+        // Check if team A is the placeholder
+        if (game.teamAName == placeholderName) {
+          updatedGame = game.copyWith(
+            teamAId: actualTeamId,
+            teamAName: actualTeamName,
+            updatedAt: DateTime.now(),
+          );
+        }
+        // Check if team B is the placeholder
+        else if (game.teamBName == placeholderName) {
+          updatedGame = game.copyWith(
+            teamBId: actualTeamId,
+            teamBName: actualTeamName,
+            updatedAt: DateTime.now(),
+          );
+        }
+        
+        if (updatedGame != null) {
+          _games[i] = updatedGame;
+          hasUpdates = true;
+        }
+      }
+    }
+    
+    if (hasUpdates) {
+      await _saveGames();
+    }
+  }
+
+  // Update a game
+  Future<void> updateGame(Game updatedGame) async {
+    final index = _games.indexWhere((game) => game.id == updatedGame.id);
+    if (index != -1) {
+      _games[index] = updatedGame;
+      await _saveGames();
+    }
   }
 
   void dispose() {
