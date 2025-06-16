@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../services/tournament_service.dart';
 import '../screens/tournament_detail_screen.dart';
+import '../utils/responsive_helper.dart';
 import 'tournament_timeline.dart';
 
 class TournamentOverview extends StatefulWidget {
@@ -27,64 +28,94 @@ class _TournamentOverviewState extends State<TournamentOverview> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with category filter
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isMobile = ResponsiveHelper.isMobile(screenWidth);
+        
+        return Container(
+          padding: EdgeInsets.all(ResponsiveHelper.getContentPadding(screenWidth)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Turniere - Zeitleisten-Ansicht',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              // Category Dropdown
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedCategory,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Alle',
-                        child: Text('Kategorie: Alle'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'GBO Juniors Cup',
-                        child: Text('Kategorie: Juniors'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'GBO Seniors Cup',
-                        child: Text('Kategorie: Seniors'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCategory = value!;
-                      });
-                    },
-                  ),
-                ),
+              // Header with category filter - responsive layout
+              isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Turniere - Zeitleisten-Ansicht',
+                          style: TextStyle(
+                            fontSize: 24 * ResponsiveHelper.getFontScale(screenWidth),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: _buildCategoryDropdown(),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Text(
+                          'Turniere - Zeitleisten-Ansicht',
+                          style: TextStyle(
+                            fontSize: 28 * ResponsiveHelper.getFontScale(screenWidth),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const Spacer(),
+                        _buildCategoryDropdown(),
+                      ],
+                    ),
+              const SizedBox(height: 24),
+
+              // Timeline View (only view now)
+              Expanded(
+                child: TournamentTimeline(selectedCategory: selectedCategory),
               ),
             ],
           ),
-          const SizedBox(height: 32),
+        );
+      },
+    );
+  }
 
-          // Timeline View (only view now)
-          Expanded(
-            child: TournamentTimeline(selectedCategory: selectedCategory),
-          ),
-        ],
+  Widget _buildCategoryDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedCategory,
+          isExpanded: ResponsiveHelper.isMobile(MediaQuery.of(context).size.width),
+          items: const [
+            DropdownMenuItem(
+              value: 'Alle',
+              child: Text('Kategorie: Alle'),
+            ),
+            DropdownMenuItem(
+              value: 'GBO Juniors Cup',
+              child: Text('Kategorie: Juniors'),
+            ),
+            DropdownMenuItem(
+              value: 'GBO Seniors Cup',
+              child: Text('Kategorie: Seniors'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              selectedCategory = value!;
+            });
+          },
+        ),
       ),
     );
   }

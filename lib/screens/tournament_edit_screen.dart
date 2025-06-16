@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
+import '../models/referee.dart';
 import '../models/tournament_criteria.dart';
 import '../models/court.dart';
 import '../models/game.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
+import '../services/referee_service.dart';
 import '../services/court_service.dart';
 import '../services/game_service.dart';
 import '../data/german_cities.dart';
@@ -50,6 +52,7 @@ class TournamentEditScreen extends StatefulWidget {
 class _TournamentEditScreenState extends State<TournamentEditScreen> {
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
+  final RefereeService _refereeService = RefereeService();
   final CourtService _courtService = CourtService();
   final GameService _gameService = GameService();
   final _formKey = GlobalKey<FormState>();
@@ -85,7 +88,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   ];
 
   // Navigation state
-  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, settings
+  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, referees, settings
+  
+  // Referee management
+  List<Referee> _allReferees = [];
+  List<String> _selectedRefereeIds = [];
+  String _refereeSearchQuery = '';
+  final _refereeSearchController = TextEditingController();
   
   // Tournament Criteria
   TournamentCriteria _criteria = TournamentCriteria();
@@ -171,12 +180,19 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     super.initState();
     _initializeData();
     _loadTeams();
+    _loadReferees();
     _loadCourts();
     _loadScheduledGames();
     
     _teamSearchController.addListener(() {
       setState(() {
         _teamSearchQuery = _teamSearchController.text.toLowerCase();
+      });
+    });
+    
+    _refereeSearchController.addListener(() {
+      setState(() {
+        _refereeSearchQuery = _refereeSearchController.text.toLowerCase();
       });
     });
   }
@@ -193,6 +209,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _status = tournament.status;
       _selectedCategories = List<String>.from(tournament.categories); // Explicit type
       _selectedTeamIds = List<String>.from(tournament.teamIds); // Explicit type
+      _selectedRefereeIds = List<String>.from(tournament.refereeIds); // Explicit type
       
       // Initialize category-specific dates
       if (tournament.categoryStartDates != null && tournament.categoryStartDates!.isNotEmpty) {
@@ -284,6 +301,18 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  void _loadReferees() async {
+    try {
+      _refereeService.getReferees().listen((referees) {
+        setState(() {
+          _allReferees = referees;
+        });
+      });
+    } catch (e) {
+      print('Error loading referees: $e');
     }
   }
 
@@ -512,6 +541,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 _buildNavItem('games', 'Spiele', Icons.sports_volleyball),
               _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
                 _buildNavItem('courts', 'Plätze', Icons.location_on),
+                _buildNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
@@ -663,6 +693,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Spielplanung';
       case 'courts':
         return 'Plätze';
+      case 'referees':
+        return 'Schiedsrichter';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -691,6 +723,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildSchedulingTab();
       case 'courts':
         return _buildCourtsTab();
+      case 'referees':
+        return _buildRefereesTab();
       case 'settings':
         return _buildSettingsTab();
       default:
@@ -3222,6 +3256,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ? _criteria.totalPoints + _criteria.supercupBonus 
             : int.tryParse(_pointsController.text) ?? 0,
         teamIds: _selectedTeamIds,
+        refereeIds: _selectedRefereeIds,
         divisionBrackets: divisionBrackets,
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
@@ -3726,6 +3761,166 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           
           // Supercup Eligibility
           _buildSupercupStatus(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefereesTab() {
+    final filteredReferees = _allReferees.where((referee) {
+      if (_refereeSearchQuery.isEmpty) return true;
+      final query = _refereeSearchQuery.toLowerCase();
+      return referee.firstName.toLowerCase().contains(query) ||
+             referee.lastName.toLowerCase().contains(query) ||
+             referee.email.toLowerCase().contains(query) ||
+             referee.licenseType.toLowerCase().contains(query);
+    }).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.sports_hockey, color: Colors.purple),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Schiedsrichter verwalten',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Wählen Sie Schiedsrichter für dieses Turnier aus',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Search field
+                  TextField(
+                    controller: _refereeSearchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Schiedsrichter suchen',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Selected count
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Ausgewählte Schiedsrichter: ${_selectedRefereeIds.length}',
+                      style: TextStyle(
+                        color: Colors.purple.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Referees list
+          if (filteredReferees.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(48),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Keine Schiedsrichter gefunden',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            ...filteredReferees.map((referee) {
+              final isSelected = _selectedRefereeIds.contains(referee.id);
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: CheckboxListTile(
+                  title: Text(
+                    referee.fullName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(referee.email),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          referee.licenseType,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  value: isSelected,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedRefereeIds.add(referee.id);
+                      } else {
+                        _selectedRefereeIds.remove(referee.id);
+                      }
+                    });
+                  },
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              );
+            }).toList(),
         ],
       ),
     );

@@ -82,6 +82,14 @@ class TournamentService {
     return null;
   }
 
+  // Update referee nominations for a tournament
+  Future<void> updateTournamentReferees(String tournamentId, List<String> refereeIds) async {
+    await _firestore
+        .collection(_collection)
+        .doc(tournamentId)
+        .update({'refereeIds': refereeIds});
+  }
+
   // Initialize with sample data
   Future<void> initializeSampleData() async {
     // Check if data already exists

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
+import '../utils/responsive_helper.dart';
 import 'tournament_edit_screen.dart';
 import 'package:toastification/toastification.dart';
 
@@ -175,7 +176,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                   }).toList();
                 }
 
-                return _buildTournamentDataTable(filteredTournaments);
+                return _buildTournamentDataTable(filteredTournaments, MediaQuery.of(context).size.width);
               },
             ),
           ),
@@ -184,80 +185,309 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
-  Widget _buildTournamentDataTable(List<Tournament> tournaments) {
-    return SingleChildScrollView(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+  Widget _buildTournamentDataTable(List<Tournament> tournaments, double screenWidth) {
+    final isMobile = ResponsiveHelper.isMobile(screenWidth);
+    
+    // Remove the horizontal scroll hint and table, replace with cards
+    return ListView.builder(
+      itemCount: tournaments.length,
+      itemBuilder: (context, index) {
+        final tournament = tournaments[index];
+        final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
+        
+        return _buildTournamentManagementCard(tournament, tournamentDivisions, isMobile);
+      },
+    );
+  }
+
+  Widget _buildTournamentManagementCard(Tournament tournament, List<String> divisions, bool isMobile) {
+    // Get status colors for the card border
+    Color borderColor;
+    switch (tournament.status) {
+      case 'upcoming':
+        borderColor = Colors.blue.shade600;
+        break;
+      case 'ongoing':
+        borderColor = Colors.green.shade600;
+        break;
+      case 'completed':
+        borderColor = Colors.grey.shade500;
+        break;
+      default:
+        borderColor = Colors.grey.shade300;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: borderColor,
+          width: 3,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row with tournament name and action buttons
+          Row(
+            children: [
+              // Tournament Logo
+              Container(
+                width: 60,
+                height: 45,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: tournament.imageUrl != null && tournament.imageUrl!.isNotEmpty
+                      ? Image.network(
+                          tournament.imageUrl!,
+                          width: 60,
+                          height: 45,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildGeneratedImage(tournament);
+                          },
+                        )
+                      : _buildGeneratedImage(tournament),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Tournament name and status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tournament.name,
+                      style: TextStyle(
+                        fontSize: isMobile ? 16 : 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _buildProminentStatusBadge(tournament.status),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${tournament.points} Punkte',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _editTournament(tournament),
+                      tooltip: 'Bearbeiten',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteTournament(tournament),
+                      tooltip: 'Löschen',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Tournament details in responsive layout
+          isMobile ? _buildMobileDetails(tournament, divisions) : _buildDesktopDetails(tournament, divisions),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDetails(Tournament tournament, List<String> divisions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Date and location
+        Row(
+          children: [
+            Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                tournament.dateString,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
             ),
           ],
         ),
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
-          columns: const [
-            DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Divisionen', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Datum', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Ort', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Punkte', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                tournament.location,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+            ),
           ],
-          rows: tournaments.map((tournament) {
-            final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
-            
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 200,
+        ),
+        const SizedBox(height: 12),
+        // Divisions
+        if (divisions.isNotEmpty) ...[
+          Row(
+            children: [
+              Icon(Icons.groups, size: 16, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Text(
+                'Divisionen:',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildDivisionChips(divisions),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDesktopDetails(Tournament tournament, List<String> divisions) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Date and location column
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
                     child: Text(
-                      tournament.name,
-                      overflow: TextOverflow.ellipsis,
+                      tournament.dateString,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                     ),
                   ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 400,
-                    child: _buildDivisionChips(tournamentDivisions),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      tournament.location,
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    ),
                   ),
-                ),
-                DataCell(
-                  SizedBox(
-                    width: 150,
-                    child: _buildDateColumn(tournament),
-                  ),
-                ),
-                DataCell(Text(tournament.location)),
-                DataCell(Text(tournament.points.toString())),
-                DataCell(_buildStatusChip(tournament.status)),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _editTournament(tournament),
-                        tooltip: 'Bearbeiten',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteTournament(tournament),
-                        tooltip: 'Löschen',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Divisions column
+        Expanded(
+          flex: 3,
+          child: divisions.isNotEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.groups, size: 16, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Divisionen:',
+                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildDivisionChips(divisions),
+                  ],
+                )
+              : Container(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeneratedImage(Tournament tournament) {
+    // Generate colors based on tournament name
+    int nameHash = tournament.name.hashCode;
+    
+    List<Color> colors = [
+      Color((nameHash & 0xFF6B73FF) | 0xFF000000),
+      Color((nameHash & 0xFF4ECDC4) | 0xFF000000),
+      Color((nameHash & 0xFF45B7D1) | 0xFF000000),
+    ];
+    
+    return Container(
+      width: 60,
+      height: 45,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors.take(2).toList(),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          tournament.name.isNotEmpty ? tournament.name[0].toUpperCase() : 'T',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -302,157 +532,68 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
-  Widget _buildDateColumn(Tournament tournament) {
-    // Check if tournament has category-specific dates
-    if (tournament.categoryStartDates != null && tournament.categoryStartDates!.isNotEmpty) {
-      List<Widget> dateWidgets = [];
-      
-      // Add Senior dates if exists
-      if (tournament.categories.contains('GBO Seniors Cup')) {
-        final seniorStart = tournament.getStartDateForCategory('GBO Seniors Cup');
-        final seniorEnd = tournament.getEndDateForCategory('GBO Seniors Cup');
-        
-        String seniorDateStr;
-        if (seniorEnd != null) {
-          seniorDateStr = '${seniorStart.day}.${seniorStart.month} - ${seniorEnd.day}.${seniorEnd.month}.${seniorEnd.year}';
-        } else {
-          seniorDateStr = '${seniorStart.day}.${seniorStart.month}.${seniorStart.year}';
-        }
-        
-        dateWidgets.add(
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Senior',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  seniorDateStr,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-      
-      // Add Junior dates if exists
-      if (tournament.categories.contains('GBO Juniors Cup')) {
-        final juniorStart = tournament.getStartDateForCategory('GBO Juniors Cup');
-        final juniorEnd = tournament.getEndDateForCategory('GBO Juniors Cup');
-        
-        String juniorDateStr;
-        if (juniorEnd != null) {
-          juniorDateStr = '${juniorStart.day}.${juniorStart.month} - ${juniorEnd.day}.${juniorEnd.month}.${juniorEnd.year}';
-        } else {
-          juniorDateStr = '${juniorStart.day}.${juniorStart.month}.${juniorStart.year}';
-        }
-        
-        if (dateWidgets.isNotEmpty) {
-          dateWidgets.add(const SizedBox(height: 4));
-        }
-        
-        dateWidgets.add(
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Junior',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  juniorDateStr,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-      
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: dateWidgets,
-      );
-    } else {
-      // Fallback to regular date display
-      return Text(
-        tournament.dateString,
-        style: const TextStyle(fontSize: 12),
-        overflow: TextOverflow.ellipsis,
-      );
-    }
-  }
-
-  Widget _buildStatusChip(String status) {
+  Widget _buildProminentStatusBadge(String status) {
     MaterialColor color;
     String label;
+    IconData icon;
     
     switch (status) {
       case 'upcoming':
-        color = Colors.orange;
-        label = 'Bevorstehend';
+        color = Colors.blue;
+        label = 'Geplant';
+        icon = Icons.schedule;
         break;
       case 'ongoing':
         color = Colors.green;
-        label = 'Laufend';
+        label = 'Aktiv';
+        icon = Icons.play_circle;
         break;
       case 'completed':
         color = Colors.grey;
-        label = 'Abgeschlossen';
+        label = 'Beendet';
+        icon = Icons.check_circle;
         break;
       default:
         color = Colors.grey;
         label = status;
+        icon = Icons.help;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color.shade700,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+        color: color.shade600,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.shade800,
+          width: 2,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
