@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../services/tournament_service.dart';
+import '../services/referee_service.dart';
 import '../screens/tournament_detail_screen.dart';
 import '../utils/responsive_helper.dart';
 import 'tournament_timeline.dart';
@@ -14,6 +15,7 @@ class TournamentOverview extends StatefulWidget {
 
 class _TournamentOverviewState extends State<TournamentOverview> {
   final TournamentService _tournamentService = TournamentService();
+  final RefereeService _refereeService = RefereeService();
   String selectedCategory = 'Alle';
 
   @override
@@ -24,6 +26,7 @@ class _TournamentOverviewState extends State<TournamentOverview> {
 
   Future<void> _initializeData() async {
     await _tournamentService.initializeSampleData();
+    await _refereeService.initializeSampleData();
   }
 
   @override

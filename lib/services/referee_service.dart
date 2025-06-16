@@ -1,105 +1,121 @@
-import 'dart:async';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/referee.dart';
 
 class RefereeService {
-  static const String _refereeKey = 'referees';
-  final StreamController<List<Referee>> _refereeController = StreamController<List<Referee>>.broadcast();
-  List<Referee> _referees = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _collection = 'referees';
 
-  Stream<List<Referee>> get refereeStream => _refereeController.stream;
-
-  RefereeService() {
-    _loadReferees();
-  }
-
-  Future<void> _loadReferees() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final refereeJson = prefs.getStringList(_refereeKey) ?? [];
-      
-      _referees = refereeJson
-          .map((json) => Referee.fromJson(jsonDecode(json)))
-          .toList();
-      
-      _refereeController.add(_referees);
-    } catch (e) {
-      print('Error loading referees: $e');
-      _referees = [];
-      _refereeController.add(_referees);
-    }
-  }
-
-  Future<void> _saveReferees() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final refereeJson = _referees
-          .map((referee) => jsonEncode(referee.toJson()))
-          .toList();
-      
-      await prefs.setStringList(_refereeKey, refereeJson);
-      _refereeController.add(_referees);
-    } catch (e) {
-      print('Error saving referees: $e');
-      throw Exception('Fehler beim Speichern der Schiedsrichter');
-    }
-  }
-
+  // Get all referees
   Stream<List<Referee>> getReferees() {
-    return refereeStream;
+    return _firestore
+        .collection(_collection)
+        .snapshots()
+        .map((snapshot) {
+          List<Referee> referees = snapshot.docs
+              .map((doc) => Referee.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              .toList();
+          
+          // Sort locally by name
+          referees.sort((a, b) => a.fullName.compareTo(b.fullName));
+          return referees;
+        });
   }
 
-  List<Referee> getAllReferees() {
-    return List.from(_referees);
+  // Get all referees as a list (non-stream)
+  Future<List<Referee>> getAllReferees() async {
+    QuerySnapshot snapshot = await _firestore.collection(_collection).get();
+    List<Referee> referees = snapshot.docs
+        .map((doc) => Referee.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+    
+    // Sort by name
+    referees.sort((a, b) => a.fullName.compareTo(b.fullName));
+    return referees;
   }
 
+  // Add a new referee
   Future<void> addReferee(Referee referee) async {
     // Check if email already exists
-    if (_referees.any((r) => r.email.toLowerCase() == referee.email.toLowerCase())) {
+    QuerySnapshot existingEmail = await _firestore
+        .collection(_collection)
+        .where('email', isEqualTo: referee.email.toLowerCase())
+        .get();
+        
+    if (existingEmail.docs.isNotEmpty) {
       throw Exception('Ein Schiedsrichter mit dieser E-Mail-Adresse existiert bereits');
     }
 
-    _referees.add(referee);
-    await _saveReferees();
+    // Create referee with lowercase email for consistency
+    final refereeToAdd = referee.copyWith(
+      email: referee.email.toLowerCase(),
+    );
+
+    await _firestore.collection(_collection).add(refereeToAdd.toMap());
   }
 
+  // Update referee
   Future<void> updateReferee(Referee updatedReferee) async {
     // Check if email already exists for other referees
-    if (_referees.any((r) => r.id != updatedReferee.id && 
-                            r.email.toLowerCase() == updatedReferee.email.toLowerCase())) {
-      throw Exception('Ein anderer Schiedsrichter mit dieser E-Mail-Adresse existiert bereits');
+    QuerySnapshot existingEmail = await _firestore
+        .collection(_collection)
+        .where('email', isEqualTo: updatedReferee.email.toLowerCase())
+        .get();
+        
+    for (var doc in existingEmail.docs) {
+      if (doc.id != updatedReferee.id) {
+        throw Exception('Ein anderer Schiedsrichter mit dieser E-Mail-Adresse existiert bereits');
+      }
     }
 
-    final index = _referees.indexWhere((r) => r.id == updatedReferee.id);
-    if (index != -1) {
-      _referees[index] = updatedReferee;
-      await _saveReferees();
-    } else {
-      throw Exception('Schiedsrichter nicht gefunden');
-    }
+    // Update with lowercase email and updated timestamp
+    final refereeToUpdate = updatedReferee.copyWith(
+      email: updatedReferee.email.toLowerCase(),
+      updatedAt: DateTime.now(),
+    );
+
+    await _firestore
+        .collection(_collection)
+        .doc(updatedReferee.id)
+        .update(refereeToUpdate.toMap());
   }
 
+  // Delete referee
   Future<void> deleteReferee(String refereeId) async {
-    _referees.removeWhere((r) => r.id == refereeId);
-    await _saveReferees();
+    await _firestore.collection(_collection).doc(refereeId).delete();
   }
 
-  Referee? getRefereeById(String id) {
-    try {
-      return _referees.firstWhere((r) => r.id == id);
-    } catch (e) {
-      return null;
+  // Get referee by ID
+  Future<Referee?> getRefereeById(String id) async {
+    DocumentSnapshot doc = await _firestore.collection(_collection).doc(id).get();
+    if (doc.exists) {
+      return Referee.fromMap(doc.data() as Map<String, dynamic>, doc.id);
     }
+    return null;
   }
 
-  List<Referee> getRefereesByLicenseType(String licenseType) {
-    return _referees.where((r) => r.licenseType == licenseType).toList();
+  // Get referees by license type
+  Future<List<Referee>> getRefereesByLicenseType(String licenseType) async {
+    QuerySnapshot snapshot = await _firestore
+        .collection(_collection)
+        .where('licenseType', isEqualTo: licenseType)
+        .get();
+        
+    List<Referee> referees = snapshot.docs
+        .map((doc) => Referee.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+        
+    // Sort by name
+    referees.sort((a, b) => a.fullName.compareTo(b.fullName));
+    return referees;
   }
 
-  List<Referee> searchReferees(String searchTerm) {
+  // Search referees
+  Future<List<Referee>> searchReferees(String searchTerm) async {
+    // Get all referees and filter locally (Firestore doesn't support complex text search)
+    List<Referee> allReferees = await getAllReferees();
     final term = searchTerm.toLowerCase();
-    return _referees.where((r) => 
+    
+    return allReferees.where((r) => 
       r.firstName.toLowerCase().contains(term) ||
       r.lastName.toLowerCase().contains(term) ||
       r.email.toLowerCase().contains(term) ||
@@ -107,17 +123,76 @@ class RefereeService {
     ).toList();
   }
 
-  int get refereeCount => _referees.length;
+  // Get referee count
+  Future<int> get refereeCount async {
+    QuerySnapshot snapshot = await _firestore.collection(_collection).get();
+    return snapshot.docs.length;
+  }
 
-  Map<String, int> getLicenseTypeDistribution() {
+  // Get license type distribution
+  Future<Map<String, int>> getLicenseTypeDistribution() async {
+    List<Referee> allReferees = await getAllReferees();
     final distribution = <String, int>{};
+    
     for (final licenseType in Referee.licenseTypes) {
-      distribution[licenseType] = _referees.where((r) => r.licenseType == licenseType).length;
+      distribution[licenseType] = allReferees.where((r) => r.licenseType == licenseType).length;
     }
     return distribution;
   }
 
+  // Initialize with sample data
+  Future<void> initializeSampleData() async {
+    // Check if data already exists
+    QuerySnapshot existing = await _firestore.collection(_collection).limit(1).get();
+    if (existing.docs.isNotEmpty) return;
+
+    // Add sample referees
+    List<Referee> sampleReferees = [
+      Referee(
+        id: '',
+        firstName: 'Max',
+        lastName: 'Mustermann',
+        email: 'max.mustermann@example.com',
+        licenseType: 'DHB Elitekader',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      Referee(
+        id: '',
+        firstName: 'Anna',
+        lastName: 'Schmidt',
+        email: 'anna.schmidt@example.com',
+        licenseType: 'DHB Stamm+Anschlusskader',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      Referee(
+        id: '',
+        firstName: 'Thomas',
+        lastName: 'Weber',
+        email: 'thomas.weber@example.com',
+        licenseType: 'Perspektivkader',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      Referee(
+        id: '',
+        firstName: 'Lisa',
+        lastName: 'Müller',
+        email: 'lisa.mueller@example.com',
+        licenseType: 'Basis-Lizenz',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    for (Referee referee in sampleReferees) {
+      await addReferee(referee);
+    }
+  }
+
+  // Dispose method (kept for compatibility but not needed for Firebase)
   void dispose() {
-    _refereeController.close();
+    // Firebase streams dispose automatically
   }
 } 

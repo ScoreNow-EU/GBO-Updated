@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:toastification/toastification.dart';
 import '../models/referee.dart';
 import '../services/referee_service.dart';
 
@@ -319,11 +320,15 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
         .toList();
 
     if (refereesToPreview.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bitte geben Sie mindestens einen Schiedsrichter ein'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Warnung'),
+        description: const Text('Bitte geben Sie mindestens einen Schiedsrichter ein'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: false,
       );
       return;
     }
@@ -332,11 +337,15 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
     List<String> emails = refereesToPreview.map((r) => r.email.text.trim().toLowerCase()).toList();
     Set<String> uniqueEmails = emails.toSet();
     if (emails.length != uniqueEmails.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Duplicate E-Mail-Adressen gefunden. Bitte verwenden Sie eindeutige E-Mail-Adressen.'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Fehler'),
+        description: const Text('Duplicate E-Mail-Adressen gefunden. Bitte verwenden Sie eindeutige E-Mail-Adressen.'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: false,
       );
       return;
     }
@@ -376,29 +385,33 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
     });
 
     try {
-      // Add each referee
+      // Add each referee (Firebase will generate IDs automatically)
       for (Referee referee in referees) {
-        // Generate unique ID for each referee
-        final refereeWithId = referee.copyWith(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + '_' + referees.indexOf(referee).toString(),
-        );
-        await _refereeService.addReferee(refereeWithId);
+        await _refereeService.addReferee(referee);
       }
 
       Navigator.of(context).pop(); // Close confirmation screen
       Navigator.of(context).pop(); // Close bulk add screen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${referees.length} Schiedsrichter erfolgreich hinzugefügt'),
-          backgroundColor: Colors.green,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.success,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Erfolg'),
+        description: Text('${referees.length} Schiedsrichter erfolgreich hinzugefügt'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 3),
+        showProgressBar: false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Fehler: $e'),
-          backgroundColor: Colors.red,
-        ),
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Fehler'),
+        description: Text('Fehler: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: false,
       );
     } finally {
       if (mounted) {

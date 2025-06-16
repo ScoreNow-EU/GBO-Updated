@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:toastification/toastification.dart';
 import '../models/referee.dart';
 import '../services/referee_service.dart';
 import 'bulk_add_referees_screen.dart';
@@ -179,9 +180,15 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
 
                   List<Referee> referees = snapshot.data!;
 
-                  // Apply search filter
+                  // Apply search filter (done locally since we already have all referees)
                   if (_searchTerm.isNotEmpty) {
-                    referees = _refereeService.searchReferees(_searchTerm);
+                    final term = _searchTerm.toLowerCase();
+                    referees = referees.where((r) => 
+                      r.firstName.toLowerCase().contains(term) ||
+                      r.lastName.toLowerCase().contains(term) ||
+                      r.email.toLowerCase().contains(term) ||
+                      r.licenseType.toLowerCase().contains(term)
+                    ).toList();
                   }
 
                   // Apply license type filter
@@ -205,8 +212,12 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
 
-        final distribution = _refereeService.getLicenseTypeDistribution();
-        final totalReferees = _refereeService.refereeCount;
+        final referees = snapshot.data!;
+        final distribution = <String, int>{};
+        for (final licenseType in Referee.licenseTypes) {
+          distribution[licenseType] = referees.where((r) => r.licenseType == licenseType).length;
+        }
+        final totalReferees = referees.length;
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -301,92 +312,229 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: MediaQuery.of(context).size.width - 48, // Account for padding
-            ),
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
-              columnSpacing: 24,
-              horizontalMargin: 16,
-              columns: const [
-                DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('E-Mail', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Lizenz', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Erstellt', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))),
-              ],
-              rows: referees.map((referee) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 150,
-                        child: Text(
-                          referee.fullName,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                          overflow: TextOverflow.ellipsis,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth = constraints.maxWidth;
+          final isMobile = availableWidth < 800;
+          
+          if (isMobile) {
+            // Mobile layout - use cards instead of table
+            return _buildMobileRefereeList(referees);
+          } else {
+            // Desktop/tablet layout - use responsive table
+            return _buildDesktopRefereeTable(referees, availableWidth);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildMobileRefereeList(List<Referee> referees) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: referees.length,
+      itemBuilder: (context, index) {
+        final referee = referees[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 0,
+          color: Colors.grey[50],
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        referee.fullName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
                         ),
                       ),
                     ),
-                    DataCell(
-                      SizedBox(
-                        width: 200,
-                        child: Text(
-                          referee.email,
-                          overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                          onPressed: () => _editReferee(referee),
+                          tooltip: 'Bearbeiten',
                         ),
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getLicenseColor(referee.licenseType).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                          onPressed: () => _deleteReferee(referee),
+                          tooltip: 'Löschen',
                         ),
-                        child: Text(
-                          referee.licenseType,
-                          style: TextStyle(
-                            color: _getLicenseColor(referee.licenseType),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _editReferee(referee),
-                            tooltip: 'Bearbeiten',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteReferee(referee),
-                            tooltip: 'Löschen',
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ],
-                );
-              }).toList(),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  referee.email,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getLicenseColor(referee.licenseType).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        referee.licenseType,
+                        style: TextStyle(
+                          color: _getLicenseColor(referee.licenseType),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopRefereeTable(List<Referee> referees, double availableWidth) {
+    // Calculate responsive column widths
+    final nameWidth = (availableWidth * 0.25).clamp(120.0, 200.0);
+    final emailWidth = (availableWidth * 0.30).clamp(150.0, 250.0);
+    final licenseWidth = (availableWidth * 0.20).clamp(120.0, 180.0);
+    final dateWidth = (availableWidth * 0.15).clamp(100.0, 150.0);
+    final actionsWidth = (availableWidth * 0.10).clamp(100.0, 120.0);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: availableWidth.clamp(800.0, double.infinity),
+        child: DataTable(
+          headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
+          columnSpacing: 8,
+          horizontalMargin: 16,
+          dataRowMinHeight: 60,
+          dataRowMaxHeight: 80,
+          columns: [
+            DataColumn(
+              label: SizedBox(
+                width: nameWidth,
+                child: const Text('Name', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            DataColumn(
+              label: SizedBox(
+                width: emailWidth,
+                child: const Text('E-Mail', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            DataColumn(
+              label: SizedBox(
+                width: licenseWidth,
+                child: const Text('Lizenz', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            DataColumn(
+              label: SizedBox(
+                width: dateWidth,
+                child: const Text('Erstellt', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            DataColumn(
+              label: SizedBox(
+                width: actionsWidth,
+                child: const Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+          rows: referees.map((referee) {
+            return DataRow(
+              cells: [
+                DataCell(
+                  SizedBox(
+                    width: nameWidth,
+                    child: Text(
+                      referee.fullName,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: emailWidth,
+                    child: Text(
+                      referee.email,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: licenseWidth,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getLicenseColor(referee.licenseType).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        referee.licenseType,
+                        style: TextStyle(
+                          color: _getLicenseColor(referee.licenseType),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: dateWidth,
+                    child: Text(
+                      '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: actionsWidth,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                          onPressed: () => _editReferee(referee),
+                          tooltip: 'Bearbeiten',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                          onPressed: () => _deleteReferee(referee),
+                          tooltip: 'Löschen',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
         ),
       ),
     );
@@ -524,9 +672,9 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
       final now = DateTime.now();
       
       if (_editingReferee == null) {
-        // Create new referee
+        // Create new referee (Firebase will generate the ID)
         final referee = Referee(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: '', // Empty ID - Firebase will generate this
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
@@ -538,8 +686,15 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
         await _refereeService.addReferee(referee);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Schiedsrichter erfolgreich hinzugefügt')),
+          toastification.show(
+            context: context,
+            type: ToastificationType.success,
+            style: ToastificationStyle.fillColored,
+            title: const Text('Erfolg'),
+            description: const Text('Schiedsrichter erfolgreich hinzugefügt'),
+            alignment: Alignment.topRight,
+            autoCloseDuration: const Duration(seconds: 3),
+            showProgressBar: false,
           );
         }
       } else {
@@ -555,8 +710,15 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
         await _refereeService.updateReferee(updatedReferee);
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Schiedsrichter erfolgreich aktualisiert')),
+          toastification.show(
+            context: context,
+            type: ToastificationType.success,
+            style: ToastificationStyle.fillColored,
+            title: const Text('Erfolg'),
+            description: const Text('Schiedsrichter erfolgreich aktualisiert'),
+            alignment: Alignment.topRight,
+            autoCloseDuration: const Duration(seconds: 3),
+            showProgressBar: false,
           );
         }
       }
@@ -568,8 +730,15 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
       
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${e.toString()}')),
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Fehler'),
+          description: Text('Fehler: ${e.toString()}'),
+          alignment: Alignment.topRight,
+          autoCloseDuration: const Duration(seconds: 4),
+          showProgressBar: false,
         );
       }
     }
@@ -597,15 +766,29 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   await _refereeService.deleteReferee(referee.id);
                   if (mounted) {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Schiedsrichter erfolgreich gelöscht')),
+                    toastification.show(
+                      context: context,
+                      type: ToastificationType.success,
+                      style: ToastificationStyle.fillColored,
+                      title: const Text('Erfolg'),
+                      description: const Text('Schiedsrichter erfolgreich gelöscht'),
+                      alignment: Alignment.topRight,
+                      autoCloseDuration: const Duration(seconds: 3),
+                      showProgressBar: false,
                     );
                   }
                 } catch (e) {
                   if (mounted) {
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Fehler: ${e.toString()}')),
+                    toastification.show(
+                      context: context,
+                      type: ToastificationType.error,
+                      style: ToastificationStyle.fillColored,
+                      title: const Text('Fehler'),
+                      description: Text('Fehler: ${e.toString()}'),
+                      alignment: Alignment.topRight,
+                      autoCloseDuration: const Duration(seconds: 4),
+                      showProgressBar: false,
                     );
                   }
                 }

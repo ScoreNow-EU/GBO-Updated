@@ -43,6 +43,30 @@ class Referee {
     );
   }
 
+  // Firebase Firestore methods
+  Map<String, dynamic> toMap() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'email': email,
+      'licenseType': licenseType,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+
+  factory Referee.fromMap(Map<String, dynamic> map, String documentId) {
+    return Referee(
+      id: documentId,
+      firstName: map['firstName'] ?? '',
+      lastName: map['lastName'] ?? '',
+      email: map['email'] ?? '',
+      licenseType: map['licenseType'] ?? 'Basis-Lizenz',
+      createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
+      updatedAt: map['updatedAt']?.toDate() ?? DateTime.now(),
+    );
+  }
+
   Referee copyWith({
     String? id,
     String? firstName,
