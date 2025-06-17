@@ -5,6 +5,7 @@ import 'tournament_management_screen.dart';
 import 'team_management_screen.dart';
 import 'preset_management_screen.dart';
 import 'referee_management_screen.dart';
+import 'delegate_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Team Management';
       case 'referee_management':
         return 'Schiedsrichter Verwaltung';
+      case 'delegate_management':
+        return 'Delegierte Verwaltung';
       default:
         return 'German Beach Open';
     }
@@ -77,6 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const TeamManagementScreen();
       case 'referee_management':
         return const RefereeManagementScreen();
+      case 'delegate_management':
+        return const DelegateManagementScreen();
       default:
         return const TournamentOverview();
     }

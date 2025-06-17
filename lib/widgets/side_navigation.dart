@@ -134,6 +134,12 @@ class SideNavigation extends StatelessWidget {
             key: 'referee_management',
             isSelected: selectedSection == 'referee_management',
           ),
+          _buildAdminItem(
+            icon: Icons.account_balance,
+            title: 'Delegierte Verwaltung',
+            key: 'delegate_management',
+            isSelected: selectedSection == 'delegate_management',
+          ),
         ],
       ),
     );

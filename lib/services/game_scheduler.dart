@@ -92,7 +92,7 @@ class GameScheduler {
       final warnings = <String>[];
       
       // Get all unscheduled games
-      final allGames = gameService.getGamesForTournament(tournament.id);
+      final allGames = gameService.getGamesForTournamentSync(tournament.id);
       final unscheduledGames = allGames.where((game) => 
         game.scheduledTime == null || game.courtId == null
       ).toList();
@@ -365,7 +365,7 @@ class GameScheduler {
       final warnings = <String>[];
       
       // Get all unscheduled games
-      final allGames = gameService.getGamesForTournament(tournament.id);
+      final allGames = gameService.getGamesForTournamentSync(tournament.id);
       final unscheduledGames = allGames.where((game) => 
         game.scheduledTime == null || game.courtId == null
       ).toList();
@@ -477,7 +477,7 @@ class GameScheduler {
     }
     
     try {
-      final allGames = gameService.getGamesForTournament(tournament.id);
+      final allGames = gameService.getGamesForTournamentSync(tournament.id);
       
       // Get all team IDs from games
       final teamIds = <String>{};
@@ -796,7 +796,7 @@ class GameScheduler {
 
   /// Get scheduling statistics
   Map<String, dynamic> getSchedulingStats(Tournament tournament, GameService gameService) {
-    final allGames = gameService.getGamesForTournament(tournament.id);
+    final allGames = gameService.getGamesForTournamentSync(tournament.id);
     final scheduledGames = allGames.where((g) => g.scheduledTime != null && g.courtId != null).toList();
     final unscheduledGames = allGames.where((g) => g.scheduledTime == null || g.courtId == null).toList();
     

@@ -253,6 +253,8 @@ class Tournament {
   final String? imageUrl; // Tournament image URL
   final List<String> teamIds; // Team IDs
   final List<String> refereeIds; // Referee IDs
+  final List<String> delegateIds; // Delegate IDs
+  final List<Map<String, dynamic>> refereeGespanne; // Referee pairs
   final Map<String, TournamentBracket> divisionBrackets; // division -> bracket structure
   final Map<String, CustomBracketStructure> customBrackets; // division -> custom bracket structure
   final TournamentCriteria? criteria; // Tournament criteria for Seniors Cup
@@ -273,6 +275,8 @@ class Tournament {
     this.imageUrl,
     this.teamIds = const [],
     this.refereeIds = const [],
+    this.delegateIds = const [],
+    this.refereeGespanne = const [],
     this.divisionBrackets = const {},
     this.customBrackets = const {},
     this.criteria,
@@ -377,6 +381,8 @@ class Tournament {
       'imageUrl': imageUrl,
       'teamIds': teamIds,
       'refereeIds': refereeIds,
+      'delegateIds': delegateIds,
+      'refereeGespanne': refereeGespanne,
       'divisionBrackets': divisionBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'customBrackets': customBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'criteria': criteria?.toMap(),
@@ -420,6 +426,8 @@ class Tournament {
       imageUrl: map['imageUrl'],
       teamIds: List<String>.from(map['teamIds'] ?? []),
       refereeIds: List<String>.from(map['refereeIds'] ?? []),
+      delegateIds: List<String>.from(map['delegateIds'] ?? []),
+      refereeGespanne: List<Map<String, dynamic>>.from(map['refereeGespanne'] ?? []),
       divisionBrackets: (map['divisionBrackets'] as Map<String, dynamic>?)
           ?.map((key, value) => MapEntry(key, TournamentBracket.fromMap(value)))
           ?? {},

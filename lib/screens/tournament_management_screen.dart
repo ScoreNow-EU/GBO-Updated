@@ -47,7 +47,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header with compact division filter
           Row(
             children: [
               const Text(
@@ -59,6 +59,12 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                 ),
               ),
               const Spacer(),
+              // Division Filter Dropdown
+              Container(
+                constraints: const BoxConstraints(maxWidth: 280),
+                child: _buildDivisionFilterDropdown(),
+              ),
+              const SizedBox(width: 16),
               ElevatedButton.icon(
                 onPressed: () => _createNewTournament(),
                 icon: const Icon(Icons.add),
@@ -72,77 +78,10 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           ),
           const SizedBox(height: 24),
 
-          // Division Filter Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Nach Divisionen filtern:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _availableDivisions.map((division) {
-                      final isSelected = _selectedDivisions.contains(division);
-                      return FilterChip(
-                        label: Text(division),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedDivisions.add(division);
-                            } else {
-                              _selectedDivisions.remove(division);
-                            }
-                          });
-                        },
-                        selectedColor: _getDivisionColor(division).withValues(alpha: 0.2),
-                        checkmarkColor: _getDivisionColor(division),
-                        backgroundColor: Colors.grey.shade100,
-                      );
-                    }).toList(),
-                  ),
-                  if (_selectedDivisions.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text(
-                          '${_selectedDivisions.length} Divisionen ausgewählt',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedDivisions.clear();
-                            });
-                          },
-                          child: const Text('Alle abwählen'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // Tournament List
           Expanded(
             child: StreamBuilder<List<Tournament>>(
-              stream: _tournamentService.getTournaments(),
+              stream: _tournamentService.getTournamentsWithCache(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -696,6 +635,120 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     } catch (e) {
       print('Error loading tournament divisions: $e');
     }
+  }
+
+  Widget _buildDivisionFilterDropdown() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          hint: Row(
+            children: [
+              Icon(Icons.filter_list, size: 16, color: Colors.grey.shade600),
+              const SizedBox(width: 8),
+              Text(
+                _selectedDivisions.isEmpty 
+                    ? 'Alle Divisionen'
+                    : '${_selectedDivisions.length} ausgewählt',
+                style: TextStyle(
+                  color: _selectedDivisions.isEmpty ? Colors.grey.shade600 : Colors.blue.shade700,
+                  fontSize: 14,
+                  fontWeight: _selectedDivisions.isEmpty ? FontWeight.normal : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          items: [
+            // "Alle auswählen" option
+            DropdownMenuItem<String>(
+              value: '__select_all__',
+              child: Row(
+                children: [
+                  Icon(
+                    _selectedDivisions.length == _availableDivisions.length 
+                        ? Icons.check_box 
+                        : Icons.check_box_outline_blank,
+                    size: 16,
+                    color: Colors.blue.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Alle auswählen', style: TextStyle(fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            // "Alle abwählen" option
+            if (_selectedDivisions.isNotEmpty)
+              DropdownMenuItem<String>(
+                value: '__clear_all__',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear, size: 16, color: Colors.red.shade600),
+                    const SizedBox(width: 8),
+                    const Text('Alle abwählen', style: TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            // Divider
+            const DropdownMenuItem<String>(
+              value: '__divider__',
+              enabled: false,
+              child: Divider(height: 1),
+            ),
+            // Division options
+            ..._availableDivisions.map((division) {
+              final isSelected = _selectedDivisions.contains(division);
+              return DropdownMenuItem<String>(
+                value: division,
+                child: Row(
+                  children: [
+                    Icon(
+                      isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                      size: 16,
+                      color: isSelected ? _getDivisionColor(division).shade600 : Colors.grey.shade400,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      division,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isSelected ? _getDivisionColor(division).shade700 : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+          onChanged: (String? value) {
+            if (value == null || value == '__divider__') return;
+            
+            setState(() {
+              if (value == '__select_all__') {
+                _selectedDivisions = List.from(_availableDivisions);
+              } else if (value == '__clear_all__') {
+                _selectedDivisions.clear();
+              } else {
+                if (_selectedDivisions.contains(value)) {
+                  _selectedDivisions.remove(value);
+                } else {
+                  _selectedDivisions.add(value);
+                }
+              }
+            });
+          },
+          icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+          iconSize: 20,
+          isExpanded: true,
+        ),
+      ),
+    );
   }
 
   MaterialColor _getDivisionColor(String division) {

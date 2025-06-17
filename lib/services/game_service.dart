@@ -1,68 +1,89 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/game.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 
 class GameService {
-  static const String _gameKey = 'games';
-  final StreamController<List<Game>> _gameController = StreamController<List<Game>>.broadcast();
-  List<Game> _games = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String _tournamentsCollection = 'tournaments';
+  final String _gamesSubcollection = 'games';
+  
+  // Cache for faster subsequent loads per tournament
+  Map<String, List<Game>> _cachedGamesByTournament = {};
+  Map<String, DateTime> _lastCacheTimeByTournament = {};
+  static const Duration _cacheTimeout = Duration(minutes: 5);
 
-  Stream<List<Game>> get gameStream => _gameController.stream;
-
-  GameService() {
-    _loadGames();
+  // Get games for a specific tournament with real-time updates
+  Stream<List<Game>> getGamesForTournament(String tournamentId) {
+    print('🎮 GameService: Creating real-time stream for tournament $tournamentId');
+    
+    return _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .snapshots()
+        .map((snapshot) {
+          print('🎮 GameService: Firebase snapshot received - ${snapshot.docs.length} documents');
+          List<Game> games = [];
+          
+          for (final doc in snapshot.docs) {
+            try {
+              final gameData = {...doc.data(), 'id': doc.id};
+              print('🎮 GameService: Processing game ${doc.id}');
+              final game = Game.fromJson(gameData);
+              games.add(game);
+            } catch (e) {
+              print('❌ Error parsing game ${doc.id}: $e');
+              print('❌ Game data: ${doc.data()}');
+            }
+          }
+          
+          print('🎮 GameService: Successfully processed ${games.length} games from Firebase');
+          
+          // Update cache with fresh data
+          _cachedGamesByTournament[tournamentId] = games;
+          _lastCacheTimeByTournament[tournamentId] = DateTime.now();
+          
+          return games;
+        });
   }
 
-  Future<void> _loadGames() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final gameJson = prefs.getStringList(_gameKey) ?? [];
-      
-      _games = gameJson
-          .map((json) => Game.fromJson(jsonDecode(json)))
-          .toList();
-      
-      _gameController.add(_games);
-    } catch (e) {
-      print('Error loading games: $e');
-      _games = [];
-      _gameController.add(_games);
-    }
-  }
-
-  Future<void> _saveGames() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final gameJson = _games
-          .map((game) => jsonEncode(game.toJson()))
-          .toList();
-      
-      await prefs.setStringList(_gameKey, gameJson);
-      _gameController.add(_games);
-    } catch (e) {
-      print('Error saving games: $e');
-      throw Exception('Fehler beim Speichern der Spiele');
-    }
-  }
-
-  // Get all games
+  // Get all games (for backward compatibility - now aggregates from all tournaments)
   Stream<List<Game>> getGames() {
-    return gameStream;
+    // This is more complex now since games are in subcollections
+    // For now, we'll use a simple approach that may not be as efficient
+    return _firestore
+        .collection(_tournamentsCollection)
+        .snapshots()
+        .asyncMap((tournamentSnapshot) async {
+          List<Game> allGames = [];
+          
+          for (final tournamentDoc in tournamentSnapshot.docs) {
+            final gamesSnapshot = await tournamentDoc.reference
+                .collection(_gamesSubcollection)
+                .get();
+            
+            final tournamentGames = gamesSnapshot.docs
+                .map((doc) => Game.fromJson({...doc.data(), 'id': doc.id}))
+                .toList();
+            
+            allGames.addAll(tournamentGames);
+          }
+          
+          return allGames;
+        });
   }
 
-  // Get games for a specific tournament
-  List<Game> getGamesForTournament(String tournamentId) {
-    return _games.where((game) => game.tournamentId == tournamentId).toList();
+  // Get games for a specific tournament (synchronous - from cache)
+  List<Game> getGamesForTournamentSync(String tournamentId) {
+    return _cachedGamesByTournament[tournamentId] ?? [];
   }
 
   // Get pool games for a tournament
   List<Game> getPoolGames(String tournamentId, String poolId) {
-    return _games.where((game) => 
-      game.tournamentId == tournamentId && 
+    return (_cachedGamesByTournament[tournamentId] ?? []).where((game) => 
       game.gameType == GameType.pool && 
       game.poolId == poolId
     ).toList();
@@ -70,8 +91,7 @@ class GameService {
 
   // Get elimination games for a tournament
   List<Game> getEliminationGames(String tournamentId) {
-    return _games.where((game) => 
-      game.tournamentId == tournamentId && 
+    return (_cachedGamesByTournament[tournamentId] ?? []).where((game) => 
       game.gameType == GameType.elimination
     ).toList();
   }
@@ -79,6 +99,9 @@ class GameService {
   // Generate pool games (everyone vs everyone)
   Future<void> generatePoolGames(String tournamentId, String poolId, List<Team> teams) async {
     if (teams.length < 2) return;
+
+    // First, delete existing pool games
+    await deletePoolGames(tournamentId, poolId);
 
     final now = DateTime.now();
     List<Game> poolGames = [];
@@ -106,19 +129,17 @@ class GameService {
       }
     }
 
-    // Remove existing pool games for this pool
-    _games.removeWhere((game) => 
-      game.tournamentId == tournamentId && 
-      game.poolId == poolId
-    );
-
-    // Add new pool games
-    _games.addAll(poolGames);
-    await _saveGames();
+    // Save new pool games to Firebase
+    for (final game in poolGames) {
+      await addGame(game);
+    }
   }
 
   // Generate elimination bracket
   Future<void> generateEliminationBracket(String tournamentId, Map<String, List<Team>> poolResults) async {
+    // First, delete existing elimination games
+    await deleteEliminationGames(tournamentId);
+
     final now = DateTime.now();
     List<Game> bracketGames = [];
 
@@ -207,31 +228,26 @@ class GameService {
       gamesInPreviousRound = gamesInThisRound;
     }
 
-    // Remove existing elimination games
-    _games.removeWhere((game) => 
-      game.tournamentId == tournamentId && 
-      game.gameType == GameType.elimination
-    );
-
-    // Add new bracket games
-    _games.addAll(bracketGames);
-    await _saveGames();
+    // Save new bracket games to Firebase
+    for (final game in bracketGames) {
+      await addGame(game);
+    }
   }
 
   // Update game result
   Future<void> updateGameResult(String gameId, GameResult result) async {
-    final gameIndex = _games.indexWhere((game) => game.id == gameId);
-    if (gameIndex != -1) {
-      _games[gameIndex] = _games[gameIndex].copyWith(
+    final game = await getGameById(gameId);
+    if (game != null) {
+      final updatedGame = game.copyWith(
         result: result,
         status: GameStatus.completed,
         updatedAt: DateTime.now(),
       );
 
-      await _saveGames();
+      await updateGame(updatedGame);
       
       // Update dependent games (placeholders)
-      await _updateDependentGames(_games[gameIndex]);
+      await _updateDependentGames(updatedGame);
     }
   }
 
@@ -247,9 +263,10 @@ class GameService {
       final nextRound = (completedGame.bracketRound ?? 0) + 1;
       final nextPosition = (completedGame.bracketPosition ?? 0) ~/ 2;
       
-      final nextGame = _games.firstWhere(
+      // Find the next game
+      final allGames = await _getAllGamesFromFirestore(tournamentId);
+      final nextGame = allGames.firstWhere(
         (game) => 
-          game.tournamentId == tournamentId &&
           game.gameType == GameType.elimination &&
           game.bracketRound == nextRound &&
           game.bracketPosition == nextPosition,
@@ -266,57 +283,202 @@ class GameService {
       );
 
       if (nextGame.id.isNotEmpty) {
-        final gameIndex = _games.indexWhere((game) => game.id == nextGame.id);
-        if (gameIndex != -1) {
-          Game updatedGame;
-          if ((completedGame.bracketPosition ?? 0) % 2 == 0) {
-            // Update team A
-            updatedGame = nextGame.copyWith(
-              teamAName: winner,
-              teamAId: completedGame.result!.winnerId,
-              updatedAt: DateTime.now(),
-            );
-          } else {
-            // Update team B
-            updatedGame = nextGame.copyWith(
-              teamBName: winner,
-              teamBId: completedGame.result!.winnerId,
-              updatedAt: DateTime.now(),
-            );
-          }
-          _games[gameIndex] = updatedGame;
+        Game updatedGame;
+        if ((completedGame.bracketPosition ?? 0) % 2 == 0) {
+          // Update team A
+          updatedGame = nextGame.copyWith(
+            teamAName: winner,
+            teamAId: completedGame.result!.winnerId,
+            updatedAt: DateTime.now(),
+          );
+        } else {
+          // Update team B
+          updatedGame = nextGame.copyWith(
+            teamBName: winner,
+            teamBId: completedGame.result!.winnerId,
+            updatedAt: DateTime.now(),
+          );
         }
+        await updateGame(updatedGame);
       }
     }
+  }
 
-    await _saveGames();
+  // Helper method to get all games from Firestore for a tournament
+  Future<List<Game>> _getAllGamesFromFirestore(String tournamentId) async {
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .get();
+    
+    return snapshot.docs
+        .map((doc) => Game.fromJson({...doc.data(), 'id': doc.id}))
+        .toList();
   }
 
   // Add a new game
   Future<void> addGame(Game game) async {
-    _games.add(game);
-    await _saveGames();
+    print('🎮 GameService: Adding game ${game.id} to tournament ${game.tournamentId}');
+    
+    final gameData = game.toJson();
+    gameData.remove('id'); // Remove ID from data since it's used as document ID
+    
+    final tournamentRef = _firestore
+        .collection(_tournamentsCollection)
+        .doc(game.tournamentId)
+        .collection(_gamesSubcollection);
+    
+    try {
+      if (game.id.isEmpty) {
+        // Create new game with auto-generated ID
+        final docRef = await tournamentRef.add(gameData);
+        print('🎮 GameService: Game added with auto-generated ID: ${docRef.id}');
+      } else {
+        // Create game with specific ID
+        await tournamentRef.doc(game.id).set(gameData);
+        print('🎮 GameService: Game added with specific ID: ${game.id}');
+      }
+      
+      // Force cache invalidation and immediate refresh
+      _invalidateCache(game.tournamentId);
+      
+      // Also preload to refresh cache immediately
+      await preloadGames(game.tournamentId);
+      
+    } catch (e) {
+      print('❌ Error adding game ${game.id}: $e');
+      throw e;
+    }
+  }
+
+  // Update a game
+  Future<void> updateGame(Game game) async {
+    print('🎮 GameService: Updating game ${game.id} in tournament ${game.tournamentId}');
+    
+    final gameData = game.toJson();
+    gameData.remove('id'); // Remove ID from data since it's used as document ID
+    
+    try {
+      await _firestore
+          .collection(_tournamentsCollection)
+          .doc(game.tournamentId)
+          .collection(_gamesSubcollection)
+          .doc(game.id)
+          .set(gameData);
+      
+      print('🎮 GameService: Game ${game.id} updated successfully');
+      
+      // Force cache invalidation and immediate refresh
+      _invalidateCache(game.tournamentId);
+      
+      // Also preload to refresh cache immediately
+      await preloadGames(game.tournamentId);
+      
+    } catch (e) {
+      print('❌ Error updating game ${game.id}: $e');
+      throw e;
+    }
   }
 
   // Delete a game
-  Future<void> deleteGame(String gameId) async {
-    _games.removeWhere((game) => game.id == gameId);
-    await _saveGames();
+  Future<void> deleteGame(String tournamentId, String gameId) async {
+    await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .doc(gameId)
+        .delete();
+    
+    _invalidateCache(tournamentId);
   }
 
   // Delete all games for a tournament
   Future<void> deleteAllGamesForTournament(String tournamentId) async {
-    _games.removeWhere((game) => game.tournamentId == tournamentId);
-    await _saveGames();
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .get();
+    
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    
+    _invalidateCache(tournamentId);
+  }
+
+  // Delete pool games for a specific pool
+  Future<void> deletePoolGames(String tournamentId, String poolId) async {
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .where('poolId', isEqualTo: poolId)
+        .get();
+    
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    
+    _invalidateCache(tournamentId);
+  }
+
+  // Delete elimination games for a tournament
+  Future<void> deleteEliminationGames(String tournamentId) async {
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .where('gameType', isEqualTo: 'GameType.elimination')
+        .get();
+    
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    
+    _invalidateCache(tournamentId);
   }
 
   // Get game by ID
-  Game? getGameById(String gameId) {
-    try {
-      return _games.firstWhere((game) => game.id == gameId);
-    } catch (e) {
-      return null;
+  Future<Game?> getGameById(String gameId) async {
+    // Since games are now in subcollections, we need tournament ID
+    // This is a limitation - we need to search across all tournaments
+    final tournamentsSnapshot = await _firestore.collection(_tournamentsCollection).get();
+    
+    for (final tournamentDoc in tournamentsSnapshot.docs) {
+      final gameDoc = await tournamentDoc.reference
+          .collection(_gamesSubcollection)
+          .doc(gameId)
+          .get();
+      
+      if (gameDoc.exists) {
+        return Game.fromJson({...gameDoc.data()!, 'id': gameDoc.id});
+      }
     }
+    
+    return null;
+  }
+
+  // Get game by ID within a specific tournament (more efficient)
+  Future<Game?> getGameByIdInTournament(String tournamentId, String gameId) async {
+    final doc = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .doc(gameId)
+        .get();
+    
+    if (doc.exists) {
+      return Game.fromJson({...doc.data()!, 'id': doc.id});
+    }
+    return null;
   }
 
   // Get bracket round name
@@ -337,7 +499,7 @@ class GameService {
 
   // Get tournament statistics
   Map<String, int> getTournamentStats(String tournamentId) {
-    final tournamentGames = getGamesForTournament(tournamentId);
+    final tournamentGames = getGamesForTournamentSync(tournamentId);
     return {
       'total': tournamentGames.length,
       'completed': tournamentGames.where((g) => g.status == GameStatus.completed).length,
@@ -348,12 +510,17 @@ class GameService {
 
   // Update placeholder team with actual team
   Future<void> updatePlaceholderTeam(String tournamentId, String placeholderName, String actualTeamId, String actualTeamName) async {
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .get();
+    
+    final batch = _firestore.batch();
     bool hasUpdates = false;
     
-    for (int i = 0; i < _games.length; i++) {
-      final game = _games[i];
-      if (game.tournamentId != tournamentId) continue;
-      
+    for (final doc in snapshot.docs) {
+      final game = Game.fromJson({...doc.data(), 'id': doc.id});
       Game? updatedGame;
       
       // Check if team A is the placeholder
@@ -374,13 +541,16 @@ class GameService {
       }
       
       if (updatedGame != null) {
-        _games[i] = updatedGame;
+        final gameData = updatedGame.toJson();
+        gameData.remove('id');
+        batch.set(doc.reference, gameData);
         hasUpdates = true;
       }
     }
     
     if (hasUpdates) {
-      await _saveGames();
+      await batch.commit();
+      _invalidateCache(tournamentId);
     }
   }
 
@@ -388,6 +558,13 @@ class GameService {
   Future<void> updatePoolPlaceholders(String tournamentId, String poolId, List<String> rankedTeamIds, List<String> rankedTeamNames) async {
     if (rankedTeamIds.length != rankedTeamNames.length) return;
     
+    final snapshot = await _firestore
+        .collection(_tournamentsCollection)
+        .doc(tournamentId)
+        .collection(_gamesSubcollection)
+        .get();
+    
+    final batch = _firestore.batch();
     bool hasUpdates = false;
     
     for (int position = 1; position <= rankedTeamIds.length; position++) {
@@ -395,10 +572,8 @@ class GameService {
       final actualTeamId = rankedTeamIds[position - 1];
       final actualTeamName = rankedTeamNames[position - 1];
       
-      for (int i = 0; i < _games.length; i++) {
-        final game = _games[i];
-        if (game.tournamentId != tournamentId) continue;
-        
+      for (final doc in snapshot.docs) {
+        final game = Game.fromJson({...doc.data(), 'id': doc.id});
         Game? updatedGame;
         
         // Check if team A is the placeholder
@@ -419,27 +594,127 @@ class GameService {
         }
         
         if (updatedGame != null) {
-          _games[i] = updatedGame;
+          final gameData = updatedGame.toJson();
+          gameData.remove('id');
+          batch.set(doc.reference, gameData);
           hasUpdates = true;
         }
       }
     }
     
     if (hasUpdates) {
-      await _saveGames();
+      await batch.commit();
+      _invalidateCache(tournamentId);
     }
   }
 
-  // Update a game
-  Future<void> updateGame(Game updatedGame) async {
-    final index = _games.indexWhere((game) => game.id == updatedGame.id);
-    if (index != -1) {
-      _games[index] = updatedGame;
-      await _saveGames();
+  // Invalidate cache when data changes
+  void _invalidateCache(String tournamentId) {
+    _cachedGamesByTournament.remove(tournamentId);
+    _lastCacheTimeByTournament.remove(tournamentId);
+  }
+
+  // Clear cache manually
+  void clearCache() {
+    _cachedGamesByTournament.clear();
+    _lastCacheTimeByTournament.clear();
+  }
+
+  // Clear cache for specific tournament
+  void clearCacheForTournament(String tournamentId) {
+    _invalidateCache(tournamentId);
+  }
+
+  // Preload games for faster initial access
+  Future<void> preloadGames(String tournamentId) async {
+    print('🎮 GameService: Preloading games for tournament $tournamentId');
+    
+    if (!_cachedGamesByTournament.containsKey(tournamentId) || 
+        (_lastCacheTimeByTournament.containsKey(tournamentId) && 
+         DateTime.now().difference(_lastCacheTimeByTournament[tournamentId]!) > _cacheTimeout)) {
+      try {
+        print('🎮 GameService: Fetching from Firebase subcollection: tournaments/$tournamentId/games');
+        final snapshot = await _firestore
+            .collection(_tournamentsCollection)
+            .doc(tournamentId)
+            .collection(_gamesSubcollection)
+            .get();
+        
+        List<Game> games = [];
+        
+        for (final doc in snapshot.docs) {
+          try {
+            final gameData = {...doc.data(), 'id': doc.id};
+            final game = Game.fromJson(gameData);
+            games.add(game);
+          } catch (e) {
+            print('❌ Error parsing game ${doc.id} during preload: $e');
+            print('❌ Game data: ${doc.data()}');
+          }
+        }
+        
+        print('🎮 GameService: Preloaded ${games.length} games and cached them');
+        
+        _cachedGamesByTournament[tournamentId] = games;
+        _lastCacheTimeByTournament[tournamentId] = DateTime.now();
+      } catch (e) {
+        print('❌ Error preloading games for tournament $tournamentId: $e');
+      }
+    } else {
+      print('🎮 GameService: Games already cached for tournament $tournamentId (${_cachedGamesByTournament[tournamentId]?.length ?? 0} games)');
     }
   }
 
+  // Force refresh games for a tournament
+  Future<void> forceRefreshGames(String tournamentId) async {
+    print('🔄 GameService: Force refreshing games for tournament $tournamentId');
+    
+    // Clear cache
+    _invalidateCache(tournamentId);
+    
+    // Preload fresh data
+    await preloadGames(tournamentId);
+    
+    print('✅ GameService: Force refresh completed for tournament $tournamentId');
+  }
+
+  // Debug method to check Firebase structure
+  Future<void> debugFirebaseStructure(String tournamentId) async {
+    try {
+      print('🔍 DEBUG: Checking Firebase structure for tournament $tournamentId');
+      
+      // Check if tournament exists
+      final tournamentDoc = await _firestore
+          .collection(_tournamentsCollection)
+          .doc(tournamentId)
+          .get();
+      
+      print('🔍 Tournament exists: ${tournamentDoc.exists}');
+      if (tournamentDoc.exists) {
+        print('🔍 Tournament data: ${tournamentDoc.data()}');
+      }
+      
+      // Check games subcollection
+      final gamesSnapshot = await _firestore
+          .collection(_tournamentsCollection)
+          .doc(tournamentId)
+          .collection(_gamesSubcollection)
+          .get();
+      
+      print('🔍 Games subcollection size: ${gamesSnapshot.docs.length}');
+      
+      for (final doc in gamesSnapshot.docs) {
+        print('🔍 Game ${doc.id}: ${doc.data()}');
+      }
+      
+    } catch (e) {
+      print('❌ DEBUG ERROR: $e');
+    }
+  }
+
+  // Dispose method for cleanup (kept for compatibility)
   void dispose() {
-    _gameController.close();
+    // Clear cache on disposal
+    clearCache();
   }
 } 

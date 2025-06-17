@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/team.dart';
 import '../services/team_service.dart';
 import '../widgets/team_avatar.dart';
+import '../utils/responsive_helper.dart';
 import 'bulk_add_teams_screen.dart';
 
 class TeamManagementScreen extends StatefulWidget {
@@ -23,6 +25,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   String _selectedDivision = 'Men\'s Seniors';
   String _filterDivision = 'Alle';
   Team? _editingTeam;
+  
+  // Auto-save functionality
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  bool _hasUnsavedChanges = false;
+  String? _autoSaveStatus;
 
   // German Bundesländer
   final List<String> _bundeslaender = [
@@ -61,7 +69,86 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   @override
   void initState() {
     super.initState();
-    // No sample data initialization
+    _setupAutoSaveListeners();
+  }
+
+  void _setupAutoSaveListeners() {
+    _nameController.addListener(_onFormChanged);
+    _teamManagerController.addListener(_onFormChanged);
+    _logoUrlController.addListener(_onFormChanged);
+    _cityController.addListener(_onFormChanged);
+  }
+
+  void _onFormChanged() {
+    if (_editingTeam == null) return; // Only auto-save when editing existing teams
+    
+    setState(() {
+      _hasUnsavedChanges = true;
+    });
+    
+    // Cancel previous timer
+    _autoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save (debounce for 2 seconds)
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _performAutoSave();
+    });
+  }
+
+  Future<void> _performAutoSave() async {
+    if (!_hasUnsavedChanges || _editingTeam == null) return;
+    
+    if (!_formKey.currentState!.validate()) return; // Don't save invalid data
+    
+    setState(() {
+      _isAutoSaving = true;
+      _autoSaveStatus = 'Speichert...';
+    });
+    
+    try {
+      Team team = Team(
+        id: _editingTeam!.id,
+        name: _nameController.text,
+        teamManager: _teamManagerController.text.isEmpty ? null : _teamManagerController.text,
+        logoUrl: _logoUrlController.text.isEmpty ? null : _logoUrlController.text,
+        city: _cityController.text,
+        bundesland: _selectedBundesland,
+        division: _selectedDivision,
+        createdAt: _editingTeam!.createdAt,
+      );
+
+      await _teamService.updateTeam(team);
+      
+      setState(() {
+        _isAutoSaving = false;
+        _hasUnsavedChanges = false;
+        _autoSaveStatus = 'Automatisch gespeichert';
+      });
+      
+      // Clear status after 3 seconds
+      Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+      
+    } catch (e) {
+      setState(() {
+        _isAutoSaving = false;
+        _autoSaveStatus = 'Fehler beim Speichern';
+      });
+      
+      // Clear error after 5 seconds
+      Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -144,7 +231,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
           // Team List
           Expanded(
             child: StreamBuilder<List<Team>>(
-              stream: _teamService.getTeams(),
+              stream: _teamService.getTeamsWithCache(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -195,98 +282,254 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   }
 
   Widget _buildTeamDataTable(List<Team> teams) {
-    return SingleChildScrollView(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
-          columns: const [
-            DataColumn(label: Text('Team Name', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Team Manager', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Division', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Stadt', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Bundesland', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Logo', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))),
-          ],
-          rows: teams.map((team) {
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 200,
-                    child: Text(
-                      team.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ),
-                DataCell(Text(team.teamManager ?? 'Nicht angegeben')),
-                DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getDivisionColor(team.division).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      team.division,
-                      style: TextStyle(
-                        color: _getDivisionColor(team.division),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-                DataCell(Text(team.city)),
-                DataCell(Text(team.bundesland)),
-                DataCell(
-                  TeamAvatar(
-                    teamName: team.name,
-                    logoUrl: team.logoUrl,
-                    size: 40,
-                    division: team.division,
-                  ),
-                ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _editTeam(team),
-                        tooltip: 'Bearbeiten',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteTeam(team),
-                        tooltip: 'Löschen',
-                      ),
-                    ],
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isMobile = ResponsiveHelper.isMobile(width);
+        
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            width: isMobile ? width * 1.5 : width,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            );
-          }).toList(),
-        ),
-      ),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: width),
+              child: DataTable(
+                columnSpacing: isMobile ? 16 : 24,
+                headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
+                columns: [
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Team Name', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Team Manager', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Division', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Stadt', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Bundesland', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Logo', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Aktionen', 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                rows: teams.map((team) {
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 120 : 200,
+                            minWidth: isMobile ? 80 : 120,
+                          ),
+                          child: Text(
+                            team.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: isMobile ? 12 : 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 100 : 150,
+                            minWidth: isMobile ? 80 : 100,
+                          ),
+                          child: Text(
+                            team.teamManager ?? 'Nicht angegeben',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: isMobile ? 12 : 14),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 80 : 120,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getDivisionColor(team.division).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            team.division,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _getDivisionColor(team.division),
+                              fontSize: isMobile ? 10 : 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 80 : 120,
+                            minWidth: isMobile ? 60 : 80,
+                          ),
+                          child: Text(
+                            team.city,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: isMobile ? 12 : 14),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 80 : 120,
+                            minWidth: isMobile ? 60 : 80,
+                          ),
+                          child: Text(
+                            team.bundesland,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: isMobile ? 12 : 14),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        TeamAvatar(
+                          teamName: team.name,
+                          logoUrl: team.logoUrl,
+                          size: isMobile ? 32 : 40,
+                          division: team.division,
+                        ),
+                      ),
+                      DataCell(
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 80 : 100,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.edit, 
+                                  color: Colors.blue,
+                                  size: isMobile ? 18 : 24,
+                                ),
+                                onPressed: () => _editTeam(team),
+                                tooltip: 'Bearbeiten',
+                                padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                constraints: BoxConstraints(
+                                  minWidth: isMobile ? 32 : 40,
+                                  minHeight: isMobile ? 32 : 40,
+                                ),
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete, 
+                                  color: Colors.red,
+                                  size: isMobile ? 18 : 24,
+                                ),
+                                onPressed: () => _deleteTeam(team),
+                                tooltip: 'Löschen',
+                                padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                constraints: BoxConstraints(
+                                  minWidth: isMobile ? 32 : 40,
+                                  minHeight: isMobile ? 32 : 40,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   void _showTeamDialog([Team? team]) {
     _editingTeam = team;
+    
+    // Reset auto-save state
+    _hasUnsavedChanges = false;
+    _autoSaveStatus = null;
     
     if (team != null) {
       _nameController.text = team.name;
@@ -305,7 +548,35 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(team == null ? 'Neues Team' : 'Team bearbeiten'),
+              title: Row(
+                children: [
+                  Text(team == null ? 'Neues Team' : 'Team bearbeiten'),
+                  const Spacer(),
+                  if (_autoSaveStatus != null) ...[
+                    if (_isAutoSaving) 
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(
+                        _autoSaveStatus!.contains('Fehler') ? Icons.error_outline : Icons.check_circle_outline,
+                        size: 16,
+                        color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                      ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _autoSaveStatus!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               content: SizedBox(
                 width: 500,
                 child: Form(
@@ -349,40 +620,46 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: _selectedBundesland,
-                          decoration: const InputDecoration(labelText: 'Bundesland *'),
-                          items: _bundeslaender.map((String bundesland) {
-                            return DropdownMenuItem<String>(
-                              value: bundesland,
-                              child: Text(bundesland),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedBundesland = newValue;
-                              });
-                            }
-                          },
+                        Flexible(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedBundesland,
+                            decoration: const InputDecoration(labelText: 'Bundesland'),
+                            items: _bundeslaender.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _selectedBundesland = newValue;
+                                });
+                                _onFormChanged(); // Trigger auto-save
+                              }
+                            },
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: _selectedDivision,
-                          decoration: const InputDecoration(labelText: 'Division *'),
-                          items: _divisions.map((String division) {
-                            return DropdownMenuItem<String>(
-                              value: division,
-                              child: Text(division),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedDivision = newValue;
-                              });
-                            }
-                          },
+                        Flexible(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedDivision,
+                            decoration: const InputDecoration(labelText: 'Division'),
+                            items: _divisions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _selectedDivision = newValue;
+                                });
+                                _onFormChanged(); // Trigger auto-save
+                              }
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -522,6 +799,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _nameController.dispose();
     _teamManagerController.dispose();
     _logoUrlController.dispose();

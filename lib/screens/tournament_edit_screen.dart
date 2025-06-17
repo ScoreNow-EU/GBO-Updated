@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../models/referee.dart';
+import '../models/delegate.dart';
 import '../models/tournament_criteria.dart';
 import '../models/court.dart';
 import '../models/game.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
 import '../services/referee_service.dart';
+import '../services/delegate_service.dart';
 import '../services/court_service.dart';
 import '../services/game_service.dart';
 import '../data/german_cities.dart';
@@ -21,6 +23,11 @@ import 'package:toastification/toastification.dart';
 import 'tournament_games_screen.dart';
 import '../services/game_scheduler.dart';
 import '../widgets/advanced_scheduling_dialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import '../utils/bracket_templates.dart';
+import '../utils/bracket_id_helper.dart';
+import '../utils/responsive_helper.dart';
 
 // Add this class at the top of the file after imports
 class GamePosition {
@@ -53,6 +60,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
   final RefereeService _refereeService = RefereeService();
+  final DelegateService _delegateService = DelegateService();
   final CourtService _courtService = CourtService();
   final GameService _gameService = GameService();
   final _formKey = GlobalKey<FormState>();
@@ -88,13 +96,24 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   ];
 
   // Navigation state
-  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, referees, settings
+  String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, referees, delegates, settings
   
   // Referee management
   List<Referee> _allReferees = [];
   List<String> _selectedRefereeIds = [];
   String _refereeSearchQuery = '';
   final _refereeSearchController = TextEditingController();
+  String _refereeSubTab = 'selection'; // selection, gespanne, allocation, planner
+  
+  // Delegate management
+  List<Delegate> _allDelegates = [];
+  List<String> _selectedDelegateIds = [];
+  String _delegateSearchQuery = '';
+  final _delegateSearchController = TextEditingController();
+  
+  // Referee Gespann management
+  List<Map<String, dynamic>> _refereeGespanne = [];
+  final _gespannNameController = TextEditingController();
   
   // Tournament Criteria
   TournamentCriteria _criteria = TournamentCriteria();
@@ -175,14 +194,27 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   bool _isLoading = false;
   bool _isSaving = false;
 
+  // Auto-save functionality
+  Timer? _scheduleAutoSaveTimer;
+  bool _isScheduleAutoSaving = false;
+  String? _scheduleAutoSaveStatus;
+  
+  // Auto-refresh functionality
+  Timer? _autoRefreshTimer;
+  bool _isAutoRefreshing = false;
+  DateTime? _lastRefreshTime;
+
   @override
   void initState() {
     super.initState();
     _initializeData();
     _loadTeams();
     _loadReferees();
+    _loadDelegates();
     _loadCourts();
     _loadScheduledGames();
+    _preloadGames(); // Preload games for match planner
+    _startAutoRefresh();
     
     _teamSearchController.addListener(() {
       setState(() {
@@ -195,6 +227,51 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         _refereeSearchQuery = _refereeSearchController.text.toLowerCase();
       });
     });
+    
+    _delegateSearchController.addListener(() {
+      setState(() {
+        _delegateSearchQuery = _delegateSearchController.text.toLowerCase();
+      });
+    });
+  }
+
+  void _startAutoRefresh() {
+    // Auto-refresh every 30 seconds when editing existing tournament
+    if (widget.tournament != null) {
+      _autoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+        _performAutoRefresh();
+      });
+    }
+  }
+
+  Future<void> _performAutoRefresh() async {
+    if (_isAutoRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    setState(() {
+      _isAutoRefreshing = true;
+      _lastRefreshTime = DateTime.now();
+    });
+    
+    try {
+      // Refresh scheduled games data
+      _loadScheduledGames();
+      
+      // Optional: Also refresh teams and referees data
+      // _loadTeams();
+      // _loadReferees();
+      
+      // Wait a moment to show the refresh indicator
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+    } catch (e) {
+      print('Error during auto-refresh: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAutoRefreshing = false;
+        });
+      }
+    }
   }
 
   void _initializeData() {
@@ -210,6 +287,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _selectedCategories = List<String>.from(tournament.categories); // Explicit type
       _selectedTeamIds = List<String>.from(tournament.teamIds); // Explicit type
       _selectedRefereeIds = List<String>.from(tournament.refereeIds); // Explicit type
+      _selectedDelegateIds = List<String>.from(tournament.delegateIds); // Explicit type
+      _refereeGespanne = List<Map<String, dynamic>>.from(tournament.refereeGespanne); // Load existing referee pairs
       
       // Initialize category-specific dates
       if (tournament.categoryStartDates != null && tournament.categoryStartDates!.isNotEmpty) {
@@ -291,7 +370,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     });
     
     try {
-      _teamService.getTeams().listen((teams) {
+      _teamService.getTeamsWithCache().listen((teams) {
         setState(() {
           _allTeams = teams;
           _isLoading = false;
@@ -313,6 +392,29 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       });
     } catch (e) {
       print('Error loading referees: $e');
+    }
+  }
+
+  void _loadDelegates() async {
+    try {
+      _delegateService.getDelegates().listen((delegates) {
+        setState(() {
+          _allDelegates = delegates;
+        });
+      });
+    } catch (e) {
+      print('Error loading delegates: $e');
+    }
+  }
+
+  void _preloadGames() async {
+    if (widget.tournament != null) {
+      try {
+        await _gameService.preloadGames(widget.tournament!.id);
+        print('🎮 Tournament Edit: Games preloaded for tournament ${widget.tournament!.id}');
+      } catch (e) {
+        print('❌ Error preloading games: $e');
+      }
     }
   }
 
@@ -542,6 +644,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
                 _buildNavItem('courts', 'Plätze', Icons.location_on),
                 _buildNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey),
+
+            _buildNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
@@ -695,6 +799,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Plätze';
       case 'referees':
         return 'Schiedsrichter';
+      case 'delegates':
+        return 'Delegierte';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -725,6 +831,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildCourtsTab();
       case 'referees':
         return _buildRefereesTab();
+      case 'delegates':
+        return _buildDelegatesTab();
       case 'settings':
         return _buildSettingsTab();
       default:
@@ -3118,26 +3226,54 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   void _saveTournament() async {
     print('Save tournament called');
     
-    // Validate form
-    if (_formKey.currentState?.validate() != true) {
-      print('Form validation failed');
-      // Navigate to basic data tab to show validation errors
+    // Only validate form if we're currently on the basic tab or if it's not valid
+    // This prevents unnecessary navigation to basic tab when saving from other tabs
+    bool isBasicDataValid = true;
+    
+    // Check if basic required fields are filled
+    if (_nameController.text.trim().isEmpty) {
+      isBasicDataValid = false;
+    }
+    
+    // If basic data is not valid, navigate to basic tab and validate
+    if (!isBasicDataValid) {
+      print('Basic data validation failed');
       setState(() {
         _selectedTab = 'basic';
       });
       
-      // Show specific error message
-      toastification.show(
-        context: context,
-        type: ToastificationType.error,
-        style: ToastificationStyle.fillColored,
-        title: const Text('Validierungsfehler'),
-        description: const Text('Bitte füllen Sie alle Pflichtfelder in den Grunddaten aus'),
-        alignment: Alignment.topRight,
-        autoCloseDuration: const Duration(seconds: 4),
-        showProgressBar: false,
-      );
-      return;
+      // Wait for tab to switch and then validate the form
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      if (_formKey.currentState?.validate() != true) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Validierungsfehler'),
+          description: const Text('Bitte füllen Sie alle Pflichtfelder in den Grunddaten aus'),
+          alignment: Alignment.topRight,
+          autoCloseDuration: const Duration(seconds: 4),
+          showProgressBar: false,
+        );
+        return;
+      }
+    } else {
+      // If we're on basic tab, validate the form
+      if (_selectedTab == 'basic' && _formKey.currentState?.validate() != true) {
+        print('Form validation failed on basic tab');
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Validierungsfehler'),
+          description: const Text('Bitte füllen Sie alle Pflichtfelder in den Grunddaten aus'),
+          alignment: Alignment.topRight,
+          autoCloseDuration: const Duration(seconds: 4),
+          showProgressBar: false,
+        );
+        return;
+      }
     }
 
     if (_selectedCategories.isEmpty) {
@@ -3257,6 +3393,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             : int.tryParse(_pointsController.text) ?? 0,
         teamIds: _selectedTeamIds,
         refereeIds: _selectedRefereeIds,
+        delegateIds: _selectedDelegateIds,
+        refereeGespanne: _refereeGespanne,
         divisionBrackets: divisionBrackets,
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
@@ -3767,6 +3905,172 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildRefereesTab() {
+    return Column(
+      children: [
+        // Sub-navigation
+        Container(
+          margin: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _refereeSubTab = 'selection'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _refereeSubTab == 'selection' ? Colors.purple : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.sports_hockey,
+                          color: _refereeSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Auswählen (${_selectedRefereeIds.length})',
+                            style: TextStyle(
+                              color: _refereeSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _refereeSubTab = 'gespanne'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _refereeSubTab == 'gespanne' ? Colors.indigo : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.group,
+                          color: _refereeSubTab == 'gespanne' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Gespanne (${_refereeGespanne.length})',
+                            style: TextStyle(
+                              color: _refereeSubTab == 'gespanne' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _refereeSubTab = 'allocation'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _refereeSubTab == 'allocation' ? Colors.teal : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.assignment,
+                          color: _refereeSubTab == 'allocation' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Zuordnung',
+                            style: TextStyle(
+                              color: _refereeSubTab == 'allocation' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _refereeSubTab = 'planner'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _refereeSubTab == 'planner' ? Colors.deepPurple : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.drag_handle,
+                          color: _refereeSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Planer',
+                            style: TextStyle(
+                              color: _refereeSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Content based on selected sub-tab
+        Expanded(
+          child: _refereeSubTab == 'selection' 
+            ? _buildRefereeSelectionContent()
+            : _refereeSubTab == 'gespanne'
+              ? _buildRefereeGespanneContent()
+              : _refereeSubTab == 'allocation'
+                ? _buildRefereeAllocationContent()
+                : _buildRefereePlannerContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRefereeSelectionContent() {
     final filteredReferees = _allReferees.where((referee) {
       if (_refereeSearchQuery.isEmpty) return true;
       final query = _refereeSearchQuery.toLowerCase();
@@ -3777,7 +4081,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }).toList();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3923,6 +4227,2005 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             }).toList(),
         ],
       ),
+    );
+  }
+
+  Widget _buildDelegatesTab() {
+    final filteredDelegates = _allDelegates.where((delegate) {
+      if (_delegateSearchQuery.isEmpty) return true;
+      final query = _delegateSearchQuery.toLowerCase();
+      return delegate.firstName.toLowerCase().contains(query) ||
+             delegate.lastName.toLowerCase().contains(query) ||
+             delegate.email.toLowerCase().contains(query) ||
+             delegate.licenseType.toLowerCase().contains(query);
+    }).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person_pin, color: Colors.orange),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Delegierte verwalten',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Wählen Sie Delegierte für dieses Turnier aus',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Search field
+                  TextField(
+                    controller: _delegateSearchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Delegierte suchen',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Selected count
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Ausgewählte Delegierte: ${_selectedDelegateIds.length}',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Delegates list
+          if (filteredDelegates.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(48),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Keine Delegierte gefunden',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            ...filteredDelegates.map((delegate) {
+              final isSelected = _selectedDelegateIds.contains(delegate.id);
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: CheckboxListTile(
+                  title: Text(
+                    delegate.fullName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(delegate.email),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          delegate.licenseType,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  value: isSelected,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      if (value == true) {
+                        _selectedDelegateIds.add(delegate.id);
+                      } else {
+                        _selectedDelegateIds.remove(delegate.id);
+                      }
+                    });
+                  },
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefereeGespanneContent() {
+    // Get available referees (those selected for the tournament)
+    final availableReferees = _allReferees.where((referee) => 
+      _selectedRefereeIds.contains(referee.id)
+    ).toList();
+
+    // Get referees that are already in gespanne
+    final assignedRefereeIds = <String>{};
+    for (final gespann in _refereeGespanne) {
+      assignedRefereeIds.add(gespann['referee1Id'] as String);
+      assignedRefereeIds.add(gespann['referee2Id'] as String);
+    }
+
+    final unassignedReferees = availableReferees.where((referee) => 
+      !assignedRefereeIds.contains(referee.id)
+    ).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.group, color: Colors.indigo),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Schiedsrichter Gespanne verwalten',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Erstellen Sie Schiedsrichter-Gespanne für Handball-Spiele',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Create new gespann button
+                  if (unassignedReferees.length >= 2)
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateGespannDialog(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Neues Gespann erstellen'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Mindestens 2 verfügbare Schiedsrichter benötigt. Wählen Sie zuerst Schiedsrichter im "Schiedsrichter" Tab aus.',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Statistics
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Gespanne: ${_refereeGespanne.length}',
+                          style: TextStyle(
+                            color: Colors.indigo.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Zugewiesene Schiedsrichter: ${assignedRefereeIds.length}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Verfügbare Schiedsrichter: ${unassignedReferees.length}',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Existing gespanne
+          if (_refereeGespanne.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(48),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.group_off,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Keine Schiedsrichter-Gespanne erstellt',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Erstellen Sie Ihr erstes Gespann für das Turnier',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            ...List.generate(_refereeGespanne.length, (index) {
+              final gespann = _refereeGespanne[index];
+              final referee1 = _allReferees.firstWhere(
+                (r) => r.id == gespann['referee1Id'], 
+                orElse: () => Referee(
+                  id: '', 
+                  firstName: 'Unbekannt', 
+                  lastName: '', 
+                  email: '', 
+                  licenseType: '', 
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now()
+                ),
+              );
+              final referee2 = _allReferees.firstWhere(
+                (r) => r.id == gespann['referee2Id'], 
+                orElse: () => Referee(
+                  id: '', 
+                  firstName: 'Unbekannt', 
+                  lastName: '', 
+                  email: '', 
+                  licenseType: '', 
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now()
+                ),
+              );
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Gespann icon
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.group,
+                          color: Colors.indigo.shade600,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // Gespann details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              gespann['name'] as String,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                // Referee 1
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.blue.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Schiedsrichter 1',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.blue.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          referee1.fullName,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          referee1.licenseType,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Referee 2
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.green.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Schiedsrichter 2',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.green.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          referee2.fullName,
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          referee2.licenseType,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Actions
+                      Column(
+                        children: [
+                          IconButton(
+                            onPressed: () => _editGespann(index),
+                            icon: Icon(Icons.edit, color: Colors.blue.shade600),
+                            tooltip: 'Gespann bearbeiten',
+                          ),
+                          IconButton(
+                            onPressed: () => _deleteGespann(index),
+                            icon: Icon(Icons.delete, color: Colors.red.shade600),
+                            tooltip: 'Gespann löschen',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefereeAllocationContent() {
+    return FutureBuilder<List<Game>>(
+      future: _loadGamesForAllocation(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Fehler beim Laden der Spiele: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final games = snapshot.data ?? [];
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.assignment, color: Colors.teal),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Gespanne zu Spielen zuordnen',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ordnen Sie Schiedsrichter-Gespanne den Spielen zu',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Statistics
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Spiele gesamt: ${games.length}',
+                              style: TextStyle(
+                                color: Colors.teal.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Zugeordnet: ${games.where((g) => g.refereeGespannId != null).length}',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Offen: ${games.where((g) => g.refereeGespannId == null).length}',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Games table
+              if (games.isEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.sports_soccer,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Keine Spiele vorhanden',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Erstellen Sie zuerst Spiele im "Spiele" Tab',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                _buildGamesAllocationTable(games),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGamesAllocationTable(List<Game> games) {
+    // Group games by type like in tournament games screen
+    final poolGames = games.where((g) => g.gameType == GameType.pool).toList();
+    final eliminationGames = games.where((g) => g.gameType == GameType.elimination).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Pool Games
+        if (poolGames.isNotEmpty) ...[
+          Text(
+            'Gruppenphase',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...poolGames.map((game) => _buildGameAllocationCard(game)),
+          const SizedBox(height: 32),
+        ],
+
+        // Elimination Games
+        if (eliminationGames.isNotEmpty) ...[
+          Text(
+            'K.O.-Phase',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...eliminationGames.map((game) => _buildGameAllocationCard(game)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildGameAllocationCard(Game game) {
+    final assignedGespann = _refereeGespanne.firstWhere(
+      (g) => g['referee1Id'] + '_' + g['referee2Id'] == game.refereeGespannId,
+      orElse: () => <String, dynamic>{},
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: assignedGespann.isNotEmpty 
+            ? Colors.green.withValues(alpha: 0.3)
+            : Colors.orange.withValues(alpha: 0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Game Header
+            Row(
+              children: [
+                // Game Type Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: game.gameType == GameType.pool 
+                        ? Colors.blue.withValues(alpha: 0.2)
+                        : Colors.purple.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    game.gameType == GameType.pool 
+                        ? 'Gruppe ${game.poolId?.toUpperCase() ?? ''}' 
+                        : 'K.O.-Phase',
+                    style: TextStyle(
+                      color: game.gameType == GameType.pool 
+                          ? Colors.blue.shade700 
+                          : Colors.purple.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                // Assignment Status Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: assignedGespann.isNotEmpty
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.orange.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        assignedGespann.isNotEmpty ? Icons.check_circle : Icons.warning,
+                        size: 14,
+                        color: assignedGespann.isNotEmpty 
+                          ? Colors.green.shade600 
+                          : Colors.orange.shade600,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        assignedGespann.isNotEmpty 
+                          ? assignedGespann['name'] ?? 'Gespann'
+                          : 'Nicht zugeordnet',
+                        style: TextStyle(
+                          color: assignedGespann.isNotEmpty 
+                            ? Colors.green.shade700 
+                            : Colors.orange.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Teams
+            Row(
+              children: [
+                // Team A
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatTeamName(game.teamAName),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (game.isPlaceholder) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Wird automatisch bestimmt',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // VS
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'vs',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+
+                // Team B
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _formatTeamName(game.teamBName),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (game.isPlaceholder) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Wird automatisch bestimmt',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Assignment Controls
+            Row(
+              children: [
+                // Schedule info
+                if (game.scheduledTime != null) ...[
+                  Icon(Icons.schedule, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${game.scheduledTime!.day}.${game.scheduledTime!.month}.${game.scheduledTime!.year} ${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                
+                // Assignment dropdown
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: game.refereeGespannId,
+                    decoration: InputDecoration(
+                      labelText: 'Gespann zuordnen',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Kein Gespann'),
+                      ),
+                      ..._refereeGespanne.map((gespann) {
+                        final gespannId = gespann['referee1Id'] + '_' + gespann['referee2Id'];
+                        return DropdownMenuItem<String>(
+                          value: gespannId,
+                          child: Text(gespann['name'] ?? 'Gespann'),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: (String? newGespannId) {
+                      _assignGespannToGame(game, newGespannId);
+                    },
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Clear button
+                if (assignedGespann.isNotEmpty)
+                  IconButton(
+                    onPressed: () => _assignGespannToGame(game, null),
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Zuordnung entfernen',
+                    color: Colors.red,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTeamName(String teamName) {
+    // Format team names similar to tournament games screen
+    return teamName;
+  }
+
+  Future<List<Game>> _loadGamesForAllocation() async {
+    // Load games for the current tournament using the new subcollection structure
+    final tournamentId = widget.tournament?.id ?? '';
+    if (tournamentId.isEmpty) return [];
+    
+    // Preload games to ensure cache is populated
+    await _gameService.preloadGames(tournamentId);
+    
+    // Get games from cache first, then fall back to stream
+    final cachedGames = _gameService.getGamesForTournamentSync(tournamentId);
+    if (cachedGames.isNotEmpty) {
+      return cachedGames;
+    }
+    
+    // If cache is empty, wait for stream data
+    final gamesStream = _gameService.getGamesForTournament(tournamentId);
+    return gamesStream.first; // Get the first emission from the stream
+  }
+
+  void _assignGespannToGame(Game game, String? gespannId) {
+    // Update the game with the new gespann assignment
+    final updatedGame = game.copyWith(
+      refereeGespannId: gespannId,
+      updatedAt: DateTime.now(),
+    );
+    
+    // Update the game in the service
+    _gameService.updateGame(updatedGame);
+    
+    // Refresh the UI
+    setState(() {});
+    
+    // Show feedback
+    final gespannName = gespannId != null 
+      ? _refereeGespanne.firstWhere(
+          (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
+          orElse: () => {'name': 'Unbekanntes Gespann'},
+        )['name']
+      : null;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          gespannId != null 
+            ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
+            : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
+        ),
+        backgroundColor: gespannId != null ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
+  Widget _buildRefereePlannerContent() {
+    return FutureBuilder<List<Game>>(
+      future: _loadGamesForAllocation(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Fehler beim Laden der Spiele: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final games = snapshot.data ?? [];
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.drag_handle, color: Colors.deepPurple),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Schiedsrichter-Planer',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ziehen Sie Gespanne per Drag & Drop auf die Spiele',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Statistics
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.deepPurple.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Spiele gesamt: ${games.length}',
+                              style: TextStyle(
+                                color: Colors.deepPurple.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Zugeordnet: ${games.where((g) => g.refereeGespannId != null).length}',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Offen: ${games.where((g) => g.refereeGespannId == null).length}',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Main planner layout
+              if (games.isEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.sports_soccer,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Keine Spiele vorhanden',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Erstellen Sie zuerst Spiele im "Spiele" Tab',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                _buildRefereePlannerLayout(games),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRefereePlannerLayout(List<Game> games) {
+    return Column(
+      children: [
+        // Available referee pairs at top
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Verfügbare Gespanne',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple.shade700,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_refereeGespanne.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.group_off,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Keine Gespanne vorhanden',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Erstellen Sie Gespanne im "Gespanne" Tab',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _refereeGespanne.map((gespann) => _buildDraggableGespann(gespann)).toList(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Main scheduling table (courts as columns, timeslots as rows)
+        Expanded(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Schiedsrichter-Zuordnung',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildRefereeSchedulingTable(games)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDraggableGespann(Map<String, dynamic> gespann) {
+    final gespannId = gespann['referee1Id'] + '_' + gespann['referee2Id'];
+    final gespannName = gespann['name'] ?? 'Gespann';
+    
+    // Get referee names
+    final referee1 = _allReferees.firstWhere(
+      (r) => r.id == gespann['referee1Id'],
+      orElse: () => Referee(
+        id: '',
+        firstName: 'Unbekannt',
+        lastName: '',
+        email: '',
+        licenseType: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    
+    final referee2 = _allReferees.firstWhere(
+      (r) => r.id == gespann['referee2Id'],
+      orElse: () => Referee(
+        id: '',
+        firstName: 'Unbekannt',
+        lastName: '',
+        email: '',
+        licenseType: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    return Draggable<String>(
+      data: gespannId,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: 200,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple, Colors.deepPurple.shade700],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(2, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                gespannName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${referee1.firstName} ${referee1.lastName}',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                '${referee2.firstName} ${referee2.lastName}',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      childWhenDragging: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade400),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              gespannName,
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${referee1.firstName} ${referee1.lastName}',
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              '${referee2.firstName} ${referee2.lastName}',
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.deepPurple.shade50, Colors.deepPurple.shade100],
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.deepPurple.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    gespannName,
+                    style: TextStyle(
+                      color: Colors.deepPurple.shade700,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.drag_indicator,
+                  color: Colors.deepPurple.shade400,
+                  size: 16,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${referee1.firstName} ${referee1.lastName}',
+              style: TextStyle(
+                color: Colors.deepPurple.shade600,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              '${referee2.firstName} ${referee2.lastName}',
+              style: TextStyle(
+                color: Colors.deepPurple.shade600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRefereeSchedulingTable(List<Game> games) {
+    if (widget.tournament == null || widget.tournament!.courts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_tennis,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Keine Plätze konfiguriert',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Konfigurieren Sie zuerst Plätze im "Plätze" Tab',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Get scheduled games only
+    final scheduledGames = games.where((g) => g.scheduledTime != null && g.courtId != null).toList();
+    
+    if (scheduledGames.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.schedule_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Keine Spiele eingeplant',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Planen Sie zuerst Spiele im "Spielplan" Tab',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final courts = widget.tournament!.courts;
+    
+    // Group games by date and time
+    final gamesByDateTime = <String, Map<String, Game>>{};
+    
+    for (final game in scheduledGames) {
+      if (game.scheduledTime != null && game.courtId != null) {
+        final dateKey = '${game.scheduledTime!.year}-${game.scheduledTime!.month.toString().padLeft(2, '0')}-${game.scheduledTime!.day.toString().padLeft(2, '0')}';
+        final timeKey = '${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}';
+        final slotKey = '${dateKey}_${timeKey}';
+        
+        if (!gamesByDateTime.containsKey(slotKey)) {
+          gamesByDateTime[slotKey] = {};
+        }
+        gamesByDateTime[slotKey]![game.courtId!] = game;
+      }
+    }
+
+    final sortedTimeSlots = gamesByDateTime.keys.toList()..sort();
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Header row with court names
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              border: Border.all(color: Colors.deepPurple.shade200),
+            ),
+            child: Row(
+              children: [
+                // Time column header
+                Container(
+                  width: 120,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border(right: BorderSide(color: Colors.deepPurple.shade200)),
+                  ),
+                  child: Text(
+                    'Zeit',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade700,
+                    ),
+                  ),
+                ),
+                // Court headers
+                ...courts.map((court) => Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border(right: BorderSide(color: Colors.deepPurple.shade200)),
+                    ),
+                    child: Text(
+                      court.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple.shade700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )),
+              ],
+            ),
+          ),
+          
+          // Time slot rows
+          ...sortedTimeSlots.map((timeSlot) {
+            final gamesInSlot = gamesByDateTime[timeSlot]!;
+            final parts = timeSlot.split('_');
+            final dateStr = parts[0];
+            final timeStr = parts[1];
+            
+            return Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade200),
+                  left: BorderSide(color: Colors.deepPurple.shade200),
+                  right: BorderSide(color: Colors.deepPurple.shade200),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Time column
+                  Container(
+                    width: 120,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      border: Border(right: BorderSide(color: Colors.deepPurple.shade200)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          dateStr,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Court columns
+                  ...courts.map((court) {
+                    final game = gamesInSlot[court.id];
+                    return Expanded(
+                      child: _buildRefereeGameSlot(game, court),
+                    );
+                  }),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefereeGameSlot(Game? game, Court court) {
+    if (game == null) {
+      return Container(
+        height: 80,
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: Center(
+          child: Text(
+            'Kein Spiel',
+            style: TextStyle(
+              color: Colors.grey.shade400,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final hasAssignment = game.refereeGespannId != null;
+    final assignedGespann = hasAssignment
+        ? _refereeGespanne.firstWhere(
+            (g) => g['referee1Id'] + '_' + g['referee2Id'] == game.refereeGespannId,
+            orElse: () => <String, dynamic>{},
+          )
+        : <String, dynamic>{};
+
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) {
+        final gespannId = details.data;
+        _assignGespannToGameDragDrop(game, gespannId);
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: candidateData.isNotEmpty
+                ? Colors.deepPurple.shade50
+                : (hasAssignment ? Colors.green.shade50 : Colors.white),
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade200),
+              bottom: candidateData.isNotEmpty 
+                  ? BorderSide(color: Colors.deepPurple.shade300, width: 2)
+                  : BorderSide.none,
+              top: candidateData.isNotEmpty 
+                  ? BorderSide(color: Colors.deepPurple.shade300, width: 2)
+                  : BorderSide.none,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Game teams (compact)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_formatTeamNameShort(game.teamAName)} vs ${_formatTeamNameShort(game.teamBName)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: game.gameType == GameType.pool 
+                              ? Colors.blue.withValues(alpha: 0.2)
+                              : Colors.purple.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          game.gameType == GameType.pool 
+                              ? 'Gr. ${game.poolId?.toUpperCase() ?? ''}' 
+                              : 'K.O.',
+                          style: TextStyle(
+                            color: game.gameType == GameType.pool 
+                                ? Colors.blue.shade700 
+                                : Colors.purple.shade700,
+                            fontSize: 8,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Referee assignment area
+                Container(
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: candidateData.isNotEmpty
+                        ? Colors.deepPurple.withValues(alpha: 0.2)
+                        : (hasAssignment 
+                            ? Colors.green.withValues(alpha: 0.1) 
+                            : Colors.grey.withValues(alpha: 0.05)),
+                    borderRadius: BorderRadius.circular(4),
+                    border: candidateData.isNotEmpty
+                        ? Border.all(color: Colors.deepPurple.shade300)
+                        : Border.all(color: Colors.transparent),
+                  ),
+                  child: candidateData.isNotEmpty
+                      ? Center(
+                          child: Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.deepPurple,
+                            size: 16,
+                          ),
+                        )
+                      : hasAssignment
+                          ? Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    assignedGespann['name'] ?? 'Gespann',
+                                    style: TextStyle(
+                                      color: Colors.green.shade700,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 9,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => _assignGespannToGameDragDrop(game, null),
+                                  child: Icon(
+                                    Icons.clear,
+                                    color: Colors.red.shade400,
+                                    size: 12,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Center(
+                              child: Text(
+                                'Gespann ablegen',
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 8,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatTeamNameShort(String teamName) {
+    // Shorten team names for compact display
+    if (teamName.length > 15) {
+      return teamName.substring(0, 12) + '...';
+    }
+    return teamName;
+  }
+
+  void _assignGespannToGameDragDrop(Game game, String? gespannId) {
+    // Update the game with the new gespann assignment
+    final updatedGame = game.copyWith(
+      refereeGespannId: gespannId,
+      updatedAt: DateTime.now(),
+    );
+    
+    // Update the game in the service
+    _gameService.updateGame(updatedGame);
+    
+    // Refresh the UI
+    setState(() {});
+    
+    // Show feedback
+    final gespannName = gespannId != null 
+      ? _refereeGespanne.firstWhere(
+          (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
+          orElse: () => {'name': 'Unbekanntes Gespann'},
+        )['name']
+      : null;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          gespannId != null 
+            ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
+            : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
+        ),
+        backgroundColor: gespannId != null ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showCreateGespannDialog() {
+    final availableReferees = _allReferees.where((referee) => 
+      _selectedRefereeIds.contains(referee.id)
+    ).toList();
+
+    final assignedRefereeIds = <String>{};
+    for (final gespann in _refereeGespanne) {
+      assignedRefereeIds.add(gespann['referee1Id'] as String);
+      assignedRefereeIds.add(gespann['referee2Id'] as String);
+    }
+
+    final unassignedReferees = availableReferees.where((referee) => 
+      !assignedRefereeIds.contains(referee.id)
+    ).toList();
+
+    String? selectedReferee1Id;
+    String? selectedReferee2Id;
+    _gespannNameController.clear();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Neues Schiedsrichter-Gespann erstellen'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Gespann name
+                    TextField(
+                      controller: _gespannNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Gespann Name (optional)',
+                        hintText: 'z.B. "Gespann A" oder "Müller/Schmidt"',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Referee 1 selection
+                    DropdownButtonFormField<String>(
+                      value: selectedReferee1Id,
+                      decoration: const InputDecoration(
+                        labelText: 'Schiedsrichter 1 *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: unassignedReferees.map((referee) {
+                        return DropdownMenuItem<String>(
+                          value: referee.id,
+                          child: Text('${referee.fullName} (${referee.licenseType})'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedReferee1Id = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Referee 2 selection
+                    DropdownButtonFormField<String>(
+                      value: selectedReferee2Id,
+                      decoration: const InputDecoration(
+                        labelText: 'Schiedsrichter 2 *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: unassignedReferees.where((referee) => 
+                        referee.id != selectedReferee1Id
+                      ).map((referee) {
+                        return DropdownMenuItem<String>(
+                          value: referee.id,
+                          child: Text('${referee.fullName} (${referee.licenseType})'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedReferee2Id = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Abbrechen'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedReferee1Id != null && selectedReferee2Id != null
+                    ? () => _createGespann(selectedReferee1Id!, selectedReferee2Id!)
+                    : null,
+                  child: const Text('Erstellen'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _createGespann(String referee1Id, String referee2Id) {
+    final referee1 = _allReferees.firstWhere((r) => r.id == referee1Id);
+    final referee2 = _allReferees.firstWhere((r) => r.id == referee2Id);
+    
+    final gespannName = _gespannNameController.text.trim().isEmpty
+      ? '${referee1.lastName}/${referee2.lastName}'
+      : _gespannNameController.text.trim();
+
+    final newGespann = {
+      'referee1Id': referee1Id,
+      'referee2Id': referee2Id,
+      'name': gespannName,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    setState(() {
+      _refereeGespanne.add(newGespann);
+    });
+
+    Navigator.of(context).pop();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Gespann "$gespannName" erfolgreich erstellt'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _editGespann(int index) {
+    // Implementation for editing gespann
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Gespann bearbeiten wird in einer zukünftigen Version implementiert'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void _deleteGespann(int index) {
+    final gespann = _refereeGespanne[index];
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Gespann löschen'),
+          content: Text('Möchten Sie das Gespann "${gespann['name']}" wirklich löschen?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _refereeGespanne.removeAt(index);
+                });
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gespann "${gespann['name']}" gelöscht'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -4879,14 +7182,17 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   @override
   void dispose() {
+    _scheduleAutoSaveTimer?.cancel();
+    _autoRefreshTimer?.cancel();
+    _teamSearchController.dispose();
+    _refereeSearchController.dispose();
+    _delegateSearchController.dispose();
+    _gespannNameController.dispose();
     _nameController.dispose();
     _descriptionController.dispose();
-    _pointsController.dispose();
     _imageUrlController.dispose();
     _locationController.dispose();
-    _teamSearchController.dispose();
-    _courtNameController.dispose();
-    _courtDescriptionController.dispose();
+    _pointsController.dispose();
     super.dispose();
   }
 
@@ -5970,14 +8276,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   List<Game> _getUnassignedGames() {
     if (widget.tournament == null) return [];
-    final allGames = _gameService.getGamesForTournament(widget.tournament!.id);
+    final allGames = _gameService.getGamesForTournamentSync(widget.tournament!.id);
     return allGames.where((game) => game.scheduledTime == null && game.courtId == null).toList();
   }
 
   void _loadScheduledGames() {
     if (widget.tournament == null) return;
     
-    final allGames = _gameService.getGamesForTournament(widget.tournament!.id);
+    final allGames = _gameService.getGamesForTournamentSync(widget.tournament!.id);
     final scheduledGames = allGames.where((game) => game.scheduledTime != null && game.courtId != null).toList();
     
     _scheduledGames.clear();
@@ -6200,17 +8506,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     } else {
       return 'K.O.';
     }
-  }
-
-  String _formatTeamNameShort(String teamName) {
-    if (teamName.isEmpty) return 'TBD';
-    
-    // Much shorter for the cleaner design
-    if (teamName.length > 8) {
-      return '${teamName.substring(0, 6)}..';
-    }
-    
-    return teamName;
   }
 
   bool _checkTeamConflicts(Game game) {
@@ -7130,6 +9425,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           _loadScheduledGames();
         });
         
+        // Trigger auto-save for schedule changes
+        _triggerScheduleAutoSave();
+        
         final timeRange = timeSlot.split('-');
         // Check for conflicts after scheduling
         final conflicts = _getTeamConflictDetails(updatedGame);
@@ -7270,158 +9568,280 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Start Time
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // Status indicators row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Startzeit',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              InkWell(
-                onTap: () => _selectStartTime(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              // Auto-save status indicator
+              if (_scheduleAutoSaveStatus != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: _scheduleAutoSaveStatus!.contains('Fehler') ? Colors.red.shade50 : Colors.green.shade50,
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _scheduleAutoSaveStatus!.contains('Fehler') ? Colors.red.shade200 : Colors.green.shade200,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
+                      if (_isScheduleAutoSaving) 
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(
+                          _scheduleAutoSaveStatus!.contains('Fehler') ? Icons.error_outline : Icons.check_circle_outline,
+                          size: 16,
+                          color: _scheduleAutoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                        ),
+                      const SizedBox(width: 8),
                       Text(
-                        '${_scheduleStartTime.hour.toString().padLeft(2, '0')}:${_scheduleStartTime.minute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        _scheduleAutoSaveStatus!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _scheduleAutoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(width: 20),
-          
-          // End Time
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Endzeit',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              InkWell(
-                onTap: () => _selectEndTime(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              
+              // Auto-refresh status indicator
+              if (widget.tournament != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue.shade200),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
+                      if (_isAutoRefreshing) 
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(
+                          Icons.refresh,
+                          size: 16,
+                          color: Colors.blue.shade600,
+                        ),
+                      const SizedBox(width: 8),
                       Text(
-                        '${_scheduleEndTime.hour.toString().padLeft(2, '0')}:${_scheduleEndTime.minute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        _isAutoRefreshing 
+                          ? 'Aktualisiert...' 
+                          : _lastRefreshTime != null 
+                            ? 'Zuletzt: ${_lastRefreshTime!.hour.toString().padLeft(2, '0')}:${_lastRefreshTime!.minute.toString().padLeft(2, '0')}'
+                            : 'Auto-Aktualisierung aktiv',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
             ],
           ),
           
-          const SizedBox(width: 20),
+          if (_scheduleAutoSaveStatus != null || widget.tournament != null)
+            const SizedBox(height: 12),
           
-          // Duration Selector
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Zeitslot-Dauer',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _timeSlotDuration,
-                    isDense: true,
-                    items: [30, 40].map((duration) => DropdownMenuItem(
-                      value: duration,
-                      child: Text('${duration} min', style: const TextStyle(fontSize: 14)),
-                    )).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _timeSlotDuration = value;
-                          // Preserve existing game schedules when changing time scale
-                          final existingGames = Map<String, Game>.from(_scheduledGames);
-                          _scheduledGames.clear();
-                          existingGames.forEach((key, game) {
-                            if (game.scheduledTime != null && game.courtId != null) {
-                              final hour = game.scheduledTime!.hour;
-                              final minute = game.scheduledTime!.minute;
-                              final timeSlot = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-                              final newKey = "${game.courtId}_${timeSlot}_$_selectedDayIndex";
-                              _scheduledGames[newKey] = game;
-                            }
-                          });
-                        });
-                      }
+              // Start Time
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Startzeit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      await _selectStartTime();
+                      _triggerScheduleAutoSave(); // Auto-save when schedule times change
                     },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_scheduleStartTime.hour.toString().padLeft(2, '0')}:${_scheduleStartTime.minute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(width: 20),
+              
+              // End Time
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Endzeit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  InkWell(
+                    onTap: () async {
+                      await _selectEndTime();
+                      _triggerScheduleAutoSave(); // Auto-save when schedule times change
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_scheduleEndTime.hour.toString().padLeft(2, '0')}:${_scheduleEndTime.minute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(width: 20),
+              
+              // Duration Selector
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Zeitslot-Dauer',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _timeSlotDuration,
+                        isDense: true,
+                        items: [30, 40].map((duration) => DropdownMenuItem(
+                          value: duration,
+                          child: Text('${duration} min', style: const TextStyle(fontSize: 14)),
+                        )).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _timeSlotDuration = value;
+                              // Preserve existing game schedules when changing time scale
+                              final existingGames = Map<String, Game>.from(_scheduledGames);
+                              _scheduledGames.clear();
+                              existingGames.forEach((key, game) {
+                                if (game.scheduledTime != null && game.courtId != null) {
+                                  final hour = game.scheduledTime!.hour;
+                                  final minute = game.scheduledTime!.minute;
+                                  final timeSlot = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+                                  final newKey = "${game.courtId}_${timeSlot}_$_selectedDayIndex";
+                                  _scheduledGames[newKey] = game;
+                                }
+                              });
+                            });
+                            _triggerScheduleAutoSave(); // Auto-save when time slot duration changes
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const Spacer(),
+              
+              // Manual Refresh Button
+              if (widget.tournament != null)
+                ElevatedButton.icon(
+                  onPressed: _isAutoRefreshing ? null : () => _performAutoRefresh(),
+                  icon: Icon(
+                    _isAutoRefreshing ? Icons.hourglass_empty : Icons.refresh,
+                    size: 18,
+                  ),
+                  label: Text(_isAutoRefreshing ? 'Lädt...' : 'Aktualisieren'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              
+              if (widget.tournament != null)
+                const SizedBox(width: 8),
+              
+              // Auto Generate Button
+              ElevatedButton.icon(
+                onPressed: _autoGenerateSchedule,
+                icon: const Icon(Icons.auto_fix_high, size: 18),
+                label: const Text('Auto-Planung'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
                   ),
                 ),
               ),
             ],
-          ),
-          
-          const Spacer(),
-          
-          // Auto Generate Button
-          ElevatedButton.icon(
-            onPressed: _autoGenerateSchedule,
-            icon: const Icon(Icons.auto_fix_high, size: 18),
-            label: const Text('Auto-Planung'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
           ),
         ],
-        ),
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildDayTabs() {
     final tournamentDays = _getTournamentDays();
@@ -7609,12 +10029,18 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     setState(() {
       _tournamentCourts.add(newCourt);
     });
+    
+    // Trigger auto-save when courts are modified
+    _triggerScheduleAutoSave();
   }
 
   void _removeTournamentCourt(int index) {
     setState(() {
       _tournamentCourts.removeAt(index);
     });
+    
+    // Trigger auto-save when courts are modified
+    _triggerScheduleAutoSave();
   }
 
   List<String> _generateTimeSlots() {
@@ -7689,5 +10115,78 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }
   }
 
+  void _triggerScheduleAutoSave() {
+    // Cancel previous timer
+    _scheduleAutoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save (debounce for 3 seconds for schedule changes)
+    _scheduleAutoSaveTimer = Timer(const Duration(seconds: 3), () {
+      _performScheduleAutoSave();
+    });
+  }
+
+  Future<void> _performScheduleAutoSave() async {
+    if (widget.tournament == null) return; // Only auto-save when editing existing tournaments
+    
+    setState(() {
+      _isScheduleAutoSaving = true;
+      _scheduleAutoSaveStatus = 'Zeitplan wird gespeichert...';
+    });
+    
+    try {
+      // Update the tournament with current court configuration
+      final updatedTournament = Tournament(
+        id: widget.tournament!.id,
+        name: widget.tournament!.name,
+        description: widget.tournament!.description,
+        imageUrl: widget.tournament!.imageUrl,
+        location: widget.tournament!.location,
+        startDate: widget.tournament!.startDate,
+        endDate: widget.tournament!.endDate,
+        categoryStartDates: widget.tournament!.categoryStartDates,
+        categoryEndDates: widget.tournament!.categoryEndDates,
+        status: widget.tournament!.status,
+        categories: widget.tournament!.categories,
+        points: widget.tournament!.points,
+        teamIds: widget.tournament!.teamIds,
+        refereeIds: widget.tournament!.refereeIds,
+        divisionBrackets: widget.tournament!.divisionBrackets,
+        customBrackets: widget.tournament!.customBrackets,
+        criteria: widget.tournament!.criteria,
+        courts: _tournamentCourts, // Updated courts
+      );
+
+      await _tournamentService.updateTournament(updatedTournament);
+      
+      setState(() {
+        _isScheduleAutoSaving = false;
+        _scheduleAutoSaveStatus = 'Zeitplan automatisch gespeichert';
+      });
+      
+      // Clear status after 3 seconds
+      Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _scheduleAutoSaveStatus = null;
+          });
+        }
+      });
+      
+    } catch (e) {
+      setState(() {
+        _isScheduleAutoSaving = false;
+        _scheduleAutoSaveStatus = 'Fehler beim Speichern des Zeitplans';
+      });
+      
+      // Clear error after 5 seconds
+      Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _scheduleAutoSaveStatus = null;
+          });
+        }
+      });
+    }
+  }
 
  }  

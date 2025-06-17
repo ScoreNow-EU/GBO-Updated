@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
-import '../models/referee.dart';
-import '../services/referee_service.dart';
+import '../models/delegate.dart';
+import '../services/delegate_service.dart';
 import '../utils/responsive_helper.dart';
-import 'bulk_add_referees_screen.dart';
+import 'bulk_add_delegates_screen.dart';
 
-class RefereeManagementScreen extends StatefulWidget {
-  const RefereeManagementScreen({super.key});
+class DelegateManagementScreen extends StatefulWidget {
+  const DelegateManagementScreen({super.key});
 
   @override
-  State<RefereeManagementScreen> createState() => _RefereeManagementScreenState();
+  State<DelegateManagementScreen> createState() => _DelegateManagementScreenState();
 }
 
-class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
-  final RefereeService _refereeService = RefereeService();
+class _DelegateManagementScreenState extends State<DelegateManagementScreen> {
+  final DelegateService _delegateService = DelegateService();
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _searchController = TextEditingController();
 
-  String _selectedLicenseType = Referee.licenseTypes.first;
+  String _selectedLicenseType = Delegate.licenseTypes.first;
   String _filterLicenseType = 'Alle';
-  Referee? _editingReferee;
+  Delegate? _editingDelegate;
   String _searchTerm = '';
 
   @override
@@ -31,7 +31,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     _lastNameController.dispose();
     _emailController.dispose();
     _searchController.dispose();
-    _refereeService.dispose();
+    _delegateService.dispose();
     super.dispose();
   }
 
@@ -48,13 +48,13 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             Row(
               children: [
                 const Icon(
-                  Icons.sports_hockey,
+                  Icons.account_balance,
                   size: 32,
                   color: Colors.black87,
                 ),
                 const SizedBox(width: 16),
                 const Text(
-                  'Schiedsrichter Verwaltung',
+                  'Delegierte Verwaltung',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -62,11 +62,11 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   ),
                 ),
                 const Spacer(),
-                // Add Referee Buttons
+                // Add Delegate Buttons
                 ElevatedButton.icon(
-                  onPressed: () => _showRefereeDialog(),
+                  onPressed: () => _showDelegateDialog(),
                   icon: const Icon(Icons.add),
-                  label: const Text('Neuen Schiedsrichter hinzufügen'),
+                  label: const Text('Neuen Delegierten hinzufügen'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -78,7 +78,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => const BulkAddRefereesScreen(),
+                        builder: (context) => const BulkAddDelegatesScreen(),
                       ),
                     );
                   },
@@ -136,7 +136,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                               isDense: true,
                             ),
                             isExpanded: true,
-                            items: ['Alle', ...Referee.licenseTypes].map((String type) {
+                            items: ['Alle', ...Delegate.licenseTypes].map((String type) {
                               return DropdownMenuItem<String>(
                                 value: type,
                                 child: Text(
@@ -166,10 +166,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Referee List
+            // Delegate List
             Expanded(
-              child: StreamBuilder<List<Referee>>(
-                stream: _refereeService.getReferees(),
+              child: StreamBuilder<List<Delegate>>(
+                stream: _delegateService.getDelegates(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -187,31 +187,31 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
                       child: Text(
-                        'Keine Schiedsrichter gefunden.',
+                        'Keine Delegierten gefunden.',
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     );
                   }
 
-                  List<Referee> referees = snapshot.data!;
+                  List<Delegate> delegates = snapshot.data!;
 
-                  // Apply search filter (done locally since we already have all referees)
+                  // Apply search filter (done locally since we already have all delegates)
                   if (_searchTerm.isNotEmpty) {
                     final term = _searchTerm.toLowerCase();
-                    referees = referees.where((r) => 
-                      r.firstName.toLowerCase().contains(term) ||
-                      r.lastName.toLowerCase().contains(term) ||
-                      r.email.toLowerCase().contains(term) ||
-                      r.licenseType.toLowerCase().contains(term)
+                    delegates = delegates.where((d) => 
+                      d.firstName.toLowerCase().contains(term) ||
+                      d.lastName.toLowerCase().contains(term) ||
+                      d.email.toLowerCase().contains(term) ||
+                      d.licenseType.toLowerCase().contains(term)
                     ).toList();
                   }
 
                   // Apply license type filter
                   if (_filterLicenseType != 'Alle') {
-                    referees = referees.where((r) => r.licenseType == _filterLicenseType).toList();
+                    delegates = delegates.where((d) => d.licenseType == _filterLicenseType).toList();
                   }
 
-                  return _buildRefereeList(referees);
+                  return _buildDelegateList(delegates);
                 },
               ),
             ),
@@ -222,17 +222,17 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
   }
 
   Widget _buildCompactStatisticsSection() {
-    return StreamBuilder<List<Referee>>(
-      stream: _refereeService.getReferees(),
+    return StreamBuilder<List<Delegate>>(
+      stream: _delegateService.getDelegates(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
 
-        final referees = snapshot.data!;
+        final delegates = snapshot.data!;
         final distribution = <String, int>{};
-        for (final licenseType in Referee.licenseTypes) {
-          distribution[licenseType] = referees.where((r) => r.licenseType == licenseType).length;
+        for (final licenseType in Delegate.licenseTypes) {
+          distribution[licenseType] = delegates.where((d) => d.licenseType == licenseType).length;
         }
-        final totalReferees = referees.length;
+        final totalDelegates = delegates.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +255,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
               spacing: 12,
               runSpacing: 8,
               children: [
-                _buildCompactStatCard('Gesamt', totalReferees.toString(), Colors.blue),
+                _buildCompactStatCard('Gesamt', totalDelegates.toString(), Colors.blue),
                 ...distribution.entries.map((entry) => 
                   _buildCompactStatCard(entry.key, entry.value.toString(), _getLicenseColor(entry.key)),
                 ),
@@ -264,99 +264,6 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildStatisticsSection() {
-    return StreamBuilder<List<Referee>>(
-      stream: _refereeService.getReferees(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-
-        final referees = snapshot.data!;
-        final distribution = <String, int>{};
-        for (final licenseType in Referee.licenseTypes) {
-          distribution[licenseType] = referees.where((r) => r.licenseType == licenseType).length;
-        }
-        final totalReferees = referees.length;
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.analytics, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Statistiken',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildStatCard('Gesamt', totalReferees.toString(), Colors.blue),
-                  const SizedBox(width: 16),
-                  ...distribution.entries.map((entry) => 
-                    Padding(
-                      padding: const EdgeInsets.only(right: 16),
-                      child: _buildStatCard(entry.key, entry.value.toString(), _getLicenseColor(entry.key)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.withOpacity(0.8),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -392,7 +299,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     );
   }
 
-  Widget _buildRefereeList(List<Referee> referees) {
+  Widget _buildDelegateList(List<Delegate> delegates) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -412,22 +319,22 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           
           if (isMobile) {
             // Mobile layout - use cards instead of table
-            return _buildMobileRefereeList(referees);
+            return _buildMobileDelegateList(delegates);
           } else {
             // Desktop/tablet layout - use responsive table
-            return _buildDesktopRefereeTable(referees, availableWidth);
+            return _buildDesktopDelegateTable(delegates, availableWidth);
           }
         },
       ),
     );
   }
 
-  Widget _buildMobileRefereeList(List<Referee> referees) {
+  Widget _buildMobileDelegateList(List<Delegate> delegates) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      itemCount: referees.length,
+      itemCount: delegates.length,
       itemBuilder: (context, index) {
-        final referee = referees[index];
+        final delegate = delegates[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
@@ -446,7 +353,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          referee.fullName,
+                          delegate.fullName,
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 15,
@@ -454,7 +361,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          referee.email,
+                          delegate.email,
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 13,
@@ -468,14 +375,14 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
-                        onPressed: () => _editReferee(referee),
+                        onPressed: () => _editDelegate(delegate),
                         tooltip: 'Bearbeiten',
                         padding: const EdgeInsets.all(4),
                         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red, size: 18),
-                        onPressed: () => _deleteReferee(referee),
+                        onPressed: () => _deleteDelegate(delegate),
                         tooltip: 'Löschen',
                         padding: const EdgeInsets.all(4),
                         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -490,13 +397,13 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: _getLicenseColor(referee.licenseType).withOpacity(0.2),
+                      color: _getLicenseColor(delegate.licenseType).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      referee.licenseType,
+                      delegate.licenseType,
                       style: TextStyle(
-                        color: _getLicenseColor(referee.licenseType),
+                        color: _getLicenseColor(delegate.licenseType),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -504,7 +411,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
+                    '${delegate.createdAt.day}.${delegate.createdAt.month}.${delegate.createdAt.year}',
                     style: TextStyle(color: Colors.grey[500], fontSize: 11),
                   ),
                 ],
@@ -516,7 +423,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     );
   }
 
-  Widget _buildDesktopRefereeTable(List<Referee> referees, double availableWidth) {
+  Widget _buildDesktopDelegateTable(List<Delegate> delegates, double availableWidth) {
     final isMobile = ResponsiveHelper.isMobile(availableWidth);
     
     return SingleChildScrollView(
@@ -564,7 +471,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.20, // 20% of available width
+                width: (availableWidth - 40) * 0.25, // 25% of available width
                 child: Text(
                   'Lizenz',
                   style: TextStyle(
@@ -588,7 +495,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.10, // 10% of available width
+                width: (availableWidth - 40) * 0.05, // 5% of available width
                 child: Text(
                   'Aktionen',
                   style: TextStyle(
@@ -599,14 +506,14 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
               ),
             ),
           ],
-          rows: referees.map((referee) {
+          rows: delegates.map((delegate) {
             return DataRow(
               cells: [
                 DataCell(
                   SizedBox(
                     width: (availableWidth - 40) * 0.25,
                     child: Text(
-                      referee.fullName,
+                      delegate.fullName,
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: isMobile ? 12 : 13,
@@ -619,7 +526,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   SizedBox(
                     width: (availableWidth - 40) * 0.30,
                     child: Text(
-                      referee.email,
+                      delegate.email,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: isMobile ? 12 : 13),
                     ),
@@ -627,18 +534,18 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                 ),
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.20,
+                    width: (availableWidth - 40) * 0.25,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _getLicenseColor(referee.licenseType).withOpacity(0.15),
+                        color: _getLicenseColor(delegate.licenseType).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        referee.licenseType,
+                        delegate.licenseType,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: _getLicenseColor(referee.licenseType),
+                          color: _getLicenseColor(delegate.licenseType),
                           fontSize: isMobile ? 10 : 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -650,7 +557,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   SizedBox(
                     width: (availableWidth - 40) * 0.15,
                     child: Text(
-                      '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
+                      '${delegate.createdAt.day}.${delegate.createdAt.month}.${delegate.createdAt.year}',
                       style: TextStyle(
                         color: Colors.grey[600], 
                         fontSize: isMobile ? 11 : 12,
@@ -661,7 +568,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                 ),
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.10,
+                    width: (availableWidth - 40) * 0.05,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -671,7 +578,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                             color: Colors.blue, 
                             size: isMobile ? 16 : 18,
                           ),
-                          onPressed: () => _editReferee(referee),
+                          onPressed: () => _editDelegate(delegate),
                           tooltip: 'Bearbeiten',
                           padding: EdgeInsets.all(isMobile ? 2 : 4),
                           constraints: BoxConstraints(
@@ -685,7 +592,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                             color: Colors.red, 
                             size: isMobile ? 16 : 18,
                           ),
-                          onPressed: () => _deleteReferee(referee),
+                          onPressed: () => _deleteDelegate(delegate),
                           tooltip: 'Löschen',
                           padding: EdgeInsets.all(isMobile ? 2 : 4),
                           constraints: BoxConstraints(
@@ -707,29 +614,23 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
 
   Color _getLicenseColor(String licenseType) {
     switch (licenseType) {
-      case 'Basis-Lizenz':
-        return Colors.green;
-      case 'Perspektivkader':
-        return Colors.blue;
-      case 'DHB Stamm+Anschlusskader':
-        return Colors.orange;
-      case 'DHB Elitekader':
-        return Colors.red;
-      case 'EBT Referee':
+      case 'EHF Delegate':
         return Colors.purple;
+      case 'DHB National Delegate':
+        return Colors.indigo;
       default:
         return Colors.grey;
     }
   }
 
-  void _showRefereeDialog([Referee? referee]) {
-    _editingReferee = referee;
+  void _showDelegateDialog([Delegate? delegate]) {
+    _editingDelegate = delegate;
     
-    if (referee != null) {
-      _firstNameController.text = referee.firstName;
-      _lastNameController.text = referee.lastName;
-      _emailController.text = referee.email;
-      _selectedLicenseType = referee.licenseType;
+    if (delegate != null) {
+      _firstNameController.text = delegate.firstName;
+      _lastNameController.text = delegate.lastName;
+      _emailController.text = delegate.email;
+      _selectedLicenseType = delegate.licenseType;
     } else {
       _clearForm();
     }
@@ -740,7 +641,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(referee == null ? 'Neuen Schiedsrichter hinzufügen' : 'Schiedsrichter bearbeiten'),
+              title: Text(delegate == null ? 'Neuen Delegierten hinzufügen' : 'Delegierten bearbeiten'),
               content: SizedBox(
                 width: 400,
                 child: Form(
@@ -788,10 +689,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                       DropdownButtonFormField<String>(
                         value: _selectedLicenseType,
                         decoration: const InputDecoration(labelText: 'Lizenz *'),
-                        items: Referee.licenseTypes.map((String license) {
+                        items: Delegate.licenseTypes.map((String licenseType) {
                           return DropdownMenuItem<String>(
-                            value: license,
-                            child: Text(license),
+                            value: licenseType,
+                            child: Text(licenseType),
                           );
                         }).toList(),
                         onChanged: (String? newValue) {
@@ -812,8 +713,8 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   child: const Text('Abbrechen'),
                 ),
                 ElevatedButton(
-                  onPressed: () => _saveReferee(),
-                  child: Text(referee == null ? 'Hinzufügen' : 'Speichern'),
+                  onPressed: () => _saveDelegate(),
+                  child: Text(delegate == null ? 'Erstellen' : 'Speichern'),
                 ),
               ],
             );
@@ -827,143 +728,93 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     _firstNameController.clear();
     _lastNameController.clear();
     _emailController.clear();
-    _selectedLicenseType = Referee.licenseTypes.first;
+    _selectedLicenseType = Delegate.licenseTypes.first;
   }
 
-  void _saveReferee() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveDelegate() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        final delegate = Delegate(
+          id: _editingDelegate?.id ?? '',
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          email: _emailController.text.trim(),
+          licenseType: _selectedLicenseType,
+          createdAt: _editingDelegate?.createdAt ?? DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
 
-    try {
-      final now = DateTime.now();
-      
-      if (_editingReferee == null) {
-        // Create new referee (Firebase will generate the ID)
-        final referee = Referee(
-          id: '', // Empty ID - Firebase will generate this
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          email: _emailController.text.trim(),
-          licenseType: _selectedLicenseType,
-          createdAt: now,
-          updatedAt: now,
-        );
-        
-        await _refereeService.addReferee(referee);
-        
-        if (mounted) {
-          toastification.show(
-            context: context,
-            type: ToastificationType.success,
-            style: ToastificationStyle.fillColored,
-            title: const Text('Erfolg'),
-            description: const Text('Schiedsrichter erfolgreich hinzugefügt'),
-            alignment: Alignment.topRight,
-            autoCloseDuration: const Duration(seconds: 3),
-            showProgressBar: false,
-          );
+        if (_editingDelegate == null) {
+          await _delegateService.addDelegate(delegate);
+          _showSuccessToast('Delegierter erfolgreich hinzugefügt');
+        } else {
+          await _delegateService.updateDelegate(delegate);
+          _showSuccessToast('Delegierter erfolgreich aktualisiert');
         }
-      } else {
-        // Update existing referee
-        final updatedReferee = _editingReferee!.copyWith(
-          firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
-          email: _emailController.text.trim(),
-          licenseType: _selectedLicenseType,
-          updatedAt: now,
-        );
-        
-        await _refereeService.updateReferee(updatedReferee);
-        
-        if (mounted) {
-          toastification.show(
-            context: context,
-            type: ToastificationType.success,
-            style: ToastificationStyle.fillColored,
-            title: const Text('Erfolg'),
-            description: const Text('Schiedsrichter erfolgreich aktualisiert'),
-            alignment: Alignment.topRight,
-            autoCloseDuration: const Duration(seconds: 3),
-            showProgressBar: false,
-          );
-        }
-      }
-      
-      if (mounted) {
+
         Navigator.of(context).pop();
-      }
-      _clearForm();
-      
-    } catch (e) {
-      if (mounted) {
-        toastification.show(
-          context: context,
-          type: ToastificationType.error,
-          style: ToastificationStyle.fillColored,
-          title: const Text('Fehler'),
-          description: Text('Fehler: ${e.toString()}'),
-          alignment: Alignment.topRight,
-          autoCloseDuration: const Duration(seconds: 4),
-          showProgressBar: false,
-        );
+        _clearForm();
+      } catch (e) {
+        _showErrorToast('Fehler: $e');
       }
     }
   }
 
-  void _editReferee(Referee referee) {
-    _showRefereeDialog(referee);
+  void _editDelegate(Delegate delegate) {
+    _showDelegateDialog(delegate);
   }
 
-  void _deleteReferee(Referee referee) {
-    showDialog(
+  Future<void> _deleteDelegate(Delegate delegate) async {
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Schiedsrichter löschen'),
-          content: Text('Sind Sie sicher, dass Sie ${referee.fullName} löschen möchten?'),
+          title: const Text('Delegierten löschen'),
+          content: Text('Sind Sie sicher, dass Sie ${delegate.fullName} löschen möchten?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Abbrechen'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                try {
-                  await _refereeService.deleteReferee(referee.id);
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    toastification.show(
-                      context: context,
-                      type: ToastificationType.success,
-                      style: ToastificationStyle.fillColored,
-                      title: const Text('Erfolg'),
-                      description: const Text('Schiedsrichter erfolgreich gelöscht'),
-                      alignment: Alignment.topRight,
-                      autoCloseDuration: const Duration(seconds: 3),
-                      showProgressBar: false,
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    toastification.show(
-                      context: context,
-                      type: ToastificationType.error,
-                      style: ToastificationStyle.fillColored,
-                      title: const Text('Fehler'),
-                      description: Text('Fehler: ${e.toString()}'),
-                      alignment: Alignment.topRight,
-                      autoCloseDuration: const Duration(seconds: 4),
-                      showProgressBar: false,
-                    );
-                  }
-                }
-              },
+              onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+              child: const Text('Löschen'),
             ),
           ],
         );
       },
+    );
+
+    if (confirmed == true) {
+      try {
+        await _delegateService.deleteDelegate(delegate.id);
+        _showSuccessToast('Delegierter erfolgreich gelöscht');
+      } catch (e) {
+        _showErrorToast('Fehler beim Löschen: $e');
+      }
+    }
+  }
+
+  void _showSuccessToast(String message) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      style: ToastificationStyle.flatColored,
+      title: Text(message),
+      autoCloseDuration: const Duration(seconds: 3),
+      alignment: Alignment.topRight,
+    );
+  }
+
+  void _showErrorToast(String message) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      style: ToastificationStyle.flatColored,
+      title: Text(message),
+      autoCloseDuration: const Duration(seconds: 5),
+      alignment: Alignment.topRight,
     );
   }
 } 

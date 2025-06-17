@@ -15,6 +15,7 @@ class Game {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? courtId; // Court where the game is scheduled
+  final String? refereeGespannId; // Allocated referee pair
 
   Game({
     required this.id,
@@ -33,6 +34,7 @@ class Game {
     required this.createdAt,
     required this.updatedAt,
     this.courtId,
+    this.refereeGespannId,
   });
 
   bool get isPlaceholder => teamAId == null || teamBId == null;
@@ -40,7 +42,7 @@ class Game {
   String get displayName => '$teamAName vs $teamBName';
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'id': id,
       'tournamentId': tournamentId,
       'teamAId': teamAId,
@@ -57,10 +59,27 @@ class Game {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'courtId': courtId,
+      'refereeGespannId': refereeGespannId,
     };
+    
+    // Debug logging for scheduling data
+    if (scheduledTime != null || courtId != null) {
+      print('🎮 Game.toJson: Saving scheduling data for ${id.substring(id.length - 8)}: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
+    }
+    
+    return json;
   }
 
   factory Game.fromJson(Map<String, dynamic> json) {
+    final scheduledTime = json['scheduledTime'] != null ? DateTime.parse(json['scheduledTime']) : null;
+    final courtId = json['courtId'];
+    
+    // Debug logging for scheduling data
+    if (scheduledTime != null || courtId != null) {
+      final gameId = json['id'] ?? 'unknown';
+      print('🎮 Game.fromJson: Loading scheduling data for ${gameId.toString().substring(gameId.toString().length - 8)}: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
+    }
+    
     return Game(
       id: json['id'],
       tournamentId: json['tournamentId'],
@@ -72,12 +91,13 @@ class Game {
       poolId: json['poolId'],
       bracketRound: json['bracketRound'],
       bracketPosition: json['bracketPosition'],
-      scheduledTime: json['scheduledTime'] != null ? DateTime.parse(json['scheduledTime']) : null,
+      scheduledTime: scheduledTime,
       status: GameStatus.values.firstWhere((e) => e.toString() == json['status']),
       result: json['result'] != null ? GameResult.fromJson(json['result']) : null,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      courtId: json['courtId'],
+      courtId: courtId,
+      refereeGespannId: json['refereeGespannId'],
     );
   }
 
@@ -98,6 +118,7 @@ class Game {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? courtId,
+    String? refereeGespannId,
   }) {
     return Game(
       id: id ?? this.id,
@@ -116,6 +137,7 @@ class Game {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       courtId: courtId ?? this.courtId,
+      refereeGespannId: refereeGespannId ?? this.refereeGespannId,
     );
   }
 }

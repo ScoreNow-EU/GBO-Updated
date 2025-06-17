@@ -21,6 +21,15 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
   String _selectedStatus = 'Alle';
 
   @override
+  void initState() {
+    super.initState();
+    // Debug Firebase structure
+    _gameService.debugFirebaseStructure(widget.tournament.id);
+    // Preload games for this tournament to ensure cache is populated
+    _gameService.preloadGames(widget.tournament.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -49,7 +58,39 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                         color: Colors.grey[600],
                       ),
                     ),
+                    Text(
+                      'Tournament ID: ${widget.tournament.id}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
                   ],
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _gameService.forceRefreshGames(widget.tournament.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Spiele wurden aktualisiert')),
+                    );
+                  },
+                  child: const Text('Aktualisieren'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    await _gameService.debugFirebaseStructure(widget.tournament.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Debug info logged to console')),
+                    );
+                  },
+                  child: const Text('Debug Firebase'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _showSchedulingSummary(),
+                  child: const Text('Zeitplan Übersicht'),
                 ),
               ],
             ),
@@ -122,13 +163,16 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
             // Games List
             Expanded(
               child: StreamBuilder<List<Game>>(
-                stream: _gameService.getGames(),
+                stream: _gameService.getGamesForTournament(widget.tournament.id),
                 builder: (context, snapshot) {
+                  print('🎮 UI: StreamBuilder state - connection: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, hasError: ${snapshot.hasError}');
+                  
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   if (snapshot.hasError) {
+                    print('❌ UI: StreamBuilder error: ${snapshot.error}');
                     return Center(
                       child: Text(
                         'Fehler: ${snapshot.error}',
@@ -137,16 +181,29 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                     );
                   }
 
-                  List<Game> games = _gameService.getGamesForTournament(widget.tournament.id);
+                  // Get games for this tournament directly
+                  List<Game> games = snapshot.data ?? [];
+                  print('🎮 UI: Received ${games.length} games from stream');
 
                   // Apply filters
                   games = _applyFilters(games);
+                  print('🎮 UI: After filtering: ${games.length} games');
 
                   if (games.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Keine Spiele gefunden.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Keine Spiele gefunden.',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Turnier ID: ${widget.tournament.id}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -162,51 +219,63 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
   }
 
   Widget _buildStatisticsSection() {
-    final stats = _gameService.getTournamentStats(widget.tournament.id);
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.analytics, color: Colors.blue),
-              const SizedBox(width: 8),
-              const Text(
-                'Spiel Statistiken',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+    return StreamBuilder<List<Game>>(
+      stream: _gameService.getGamesForTournament(widget.tournament.id),
+      builder: (context, snapshot) {
+        final tournamentGames = snapshot.data ?? [];
+        
+        final stats = {
+          'total': tournamentGames.length,
+          'completed': tournamentGames.where((g) => g.status == GameStatus.completed).length,
+          'scheduled': tournamentGames.where((g) => g.status == GameStatus.scheduled).length,
+          'inProgress': tournamentGames.where((g) => g.status == GameStatus.inProgress).length,
+        };
+        
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatCard('Gesamt', stats['total'].toString(), Colors.blue),
-              const SizedBox(width: 16),
-              _buildStatCard('Beendet', stats['completed'].toString(), Colors.green),
-              const SizedBox(width: 16),
-              _buildStatCard('Geplant', stats['scheduled'].toString(), Colors.orange),
-              const SizedBox(width: 16),
-              _buildStatCard('Laufend', stats['inProgress'].toString(), Colors.red),
+              Row(
+                children: [
+                  const Icon(Icons.analytics, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Spiel Statistiken',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildStatCard('Gesamt', stats['total'].toString(), Colors.blue),
+                  const SizedBox(width: 16),
+                  _buildStatCard('Beendet', stats['completed'].toString(), Colors.green),
+                  const SizedBox(width: 16),
+                  _buildStatCard('Geplant', stats['scheduled'].toString(), Colors.orange),
+                  const SizedBox(width: 16),
+                  _buildStatCard('Laufend', stats['inProgress'].toString(), Colors.red),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -477,22 +546,61 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
               ],
             ),
 
+            // Scheduling Information
+            if (game.scheduledTime != null || game.courtId != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    if (game.scheduledTime != null) ...[
+                      Icon(Icons.schedule, size: 16, color: Colors.blue.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${game.scheduledTime!.day}.${game.scheduledTime!.month}.${game.scheduledTime!.year} ${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                    if (game.scheduledTime != null && game.courtId != null) ...[
+                      const SizedBox(width: 16),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: Colors.blue.shade300,
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                    if (game.courtId != null) ...[
+                      Icon(Icons.sports_tennis, size: 16, color: Colors.blue.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Feld ${game.courtId}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
             // Game Actions
             if (!game.isPlaceholder) ...[
               const SizedBox(height: 16),
               Row(
                 children: [
-                  if (game.scheduledTime != null) ...[
-                    Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${game.scheduledTime!.day}.${game.scheduledTime!.month}.${game.scheduledTime!.year} ${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
                   const Spacer(),
                   if (game.status != GameStatus.completed) ...[
                     TextButton.icon(
@@ -645,6 +753,76 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
     }
     
     return teamName;
+  }
+
+  void _showSchedulingSummary() async {
+    final games = await _gameService.getGamesForTournament(widget.tournament.id).first;
+    final scheduledGames = games.where((g) => g.scheduledTime != null || g.courtId != null).toList();
+    
+    if (scheduledGames.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keine Spiele sind eingeplant')),
+      );
+      return;
+    }
+
+    // Sort by scheduled time
+    scheduledGames.sort((a, b) {
+      if (a.scheduledTime == null && b.scheduledTime == null) return 0;
+      if (a.scheduledTime == null) return 1;
+      if (b.scheduledTime == null) return -1;
+      return a.scheduledTime!.compareTo(b.scheduledTime!);
+    });
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Zeitplan Übersicht'),
+        content: SizedBox(
+          width: 600,
+          height: 400,
+          child: Column(
+            children: [
+              Text('${scheduledGames.length} von ${games.length} Spielen eingeplant'),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: scheduledGames.length,
+                  itemBuilder: (context, index) {
+                    final game = scheduledGames[index];
+                    return ListTile(
+                      title: Text('${game.teamAName} vs ${game.teamBName}'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (game.scheduledTime != null)
+                            Text('Zeit: ${game.scheduledTime!.day}.${game.scheduledTime!.month} ${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}'),
+                          if (game.courtId != null)
+                            Text('Feld: ${game.courtId}'),
+                        ],
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: game.gameType == GameType.pool ? Colors.blue : Colors.purple,
+                        child: Text(
+                          game.gameType == GameType.pool ? 'G' : 'K',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

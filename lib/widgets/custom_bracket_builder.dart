@@ -88,6 +88,16 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     super.initState();
     nodes = List.from(widget.initialNodes);
     _gameService = GameService();
+    _preloadGames();
+  }
+
+  void _preloadGames() async {
+    try {
+      await _gameService.preloadGames(widget.tournament.id);
+      print('🎮 Custom Bracket: Games preloaded for tournament ${widget.tournament.id}');
+    } catch (e) {
+      print('❌ Error preloading games in custom bracket: $e');
+    }
   }
 
   @override
@@ -3072,7 +3082,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   // Check if match has game
   bool _hasMatchGame(CustomBracketNode node) {
     // Check for games that match this node
-    final allGames = _gameService.getGamesForTournament(widget.tournament.id);
+    final allGames = _gameService.getGamesForTournamentSync(widget.tournament.id);
     
     // Debug logging
     print('Checking for games for node: ${node.title}');

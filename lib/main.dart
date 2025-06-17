@@ -3,12 +3,18 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
+import 'services/preloader_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: FirebaseConfig.web,
   );
+  
+  // Preload essential data for faster loading
+  final preloader = PreloaderService();
+  preloader.preloadEssentialData(); // Don't await - let it load in background
+  
   runApp(const GBOApp());
 }
 

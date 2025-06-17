@@ -1,15 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-class Referee {
+class Delegate {
   final String id;
   final String firstName;
   final String lastName;
   final String email;
-  final String licenseType; // EHF Kader, DHB Elite Kader, DHB Stamm Kader, Perspektiv Kader, Basis Lizenz
+  final String licenseType;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  Referee({
+  Delegate({
     required this.id,
     required this.firstName,
     required this.lastName,
@@ -33,8 +31,8 @@ class Referee {
     };
   }
 
-  factory Referee.fromJson(Map<String, dynamic> json) {
-    return Referee(
+  factory Delegate.fromJson(Map<String, dynamic> json) {
+    return Delegate(
       id: json['id'],
       firstName: json['firstName'],
       lastName: json['lastName'],
@@ -57,19 +55,19 @@ class Referee {
     };
   }
 
-  factory Referee.fromMap(Map<String, dynamic> map, String documentId) {
-    return Referee(
+  factory Delegate.fromMap(Map<String, dynamic> map, String documentId) {
+    return Delegate(
       id: documentId,
       firstName: map['firstName'] ?? '',
       lastName: map['lastName'] ?? '',
       email: map['email'] ?? '',
-      licenseType: map['licenseType'] ?? 'Basis-Lizenz',
+      licenseType: map['licenseType'] ?? 'EHF Delegate',
       createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
       updatedAt: map['updatedAt']?.toDate() ?? DateTime.now(),
     );
   }
 
-  Referee copyWith({
+  Delegate copyWith({
     String? id,
     String? firstName,
     String? lastName,
@@ -78,7 +76,7 @@ class Referee {
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
-    return Referee(
+    return Delegate(
       id: id ?? this.id,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
@@ -91,64 +89,21 @@ class Referee {
 
   @override
   String toString() {
-    return 'Referee{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType}';
+    return 'Delegate{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType}';
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is Referee && other.id == id;
+    return other is Delegate && other.id == id;
   }
 
   @override
   int get hashCode => id.hashCode;
 
-  // Static list of available license types
+  // Static list of available license types for delegates
   static const List<String> licenseTypes = [
-    'Basis-Lizenz',
-    'Perspektivkader',
-    'DHB Stamm+Anschlusskader',
-    'DHB Elitekader',
-    'EBT Referee',
+    'EHF Delegate',
+    'DHB National Delegate',
   ];
-}
-
-class RefereeGespann {
-  final String id;
-  final String referee1Id;
-  final String referee2Id;
-  final String name; // Optional name for the pair
-  final DateTime createdAt;
-
-  RefereeGespann({
-    required this.id,
-    required this.referee1Id,
-    required this.referee2Id,
-    required this.name,
-    required this.createdAt,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'referee1Id': referee1Id,
-      'referee2Id': referee2Id,
-      'name': name,
-      'createdAt': Timestamp.fromDate(createdAt),
-    };
-  }
-
-  factory RefereeGespann.fromMap(Map<String, dynamic> map, String id) {
-    return RefereeGespann(
-      id: id,
-      referee1Id: map['referee1Id'] ?? '',
-      referee2Id: map['referee2Id'] ?? '',
-      name: map['name'] ?? '',
-      createdAt: map['createdAt'] != null 
-          ? (map['createdAt'] as Timestamp).toDate() 
-          : DateTime.now(),
-    );
-  }
-
-  Map<String, dynamic> toJson() => toMap();
-  factory RefereeGespann.fromJson(Map<String, dynamic> json, String id) => RefereeGespann.fromMap(json, id);
 } 

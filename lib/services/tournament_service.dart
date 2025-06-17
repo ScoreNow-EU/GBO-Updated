@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament.dart';
 
@@ -5,8 +6,19 @@ class TournamentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collection = 'tournaments';
 
-  // Get all tournaments (simplified to avoid indexing issues)
+  // Cache for faster subsequent loads
+  List<Tournament>? _cachedTournaments;
+  DateTime? _lastCacheTime;
+  static const Duration _cacheTimeout = Duration(minutes: 5);
+
+  // Get all tournaments with caching
   Stream<List<Tournament>> getTournaments() {
+    // Return cached data immediately if available and fresh
+    if (_cachedTournaments != null && _lastCacheTime != null && 
+        DateTime.now().difference(_lastCacheTime!) < _cacheTimeout) {
+      return Stream.value(_cachedTournaments!);
+    }
+
     return _firestore
         .collection(_collection)
         .snapshots()
@@ -17,47 +29,75 @@ class TournamentService {
           
           // Sort locally instead of using orderBy to avoid index requirements
           tournaments.sort((a, b) => a.startDate.compareTo(b.startDate));
+          
+          // Cache the results
+          _cachedTournaments = tournaments;
+          _lastCacheTime = DateTime.now();
+          
           return tournaments;
         });
   }
 
-  // Get tournaments by status (simplified)
+  // Get tournaments with immediate cache return + background update
+  Stream<List<Tournament>> getTournamentsWithCache() {
+    if (_cachedTournaments != null) {
+      // Create a stream controller to manage the flow
+      late StreamController<List<Tournament>> controller;
+      controller = StreamController<List<Tournament>>(
+        onListen: () async {
+          // First emit cached data immediately
+          controller.add(_cachedTournaments!);
+          
+          // Then listen for Firebase updates
+          _firestore
+              .collection(_collection)
+              .snapshots()
+              .map((snapshot) {
+                List<Tournament> tournaments = snapshot.docs
+                    .map((doc) => Tournament.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+                    .toList();
+                
+                tournaments.sort((a, b) => a.startDate.compareTo(b.startDate));
+                
+                // Update cache
+                _cachedTournaments = tournaments;
+                _lastCacheTime = DateTime.now();
+                
+                return tournaments;
+              })
+              .listen(
+                (tournaments) => controller.add(tournaments),
+                onError: (error) => controller.addError(error),
+                onDone: () => controller.close(),
+              );
+        },
+        onCancel: () => controller.close(),
+      );
+      
+      return controller.stream;
+    } else {
+      // No cache, load from Firebase
+      return getTournaments();
+    }
+  }
+
+  // Get tournaments by status with caching
   Stream<List<Tournament>> getTournamentsByStatus(String status) {
-    return _firestore
-        .collection(_collection)
-        .where('status', isEqualTo: status)
-        .snapshots()
-        .map((snapshot) {
-          List<Tournament> tournaments = snapshot.docs
-              .map((doc) => Tournament.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-              .toList();
-          
-          // Sort locally instead of using orderBy to avoid index requirements
-          tournaments.sort((a, b) => a.startDate.compareTo(b.startDate));
-          return tournaments;
-        });
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => tournament.status == status).toList());
   }
 
-  // Get tournaments by category
+  // Get tournaments by category with caching
   Stream<List<Tournament>> getTournamentsByCategory(String category) {
-    return _firestore
-        .collection(_collection)
-        .snapshots()
-        .map((snapshot) {
-          List<Tournament> tournaments = snapshot.docs
-              .map((doc) => Tournament.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-              .where((tournament) => tournament.hasCategory(category))
-              .toList();
-          
-          // Sort locally
-          tournaments.sort((a, b) => a.startDate.compareTo(b.startDate));
-          return tournaments;
-        });
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => tournament.hasCategory(category)).toList());
   }
 
   // Add a new tournament
   Future<void> addTournament(Tournament tournament) async {
     await _firestore.collection(_collection).add(tournament.toMap());
+    // Invalidate cache
+    _invalidateCache();
   }
 
   // Update tournament
@@ -66,15 +106,28 @@ class TournamentService {
         .collection(_collection)
         .doc(tournament.id)
         .update(tournament.toMap());
+    // Invalidate cache
+    _invalidateCache();
   }
 
   // Delete tournament
   Future<void> deleteTournament(String id) async {
     await _firestore.collection(_collection).doc(id).delete();
+    // Invalidate cache
+    _invalidateCache();
   }
 
-  // Get tournament by ID
+  // Get tournament by ID (with local cache search first)
   Future<Tournament?> getTournamentById(String id) async {
+    // Try to find in cache first
+    if (_cachedTournaments != null) {
+      try {
+        return _cachedTournaments!.firstWhere((tournament) => tournament.id == id);
+      } catch (e) {
+        // Not found in cache, fall through to Firestore
+      }
+    }
+    
     DocumentSnapshot doc = await _firestore.collection(_collection).doc(id).get();
     if (doc.exists) {
       return Tournament.fromMap(doc.data() as Map<String, dynamic>, doc.id);
@@ -88,6 +141,39 @@ class TournamentService {
         .collection(_collection)
         .doc(tournamentId)
         .update({'refereeIds': refereeIds});
+    // Invalidate cache
+    _invalidateCache();
+  }
+
+  // Preload tournaments for faster initial access
+  Future<void> preloadTournaments() async {
+    if (_cachedTournaments == null || 
+        (_lastCacheTime != null && DateTime.now().difference(_lastCacheTime!) > _cacheTimeout)) {
+      try {
+        final snapshot = await _firestore.collection(_collection).get();
+        List<Tournament> tournaments = snapshot.docs
+            .map((doc) => Tournament.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList();
+        
+        tournaments.sort((a, b) => a.startDate.compareTo(b.startDate));
+        
+        _cachedTournaments = tournaments;
+        _lastCacheTime = DateTime.now();
+      } catch (e) {
+        print('Error preloading tournaments: $e');
+      }
+    }
+  }
+
+  // Invalidate cache when data changes
+  void _invalidateCache() {
+    _cachedTournaments = null;
+    _lastCacheTime = null;
+  }
+
+  // Clear cache manually
+  void clearCache() {
+    _invalidateCache();
   }
 
   // Initialize with sample data
