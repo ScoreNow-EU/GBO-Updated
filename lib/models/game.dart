@@ -16,6 +16,7 @@ class Game {
   final DateTime updatedAt;
   final String? courtId; // Court where the game is scheduled
   final String? refereeGespannId; // Allocated referee pair
+  final String? delegateId; // Allocated delegate
 
   Game({
     required this.id,
@@ -35,6 +36,7 @@ class Game {
     required this.updatedAt,
     this.courtId,
     this.refereeGespannId,
+    this.delegateId,
   });
 
   bool get isPlaceholder => teamAId == null || teamBId == null;
@@ -60,6 +62,7 @@ class Game {
       'updatedAt': updatedAt.toIso8601String(),
       'courtId': courtId,
       'refereeGespannId': refereeGespannId,
+      'delegateId': delegateId,
     };
     
     // Debug logging for scheduling data
@@ -98,6 +101,7 @@ class Game {
       updatedAt: DateTime.parse(json['updatedAt']),
       courtId: courtId,
       refereeGespannId: json['refereeGespannId'],
+      delegateId: json['delegateId'],
     );
   }
 
@@ -119,6 +123,7 @@ class Game {
     DateTime? updatedAt,
     String? courtId,
     String? refereeGespannId,
+    String? delegateId,
   }) {
     return Game(
       id: id ?? this.id,
@@ -138,6 +143,7 @@ class Game {
       updatedAt: updatedAt ?? this.updatedAt,
       courtId: courtId ?? this.courtId,
       refereeGespannId: refereeGespannId ?? this.refereeGespannId,
+      delegateId: delegateId ?? this.delegateId,
     );
   }
 }

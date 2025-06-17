@@ -103,17 +103,20 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   List<String> _selectedRefereeIds = [];
   String _refereeSearchQuery = '';
   final _refereeSearchController = TextEditingController();
-  String _refereeSubTab = 'selection'; // selection, gespanne, allocation, planner
+  String _refereeSubTab = 'selection'; // selection, gespanne, planner
   
   // Delegate management
   List<Delegate> _allDelegates = [];
   List<String> _selectedDelegateIds = [];
   String _delegateSearchQuery = '';
   final _delegateSearchController = TextEditingController();
+  String _delegateSubTab = 'selection'; // selection, planner
+  Key _delegatePlannerKey = UniqueKey(); // For forcing FutureBuilder rebuilds
   
   // Referee Gespann management
   List<Map<String, dynamic>> _refereeGespanne = [];
   final _gespannNameController = TextEditingController();
+  Key _refereePlannerKey = UniqueKey(); // For forcing FutureBuilder rebuilds
   
   // Tournament Criteria
   TournamentCriteria _criteria = TournamentCriteria();
@@ -3223,6 +3226,92 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }
   }
 
+  Future<void> _autoSaveTournament() async {
+    // Simplified save function for auto-saving gespanne and other changes
+    if (widget.tournament == null) return; // Only auto-save existing tournaments
+    
+    try {
+      // Create division brackets from current state  
+      Map<String, TournamentBracket> divisionBrackets = {};
+      
+      for (String division in _divisionPools.keys) {
+        final poolNames = _divisionPools[division] ?? [];
+        Map<String, List<String>> pools = {};
+        Map<String, bool> poolIsFunBracket = {};
+        
+        // Convert pool data to the format expected by TournamentBracket
+        for (String poolName in poolNames) {
+          final poolId = '${division}_$poolName';
+          pools[poolId] = _poolTeams[poolId] ?? [];
+          poolIsFunBracket[poolId] = _poolIsFunBracket[poolId] ?? false;
+        }
+        
+        divisionBrackets[division] = TournamentBracket(
+          pools: pools,
+          poolIsFunBracket: poolIsFunBracket,
+          knockoutRounds: _divisionBrackets[division] ?? [],
+        );
+      }
+      
+      // Create custom brackets from current state
+      Map<String, CustomBracketStructure> customBrackets = {};
+      for (String division in _divisionCustomBrackets.keys) {
+        final now = DateTime.now();
+        customBrackets[division] = CustomBracketStructure(
+          nodes: _divisionCustomBrackets[division] ?? [],
+          divisionName: division,
+          createdAt: now,
+          updatedAt: now,
+        );
+      }
+      
+      // Update tournament with current data
+      final tournament = Tournament(
+        id: widget.tournament!.id,
+        name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : widget.tournament!.name,
+        description: _descriptionController.text.trim(),
+        imageUrl: _imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : null,
+        location: _locationController.text.trim().isNotEmpty ? _locationController.text.trim() : widget.tournament!.location,
+        startDate: _startDate ?? widget.tournament!.startDate,
+        endDate: _endDate ?? widget.tournament!.endDate,
+        categoryStartDates: _useCategorySpecificDates && _categoryStartDates.isNotEmpty 
+            ? Map<String, DateTime>.fromEntries(
+                _categoryStartDates.entries
+                    .where((entry) => entry.value != null)
+                    .map((entry) => MapEntry(entry.key, entry.value!))
+              )
+            : widget.tournament!.categoryStartDates,
+        categoryEndDates: _useCategorySpecificDates && _categoryEndDates.isNotEmpty 
+            ? Map<String, DateTime>.fromEntries(
+                _categoryEndDates.entries
+                    .where((entry) => entry.value != null)
+                    .map((entry) => MapEntry(entry.key, entry.value!))
+              )
+            : widget.tournament!.categoryEndDates,
+        status: _status,
+        categories: _selectedCategories.isNotEmpty ? _selectedCategories : widget.tournament!.categories,
+        points: _selectedCategories.contains('GBO Seniors Cup') 
+            ? _criteria.totalPoints + _criteria.supercupBonus 
+            : int.tryParse(_pointsController.text) ?? widget.tournament!.points,
+        teamIds: _selectedTeamIds,
+        refereeIds: _selectedRefereeIds,
+        delegateIds: _selectedDelegateIds,
+        refereeGespanne: _refereeGespanne, // This is the key part - saving gespanne
+        divisionBrackets: divisionBrackets,
+        customBrackets: customBrackets,
+        criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : widget.tournament!.criteria,
+        courts: _tournamentCourts,
+      );
+      
+      // Update existing tournament
+      await _tournamentService.updateTournament(tournament);
+      
+    } catch (e) {
+      print('Error auto-saving tournament: $e');
+      // Don't show error to user for auto-save failures
+    }
+  }
+
   void _saveTournament() async {
     print('Save tournament called');
     
@@ -3984,40 +4073,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                 ),
               ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _refereeSubTab = 'allocation'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: _refereeSubTab == 'allocation' ? Colors.teal : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.assignment,
-                          color: _refereeSubTab == 'allocation' ? Colors.white : Colors.grey.shade600,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Zuordnung',
-                            style: TextStyle(
-                              color: _refereeSubTab == 'allocation' ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+
               Expanded(
                 child: GestureDetector(
                   onTap: () => setState(() => _refereeSubTab = 'planner'),
@@ -4062,9 +4118,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ? _buildRefereeSelectionContent()
             : _refereeSubTab == 'gespanne'
               ? _buildRefereeGespanneContent()
-              : _refereeSubTab == 'allocation'
-                ? _buildRefereeAllocationContent()
-                : _buildRefereePlannerContent(),
+              : _buildRefereePlannerContent(),
         ),
       ],
     );
@@ -4231,6 +4285,107 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildDelegatesTab() {
+    return Column(
+      children: [
+        // Sub-tab navigation for delegates
+        Container(
+          margin: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _delegateSubTab = 'selection'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _delegateSubTab == 'selection' ? Colors.orange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_add,
+                          color: _delegateSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Auswahl',
+                            style: TextStyle(
+                              color: _delegateSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _delegateSubTab = 'planner'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: _delegateSubTab == 'planner' ? Colors.deepOrange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.assignment_ind,
+                          color: _delegateSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Planer',
+                            style: TextStyle(
+                              color: _delegateSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Content based on selected sub-tab
+        Expanded(
+          child: _delegateSubTab == 'selection' 
+            ? _buildDelegateSelectionContent()
+            : _buildDelegatePlannerContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDelegateSelectionContent() {
     final filteredDelegates = _allDelegates.where((delegate) {
       if (_delegateSearchQuery.isEmpty) return true;
       final query = _delegateSearchQuery.toLowerCase();
@@ -4241,7 +4396,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }).toList();
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4747,6 +4902,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   Widget _buildRefereeAllocationContent() {
     return FutureBuilder<List<Game>>(
+      key: _refereePlannerKey, // Use key to force rebuilds
       future: _loadGamesForAllocation(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -5207,41 +5363,68 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     return gamesStream.first; // Get the first emission from the stream
   }
 
-  void _assignGespannToGame(Game game, String? gespannId) {
-    // Update the game with the new gespann assignment
-    final updatedGame = game.copyWith(
-      refereeGespannId: gespannId,
-      updatedAt: DateTime.now(),
-    );
-    
-    // Update the game in the service
-    _gameService.updateGame(updatedGame);
-    
-    // Refresh the UI
-    setState(() {});
-    
-    // Show feedback
-    final gespannName = gespannId != null 
-      ? _refereeGespanne.firstWhere(
-          (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
-          orElse: () => {'name': 'Unbekanntes Gespann'},
-        )['name']
-      : null;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
+  void _assignGespannToGame(Game game, String? gespannId) async {
+    try {
+      // Update the game with the new gespann assignment
+      final updatedGame = game.copyWith(
+        refereeGespannId: gespannId,
+        updatedAt: DateTime.now(),
+      );
+      
+      // Update the game in the service
+      await _gameService.updateGame(updatedGame);
+      
+      // Clear the game cache to force fresh data
+      _gameService.clearCache();
+      
+      // Auto-save the tournament with updated gespann assignments  
+      await _autoSaveTournament();
+      
+      // Force refresh the UI by triggering a rebuild
+      setState(() {
+        // This will cause the FutureBuilder to rebuild with fresh data
+        _refereePlannerKey = UniqueKey();
+      });
+      
+      // Show feedback with toastification
+      final gespannName = gespannId != null 
+        ? _refereeGespanne.firstWhere(
+            (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
+            orElse: () => {'name': 'Unbekanntes Gespann'},
+          )['name']
+        : null;
+      
+      toastification.show(
+        context: context,
+        type: gespannId != null ? ToastificationType.success : ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: Text(gespannId != null ? 'Gespann zugeordnet' : 'Gespann entfernt'),
+        description: Text(
           gespannId != null 
             ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
             : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
         ),
-        backgroundColor: gespannId != null ? Colors.green : Colors.orange,
-      ),
-    );
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 3),
+        showProgressBar: false,
+      );
+    } catch (e) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Fehler'),
+        description: Text('Fehler beim Zuordnen: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: false,
+      );
+    }
   }
 
   Widget _buildRefereePlannerContent() {
     return FutureBuilder<List<Game>>(
+      key: _refereePlannerKey, // Use key to force rebuilds
       future: _loadGamesForAllocation(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -5395,89 +5578,107 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildRefereePlannerLayout(List<Game> games) {
-    return Column(
-      children: [
-        // Available referee pairs at top
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Verfügbare Gespanne',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple.shade700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (_refereeGespanne.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.group_off,
-                            size: 48,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Keine Gespanne vorhanden',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Erstellen Sie Gespanne im "Gespanne" Tab',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
+    return SizedBox(
+      height: 800, // Provide a fixed height to avoid unbounded constraints
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Available referee pairs on the left
+          SizedBox(
+            width: 300, // Fixed width for the referee pairs panel
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Verfügbare Gespanne',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple.shade700,
                       ),
                     ),
-                  )
-                else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _refereeGespanne.map((gespann) => _buildDraggableGespann(gespann)).toList(),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Main scheduling table (courts as columns, timeslots as rows)
-        Expanded(
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Schiedsrichter-Zuordnung',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(child: _buildRefereeSchedulingTable(games)),
-                ],
+                    const SizedBox(height: 16),
+                    if (_refereeGespanne.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.group_off,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Keine Gespanne vorhanden',
+                                style: TextStyle(color: Colors.grey.shade600),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Erstellen Sie Gespanne im "Gespanne" Tab',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _refereeGespanne.map((gespann) => _buildDraggableGespann(gespann)).toList(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+          
+          const SizedBox(width: 16),
+          
+          // Main scheduling table on the right
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Schiedsrichter-Zuordnung',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: _buildRefereeSchedulingTable(games),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -6015,38 +6216,63 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     return teamName;
   }
 
-  void _assignGespannToGameDragDrop(Game game, String? gespannId) {
-    // Update the game with the new gespann assignment
-    final updatedGame = game.copyWith(
-      refereeGespannId: gespannId,
-      updatedAt: DateTime.now(),
-    );
-    
-    // Update the game in the service
-    _gameService.updateGame(updatedGame);
-    
-    // Refresh the UI
-    setState(() {});
-    
-    // Show feedback
-    final gespannName = gespannId != null 
-      ? _refereeGespanne.firstWhere(
-          (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
-          orElse: () => {'name': 'Unbekanntes Gespann'},
-        )['name']
-      : null;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
+  void _assignGespannToGameDragDrop(Game game, String? gespannId) async {
+    try {
+      // Update the game with the new gespann assignment
+      final updatedGame = game.copyWith(
+        refereeGespannId: gespannId,
+        updatedAt: DateTime.now(),
+      );
+      
+      // Update the game in the service
+      await _gameService.updateGame(updatedGame);
+      
+      // Clear the game cache to force fresh data
+      _gameService.clearCache();
+      
+      // Auto-save the tournament with updated gespann assignments  
+      await _autoSaveTournament();
+      
+      // Force refresh the UI by triggering a rebuild
+      setState(() {
+        // This will cause the FutureBuilder to rebuild with fresh data
+        _refereePlannerKey = UniqueKey();
+      });
+      
+      // Show feedback with toastification
+      final gespannName = gespannId != null 
+        ? _refereeGespanne.firstWhere(
+            (g) => g['referee1Id'] + '_' + g['referee2Id'] == gespannId,
+            orElse: () => {'name': 'Unbekanntes Gespann'},
+          )['name']
+        : null;
+      
+      toastification.show(
+        context: context,
+        type: gespannId != null ? ToastificationType.success : ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: Text(gespannId != null ? 'Gespann zugeordnet' : 'Gespann entfernt'),
+        description: Text(
           gespannId != null 
             ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
             : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
         ),
-        backgroundColor: gespannId != null ? Colors.green : Colors.orange,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 3),
+        showProgressBar: false,
+      );
+    } catch (e) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Fehler'),
+        description: Text('Fehler beim Zuordnen: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 4),
+        showProgressBar: false,
+      );
+    }
   }
 
   void _showCreateGespannDialog() {
@@ -6155,7 +6381,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
-  void _createGespann(String referee1Id, String referee2Id) {
+  void _createGespann(String referee1Id, String referee2Id) async {
     final referee1 = _allReferees.firstWhere((r) => r.id == referee1Id);
     final referee2 = _allReferees.firstWhere((r) => r.id == referee2Id);
     
@@ -6174,23 +6400,34 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _refereeGespanne.add(newGespann);
     });
 
+    // Auto-save the tournament with the new gespann
+    await _autoSaveTournament();
+
     Navigator.of(context).pop();
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Gespann "$gespannName" erfolgreich erstellt'),
-        backgroundColor: Colors.green,
-      ),
+    toastification.show(
+      context: context,
+      type: ToastificationType.success,
+      style: ToastificationStyle.fillColored,
+      title: const Text('Gespann erstellt'),
+      description: Text('Gespann "$gespannName" erfolgreich erstellt und gespeichert'),
+      alignment: Alignment.topRight,
+      autoCloseDuration: const Duration(seconds: 3),
+      showProgressBar: false,
     );
   }
 
   void _editGespann(int index) {
     // Implementation for editing gespann
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Gespann bearbeiten wird in einer zukünftigen Version implementiert'),
-        backgroundColor: Colors.blue,
-      ),
+    toastification.show(
+      context: context,
+      type: ToastificationType.info,
+      style: ToastificationStyle.fillColored,
+      title: const Text('Info'),
+      description: const Text('Gespann bearbeiten wird in einer zukünftigen Version implementiert'),
+      alignment: Alignment.topRight,
+      autoCloseDuration: const Duration(seconds: 3),
+      showProgressBar: false,
     );
   }
 
@@ -6207,22 +6444,30 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Abbrechen'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _refereeGespanne.removeAt(index);
-                });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Gespann "${gespann['name']}" gelöscht'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Löschen', style: TextStyle(color: Colors.white)),
-            ),
+                          ElevatedButton(
+                onPressed: () async {
+                  setState(() {
+                    _refereeGespanne.removeAt(index);
+                  });
+                  
+                  // Auto-save the tournament after deletion
+                  await _autoSaveTournament();
+                  
+                  Navigator.of(context).pop();
+                  toastification.show(
+                    context: context,
+                    type: ToastificationType.error,
+                    style: ToastificationStyle.fillColored,
+                    title: const Text('Gespann gelöscht'),
+                    description: Text('Gespann "${gespann['name']}" gelöscht und gespeichert'),
+                    alignment: Alignment.topRight,
+                    autoCloseDuration: const Duration(seconds: 3),
+                    showProgressBar: false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+              ),
           ],
         );
       },
@@ -10187,6 +10432,761 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         }
       });
     }
+  }
+
+  Widget _buildDelegatePlannerContent() {
+    return FutureBuilder<List<Game>>(
+      key: _delegatePlannerKey, // Use key to force rebuilds
+      future: _loadGamesForAllocation(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Fehler beim Laden der Spiele: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+
+        final games = snapshot.data ?? [];
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.assignment_ind, color: Colors.deepOrange),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Delegierte-Planer',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ziehen Sie Delegierte per Drag & Drop auf die Spiele',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Statistics
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Spiele gesamt: ${games.length}',
+                              style: TextStyle(
+                                color: Colors.deepOrange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Zugeordnet: ${games.where((g) => g.delegateId != null).length}',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Offen: ${games.where((g) => g.delegateId == null).length}',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Main planner layout
+              if (games.isEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.sports_soccer,
+                            size: 48,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Keine Spiele vorhanden',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Erstellen Sie zuerst Spiele im "Spiele" Tab',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                _buildDelegatePlannerLayout(games),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDelegatePlannerLayout(List<Game> games) {
+    // Get selected delegates for this tournament
+    final availableDelegates = _allDelegates.where((delegate) => 
+      _selectedDelegateIds.contains(delegate.id)
+    ).toList();
+
+    return SizedBox(
+      height: 800, // Provide a fixed height to avoid unbounded constraints
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Available delegates on the left
+          SizedBox(
+            width: 300, // Fixed width for the delegates panel
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Verfügbare Delegierte',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (availableDelegates.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person_off,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Keine Delegierte ausgewählt',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Wählen Sie Delegierte im "Auswahl" Tab aus',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: availableDelegates.length,
+                          itemBuilder: (context, index) {
+                            final delegate = availableDelegates[index];
+                            return _buildDraggableDelegateCard(delegate);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Games list on the right
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Spiele',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepOrange.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: _buildDelegateGamesTable(games),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDraggableDelegateCard(Delegate delegate) {
+    return Draggable<String>(
+      data: delegate.id,
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 250,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.deepOrange.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.deepOrange.shade300),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                delegate.fullName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepOrange.shade800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                delegate.licenseType,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.deepOrange.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      childWhenDragging: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              delegate.fullName,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              delegate.licenseType,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              delegate.fullName,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                delegate.licenseType,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDelegateGamesTable(List<Game> games) {
+    // Group games by type like in tournament games screen
+    final poolGames = games.where((g) => g.gameType == GameType.pool).toList();
+    final eliminationGames = games.where((g) => g.gameType == GameType.elimination).toList();
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Pool Games
+          if (poolGames.isNotEmpty) ...[
+            Text(
+              'Gruppenphase',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...poolGames.map((game) => _buildDelegateDragTargetCard(game)),
+            const SizedBox(height: 24),
+          ],
+
+          // Elimination Games
+          if (eliminationGames.isNotEmpty) ...[
+            Text(
+              'K.O.-Phase',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...eliminationGames.map((game) => _buildDelegateDragTargetCard(game)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDelegateDragTargetCard(Game game) {
+    final hasAssignment = game.delegateId != null;
+    final assignedDelegate = hasAssignment 
+        ? _allDelegates.where((d) => d.id == game.delegateId).isNotEmpty
+            ? _allDelegates.firstWhere((d) => d.id == game.delegateId)
+            : null
+        : null;
+
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) {
+        final delegateId = details.data;
+        _assignDelegateToGameDragDrop(game, delegateId);
+      },
+      builder: (context, candidateData, rejectedData) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: candidateData.isNotEmpty
+                ? Colors.deepOrange.shade50
+                : (hasAssignment ? Colors.green.shade50 : Colors.white),
+            border: Border.all(
+              color: candidateData.isNotEmpty 
+                  ? Colors.deepOrange.shade300
+                  : (hasAssignment ? Colors.green.shade300 : Colors.grey.shade300),
+              width: candidateData.isNotEmpty ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Game Header
+                Row(
+                  children: [
+                    // Game Type Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: game.gameType == GameType.pool 
+                            ? Colors.blue.withValues(alpha: 0.2)
+                            : Colors.purple.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        game.gameType == GameType.pool ? 'Gruppenphase' : 'K.O.-Phase',
+                        style: TextStyle(
+                          color: game.gameType == GameType.pool ? Colors.blue.shade700 : Colors.purple.shade700,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        game.displayName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    // Status indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: hasAssignment 
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.orange.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            hasAssignment ? Icons.check_circle : Icons.warning,
+                            size: 14,
+                            color: hasAssignment 
+                              ? Colors.green.shade700
+                              : Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            hasAssignment ? 'Zugeordnet' : 'Offen',
+                            style: TextStyle(
+                              color: hasAssignment 
+                                ? Colors.green.shade700
+                                : Colors.orange.shade700,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Game Details
+                Row(
+                  children: [
+                    // Time
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Zeit',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            game.scheduledTime != null 
+                                ? '${game.scheduledTime!.day}.${game.scheduledTime!.month} ${game.scheduledTime!.hour}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}'
+                                : 'Nicht geplant',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: game.scheduledTime != null ? Colors.black87 : Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Court
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Platz',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _getCourtName(game.courtId) ?? 'Nicht zugeordnet',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: game.courtId != null ? Colors.black87 : Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Delegate Assignment
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person,
+                            size: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Delegierter',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      if (hasAssignment && assignedDelegate != null) ...[
+                        // Show assigned delegate
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    assignedDelegate.fullName,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    assignedDelegate.licenseType,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                              onPressed: () => _removeDelegateAssignment(game),
+                              tooltip: 'Zuordnung entfernen',
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        // Show drop zone
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: candidateData.isNotEmpty 
+                                ? Colors.deepOrange.withValues(alpha: 0.1)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: candidateData.isNotEmpty 
+                                  ? Colors.deepOrange.shade300
+                                  : Colors.grey.shade300,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Text(
+                            candidateData.isNotEmpty 
+                                ? 'Delegierten hier ablegen'
+                                : 'Ziehen Sie einen Delegierten hier her',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: candidateData.isNotEmpty 
+                                  ? Colors.deepOrange.shade700
+                                  : Colors.grey.shade500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _assignDelegateToGameDragDrop(Game game, String delegateId) async {
+    try {
+      // Create updated game with delegate assignment
+      final updatedGame = game.copyWith(delegateId: delegateId);
+      
+      // Update in database
+      await _gameService.updateGame(updatedGame);
+      
+      // Update local state
+      setState(() {
+        _delegatePlannerKey = UniqueKey(); // Force rebuild
+      });
+      
+      final delegate = _allDelegates.firstWhere((d) => d.id == delegateId);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${delegate.fullName} wurde "${game.displayName}" zugeordnet'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler bei der Zuordnung: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeDelegateAssignment(Game game) async {
+    try {
+      // Create updated game with removed delegate assignment
+      final updatedGame = game.copyWith(delegateId: null);
+      
+      // Update in database
+      await _gameService.updateGame(updatedGame);
+      
+      // Update local state
+      setState(() {
+        _delegatePlannerKey = UniqueKey(); // Force rebuild
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Delegierte-Zuordnung für "${game.displayName}" entfernt'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Fehler beim Entfernen der Zuordnung: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String? _getCourtName(String? courtId) {
+    if (courtId == null) return null;
+    final court = _tournamentCourts.where((c) => c.id == courtId).isNotEmpty
+        ? _tournamentCourts.firstWhere((c) => c.id == courtId)
+        : null;
+    return court?.name;
   }
 
  }  
