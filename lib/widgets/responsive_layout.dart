@@ -7,6 +7,8 @@ class ResponsiveLayout extends StatelessWidget {
   final Function(String) onSectionChanged;
   final Widget body;
   final String title;
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
 
   const ResponsiveLayout({
     super.key,
@@ -14,6 +16,8 @@ class ResponsiveLayout extends StatelessWidget {
     required this.onSectionChanged,
     required this.body,
     required this.title,
+    this.showBackButton = false,
+    this.onBackPressed,
   });
 
   @override
@@ -36,13 +40,30 @@ class ResponsiveLayout extends StatelessWidget {
               backgroundColor: Colors.white,
               foregroundColor: Colors.black87,
               elevation: 1,
-              leading: Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                  tooltip: 'Menü öffnen',
-                ),
-              ),
+              leading: showBackButton 
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                    tooltip: 'Zurück',
+                  )
+                : Builder(
+                    builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(context).openDrawer(),
+                      tooltip: 'Menü öffnen',
+                    ),
+                  ),
+              actions: showBackButton 
+                ? [
+                    Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        tooltip: 'Menü öffnen',
+                      ),
+                    ),
+                  ]
+                : null,
             ),
             drawer: _buildNavigationDrawer(screenWidth),
             body: Container(
@@ -65,9 +86,46 @@ class ResponsiveLayout extends StatelessWidget {
                 Expanded(
                   child: Container(
                     color: Colors.grey[100],
-                    child: Padding(
-                      padding: EdgeInsets.all(ResponsiveHelper.getContentPadding(screenWidth)),
-                      child: body,
+                    child: Column(
+                      children: [
+                        if (showBackButton)
+                          Container(
+                            height: 60,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border(
+                                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                                  onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                                  tooltip: 'Zurück',
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.all(ResponsiveHelper.getContentPadding(screenWidth)),
+                            child: body,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -188,6 +246,14 @@ class ResponsiveLayout extends StatelessWidget {
                     title: 'Schiedsrichter Verwaltung',
                     key: 'referee_management',
                     isSelected: selectedSection == 'referee_management',
+                    screenWidth: screenWidth,
+                    isAdmin: true,
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.person_pin_circle,
+                    title: 'Delegierte Verwaltung',
+                    key: 'delegate_management',
+                    isSelected: selectedSection == 'delegate_management',
                     screenWidth: screenWidth,
                     isAdmin: true,
                   ),

@@ -37,45 +37,23 @@ class _TournamentOverviewState extends State<TournamentOverview> {
         final isMobile = ResponsiveHelper.isMobile(screenWidth);
         
         return Container(
-          padding: EdgeInsets.all(ResponsiveHelper.getContentPadding(screenWidth)),
+          padding: EdgeInsets.all(isMobile ? 8.0 : ResponsiveHelper.getContentPadding(screenWidth)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with category filter - responsive layout
+              // Category filter - responsive layout
               isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Turniere - Zeitleisten-Ansicht',
-                          style: TextStyle(
-                            fontSize: 24 * ResponsiveHelper.getFontScale(screenWidth),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: _buildCategoryDropdown(),
-                        ),
-                      ],
+                  ? Container(
+                      width: double.infinity,
+                      child: _buildCategoryDropdown(),
                     )
                   : Row(
                       children: [
-                        Text(
-                          'Turniere - Zeitleisten-Ansicht',
-                          style: TextStyle(
-                            fontSize: 28 * ResponsiveHelper.getFontScale(screenWidth),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
                         const Spacer(),
                         _buildCategoryDropdown(),
                       ],
                     ),
-              const SizedBox(height: 24),
+              SizedBox(height: isMobile ? 12 : 24),
 
               // Timeline View (only view now)
               Expanded(
@@ -90,6 +68,7 @@ class _TournamentOverviewState extends State<TournamentOverview> {
 
   Widget _buildCategoryDropdown() {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 300),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -98,19 +77,19 @@ class _TournamentOverviewState extends State<TournamentOverview> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedCategory,
-          isExpanded: ResponsiveHelper.isMobile(MediaQuery.of(context).size.width),
+          isExpanded: true,
           items: const [
             DropdownMenuItem(
               value: 'Alle',
-              child: Text('Kategorie: Alle'),
+              child: Text('Kategorie: Alle', overflow: TextOverflow.ellipsis),
             ),
             DropdownMenuItem(
               value: 'GBO Juniors Cup',
-              child: Text('Kategorie: Juniors'),
+              child: Text('Kategorie: Juniors', overflow: TextOverflow.ellipsis),
             ),
             DropdownMenuItem(
               value: 'GBO Seniors Cup',
-              child: Text('Kategorie: Seniors'),
+              child: Text('Kategorie: Seniors', overflow: TextOverflow.ellipsis),
             ),
           ],
           onChanged: (value) {

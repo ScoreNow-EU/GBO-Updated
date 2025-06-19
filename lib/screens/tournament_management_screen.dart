@@ -42,40 +42,16 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveHelper.isMobile(screenWidth);
+    
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isMobile ? 16 : 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with compact division filter
-          Row(
-            children: [
-              const Text(
-                'Turniere verwalten',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              // Division Filter Dropdown
-              Container(
-                constraints: const BoxConstraints(maxWidth: 280),
-                child: _buildDivisionFilterDropdown(),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _createNewTournament(),
-                icon: const Icon(Icons.add),
-                label: const Text('Neues Turnier'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
+          // Header with responsive layout
+          isMobile ? _buildMobileHeader() : _buildDesktopHeader(),
           const SizedBox(height: 24),
 
           // Tournament List
@@ -121,6 +97,73 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Turniere verwalten',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Division Filter
+        Container(
+          constraints: const BoxConstraints(maxWidth: double.infinity),
+          child: _buildDivisionFilterDropdown(),
+        ),
+        const SizedBox(height: 12),
+        // New Tournament Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _createNewTournament(),
+            icon: const Icon(Icons.add),
+            label: const Text('Neues Turnier'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopHeader() {
+    return Row(
+      children: [
+        const Text(
+          'Turniere verwalten',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const Spacer(),
+        // Division Filter Dropdown
+        Container(
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: _buildDivisionFilterDropdown(),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton.icon(
+          onPressed: () => _createNewTournament(),
+          icon: const Icon(Icons.add),
+          label: const Text('Neues Turnier'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 
@@ -218,10 +261,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         _buildProminentStatusBadge(tournament.status),
-                        const SizedBox(width: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -242,35 +286,74 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                   ],
                 ),
               ),
-              // Action buttons
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
+              // Action buttons - responsive
+              isMobile ? 
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editTournament(tournament);
+                    } else if (value == 'delete') {
+                      _deleteTournament(tournament);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, color: Colors.blue, size: 20),
+                          SizedBox(width: 8),
+                          Text('Bearbeiten'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red, size: 20),
+                          SizedBox(width: 8),
+                          Text('Löschen'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => _editTournament(tournament),
-                      tooltip: 'Bearbeiten',
-                    ),
+                    child: const Icon(Icons.more_vert, color: Colors.grey),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                ) :
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _editTournament(tournament),
+                        tooltip: 'Bearbeiten',
+                      ),
                     ),
-                    child: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteTournament(tournament),
-                      tooltip: 'Löschen',
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteTournament(tournament),
+                        tooltip: 'Löschen',
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
           
