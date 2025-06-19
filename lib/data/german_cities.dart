@@ -38,6 +38,8 @@ class GermanCities {
   static final List<GermanCity> cities = [
     // Major German cities from CSV - organized for better performance
     // Baden-Württemberg
+    const GermanCity(name: 'Oberschleißheim', state: 'Bayern'),
+
     const GermanCity(name: 'Berlin', state: 'Berlin'),
     const GermanCity(name: 'Hamburg', state: 'Hamburg'),
     const GermanCity(name: 'München', state: 'Bayern'),
