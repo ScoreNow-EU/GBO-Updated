@@ -647,7 +647,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                        ),
                        Text(
                          '${club.city}, ${club.bundesland}',
-                         style: TextStyle(
+                        style: TextStyle(
                            color: Colors.grey[600],
                            fontSize: 12,
                          ),
@@ -710,29 +710,15 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                    Row(
                      children: [
                        Expanded(
-                         child: Column(
-                           crossAxisAlignment: CrossAxisAlignment.start,
-                           children: [
-                             Text(
-                               team.name, // Beach handball call name
-                        style: TextStyle(
-                                 fontSize: isMobile ? 16 : 14,
-                          fontWeight: FontWeight.bold,
-                                 color: Colors.black87,
-                               ),
-                             ),
-                             if (team.secondaryName != null && team.secondaryName!.isNotEmpty)
-                               Text(
-                                 team.secondaryName!, // Official handball name
-                                 style: TextStyle(
-                                   fontSize: isMobile ? 13 : 12,
-                                   color: Colors.grey[700],
-                                   fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-                         ),
-                       ),
+                          child: Text(
+                            team.name,
+                            style: TextStyle(
+                             fontSize: isMobile ? 16 : 14,
+                             fontWeight: FontWeight.bold,
+                             color: Colors.black87,
+                            ),
+                          ),
+                        ),
                        if (showOrphanedWarning)
                          Container(
                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -742,13 +728,13 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                           ),
                           child: Text(
                              'Ohne Verein',
-                            style: TextStyle(
+                             style: TextStyle(
                                color: Colors.white,
                                fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
+                               fontWeight: FontWeight.w500,
                           ),
                         ),
+                      ),
                      ],
                    ),
                    const SizedBox(height: 4),
@@ -1124,8 +1110,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
      
      final updatedTeam = Team(
        id: team.id,
-       name: team.name,
-       secondaryName: team.secondaryName,
+       name: team.name,  
        teamManager: team.teamManager,
        logoUrl: team.logoUrl,
        city: team.city,

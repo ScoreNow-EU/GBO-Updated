@@ -103,12 +103,12 @@ class TeamService {
   // Update team
   Future<bool> updateTeam(String teamId, Team team) async {
     try {
-      await _firestore
-          .collection(_collection)
+    await _firestore
+        .collection(_collection)
           .doc(teamId)
-          .update(team.toFirestore());
-      // Invalidate cache
-      _invalidateCache();
+        .update(team.toFirestore());
+    // Invalidate cache
+    _invalidateCache();
       return true;
     } catch (e) {
       print('Error updating team: $e');
@@ -119,9 +119,9 @@ class TeamService {
   // Delete team
   Future<bool> deleteTeam(String id) async {
     try {
-      await _firestore.collection(_collection).doc(id).delete();
-      // Invalidate cache
-      _invalidateCache();
+    await _firestore.collection(_collection).doc(id).delete();
+    // Invalidate cache
+    _invalidateCache();
       return true;
     } catch (e) {
       print('Error deleting team: $e');

@@ -2,8 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Team {
   final String id;
-  final String name; // Beach handball call name (primary)
-  final String? secondaryName; // Official handball name (e.g., "HSG Osnabrück")
+  final String name;
   final String? teamManager; // Made optional
   final String? logoUrl; // URL or path to logo image
   final String city;
@@ -15,7 +14,6 @@ class Team {
   Team({
     required this.id,
     required this.name,
-    this.secondaryName,
     this.teamManager, // Made optional
     this.logoUrl,
     required this.city,
@@ -28,7 +26,6 @@ class Team {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
-      'secondaryName': secondaryName,
       'teamManager': teamManager,
       'logoUrl': logoUrl,
       'city': city,
@@ -45,7 +42,6 @@ class Team {
     return Team(
       id: doc.id,
       name: data['name'] ?? '',
-      secondaryName: data['secondaryName'],
       teamManager: data['teamManager'], // Can be null
       logoUrl: data['logoUrl'],
       city: data['city'] ?? '',

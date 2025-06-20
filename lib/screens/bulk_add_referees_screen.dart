@@ -268,7 +268,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
                     if (value == null || value.trim().isEmpty) {
                       return 'E-Mail eingeben';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
                       return 'Gültige E-Mail eingeben';
                     }
                     return null;

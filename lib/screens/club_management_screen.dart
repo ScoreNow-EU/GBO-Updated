@@ -33,7 +33,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
   bool _isAutoSaving = false;
   bool _hasUnsavedChanges = false;
 
-  // German Bundesländer
+  // German Bundesländer and international regions
   final List<String> _bundeslaender = [
     'Baden-Württemberg',
     'Bayern',
@@ -51,6 +51,12 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
     'Sachsen-Anhalt',
     'Schleswig-Holstein',
     'Thüringen',
+    // International regions
+    'Dänemark',
+    'Norwegen',
+    'Niederlande',
+    'Serbien',
+    'Frankreich',
   ];
 
   @override
@@ -623,7 +629,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                             prefixIcon: Icon(Icons.email),
                           ),
                           validator: (value) {
-                            if (value != null && value.isNotEmpty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                            if (value != null && value.isNotEmpty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
                               return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
                             }
                             return null;

@@ -222,7 +222,7 @@ class _BulkAddDelegatesScreenState extends State<BulkAddDelegatesScreen> {
         final lastName = nameParts.skip(1).join(' ');
 
         // Email validation
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(email)) {
           errors.add('Zeile ${i + 1}: Ungültige E-Mail-Adresse');
           continue;
         }

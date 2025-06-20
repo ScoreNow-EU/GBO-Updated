@@ -259,22 +259,13 @@ class _TeamClubMigrationScreenState extends State<TeamClubMigrationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        team.name, // Beach handball call name
+                        team.name,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
-                      if (team.secondaryName != null && team.secondaryName!.isNotEmpty)
-                        Text(
-                          team.secondaryName!, // Official handball name
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
                       const SizedBox(height: 4),
                       Text(
                         '${team.city}, ${team.bundesland}',
@@ -622,7 +613,6 @@ class _TeamClubMigrationScreenState extends State<TeamClubMigrationScreen> {
         final updatedTeam = Team(
           id: team.id,
           name: team.name,
-          secondaryName: team.secondaryName,
           teamManager: team.teamManager,
           logoUrl: team.logoUrl,
           city: team.city,

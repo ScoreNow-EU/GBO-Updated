@@ -116,10 +116,10 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
           Expanded(
             child: widget.showLeftSidebar 
                 ? Row(
-                    children: [
-                      _buildLeftSidebar(),
-                      Expanded(child: _buildCanvas()),
-                    ],
+              children: [
+                _buildLeftSidebar(),
+                Expanded(child: _buildCanvas()),
+              ],
                   )
                 : _buildCanvas(),
           ),

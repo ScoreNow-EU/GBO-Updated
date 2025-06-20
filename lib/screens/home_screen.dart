@@ -6,6 +6,7 @@ import 'team_management_screen.dart';
 import 'preset_management_screen.dart';
 import 'referee_management_screen.dart';
 import 'delegate_management_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Handle login screen specially to preserve its blue background
+    if (selectedSection == 'login') {
+      return LoginScreen(
+        onNavigateBack: () {
+          setState(() {
+            selectedSection = 'turniere';
+          });
+        },
+      );
+    }
+    
     return ResponsiveLayout(
       selectedSection: selectedSection,
       onSectionChanged: (section) {
@@ -57,12 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMainContent() {
     switch (selectedSection) {
       case 'login':
-        return const Center(
-          child: Text(
-            'Login Page - Coming Soon',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        );
+        return const LoginScreen();
       case 'turniere':
         return const TournamentOverview();
       case 'rangliste':
