@@ -8,6 +8,7 @@ class Team {
   final String city;
   final String bundesland;
   final String division; // Women's, Men's, U14, U16, U18, Seniors, FUN
+  final String? clubId; // Reference to parent club
   final DateTime createdAt;
 
   Team({
@@ -18,6 +19,7 @@ class Team {
     required this.city,
     required this.bundesland,
     required this.division,
+    this.clubId,
     required this.createdAt,
   });
 
@@ -29,6 +31,7 @@ class Team {
       'city': city,
       'bundesland': bundesland,
       'division': division,
+      'clubId': clubId,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -44,6 +47,7 @@ class Team {
       city: data['city'] ?? '',
       bundesland: data['bundesland'] ?? '',
       division: data['division'] ?? 'Men\'s Seniors',
+      clubId: data['clubId'],
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
           : DateTime.now(),

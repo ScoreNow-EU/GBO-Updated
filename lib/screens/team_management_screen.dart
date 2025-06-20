@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import '../models/team.dart';
+import '../models/club.dart';
 import '../services/team_service.dart';
-import '../widgets/team_avatar.dart';
+import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
-import 'bulk_add_teams_screen.dart';
+import '../widgets/team_avatar.dart';
+import '../data/german_cities.dart';
+import 'club_management_screen.dart';
+import 'team_club_migration_screen.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -15,42 +18,16 @@ class TeamManagementScreen extends StatefulWidget {
 
 class _TeamManagementScreenState extends State<TeamManagementScreen> {
   final TeamService _teamService = TeamService();
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _teamManagerController = TextEditingController();
-  final _logoUrlController = TextEditingController();
-  final _cityController = TextEditingController();
-
-  String _selectedBundesland = 'Baden-Württemberg';
-  String _selectedDivision = 'Men\'s Seniors';
-  String _filterDivision = 'Alle';
-  Team? _editingTeam;
+  final ClubService _clubService = ClubService();
   
-  // Auto-save functionality
-  Timer? _autoSaveTimer;
-  bool _isAutoSaving = false;
-  bool _hasUnsavedChanges = false;
-  String? _autoSaveStatus;
-
-  // German Bundesländer
-  final List<String> _bundeslaender = [
-    'Baden-Württemberg',
-    'Bayern',
-    'Berlin',
-    'Brandenburg',
-    'Bremen',
-    'Hamburg',
-    'Hessen',
-    'Mecklenburg-Vorpommern',
-    'Niedersachsen',
-    'Nordrhein-Westfalen',
-    'Rheinland-Pfalz',
-    'Saarland',
-    'Sachsen',
-    'Sachsen-Anhalt',
-    'Schleswig-Holstein',
-    'Thüringen',
-  ];
+  List<Club> _clubs = [];
+  Map<String, List<Team>> _teamsByClub = {};
+  List<Team> _orphanedTeams = [];
+  String _searchQuery = '';
+  String _filterDivision = 'Alle';
+  Club? _selectedClub;
+  bool _isLoading = true;
+  bool _showOrphanedTeams = false;
 
   // Available divisions
   final List<String> _divisions = [
@@ -69,100 +46,81 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   @override
   void initState() {
     super.initState();
-    _setupAutoSaveListeners();
+    _loadData();
   }
 
-  void _setupAutoSaveListeners() {
-    _nameController.addListener(_onFormChanged);
-    _teamManagerController.addListener(_onFormChanged);
-    _logoUrlController.addListener(_onFormChanged);
-    _cityController.addListener(_onFormChanged);
-  }
-
-  void _onFormChanged() {
-    if (_editingTeam == null) return; // Only auto-save when editing existing teams
-    
+  Future<void> _loadData() async {
     setState(() {
-      _hasUnsavedChanges = true;
-    });
-    
-    // Cancel previous timer
-    _autoSaveTimer?.cancel();
-    
-    // Start new timer for auto-save (debounce for 2 seconds)
-    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
-      _performAutoSave();
-    });
-  }
-
-  Future<void> _performAutoSave() async {
-    if (!_hasUnsavedChanges || _editingTeam == null) return;
-    
-    if (!_formKey.currentState!.validate()) return; // Don't save invalid data
-    
-    setState(() {
-      _isAutoSaving = true;
-      _autoSaveStatus = 'Speichert...';
+      _isLoading = true;
     });
     
     try {
-      Team team = Team(
-        id: _editingTeam!.id,
-        name: _nameController.text,
-        teamManager: _teamManagerController.text.isEmpty ? null : _teamManagerController.text,
-        logoUrl: _logoUrlController.text.isEmpty ? null : _logoUrlController.text,
-        city: _cityController.text,
-        bundesland: _selectedBundesland,
-        division: _selectedDivision,
-        createdAt: _editingTeam!.createdAt,
-      );
-
-      await _teamService.updateTeam(team);
+      final clubs = await _clubService.getClubs().first;
+      final teams = await _teamService.getTeams().first;
       
-      setState(() {
-        _isAutoSaving = false;
-        _hasUnsavedChanges = false;
-        _autoSaveStatus = 'Automatisch gespeichert';
-      });
+      Map<String, List<Team>> teamsByClub = {};
+      List<Team> orphanedTeams = [];
       
-      // Clear status after 3 seconds
-      Timer(const Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() {
-            _autoSaveStatus = null;
-          });
+      // Group teams by club
+      for (final team in teams) {
+        if (team.clubId != null) {
+          if (!teamsByClub.containsKey(team.clubId)) {
+            teamsByClub[team.clubId!] = [];
+          }
+          teamsByClub[team.clubId!]!.add(team);
+        } else {
+          orphanedTeams.add(team);
         }
-      });
+      }
       
+          setState(() {
+        _clubs = clubs;
+        _teamsByClub = teamsByClub;
+        _orphanedTeams = orphanedTeams;
+        _isLoading = false;
+          });
     } catch (e) {
       setState(() {
-        _isAutoSaving = false;
-        _autoSaveStatus = 'Fehler beim Speichern';
+        _isLoading = false;
       });
-      
-      // Clear error after 5 seconds
-      Timer(const Duration(seconds: 5), () {
-        if (mounted) {
-          setState(() {
-            _autoSaveStatus = null;
-          });
-        }
-      });
+      _showError('Fehler beim Laden der Daten: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveHelper.isMobile(screenWidth);
+    
+    if (isMobile) {
+      return _buildMobileLayout();
+    } else {
+      return _buildDesktopLayout();
+    }
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _selectedClub != null
+              ? _buildClubTeamsView()
+              : _buildClubsListView(),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
     return Container(
       padding: const EdgeInsets.all(32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header with management buttons
           Row(
             children: [
               const Text(
-                'Teams verwalten',
+                'Teams & Vereine verwalten',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -170,10 +128,166 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                 ),
               ),
               const Spacer(),
-              // Division Filter
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ClubManagementScreen()),
+                  );
+                },
+                icon: const Icon(Icons.business),
+                label: const Text('Vereine verwalten'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const TeamClubMigrationScreen()),
+                  );
+                },
+                icon: const Icon(Icons.transfer_within_a_station),
+                label: const Text('Migration'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          Expanded(
+            child: _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : _buildDesktopContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopContent() {
+    return Row(
+      children: [
+        // Left side - Clubs list
+        Expanded(
+          flex: 2,
+          child: _buildClubsList(),
+        ),
+        const SizedBox(width: 24),
+        // Right side - Teams for selected club
+        Expanded(
+          flex: 3,
+          child: _selectedClub != null 
+              ? _buildTeamsForClub(_selectedClub!)
+              : _buildWelcomeMessage(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildClubsListView() {
+    return CustomScrollView(
+      slivers: [
+        // App Bar
+        SliverAppBar(
+          expandedHeight: 120,
+          pinned: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          flexibleSpace: FlexibleSpaceBar(
+            titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+            title: Text(
+              'Teams & Vereine',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          actions: [
+            // Management menu for mobile
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'clubs':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ClubManagementScreen()),
+                    );
+                    break;
+                  case 'migration':
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TeamClubMigrationScreen()),
+                    );
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'clubs',
+                  child: Row(
+                    children: [
+                      Icon(Icons.business, size: 18),
+                      SizedBox(width: 8),
+                      Text('Vereine verwalten'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'migration', 
+                  child: Row(
+                    children: [
+                      Icon(Icons.transfer_within_a_station, size: 18),
+                      SizedBox(width: 8),
+                      Text('Migration'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        
+        // Search and filters
+        SliverToBoxAdapter(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Column(
+              children: [
+                // Search
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Verein oder Team suchen...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                
+                // Filters row
+                Row(
+                  children: [
+                    // Division filter
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
@@ -181,14 +295,15 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _filterDivision,
+                            isExpanded: true,
                     items: [
                       const DropdownMenuItem(
                         value: 'Alle',
-                        child: Text('Division: Alle'),
+                                child: Text('Alle Divisionen'),
                       ),
                       ..._divisions.map((division) => DropdownMenuItem(
                         value: division,
-                        child: Text('Division: $division'),
+                                child: Text(division),
                       )),
                     ],
                     onChanged: (value) {
@@ -199,611 +314,843 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                   ),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showTeamDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Neues Team'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Orphaned teams toggle
+                    if (_orphanedTeams.isNotEmpty)
+                      FilterChip(
+                        label: Text('Teams ohne Verein (${_orphanedTeams.length})'),
+                        selected: _showOrphanedTeams,
+                        onSelected: (value) {
+                          setState(() {
+                            _showOrphanedTeams = value;
+                          });
+                        },
+                        selectedColor: Colors.orange.shade100,
+                        checkmarkColor: Colors.orange,
+                      ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const BulkAddTeamsScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.group_add),
-                label: const Text('Bulk Hinzufügen'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // Team List
-          Expanded(
-            child: StreamBuilder<List<Team>>(
-              stream: _teamService.getTeamsWithCache(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Keine Teams gefunden.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  );
-                }
-
-                // Filter teams by division
-                List<Team> filteredTeams = snapshot.data!;
-                if (_filterDivision != 'Alle') {
-                  filteredTeams = filteredTeams
-                      .where((team) => team.division == _filterDivision)
-                      .toList();
-                }
-
-                if (filteredTeams.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Keine Teams in der gewählten Division gefunden.',
-                      style: const TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  );
-                }
-
-                return _buildTeamDataTable(filteredTeams);
-              },
+              ],
             ),
           ),
-        ],
+        ),
+        
+        // Content
+        _showOrphanedTeams ? _buildOrphanedTeamsList() : _buildClubsGrid(),
+      ],
+    );
+  }
+
+  Widget _buildClubTeamsView() {
+    final club = _selectedClub!;
+    final clubTeams = _teamsByClub[club.id] ?? [];
+    
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: Text(club.name),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+                 leading: IconButton(
+           icon: Icon(Icons.arrow_back_ios),
+           onPressed: () {
+             setState(() {
+               _selectedClub = null;
+             });
+           },
+         ),
+       ),
+       body: clubTeams.isEmpty
+           ? _buildEmptyTeamsView(club)
+           : ListView.builder(
+               padding: const EdgeInsets.all(16),
+               itemCount: clubTeams.length,
+               itemBuilder: (context, index) {
+                 final team = clubTeams[index];
+                 return _buildTeamCard(team, isMobile: true);
+               },
+             ),
+       floatingActionButton: FloatingActionButton(
+         onPressed: () => _addTeamToClub(club),
+         backgroundColor: Colors.blue,
+         child: Icon(Icons.add),
+       ),
+     );
+   }
+
+   Widget _buildClubsList() {
+     List<Club> filteredClubs = _clubs;
+     
+     if (_searchQuery.isNotEmpty) {
+       filteredClubs = _clubs.where((club) =>
+         club.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+         club.city.toLowerCase().contains(_searchQuery.toLowerCase())
+       ).toList();
+     }
+
+     return Container(
+       decoration: BoxDecoration(
+         color: Colors.white,
+         borderRadius: BorderRadius.circular(12),
+         border: Border.all(color: Colors.grey.shade300),
+       ),
+       child: Column(
+         children: [
+           Container(
+             padding: const EdgeInsets.all(16),
+             decoration: BoxDecoration(
+               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+             ),
+             child: Row(
+               children: [
+                 Icon(Icons.business, color: Colors.blue),
+                 const SizedBox(width: 8),
+                 Text(
+                   'Vereine',
+                   style: TextStyle(
+                     fontSize: 18,
+                     fontWeight: FontWeight.bold,
+                   ),
+                 ),
+               ],
+             ),
+           ),
+           Expanded(
+             child: filteredClubs.isEmpty
+                 ? _buildEmptyClubsView()
+                 : ListView.builder(
+                     padding: const EdgeInsets.all(16),
+                     itemCount: filteredClubs.length,
+                     itemBuilder: (context, index) {
+                       final club = filteredClubs[index];
+                       return _buildClubListItem(club);
+                     },
+                   ),
+           ),
+         ],
+                    ),
+                  );
+                }
+
+   Widget _buildClubsGrid() {
+     List<Club> filteredClubs = _clubs;
+     
+     if (_searchQuery.isNotEmpty) {
+       filteredClubs = _clubs.where((club) =>
+         club.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+         club.city.toLowerCase().contains(_searchQuery.toLowerCase())
+       ).toList();
+     }
+
+     if (filteredClubs.isEmpty) {
+       return SliverToBoxAdapter(child: _buildEmptyClubsView());
+     }
+
+     return SliverPadding(
+       padding: const EdgeInsets.all(16),
+       sliver: SliverGrid(
+         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+           crossAxisCount: 2,
+           childAspectRatio: 0.9,
+           crossAxisSpacing: 12,
+           mainAxisSpacing: 12,
+         ),
+         delegate: SliverChildBuilderDelegate(
+           (context, index) {
+             final club = filteredClubs[index];
+             return _buildClubCard(club);
+           },
+           childCount: filteredClubs.length,
+         ),
+                    ),
+                  );
+                }
+
+   Widget _buildOrphanedTeamsList() {
+     List<Team> filteredTeams = _orphanedTeams;
+     
+                if (_filterDivision != 'Alle') {
+       filteredTeams = _orphanedTeams.where((team) => team.division == _filterDivision).toList();
+     }
+     
+     if (_searchQuery.isNotEmpty) {
+       filteredTeams = filteredTeams.where((team) =>
+         team.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+         team.city.toLowerCase().contains(_searchQuery.toLowerCase())
+       ).toList();
+     }
+
+     return SliverList(
+       delegate: SliverChildBuilderDelegate(
+         (context, index) {
+           final team = filteredTeams[index];
+           return Padding(
+             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+             child: _buildTeamCard(team, isMobile: true, showOrphanedWarning: true),
+           );
+         },
+         childCount: filteredTeams.length,
       ),
     );
   }
 
-  Widget _buildTeamDataTable(List<Team> teams) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isMobile = ResponsiveHelper.isMobile(width);
-        
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Container(
-            width: isMobile ? width * 1.5 : width,
-            decoration: BoxDecoration(
-              color: Colors.white,
+   Widget _buildClubCard(Club club) {
+     final clubTeams = _teamsByClub[club.id] ?? [];
+     
+     return Card(
+       elevation: 2,
+       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+       child: InkWell(
+         onTap: () {
+           setState(() {
+             _selectedClub = club;
+           });
+         },
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: width),
-              child: DataTable(
-                columnSpacing: isMobile ? 16 : 24,
-                headingRowColor: WidgetStateProperty.all(Colors.grey[100]),
-                columns: [
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Team Name', 
+         child: Padding(
+           padding: const EdgeInsets.all(16),
+           child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+               // Club logo/avatar
+               Container(
+                 width: double.infinity,
+                 height: 60,
+                 decoration: BoxDecoration(
+                   color: Colors.blue.shade100,
+                   borderRadius: BorderRadius.circular(8),
+                 ),
+                 child: club.logoUrl != null && club.logoUrl!.isNotEmpty
+                     ? ClipRRect(
+                         borderRadius: BorderRadius.circular(8),
+                         child: Image.network(
+                           club.logoUrl!,
+                           fit: BoxFit.cover,
+                           errorBuilder: (context, error, stackTrace) {
+                             return Icon(Icons.business, color: Colors.blue, size: 30);
+                           },
+                         ),
+                       )
+                     : Icon(Icons.business, color: Colors.blue, size: 30),
+               ),
+               const SizedBox(height: 12),
+               
+               // Club name
+               Text(
+                 club.name,
                         style: TextStyle(
+                   fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
+                   color: Colors.black87,
+                 ),
+                 maxLines: 2,
+                 overflow: TextOverflow.ellipsis,
+               ),
+               const SizedBox(height: 4),
+               
+               // Location
+               Text(
+                 '${club.city}, ${club.bundesland}',
+                 style: TextStyle(
+                   color: Colors.grey[600],
+                   fontSize: 12,
+                 ),
+                 maxLines: 1,
+                 overflow: TextOverflow.ellipsis,
+               ),
+               
+               const Spacer(),
+               
+               // Teams count
+               Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                 decoration: BoxDecoration(
+                   color: clubTeams.isEmpty ? Colors.grey.shade200 : Colors.blue.shade100,
+                   borderRadius: BorderRadius.circular(12),
+                 ),
+                      child: Text(
+                   clubTeams.isEmpty 
+                       ? 'Keine Teams' 
+                       : '${clubTeams.length} Team${clubTeams.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                     color: clubTeams.isEmpty ? Colors.grey[600] : Colors.blue[700],
+                     fontSize: 11,
+                     fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Team Manager', 
+             ],
+           ),
+         ),
+       ),
+     );
+   }
+
+   Widget _buildClubListItem(Club club) {
+     final clubTeams = _teamsByClub[club.id] ?? [];
+     final isSelected = _selectedClub?.id == club.id;
+     
+     return Container(
+       margin: const EdgeInsets.only(bottom: 8),
+       child: Material(
+         color: isSelected ? Colors.blue.shade50 : Colors.transparent,
+         borderRadius: BorderRadius.circular(8),
+         child: InkWell(
+           onTap: () {
+             setState(() {
+               _selectedClub = club;
+             });
+           },
+           borderRadius: BorderRadius.circular(8),
+           child: Padding(
+             padding: const EdgeInsets.all(12),
+             child: Row(
+               children: [
+                 // Club avatar
+                 Container(
+                   width: 40,
+                   height: 40,
+                   decoration: BoxDecoration(
+                     color: Colors.blue.shade100,
+                     borderRadius: BorderRadius.circular(8),
+                   ),
+                   child: club.logoUrl != null && club.logoUrl!.isNotEmpty
+                       ? ClipRRect(
+                           borderRadius: BorderRadius.circular(8),
+                           child: Image.network(
+                             club.logoUrl!,
+                             fit: BoxFit.cover,
+                             errorBuilder: (context, error, stackTrace) {
+                               return Icon(Icons.business, color: Colors.blue, size: 20);
+                             },
+                           ),
+                         )
+                       : Icon(Icons.business, color: Colors.blue, size: 20),
+                 ),
+                 const SizedBox(width: 12),
+                 
+                 // Club info
+                 Expanded(
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text(
+                         club.name,
                         style: TextStyle(
+                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
+                           color: Colors.black87,
+                         ),
+                       ),
+                       Text(
+                         '${club.city}, ${club.bundesland}',
+                        style: TextStyle(
+                           color: Colors.grey[600],
+                           fontSize: 12,
+                         ),
+                       ),
+                     ],
+                   ),
+                 ),
+                 
+                 // Teams count
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                   decoration: BoxDecoration(
+                     color: clubTeams.isEmpty ? Colors.grey.shade200 : Colors.blue.shade100,
+                     borderRadius: BorderRadius.circular(10),
+                   ),
+                      child: Text(
+                     '${clubTeams.length}',
+                        style: TextStyle(
+                       color: clubTeams.isEmpty ? Colors.grey[600] : Colors.blue[700],
+                       fontSize: 10,
+                       fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Division', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
+               ],
+             ),
                         ),
                       ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Stadt', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Bundesland', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Logo', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Expanded(
-                      child: Text(
-                        'Aktionen', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 12 : 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                rows: teams.map((team) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 120 : 200,
-                            minWidth: isMobile ? 80 : 120,
-                          ),
+     );
+   }
+
+   Widget _buildTeamCard(Team team, {required bool isMobile, bool showOrphanedWarning = false}) {
+     return Container(
+       margin: const EdgeInsets.only(bottom: 8),
+       decoration: BoxDecoration(
+         color: showOrphanedWarning ? Colors.orange.shade50 : Colors.white,
+         borderRadius: BorderRadius.circular(12),
+         border: Border.all(
+           color: showOrphanedWarning ? Colors.orange.shade200 : Colors.grey.shade300,
+           width: 1,
+         ),
+       ),
+       child: Padding(
+         padding: const EdgeInsets.all(16),
+         child: Row(
+           children: [
+             // Team avatar
+             TeamAvatar(
+               teamName: team.name,
+               size: isMobile ? 45 : 40,
+             ),
+             const SizedBox(width: 12),
+             
+             // Team info
+             Expanded(
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Row(
+                     children: [
+                       Expanded(
                           child: Text(
                             team.name,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: isMobile ? 12 : 14,
+                             fontSize: isMobile ? 16 : 14,
+                             fontWeight: FontWeight.bold,
+                             color: Colors.black87,
                             ),
                           ),
                         ),
-                      ),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 100 : 150,
-                            minWidth: isMobile ? 80 : 100,
+                       if (showOrphanedWarning)
+                         Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                           decoration: BoxDecoration(
+                             color: Colors.orange,
+                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            team.teamManager ?? 'Nicht angegeben',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: isMobile ? 12 : 14),
+                             'Ohne Verein',
+                             style: TextStyle(
+                               color: Colors.white,
+                               fontSize: 10,
+                               fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      DataCell(
-                        Container(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 80 : 120,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _getDivisionColor(team.division).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
+                     ],
+                   ),
+                   const SizedBox(height: 4),
+                   Text(
+                     '${team.city}, ${team.bundesland}',
+                     style: TextStyle(
+                       color: Colors.grey[600],
+                       fontSize: isMobile ? 14 : 12,
+                     ),
+                   ),
+                   Text(
                             team.division,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: _getDivisionColor(team.division),
-                              fontSize: isMobile ? 10 : 12,
+                       color: Colors.blue[600],
+                       fontSize: isMobile ? 12 : 11,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                      ),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 80 : 120,
-                            minWidth: isMobile ? 60 : 80,
-                          ),
-                          child: Text(
-                            team.city,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: isMobile ? 12 : 14),
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 80 : 120,
-                            minWidth: isMobile ? 60 : 80,
-                          ),
-                          child: Text(
-                            team.bundesland,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: isMobile ? 12 : 14),
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        TeamAvatar(
-                          teamName: team.name,
-                          logoUrl: team.logoUrl,
-                          size: isMobile ? 32 : 40,
-                          division: team.division,
-                        ),
-                      ),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile ? 80 : 100,
+                 ],
+               ),
+             ),
+             
+             // Actions
+             if (isMobile)
+               PopupMenuButton<String>(
+                 onSelected: (value) => _handleTeamAction(value, team),
+                 itemBuilder: (context) => [
+                   PopupMenuItem(
+                     value: 'edit',
+                     child: Row(
+                       children: [
+                         Icon(Icons.edit, size: 18),
+                         SizedBox(width: 8),
+                         Text('Bearbeiten'),
+                       ],
+                     ),
+                   ),
+                   if (showOrphanedWarning)
+                     PopupMenuItem(
+                       value: 'assign',
+                       child: Row(
+                         children: [
+                           Icon(Icons.business_center, size: 18),
+                           SizedBox(width: 8),
+                           Text('Verein zuordnen'),
+                         ],
+                       ),
+                     ),
+                   PopupMenuItem(
+                     value: 'delete',
+                     child: Row(
+                       children: [
+                         Icon(Icons.delete, size: 18, color: Colors.red),
+                         SizedBox(width: 8),
+                         Text('Löschen', style: TextStyle(color: Colors.red)),
+                       ],
+                     ),
+                   ),
+                 ],
+               ),
+           ],
+         ),
+       ),
+     );
+   }
+
+   Widget _buildTeamsForClub(Club club) {
+     final clubTeams = _teamsByClub[club.id] ?? [];
+     
+     return Container(
+       decoration: BoxDecoration(
+         color: Colors.white,
+         borderRadius: BorderRadius.circular(12),
+         border: Border.all(color: Colors.grey.shade300),
+       ),
+       child: Column(
+         children: [
+           // Header
+           Container(
+             padding: const EdgeInsets.all(16),
+             decoration: BoxDecoration(
+               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.edit, 
-                                  color: Colors.blue,
-                                  size: isMobile ? 18 : 24,
-                                ),
-                                onPressed: () => _editTeam(team),
-                                tooltip: 'Bearbeiten',
-                                padding: EdgeInsets.all(isMobile ? 4 : 8),
-                                constraints: BoxConstraints(
-                                  minWidth: isMobile ? 32 : 40,
-                                  minHeight: isMobile ? 32 : 40,
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete, 
-                                  color: Colors.red,
-                                  size: isMobile ? 18 : 24,
-                                ),
-                                onPressed: () => _deleteTeam(team),
-                                tooltip: 'Löschen',
-                                padding: EdgeInsets.all(isMobile ? 4 : 8),
-                                constraints: BoxConstraints(
-                                  minWidth: isMobile ? 32 : 40,
-                                  minHeight: isMobile ? 32 : 40,
+                 // Club info
+                 Container(
+                   width: 40,
+                   height: 40,
+                   decoration: BoxDecoration(
+                     color: Colors.blue.shade100,
+                     borderRadius: BorderRadius.circular(8),
+                   ),
+                   child: club.logoUrl != null && club.logoUrl!.isNotEmpty
+                       ? ClipRRect(
+                           borderRadius: BorderRadius.circular(8),
+                           child: Image.network(
+                             club.logoUrl!,
+                             fit: BoxFit.cover,
+                             errorBuilder: (context, error, stackTrace) {
+                               return Icon(Icons.business, color: Colors.blue, size: 20);
+                             },
+                           ),
+                         )
+                       : Icon(Icons.business, color: Colors.blue, size: 20),
+                 ),
+                 const SizedBox(width: 12),
+                 
+                 Expanded(
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text(
+                         club.name,
+                         style: TextStyle(
+                           fontSize: 18,
+                           fontWeight: FontWeight.bold,
+                           color: Colors.black87,
+                         ),
+                       ),
+                       Text(
+                         '${club.city}, ${club.bundesland}',
+                         style: TextStyle(
+                           color: Colors.grey[600],
+                           fontSize: 14,
                                 ),
                               ),
                             ],
                           ),
+                 ),
+                 
+                 // Add team button
+                 ElevatedButton.icon(
+                   onPressed: () => _addTeamToClub(club),
+                   icon: Icon(Icons.add, size: 18),
+                   label: Text('Team hinzufügen'),
+                   style: ElevatedButton.styleFrom(
+                     backgroundColor: Colors.blue,
+                     foregroundColor: Colors.white,
+                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
                     ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+             ),
+           ),
+           
+           // Teams list
+           Expanded(
+             child: clubTeams.isEmpty
+                 ? _buildEmptyTeamsView(club)
+                 : ListView.builder(
+                     padding: const EdgeInsets.all(16),
+                     itemCount: clubTeams.length,
+                     itemBuilder: (context, index) {
+                       final team = clubTeams[index];
+                       return _buildTeamCard(team, isMobile: false);
+                     },
+                   ),
+           ),
+         ],
+       ),
+     );
+   }
 
-  void _showTeamDialog([Team? team]) {
-    _editingTeam = team;
-    
-    // Reset auto-save state
-    _hasUnsavedChanges = false;
-    _autoSaveStatus = null;
-    
-    if (team != null) {
-      _nameController.text = team.name;
-      _teamManagerController.text = team.teamManager ?? '';
-      _logoUrlController.text = team.logoUrl ?? '';
-      _cityController.text = team.city;
-      _selectedBundesland = team.bundesland;
-      _selectedDivision = team.division;
-    } else {
-      _clearForm();
-    }
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
+   Widget _buildWelcomeMessage() {
+     return Container(
+       decoration: BoxDecoration(
+         color: Colors.white,
+         borderRadius: BorderRadius.circular(12),
+         border: Border.all(color: Colors.grey.shade300),
+       ),
+       child: Center(
+         child: Column(
+           mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(team == null ? 'Neues Team' : 'Team bearbeiten'),
-                  const Spacer(),
-                  if (_autoSaveStatus != null) ...[
-                    if (_isAutoSaving) 
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
                       Icon(
-                        _autoSaveStatus!.contains('Fehler') ? Icons.error_outline : Icons.check_circle_outline,
-                        size: 16,
-                        color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
-                      ),
-                    const SizedBox(width: 4),
+               Icons.business_outlined,
+               size: 80,
+               color: Colors.grey[400],
+             ),
+             const SizedBox(height: 24),
                     Text(
-                      _autoSaveStatus!,
+               'Verein auswählen',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              content: SizedBox(
-                width: 500,
-                child: Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
+                 fontSize: 24,
+                 fontWeight: FontWeight.bold,
+                 color: Colors.grey[600],
+               ),
+             ),
+             const SizedBox(height: 16),
+             Text(
+               'Wählen Sie einen Verein aus der Liste\num dessen Teams zu verwalten.',
+               style: TextStyle(
+                 fontSize: 16,
+                 color: Colors.grey[500],
+               ),
+               textAlign: TextAlign.center,
+             ),
+           ],
+         ),
+       ),
+     );
+   }
+
+   Widget _buildEmptyClubsView() {
+     return Center(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+         mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(labelText: 'Team Name *'),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Bitte geben Sie einen Team Namen ein';
-                            }
-                            return null;
-                          },
+           Icon(
+             Icons.business_outlined,
+             size: 64,
+             color: Colors.grey[400],
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _teamManagerController,
-                          decoration: const InputDecoration(labelText: 'Team Manager (optional)'),
+           Text(
+             'Keine Vereine gefunden',
+             style: TextStyle(
+               fontSize: 18,
+               color: Colors.grey[600],
+             ),
+           ),
+           const SizedBox(height: 8),
+           Text(
+             'Erstellen Sie Ihren ersten Verein',
+             style: TextStyle(color: Colors.grey[500]),
+           ),
+         ],
+       ),
+     );
+   }
+
+   Widget _buildEmptyTeamsView(Club club) {
+     return Center(
+       child: Column(
+         mainAxisAlignment: MainAxisAlignment.center,
+         children: [
+           Icon(
+             Icons.group_outlined,
+             size: 64,
+             color: Colors.grey[400],
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _logoUrlController,
-                          decoration: const InputDecoration(
-                            labelText: 'Logo URL (optional)',
-                            hintText: 'https://example.com/logo.png',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _cityController,
-                          decoration: const InputDecoration(labelText: 'Stadt *'),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Bitte geben Sie eine Stadt ein';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        Flexible(
-                          child: DropdownButtonFormField<String>(
-                            value: _selectedBundesland,
-                            decoration: const InputDecoration(labelText: 'Bundesland'),
-                            items: _bundeslaender.map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  _selectedBundesland = newValue;
-                                });
-                                _onFormChanged(); // Trigger auto-save
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Flexible(
-                          child: DropdownButtonFormField<String>(
-                            value: _selectedDivision,
-                            decoration: const InputDecoration(labelText: 'Division'),
-                            items: _divisions.map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  _selectedDivision = newValue;
-                                });
-                                _onFormChanged(); // Trigger auto-save
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+           Text(
+             'Keine Teams',
+             style: TextStyle(
+               fontSize: 18,
+               color: Colors.grey[600],
+             ),
+           ),
+           const SizedBox(height: 8),
+           Text(
+             'Fügen Sie das erste Team zu ${club.name} hinzu',
+             style: TextStyle(color: Colors.grey[500]),
+             textAlign: TextAlign.center,
+           ),
+           const SizedBox(height: 24),
+           ElevatedButton.icon(
+             onPressed: () => _addTeamToClub(club),
+             icon: Icon(Icons.add),
+             label: Text('Team hinzufügen'),
+             style: ElevatedButton.styleFrom(
+               backgroundColor: Colors.blue,
+               foregroundColor: Colors.white,
+             ),
+           ),
+         ],
+       ),
+     );
+   }
+
+   void _handleTeamAction(String action, Team team) {
+     switch (action) {
+       case 'edit':
+         _editTeam(team);
+         break;
+       case 'assign':
+         _assignTeamToClub(team);
+         break;
+       case 'delete':
+         _deleteTeam(team);
+         break;
+     }
+   }
+
+   void _addTeamToClub(Club club) {
+     _showTeamDialog(club: club);
+   }
+
+   void _editTeam(Team team) {
+     _showTeamDialog(team: team);
+   }
+
+   void _assignTeamToClub(Team team) {
+     showModalBottomSheet(
+       context: context,
+       builder: (context) => _buildClubSelectionSheet(team),
+     );
+   }
+
+   void _deleteTeam(Team team) async {
+     final confirmed = await showDialog<bool>(
+       context: context,
+       builder: (context) => AlertDialog(
+         title: const Text('Team löschen'),
+         content: Text('Möchten Sie das Team "${team.name}" wirklich löschen?'),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+             onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Abbrechen'),
                 ),
                 ElevatedButton(
-                  onPressed: () => _saveTeam(),
-                  child: Text(team == null ? 'Erstellen' : 'Speichern'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+             onPressed: () => Navigator.of(context).pop(true),
+             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+             child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+           ),
+         ],
+       ),
+     );
 
-  void _clearForm() {
-    _nameController.clear();
-    _teamManagerController.clear();
-    _logoUrlController.clear();
-    _cityController.clear();
-    _selectedBundesland = 'Baden-Württemberg';
-    _selectedDivision = 'Men\'s Seniors';
-  }
+     if (confirmed == true) {
+       final success = await _teamService.deleteTeam(team.id);
+       if (success) {
+         _loadData();
+         _showSuccess('Team erfolgreich gelöscht!');
+       } else {
+         _showError('Fehler beim Löschen des Teams');
+       }
+     }
+   }
 
-  void _saveTeam() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        Team team = Team(
-          id: _editingTeam?.id ?? '',
-          name: _nameController.text,
-          teamManager: _teamManagerController.text.isEmpty ? null : _teamManagerController.text,
-          logoUrl: _logoUrlController.text.isEmpty ? null : _logoUrlController.text,
-          city: _cityController.text,
-          bundesland: _selectedBundesland,
-          division: _selectedDivision,
-          createdAt: _editingTeam?.createdAt ?? DateTime.now(),
-        );
+   void _showTeamDialog({Club? club, Team? team}) {
+     // Implement team creation/editing dialog
+     // This would open a detailed form for team management
+   }
 
-        if (_editingTeam == null) {
-          await _teamService.addTeam(team);
+   Widget _buildClubSelectionSheet(Team team) {
+     return Container(
+       height: 400,
+       padding: const EdgeInsets.all(16),
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           Text(
+             'Verein für "${team.name}" auswählen',
+             style: TextStyle(
+               fontSize: 18,
+               fontWeight: FontWeight.bold,
+             ),
+           ),
+           const SizedBox(height: 16),
+           Expanded(
+             child: ListView.builder(
+               itemCount: _clubs.length,
+               itemBuilder: (context, index) {
+                 final club = _clubs[index];
+                 return ListTile(
+                   leading: Icon(Icons.business),
+                   title: Text(club.name),
+                   subtitle: Text('${club.city}, ${club.bundesland}'),
+                   onTap: () => _assignTeamToClubAction(team, club),
+                 );
+               },
+             ),
+           ),
+         ],
+       ),
+     );
+   }
+
+   void _assignTeamToClubAction(Team team, Club club) async {
+     Navigator.pop(context);
+     
+     final updatedTeam = Team(
+       id: team.id,
+       name: team.name,  
+       teamManager: team.teamManager,
+       logoUrl: team.logoUrl,
+       city: team.city,
+       bundesland: team.bundesland,
+       division: team.division,
+       clubId: club.id,
+       createdAt: team.createdAt,
+     );
+
+     final teamSuccess = await _teamService.updateTeam(team.id, updatedTeam);
+     final clubSuccess = await _clubService.addTeamToClub(club.id, team.id);
+     
+     if (teamSuccess && clubSuccess) {
+       _loadData();
+       _showSuccess('Team erfolgreich zu ${club.name} hinzugefügt!');
         } else {
-          await _teamService.updateTeam(team);
+       _showError('Fehler beim Zuordnen des Teams');
+     }
         }
 
-        Navigator.of(context).pop();
+   void _showSuccess(String message) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_editingTeam == null 
-                ? 'Team erfolgreich erstellt' 
-                : 'Team erfolgreich aktualisiert'),
+         content: Text(message),
             backgroundColor: Colors.green,
           ),
         );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fehler: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+   }
 
-  void _editTeam(Team team) {
-    _showTeamDialog(team);
-  }
-
-  void _deleteTeam(Team team) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Team löschen'),
-          content: Text('Sind Sie sicher, dass Sie "${team.name}" löschen möchten?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Abbrechen'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await _teamService.deleteTeam(team.id);
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Team erfolgreich gelöscht'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } catch (e) {
+   void _showError(String message) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Fehler: $e'),
+         content: Text(message),
                       backgroundColor: Colors.red,
                     ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Löschen', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Color _getDivisionColor(String division) {
-    if (division.startsWith('Women\'s')) {
-      if (division.contains('U14')) return Colors.lightGreen;
-      if (division.contains('U16')) return Colors.pink.shade300;
-      if (division.contains('U18')) return Colors.purple.shade300;
-      if (division.contains('Seniors')) return Colors.pink.shade600;
-      if (division.contains('FUN')) return Colors.pink.shade400;
-      return Colors.pink;
-    } else if (division.startsWith('Men\'s')) {
-      if (division.contains('U14')) return Colors.lightBlue;
-      if (division.contains('U16')) return Colors.blue.shade300;
-      if (division.contains('U18')) return Colors.blue.shade600;
-      if (division.contains('Seniors')) return Colors.indigo;
-      if (division.contains('FUN')) return Colors.teal;
-      return Colors.blue;
-    } else {
-      return Colors.grey;
-    }
-  }
+     );
+   }
 
   @override
   void dispose() {
-    _autoSaveTimer?.cancel();
-    _nameController.dispose();
-    _teamManagerController.dispose();
-    _logoUrlController.dispose();
-    _cityController.dispose();
     super.dispose();
   }
 } 

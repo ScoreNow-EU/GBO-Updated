@@ -38,7 +38,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     'Men\'s FUN',
   ];
 
-  // German Bundesländer
+  // German Bundesländer and international regions
   final List<String> _bundeslaender = [
     'Baden-Württemberg',
     'Bayern',
@@ -56,6 +56,10 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     'Sachsen-Anhalt',
     'Schleswig-Holstein',
     'Thüringen',
+    // International regions
+    'Dänemark',
+    'Norwegen',
+    'Niederlande',
   ];
 
   @override

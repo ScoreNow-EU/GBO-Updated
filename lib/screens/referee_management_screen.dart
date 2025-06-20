@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:toastification/toastification.dart';
 import '../models/referee.dart';
 import '../services/referee_service.dart';
@@ -158,8 +159,9 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Compact Statistics Row
-                    _buildCompactStatisticsSection(),
+                    // Compact Statistics Row (hidden on iOS)
+                    if (defaultTargetPlatform != TargetPlatform.iOS)
+                      _buildCompactStatisticsSection(),
                   ],
                 ),
               ),
@@ -778,7 +780,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Bitte geben Sie eine E-Mail-Adresse ein';
                           }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
                             return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
                           }
                           return null;

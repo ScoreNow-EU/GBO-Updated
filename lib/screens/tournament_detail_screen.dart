@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/tournament.dart';
-import '../widgets/side_navigation.dart';
+import '../widgets/responsive_layout.dart';
 
 class TournamentDetailScreen extends StatefulWidget {
   final Tournament tournament;
@@ -23,80 +23,37 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
+    return ResponsiveLayout(
+      selectedSection: selectedSection,
+      onSectionChanged: (section) {
+        if (section != 'turniere') {
+          // Navigate back to home with selected section
+          Navigator.of(context).pop();
+          // You could add additional navigation logic here if needed
+        }
+      },
+      title: widget.tournament.name,
+      showBackButton: true,
+      onBackPressed: () => Navigator.of(context).pop(),
+      body: _buildMainContent(),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Navigation Panel
-          SideNavigation(
-            selectedSection: selectedSection,
-            onSectionChanged: (section) {
-              if (section != 'turniere') {
-                // Navigate back to home with selected section
-                Navigator.of(context).pop();
-                // You could add additional navigation logic here if needed
-              }
-            },
-          ),
-          // Main Content Area
-          Expanded(
-            child: Container(
-              color: Colors.grey[100],
-              child: Column(
-                children: [
-                  // Header bar with back button and title
-                  Container(
-                    height: 60,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.black),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            widget.tournament.name,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Scrollable content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildTournamentHeader(),
-                          const SizedBox(height: 32),
-                          _buildMatchesSection(),
-                          const SizedBox(height: 32),
-                          _buildResultsSection(),
-                          const SizedBox(height: 32),
-                          _buildCriteriaSection(),
-                          const SizedBox(height: 32),
-                          _buildOrganizationSection(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildTournamentHeader(),
+          const SizedBox(height: 32),
+          _buildMatchesSection(),
+          const SizedBox(height: 32),
+          _buildResultsSection(),
+          const SizedBox(height: 32),
+          _buildCriteriaSection(),
+          const SizedBox(height: 32),
+          _buildOrganizationSection(),
         ],
       ),
     );
@@ -157,44 +114,28 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
                         );
                       },
                       errorBuilder: (context, error, stackTrace) {
-                        // If network image fails, fallback to asset image
-                        return Image.asset(
-                          _getTournamentImage(widget.tournament.name),
-                          width: 180,
-                          height: 120,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 180,
-                              height: 120,
-                              color: Colors.grey.shade200,
-                              child: Icon(
-                                Icons.image_not_supported,
-                                color: Colors.grey.shade400,
-                                size: 40,
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    )
-                  : Image.asset(
-                      _getTournamentImage(widget.tournament.name),
-                      width: 180,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                        // If network image fails, show placeholder
                         return Container(
                           width: 180,
                           height: 120,
                           color: Colors.grey.shade200,
                           child: Icon(
-                            Icons.image_not_supported,
+                            Icons.sports_volleyball,
                             color: Colors.grey.shade400,
                             size: 40,
                           ),
                         );
                       },
+                    )
+                  : Container(
+                      width: 180,
+                      height: 120,
+                      color: Colors.grey.shade200,
+                      child: Icon(
+                        Icons.sports_volleyball,
+                        color: Colors.grey.shade400,
+                        size: 40,
+                      ),
                     ),
             ),
           ),
@@ -297,21 +238,9 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
     );
   }
 
-  String _getTournamentImage(String tournamentName) {
-    if (tournamentName.toLowerCase().contains('herrenhäuser') || 
-        tournamentName.toLowerCase().contains('herrenhausen')) {
-      return 'assets/images/c23eafe6d142e505493614c3fb615049.png';
-    } else if (tournamentName.toLowerCase().contains('verden')) {
-      return 'assets/images/kJVjfNPZ_400x400.jpg';
-    } else if (tournamentName.toLowerCase().contains('mob')) {
-      return 'assets/images/72348f10bfa0314f12c8cccc85a3d43d.png';
-    } else if (tournamentName.toLowerCase().contains('hvnb') || 
-               tournamentName.toLowerCase().contains('cuxhaven')) {
-      return 'assets/images/HVNB_Logo_RGB_ohneSubline_Favicon-768x768.jpg';
-    } else {
-      // Default fallback image or placeholder
-      return 'assets/images/c23eafe6d142e505493614c3fb615049.png';
-    }
+  String? _getTournamentImage(String tournamentName) {
+    // Return null to use placeholder/icon instead of hardcoded images
+    return null;
   }
 
   Widget _buildSocialButton(String label, Color color, IconData icon) {
