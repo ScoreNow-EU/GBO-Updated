@@ -69,9 +69,14 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
           );
         }
 
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: _buildTimeline(filteredTournaments),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 600;
+            return Container(
+              padding: EdgeInsets.all(isMobile ? 8 : 24),
+              child: _buildTimeline(filteredTournaments),
+            );
+          },
         );
       },
     );
@@ -142,9 +147,14 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                 _buildSectionHeader('Abgeschlossene Turniere', Icons.check_circle, Colors.grey),
                 const SizedBox(height: 16),
                 ...completedTournaments.map((tournament) => 
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildTournamentCard(tournament, isCompleted: true),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
+                        child: _buildTournamentCard(tournament, isCompleted: true),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -160,9 +170,14 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                 _buildSectionHeader('Bevorstehende Turniere', Icons.schedule, Colors.orange),
                 const SizedBox(height: 16),
                 ...upcomingTournaments.map((tournament) => 
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: _buildTournamentCard(tournament, isUpcoming: true),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 600;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
+                        child: _buildTournamentCard(tournament, isUpcoming: true),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -205,22 +220,45 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
       width: double.infinity,
       child: Column(
         children: [
-          // Current tournaments if any - display horizontally with equal width
+          // Current tournaments if any - display vertically on mobile, horizontally on desktop
           if (currentTournaments.isNotEmpty) ...[
-            Row(
-              children: currentTournaments.asMap().entries.map((entry) {
-                int index = entry.key;
-                Tournament tournament = entry.value;
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: index == 0 ? 0 : 8, // First item no left padding
-                      right: index == currentTournaments.length - 1 ? 0 : 8, // Last item no right padding
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                
+                if (isMobile) {
+                  // Mobile: Display vertically like other sections
+                  return Column(
+                    children: currentTournaments.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      Tournament tournament = entry.value;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: index == currentTournaments.length - 1 ? 0 : 8),
+                        child: _buildTournamentCard(tournament, isCurrent: true),
+                      );
+                    }).toList(),
+                  );
+                } else {
+                  // Desktop: Display horizontally with scroll
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: currentTournaments.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        Tournament tournament = entry.value;
+                        return Container(
+                          width: 350,
+                          margin: EdgeInsets.only(
+                            left: index == 0 ? 0 : 8,
+                            right: index == currentTournaments.length - 1 ? 0 : 8,
+                          ),
+                          child: _buildTournamentCard(tournament, isCurrent: true),
+                        );
+                      }).toList(),
                     ),
-                    child: _buildTournamentCard(tournament, isCurrent: true),
-                  ),
-                );
-              }).toList(),
+                  );
+                }
+              },
             ),
           ],
           
@@ -234,12 +272,12 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                   height: 4,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blue.shade300,
-                        Colors.blue.shade600,
-                        Colors.blue.shade300,
-                      ],
+                            gradient: LinearGradient(
+          colors: [
+            const Color(0xFFffd665).withOpacity(0.5),
+            const Color(0xFFffd665),
+            const Color(0xFFffd665).withOpacity(0.5),
+          ],
                     ),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -249,11 +287,11 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade600,
+                    color: const Color(0xFFffd665),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
+                        color: const Color(0xFFffd665).withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -281,191 +319,386 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
     bool isCurrent = false,
     bool isUpcoming = false,
   }) {
-    // Use the exact same design as the list view
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => TournamentDetailScreen(tournament: tournament),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => TournamentDetailScreen(tournament: tournament),
+              ),
+            );
+          },
+          child: Container(
+            padding: EdgeInsets.all(isMobile ? 12 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(
+                color: isCurrent ? const Color(0xFFffd665) : Colors.grey.shade200, 
+                width: isCurrent ? 2 : 1
+              ),
+            ),
+            child: isMobile ? _buildMobileLayout(tournament, isCurrent) : _buildDesktopLayout(tournament, isCurrent),
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-          border: Border.all(
-            color: isCurrent ? Colors.blue.shade400 : Colors.grey.shade200, 
-            width: isCurrent ? 2 : 1
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildMobileLayout(Tournament tournament, bool isCurrent) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image and status row
+        Row(
           children: [
-            // Tournament Logo
+            // Tournament Logo - smaller for mobile
             Container(
-              width: 80,
-              height: 60,
+              width: 60,
+              height: 45,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.grey.shade200, width: 1),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 child: tournament.imageUrl != null && tournament.imageUrl!.isNotEmpty
                     ? Image.network(
                         tournament.imageUrl!,
-                        width: 80,
-                        height: 60,
+                        width: 60,
+                        height: 45,
                         fit: BoxFit.cover,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
-                            width: 80,
-                            height: 60,
+                            width: 60,
+                            height: 45,
                             color: Colors.grey.shade100,
-                            child: Center(
+                            child: const Center(
                               child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded / 
-                                        loadingProgress.expectedTotalBytes!
-                                      : null,
-                                ),
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             ),
                           );
                         },
                         errorBuilder: (context, error, stackTrace) {
-                          return _buildGeneratedImage(tournament);
+                          return _buildGeneratedImage(tournament, width: 60, height: 45);
                         },
                       )
-                    : _buildGeneratedImage(tournament),
+                    : _buildGeneratedImage(tournament, width: 60, height: 45),
               ),
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 12),
             
-            // Tournament Details
+            // Tournament name and status
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Tournament name with current indicator
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           tournament.name,
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                       ),
                       if (isCurrent)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text(
                             'AKTIV',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     tournament.categoryDisplayNames,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       color: Colors.grey.shade600,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
-                      Text(
-                        tournament.dateString,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          tournament.location,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ],
               ),
             ),
             
-            // Points and Status
+            // Points and Status - compact
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.orange,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${tournament.points}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 const Text(
                   'Punkte',
-                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(fontSize: 9, color: Colors.grey),
                 ),
-                const SizedBox(height: 12),
-                _buildStatusBadge(tournament.status),
               ],
             ),
           ],
         ),
-      ),
+        
+        const SizedBox(height: 8),
+        
+                 // Date and location - flexible layout for mobile
+         Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             // Date row - ensure no overflow
+             Row(
+               children: [
+                 Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
+                 const SizedBox(width: 4),
+                 Expanded(
+                   flex: 3,
+                   child: Text(
+                     tournament.dateString,
+                     style: TextStyle(
+                       fontSize: 12,
+                       color: Colors.grey.shade600,
+                     ),
+                     overflow: TextOverflow.ellipsis,
+                     maxLines: 2,
+                   ),
+                 ),
+                 const SizedBox(width: 4),
+                 Flexible(
+                   flex: 1,
+                   child: _buildStatusBadge(tournament.status, isCompact: true),
+                 ),
+               ],
+             ),
+             const SizedBox(height: 4),
+             // Location row
+             Row(
+               children: [
+                 Icon(Icons.location_on, size: 14, color: Colors.grey.shade600),
+                 const SizedBox(width: 4),
+                 Expanded(
+                   child: Text(
+                     tournament.location,
+                     style: TextStyle(
+                       fontSize: 12,
+                       color: Colors.grey.shade600,
+                     ),
+                     overflow: TextOverflow.ellipsis,
+                     maxLines: 1,
+                   ),
+                 ),
+               ],
+             ),
+           ],
+         ),
+      ],
     );
   }
 
-  Widget _buildGeneratedImage(Tournament tournament) {
+  Widget _buildDesktopLayout(Tournament tournament, bool isCurrent) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tournament Logo
+        Container(
+          width: 80,
+          height: 60,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200, width: 1),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: tournament.imageUrl != null && tournament.imageUrl!.isNotEmpty
+                ? Image.network(
+                    tournament.imageUrl!,
+                    width: 80,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 80,
+                        height: 60,
+                        color: Colors.grey.shade100,
+                        child: Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / 
+                                    loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildGeneratedImage(tournament, width: 80, height: 60);
+                    },
+                  )
+                : _buildGeneratedImage(tournament, width: 80, height: 60),
+          ),
+        ),
+        const SizedBox(width: 20),
+        
+        // Tournament Details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Tournament name with current indicator
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      tournament.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                  if (isCurrent)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'AKTIV',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                tournament.categoryDisplayNames,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Text(
+                    tournament.dateString,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      tournament.location,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        // Points and Status
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${tournament.points}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Punkte',
+              style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            _buildStatusBadge(tournament.status),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeneratedImage(Tournament tournament, {double width = 80, double height = 60}) {
     // Generate colors based on tournament name hash
     int nameHash = tournament.name.hashCode;
     int categoryHash = tournament.categories.join().hashCode;
@@ -496,8 +729,8 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
     int patternType = nameHash.abs() % 4;
     
     return Container(
-      width: 80,
-      height: 60,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
       ),
@@ -687,24 +920,12 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
     return 'T';
   }
 
-  String _getTournamentImage(String tournamentName) {
-    if (tournamentName.toLowerCase().contains('herrenhäuser') || 
-        tournamentName.toLowerCase().contains('herrenhausen')) {
-      return 'assets/images/c23eafe6d142e505493614c3fb615049.png';
-    } else if (tournamentName.toLowerCase().contains('verden')) {
-      return 'assets/images/kJVjfNPZ_400x400.jpg';
-    } else if (tournamentName.toLowerCase().contains('mob')) {
-      return 'assets/images/72348f10bfa0314f12c8cccc85a3d43d.png';
-    } else if (tournamentName.toLowerCase().contains('hvnb') || 
-               tournamentName.toLowerCase().contains('cuxhaven')) {
-      return 'assets/images/HVNB_Logo_RGB_ohneSubline_Favicon-768x768.jpg';
-    } else {
-      // Default fallback image or placeholder
-      return 'assets/images/c23eafe6d142e505493614c3fb615049.png';
-    }
+  String? _getTournamentImage(String tournamentName) {
+    // Return null to use placeholder/icon instead of hardcoded images
+    return null;
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(String status, {bool isCompact = false}) {
     Color color;
     String label;
     
@@ -736,7 +957,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 10,
+          fontSize: isCompact ? 9 : 10,
           fontWeight: FontWeight.w500,
         ),
       ),

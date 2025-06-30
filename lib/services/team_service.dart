@@ -101,20 +101,32 @@ class TeamService {
   }
 
   // Update team
-  Future<void> updateTeam(Team team) async {
+  Future<bool> updateTeam(String teamId, Team team) async {
+    try {
     await _firestore
         .collection(_collection)
-        .doc(team.id)
+          .doc(teamId)
         .update(team.toFirestore());
     // Invalidate cache
     _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error updating team: $e');
+      return false;
+    }
   }
 
   // Delete team
-  Future<void> deleteTeam(String id) async {
+  Future<bool> deleteTeam(String id) async {
+    try {
     await _firestore.collection(_collection).doc(id).delete();
     // Invalidate cache
     _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error deleting team: $e');
+      return false;
+    }
   }
 
   // Get team by ID (with local cache search first)

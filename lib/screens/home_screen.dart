@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/tournament_overview.dart';
+import '../models/user.dart' as app_user;
+import '../services/auth_service.dart';
 import 'tournament_management_screen.dart';
 import 'team_management_screen.dart';
 import 'preset_management_screen.dart';
 import 'referee_management_screen.dart';
+import 'referee_dashboard_screen.dart';
 import 'delegate_management_screen.dart';
+import 'team_manager_management_screen.dart';
+import 'player_management_screen.dart';
+import 'team_detail_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,18 +23,61 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String selectedSection = 'turniere'; // Default to Turniere section
+  final AuthService _authService = AuthService();
+  app_user.User? _currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final firebaseUser = _authService.currentFirebaseUser;
+    if (firebaseUser != null) {
+      final user = await _authService.getUserById(firebaseUser.uid);
+      setState(() {
+        _currentUser = user;
+        // Set default section based on user role
+        if (user?.role == app_user.UserRole.referee) {
+          selectedSection = 'referee_dashboard';
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Handle login screen specially to preserve its blue background
+    if (selectedSection == 'login') {
+      return LoginScreen(
+        onNavigateBack: () {
+          setState(() {
+            selectedSection = 'turniere';
+          });
+        },
+      );
+    }
+    
+    // Team detail sections are handled in the main ResponsiveLayout now
+    
     return ResponsiveLayout(
       selectedSection: selectedSection,
       onSectionChanged: (section) {
         setState(() {
           selectedSection = section;
         });
+        
+        // If navigating to a team section, ensure we show the overview by default
+        if (section.startsWith('team_') && !section.contains('_overview') && !section.contains('_tournaments') && !section.contains('_settings')) {
+          setState(() {
+            selectedSection = '${section}_overview';
+          });
+        }
       },
       title: _getScreenTitle(),
       body: _buildMainContent(),
+      currentUser: _currentUser,
     );
   }
 
@@ -49,20 +99,35 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Schiedsrichter Verwaltung';
       case 'delegate_management':
         return 'Delegierte Verwaltung';
+      case 'team_manager_management':
+        return 'Team Manager Verwaltung';
+      case 'player_management':
+        return 'Kader Verwaltung';
+      case 'referee_dashboard':
+        return 'Schiedsrichter Dashboard';
       default:
+        // Handle team detail sections
+        if (selectedSection.startsWith('team_')) {
+          return 'Team Details';
+        }
         return 'German Beach Open';
     }
   }
 
   Widget _buildMainContent() {
+    // Handle team detail sections
+    if (selectedSection.startsWith('team_')) {
+      final parts = selectedSection.split('_');
+      if (parts.length >= 2) {
+        final teamId = parts[1];
+        final subSection = parts.length > 2 ? parts[2] : 'overview';
+        return TeamDetailContent(teamId: teamId, subSection: subSection);
+      }
+    }
+    
     switch (selectedSection) {
       case 'login':
-        return const Center(
-          child: Text(
-            'Login Page - Coming Soon',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        );
+        return const LoginScreen();
       case 'turniere':
         return const TournamentOverview();
       case 'rangliste':
@@ -82,6 +147,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return const RefereeManagementScreen();
       case 'delegate_management':
         return const DelegateManagementScreen();
+      case 'team_manager_management':
+        return const TeamManagerManagementScreen();
+      case 'player_management':
+        return const PlayerManagementScreen();
+      case 'referee_dashboard':
+        return _currentUser != null 
+            ? RefereeDashboardScreen(currentUser: _currentUser!)
+            : const Center(child: Text('Bitte melden Sie sich an.'));
       default:
         return const TournamentOverview();
     }

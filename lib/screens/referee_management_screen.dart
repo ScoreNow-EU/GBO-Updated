@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:toastification/toastification.dart';
 import '../models/referee.dart';
 import '../services/referee_service.dart';
@@ -39,60 +40,41 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showRefereeDialog(),
+                    backgroundColor: Colors.black87,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
-            Row(
-              children: [
-                const Icon(
-                  Icons.sports_hockey,
-                  size: 32,
-                  color: Colors.black87,
-                ),
-                const SizedBox(width: 16),
-                const Text(
-                  'Schiedsrichter Verwaltung',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+            // Show bulk add button only on non-iOS platforms
+            if (defaultTargetPlatform != TargetPlatform.iOS) ...[
+              Row(
+                children: [
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const BulkAddRefereesScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('Bulk Hinzufügen'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                // Add Referee Buttons
-                ElevatedButton.icon(
-                  onPressed: () => _showRefereeDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Neuen Schiedsrichter hinzufügen'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    elevation: 2,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const BulkAddRefereesScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.group_add),
-                  label: const Text('Bulk Hinzufügen'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    elevation: 2,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Compact Search, Filter and Statistics Section
             Card(
@@ -158,8 +140,9 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Compact Statistics Row
-                    _buildCompactStatisticsSection(),
+                    // Compact Statistics Row (hidden on iOS)
+                    if (defaultTargetPlatform != TargetPlatform.iOS)
+                      _buildCompactStatisticsSection(),
                   ],
                 ),
               ),
@@ -239,7 +222,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.analytics, color: Colors.blue, size: 18),
+                const Icon(Icons.analytics, color: Colors.black87, size: 18),
                 const SizedBox(width: 6),
                 const Text(
                   'Statistiken',
@@ -778,7 +761,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Bitte geben Sie eine E-Mail-Adresse ein';
                           }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
                             return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
                           }
                           return null;

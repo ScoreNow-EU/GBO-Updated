@@ -88,7 +88,7 @@ class TeamAvatar extends StatelessWidget {
     Random random = Random(hash);
     
     List<Color> colors = [
-      Colors.blue.shade400,
+      const Color(0xFFffd665),
       Colors.green.shade400,
       Colors.orange.shade400,
       Colors.purple.shade400,

@@ -28,6 +28,8 @@ import 'dart:async';
 import '../utils/bracket_templates.dart';
 import '../utils/bracket_id_helper.dart';
 import '../utils/responsive_helper.dart';
+import '../widgets/responsive_layout.dart';
+import 'division_pools_screen.dart';
 
 // Add this class at the top of the file after imports
 class GamePosition {
@@ -95,8 +97,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     'completed',
   ];
 
-  // Navigation state
+            // Navigation state
   String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, referees, delegates, settings
+  
+  // Division management
+  List<String> _selectedDivisions = [];
+  Map<String, int> _divisionMaxTeams = {};
+  bool _isRegistrationOpen = true;
+  DateTime? _registrationDeadline;
   
   // Referee management
   List<Referee> _allReferees = [];
@@ -349,6 +357,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       
       // Load tournament courts
       _tournamentCourts = List<Court>.from(tournament.courts);
+      
+      // Load division registration settings
+      _selectedDivisions = List<String>.from(tournament.divisions);
+      _divisionMaxTeams = Map<String, int>.from(tournament.divisionMaxTeams);
+      _isRegistrationOpen = tournament.isRegistrationOpen;
+      _registrationDeadline = tournament.registrationDeadline;
     } else {
       // Default values for new tournament
       _pointsController.text = '20';
@@ -364,6 +378,30 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _useCategorySpecificDates = false;
       _categoryStartDates = {};
       _categoryEndDates = {};
+      
+      // Default division registration settings - include common divisions
+      _selectedDivisions = [
+        'Women\'s U16',
+        'Women\'s U18', 
+        'Women\'s Seniors',
+        'Women\'s FUN',
+        'Men\'s U16',
+        'Men\'s U18',
+        'Men\'s Seniors',
+        'Men\'s FUN',
+      ];
+      _divisionMaxTeams = {
+        'Women\'s U16': 32,
+        'Women\'s U18': 32,
+        'Women\'s Seniors': 32,
+        'Women\'s FUN': 32,
+        'Men\'s U16': 32,
+        'Men\'s U18': 32,
+        'Men\'s Seniors': 32,
+        'Men\'s FUN': 32,
+      };
+      _isRegistrationOpen = true;
+      _registrationDeadline = null;
     }
   }
 
@@ -529,27 +567,62 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          // Custom Left Navigation Panel for Tournament Editing
-          _buildTournamentNavigation(),
-          // Main Content Area
-          Expanded(
-            child: Container(
-              color: Colors.grey[100],
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: _buildTabContent(),
-                  ),
-                ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        
+        if (ResponsiveHelper.shouldUseDrawer(screenWidth)) {
+          // Mobile layout - show tournament navigation as overlay
+          return Scaffold(
+            drawer: _buildTournamentNavigationDrawer(screenWidth),
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              toolbarHeight: 0, // Hide the actual AppBar but keep the status bar styling
+              systemOverlayStyle: const SystemUiOverlayStyle(
+                statusBarColor: Colors.white,
+                statusBarIconBrightness: Brightness.dark,
               ),
             ),
-          ),
-        ],
-      ),
+            body: SafeArea(
+              top: false, // Don't add extra SafeArea since we're using AppBar
+              child: Container(
+                color: Colors.grey[100],
+                child: Column(
+                  children: [
+                    _buildMobileHeader(screenWidth),
+                    Expanded(
+                      child: _buildTabContent(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        } else {
+          // Desktop layout - show side navigation
+          return Scaffold(
+            body: Row(
+              children: [
+                _buildTournamentNavigation(),
+                Expanded(
+                  child: Container(
+                    color: Colors.grey[100],
+                    child: Column(
+                      children: [
+                        _buildHeader(),
+                        Expanded(
+                          child: _buildTabContent(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -564,7 +637,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       ),
       child: Column(
         children: [
-          // Logo/Header Section
+          // Logo Section
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -576,81 +649,91 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               children: [
                 Image.asset(
                   'logo.png',
-                  height: 60,
-                  width: 90,
+                  height: 80,
+                  width: 120,
                 ),
                 const SizedBox(height: 8),
                 const Text(
                   'German Beach Open',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.edit, color: Colors.blue.shade700, size: 20),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.tournament == null ? 'Neues Turnier' : 'Turnier bearbeiten',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.blue.shade700,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (widget.tournament != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          _nameController.text.isNotEmpty 
-                              ? _nameController.text
-                              : widget.tournament!.name,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
                   ),
                 ),
               ],
             ),
           ),
           
-          // Navigation Items
+          // Navigation Items Section with dark background like admin section
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: [
-                _buildNavItem('basic', 'Grunddaten', Icons.info_outline),
-                _buildNavItem('teams', 'Teams (${_selectedTeamIds.length})', Icons.group),
-                _buildNavItem('divisions', 'Divisionen', Icons.category),
-                if (_selectedCategories.contains('GBO Seniors Cup'))
-                  _buildNavItem('criteria', 'Kriterien', Icons.assignment_turned_in),
-                _buildNavItem('games', 'Spiele', Icons.sports_volleyball),
-              _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
-                _buildNavItem('courts', 'Plätze', Icons.location_on),
-                _buildNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey),
-
-            _buildNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin),
-                _buildNavItem('settings', 'Einstellungen', Icons.settings),
-              ],
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A5568),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  // Tournament Editor Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Icon(Icons.edit, color: Colors.white, size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (widget.tournament != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _nameController.text.isNotEmpty 
+                                ? _nameController.text
+                                : widget.tournament!.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  // Navigation Items
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      children: [
+                        _buildNavItem('basic', 'Grunddaten', Icons.info_outline),
+                        _buildNavItem('teams', 'Teams (${_selectedTeamIds.length})', Icons.group),
+                        _buildNavItem('divisions', 'Divisionen', Icons.category),
+                        if (_selectedCategories.contains('GBO Seniors Cup'))
+                          _buildNavItem('criteria', 'Kriterien', Icons.assignment_turned_in),
+                        _buildNavItem('games', 'Spiele', Icons.sports_volleyball),
+                        _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
+                        _buildNavItem('courts', 'Plätze', Icons.location_on),
+                        _buildNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey),
+                        _buildNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin),
+                        _buildNavItem('settings', 'Einstellungen', Icons.settings),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           
@@ -706,21 +789,22 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   Widget _buildNavItem(String tabId, String title, IconData icon) {
     final isSelected = _selectedTab == tabId;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
+        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
+        dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600,
+          color: isSelected ? Colors.white : Colors.white70,
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.blue.shade700 : Colors.black87,
+            color: isSelected ? Colors.white : Colors.white70,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 14,
           ),
@@ -739,6 +823,222 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           }
         },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  Widget _buildTournamentNavigationDrawer(double screenWidth) {
+    return Drawer(
+      child: Container(
+        color: Colors.white,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              height: 160,
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF4A5568),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.edit, color: Colors.white, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.tournament != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _nameController.text.isNotEmpty 
+                          ? _nameController.text
+                          : widget.tournament!.name,
+                      style: TextStyle(
+                        fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Navigation Menu
+            Expanded(
+              child: Container(
+                color: const Color(0xFF4A5568),
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  children: [
+                    _buildDrawerNavItem('basic', 'Grunddaten', Icons.info_outline, screenWidth),
+                    _buildDrawerNavItem('teams', 'Teams (${_selectedTeamIds.length})', Icons.group, screenWidth),
+                    _buildDrawerNavItem('divisions', 'Divisionen', Icons.category, screenWidth),
+                    if (_selectedCategories.contains('GBO Seniors Cup'))
+                      _buildDrawerNavItem('criteria', 'Kriterien', Icons.assignment_turned_in, screenWidth),
+                    _buildDrawerNavItem('games', 'Spiele', Icons.sports_volleyball, screenWidth),
+                    _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
+                    _buildDrawerNavItem('courts', 'Plätze', Icons.location_on, screenWidth),
+                    _buildDrawerNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey, screenWidth),
+                    _buildDrawerNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin, screenWidth),
+                    _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
+                  ],
+                ),
+              ),
+            ),
+            // Footer with action buttons
+            Container(
+              padding: const EdgeInsets.all(20),
+              color: const Color(0xFF4A5568),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveTournament,
+                      icon: _isSaving 
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(widget.tournament == null ? 'Erstellen' : 'Speichern'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                      label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerNavItem(String tabId, String title, IconData icon, double screenWidth) {
+    final isSelected = _selectedTab == tabId;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Builder(
+        builder: (context) => ListTile(
+          dense: true,
+          leading: Icon(
+            icon,
+            color: isSelected ? Colors.white : Colors.white70,
+            size: 20,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white70,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
+            ),
+          ),
+          onTap: () {
+            setState(() {
+              _selectedTab = tabId;
+            });
+            Navigator.of(context).pop(); // Close drawer
+            
+            // Auto-position map when courts tab is selected
+            if (tabId == 'courts') {
+              Future.delayed(const Duration(milliseconds: 100), () {
+                _autoPositionMap();
+              });
+            }
+          },
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileHeader(double screenWidth) {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.black),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              tooltip: 'Menü öffnen',
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              _getTabTitle(),
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 18 * ResponsiveHelper.getFontScale(screenWidth),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (_selectedTab == 'teams')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_selectedTeamIds.length}',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          // Add back button
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Zurück',
+          ),
+        ],
       ),
     );
   }
@@ -1135,14 +1435,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               children: [
                                 Icon(Icons.date_range, color: Colors.blue.shade600),
                                 const SizedBox(width: 8),
-                                Text(
-                                  'Getrennte Termine für Kategorien',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade800,
+                                Expanded(
+                                  child: Text(
+                                    'Getrennte Termine für Kategorien',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade800,
+                                    ),
                                   ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 Switch(
                                   value: _useCategorySpecificDates,
                                   onChanged: (value) {
@@ -1191,87 +1493,96 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
+                            Column(
                               children: [
                                 // Category Start Date
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => _selectCategoryStartDate(category),
-                                    child: InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: 'Startdatum *',
-                                        border: OutlineInputBorder(),
-                                        prefixIcon: Icon(Icons.calendar_today),
-                                      ),
-                                      child: Text(
-                                        _categoryStartDates[category] != null 
-                                            ? '${_categoryStartDates[category]!.day}.${_categoryStartDates[category]!.month}.${_categoryStartDates[category]!.year}'
-                                            : 'Datum auswählen',
-                                        style: TextStyle(
-                                          color: _categoryStartDates[category] != null ? Colors.black : Colors.grey[600],
-                                        ),
+                                InkWell(
+                                  onTap: () => _selectCategoryStartDate(category),
+                                  child: InputDecorator(
+                                    decoration: InputDecoration(
+                                      labelText: 'Startdatum *',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.calendar_today),
+                                    ),
+                                    child: Text(
+                                      _categoryStartDates[category] != null 
+                                          ? '${_categoryStartDates[category]!.day}.${_categoryStartDates[category]!.month}.${_categoryStartDates[category]!.year}'
+                                          : 'Datum auswählen',
+                                      style: TextStyle(
+                                        color: _categoryStartDates[category] != null ? Colors.black : Colors.grey[600],
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(height: 16),
                                 
                                 // Category End Date
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => _selectCategoryEndDate(category),
-                                    child: InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: 'Enddatum (optional)',
-                                        border: OutlineInputBorder(),
-                                        prefixIcon: Icon(Icons.event_available),
-                                      ),
-                                      child: Text(
-                                        _categoryEndDates[category] != null 
-                                            ? '${_categoryEndDates[category]!.day}.${_categoryEndDates[category]!.month}.${_categoryEndDates[category]!.year}'
-                                            : 'Datum auswählen',
-                                        style: TextStyle(
-                                          color: _categoryEndDates[category] != null ? Colors.black : Colors.grey[600],
-                                        ),
+                                InkWell(
+                                  onTap: () => _selectCategoryEndDate(category),
+                                  child: InputDecorator(
+                                    decoration: InputDecoration(
+                                      labelText: 'Enddatum (optional)',
+                                      border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.event_available),
+                                    ),
+                                    child: Text(
+                                      _categoryEndDates[category] != null 
+                                          ? '${_categoryEndDates[category]!.day}.${_categoryEndDates[category]!.month}.${_categoryEndDates[category]!.year}'
+                                          : 'Datum auswählen',
+                                      style: TextStyle(
+                                        color: _categoryEndDates[category] != null ? Colors.black : Colors.grey[600],
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(height: 16),
                                 
                                 // Playing days info
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     color: Colors.green.shade50,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: Colors.green.shade200),
                                   ),
-                                  child: Column(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        '${_getPlayingDaysForCategory(category)}',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade700,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Spieltage',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.green.shade600,
-                                        ),
+                                      Column(
+                                        children: [
+                                          Text(
+                                            '${_getPlayingDaysForCategory(category)}',
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green.shade700,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Spieltage',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.green.shade600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       if (_getPlayingDaysForCategory(category) > 1) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '+20 Pts',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green.shade700,
+                                        const SizedBox(width: 16),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green.shade200,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            '+20 Pts',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green.shade700,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -1286,99 +1597,108 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       }).toList()),
                     ] else ...[
                       // Standard date selection
-                      Row(
+                      Column(
                         children: [
                           // Start Date
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _selectStartDate(),
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: 'Startdatum *',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.calendar_today),
-                                  suffixIcon: _isDateInPast(_startDate)
-                                      ? Tooltip(
-                                          message: 'Vergangenes Datum - Status wird automatisch gesetzt',
-                                          child: Icon(Icons.history, color: Colors.orange, size: 20),
-                                        )
-                                      : null,
-                                ),
-                                child: Text(
-                                  _startDate != null 
-                                      ? '${_startDate!.day}.${_startDate!.month}.${_startDate!.year}'
-                                      : 'Datum auswählen',
-                                  style: TextStyle(
-                                    color: _startDate != null ? Colors.black : Colors.grey[600],
-                                  ),
+                          InkWell(
+                            onTap: () => _selectStartDate(),
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: 'Startdatum *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.calendar_today),
+                                suffixIcon: _isDateInPast(_startDate)
+                                    ? Tooltip(
+                                        message: 'Vergangenes Datum - Status wird automatisch gesetzt',
+                                        child: Icon(Icons.history, color: Colors.orange, size: 20),
+                                      )
+                                    : null,
+                              ),
+                              child: Text(
+                                _startDate != null 
+                                    ? '${_startDate!.day}.${_startDate!.month}.${_startDate!.year}'
+                                    : 'Datum auswählen',
+                                style: TextStyle(
+                                  color: _startDate != null ? Colors.black : Colors.grey[600],
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(height: 16),
                           
                           // End Date
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _selectEndDate(),
-                              child: InputDecorator(
-                                decoration: InputDecoration(
-                                  labelText: 'Enddatum (optional)',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.event_available),
-                                  suffixIcon: _isDateInPast(_endDate)
-                                      ? Tooltip(
-                                          message: 'Vergangenes Datum - Status wird automatisch gesetzt',
-                                          child: Icon(Icons.history, color: Colors.orange, size: 20),
-                                        )
-                                      : null,
-                                ),
-                                child: Text(
-                                  _endDate != null 
-                                      ? '${_endDate!.day}.${_endDate!.month}.${_endDate!.year}'
-                                      : 'Datum auswählen',
-                                  style: TextStyle(
-                                    color: _endDate != null ? Colors.black : Colors.grey[600],
-                                  ),
+                          InkWell(
+                            onTap: () => _selectEndDate(),
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: 'Enddatum (optional)',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.event_available),
+                                suffixIcon: _isDateInPast(_endDate)
+                                    ? Tooltip(
+                                        message: 'Vergangenes Datum - Status wird automatisch gesetzt',
+                                        child: Icon(Icons.history, color: Colors.orange, size: 20),
+                                      )
+                                    : null,
+                              ),
+                              child: Text(
+                                _endDate != null 
+                                    ? '${_endDate!.day}.${_endDate!.month}.${_endDate!.year}'
+                                    : 'Datum auswählen',
+                                style: TextStyle(
+                                  color: _endDate != null ? Colors.black : Colors.grey[600],
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(height: 16),
                           
                           // Playing days info
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.green.shade200),
                             ),
-                            child: Column(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  '${_getPlayingDays()}',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green.shade700,
-                                  ),
-                                ),
-                                Text(
-                                  'Spieltage',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.green.shade600,
-                                  ),
+                                Column(
+                                  children: [
+                                    Text(
+                                      '${_getPlayingDays()}',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Spieltage',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.green.shade600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 if (_getPlayingDays() > 1) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '+20 Pts',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green.shade700,
+                                  const SizedBox(width: 16),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '+20 Pts',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade700,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1417,122 +1737,118 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           ],
                         ),
                       ),
-                    Row(
+                    Column(
                       children: [
                         // Points
-                        Expanded(
-                          child: _selectedCategories.contains('GBO Seniors Cup') 
-                              ? InputDecorator(
-                                  decoration: InputDecoration(
-                                    labelText: 'Gesamtpunkte (inkl. Supercup Bonus)',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.star),
-                                    suffixIcon: Tooltip(
-                                      message: 'Punkte werden automatisch aus den Kriterien berechnet. ${_criteria.supercupBonus > 0 ? "Supercup Bonus (+150) ist enthalten!" : "Erfülle alle Supercup-Kriterien für +150 Bonus"}',
-                                      child: Icon(
-                                        _criteria.supercupBonus > 0 ? Icons.star : Icons.info_outline, 
-                                        color: _criteria.supercupBonus > 0 ? Colors.green : Colors.blue
-                                      ),
+                        _selectedCategories.contains('GBO Seniors Cup') 
+                            ? InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Gesamtpunkte (inkl. Supercup Bonus)',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.star),
+                                  suffixIcon: Tooltip(
+                                    message: 'Punkte werden automatisch aus den Kriterien berechnet. ${_criteria.supercupBonus > 0 ? "Supercup Bonus (+150) ist enthalten!" : "Erfülle alle Supercup-Kriterien für +150 Bonus"}',
+                                    child: Icon(
+                                      _criteria.supercupBonus > 0 ? Icons.star : Icons.info_outline, 
+                                      color: _criteria.supercupBonus > 0 ? Colors.green : Colors.blue
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        '${_criteria.totalPoints + _criteria.supercupBonus}',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '${_criteria.totalPoints + _criteria.supercupBonus}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    if (_criteria.supercupBonus > 0) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '+${_criteria.supercupBonus} Bonus',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green.shade700,
+                                          ),
                                         ),
                                       ),
-                                      if (_criteria.supercupBonus > 0) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            '+${_criteria.supercupBonus} Bonus',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green.shade700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
                                     ],
-                                  ),
-                                )
-                              : TextFormField(
-                                  controller: _pointsController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Punkte *',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.star),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return 'Bitte geben Sie Punkte ein';
-                                    }
-                                    if (int.tryParse(value) == null) {
-                                      return 'Bitte geben Sie eine gültige Zahl ein';
-                                    }
-                                    return null;
-                                  },
+                                  ],
                                 ),
-                        ),
-                        const SizedBox(width: 16),
+                              )
+                            : TextFormField(
+                                controller: _pointsController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Punkte *',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.star),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Bitte geben Sie Punkte ein';
+                                  }
+                                  if (int.tryParse(value) == null) {
+                                    return 'Bitte geben Sie eine gültige Zahl ein';
+                                  }
+                                  return null;
+                                },
+                              ),
+                        const SizedBox(height: 16),
                         
                         // Status
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              DropdownButtonFormField<String>(
-                            value: _status,
-                                decoration: InputDecoration(
-                              labelText: 'Status *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.flag),
-                                  suffixIcon: _isStatusAutomaticallySet() 
-                                      ? Tooltip(
-                                          message: 'Status wurde automatisch basierend auf dem Datum gesetzt',
-                                          child: Icon(Icons.auto_awesome, color: Colors.blue, size: 20),
-                                        )
-                                      : null,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            DropdownButtonFormField<String>(
+                          value: _status,
+                              decoration: InputDecoration(
+                            labelText: 'Status *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.flag),
+                                suffixIcon: _isStatusAutomaticallySet() 
+                                    ? Tooltip(
+                                        message: 'Status wurde automatisch basierend auf dem Datum gesetzt',
+                                        child: Icon(Icons.auto_awesome, color: Colors.blue, size: 20),
+                                      )
+                                    : null,
+                          ),
+                          items: _statusOptions.map((String status) {
+                            return DropdownMenuItem<String>(
+                              value: status,
+                              child: Text(_getStatusDisplayName(status)),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _status = newValue;
+                              });
+                            }
+                          },
                             ),
-                            items: _statusOptions.map((String status) {
-                              return DropdownMenuItem<String>(
-                                value: status,
-                                child: Text(_getStatusDisplayName(status)),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  _status = newValue;
-                                });
-                              }
-                            },
-                              ),
-                              if (_isStatusAutomaticallySet())
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'Status automatisch gesetzt basierend auf Datum',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.blue.shade600,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                          ),
+                            if (_isStatusAutomaticallySet())
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Status automatisch gesetzt basierend auf Datum',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blue.shade600,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                         ),
-                      ],
-                          ),
+                      ),
+                    ],
                         ),
                       ],
                     ),
@@ -1661,83 +1977,101 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               ),
               const SizedBox(height: 16),
               
-              Row(
-                children: [
-                  // Search box
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: _teamSearchController,
-                      decoration: InputDecoration(
-                        hintText: 'Teams suchen...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Use vertical layout on small screens to prevent overflow
+                  if (constraints.maxWidth < 600) {
+                    return Column(
+                      children: [
+                        // Search box
+                        TextField(
+                          controller: _teamSearchController,
+                          decoration: InputDecoration(
+                            hintText: 'Teams suchen...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  
-                  // Division filter
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _teamFilterDivision,
-                      decoration: InputDecoration(
-                        labelText: 'Division',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+                        const SizedBox(height: 16),
+                        
+                        // Division filter
+                        DropdownButtonFormField<String>(
+                          value: _teamFilterDivision,
+                          decoration: InputDecoration(
+                            labelText: 'Division',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                          items: [
+                            const DropdownMenuItem(value: 'Alle', child: Text('Alle')),
+                            ..._divisions.map((division) => DropdownMenuItem(
+                              value: division,
+                              child: Text(division),
+                            )),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _teamFilterDivision = value!;
+                            });
+                          },
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                      items: [
-                        const DropdownMenuItem(value: 'Alle', child: Text('Alle')),
-                        ..._divisions.map((division) => DropdownMenuItem(
-                          value: division,
-                          child: Text(division),
-                        )),
                       ],
-                      onChanged: (value) {
-                        setState(() {
-                          _teamFilterDivision = value!;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  
-                  // Select/Deselect All button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        if (_selectedTeamIds.length == filteredTeams.length) {
-                          // Deselect all visible teams
-                          for (var team in filteredTeams) {
-                            _selectedTeamIds.remove(team.id);
-                          }
-                        } else {
-                          // Select all visible teams
-                          for (var team in filteredTeams) {
-                            if (!_selectedTeamIds.contains(team.id)) {
-                              _selectedTeamIds.add(team.id);
-                            }
-                          }
-                        }
-                      });
-                    },
-                    icon: Icon(_selectedTeamIds.length == filteredTeams.length && filteredTeams.isNotEmpty 
-                        ? Icons.deselect 
-                        : Icons.select_all),
-                    label: Text(_selectedTeamIds.length == filteredTeams.length && filteredTeams.isNotEmpty 
-                        ? 'Alle abwählen' 
-                        : 'Alle auswählen'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[100],
-                      foregroundColor: Colors.black87,
-                    ),
-                  ),
-                ],
+                    );
+                  } else {
+                    // Horizontal layout for larger screens
+                    return Row(
+                      children: [
+                        // Search box
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _teamSearchController,
+                            decoration: InputDecoration(
+                              hintText: 'Teams suchen...',
+                              prefixIcon: const Icon(Icons.search),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        
+                        // Division filter
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _teamFilterDivision,
+                            decoration: InputDecoration(
+                              labelText: 'Division',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                            items: [
+                              const DropdownMenuItem(value: 'Alle', child: Text('Alle')),
+                              ..._divisions.map((division) => DropdownMenuItem(
+                                value: division,
+                                child: Text(division),
+                              )),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _teamFilterDivision = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                },
               ),
             ],
           ),
@@ -1815,11 +2149,384 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildDivisionsTab() {
-    if (_selectedDivisionForPools == null) {
-      return _buildDivisionSelectionView();
-    } else {
-      return _buildPoolManagementView();
-    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Division Registration Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.category, color: Colors.purple),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Turnier Divisionen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Wählen Sie die Divisionen aus, für die sich Teams zu diesem Turnier anmelden können.',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Available Divisions Checklist
+                  Text(
+                    'Verfügbare Divisionen:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  ...(_divisions.map((division) => _buildDivisionCheckbox(division))),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Registration Settings Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.app_registration, color: Colors.green),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Anmeldungseinstellungen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Registration Open Toggle
+                  Row(
+                    children: [
+                      Switch(
+                        value: _isRegistrationOpen,
+                        onChanged: (value) {
+                          setState(() {
+                            _isRegistrationOpen = value;
+                          });
+                        },
+                        activeColor: Colors.green,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Anmeldung geöffnet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Registration Deadline
+                  Text(
+                    'Anmeldeschluss (optional):',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _registrationDeadline ?? DateTime.now().add(Duration(days: 30)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _registrationDeadline = date;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Text(
+                            _registrationDeadline != null
+                                ? '${_registrationDeadline!.day}.${_registrationDeadline!.month}.${_registrationDeadline!.year}'
+                                : 'Kein Anmeldeschluss festgelegt',
+                          ),
+                          const Spacer(),
+                          if (_registrationDeadline != null)
+                            IconButton(
+                              icon: Icon(Icons.clear, color: Colors.grey[600]),
+                              onPressed: () {
+                                setState(() {
+                                  _registrationDeadline = null;
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Division Limits Card (only show if divisions are selected)
+          if (_selectedDivisions.isNotEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.numbers, color: Colors.orange),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Team-Limits pro Division',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Legen Sie die maximale Anzahl von Teams pro Division fest.',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    ..._selectedDivisions.map((division) => _buildDivisionLimitField(division)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivisionCheckbox(String division) {
+    final isSelected = _selectedDivisions.contains(division);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Checkbox(
+            value: isSelected,
+            onChanged: (value) {
+              setState(() {
+                if (value == true) {
+                  if (!_selectedDivisions.contains(division)) {
+                    _selectedDivisions.add(division);
+                    // Set default max teams if not already set
+                    if (!_divisionMaxTeams.containsKey(division)) {
+                      _divisionMaxTeams[division] = 32;
+                    }
+                  }
+                } else {
+                  _selectedDivisions.remove(division);
+                  _divisionMaxTeams.remove(division);
+                }
+              });
+            },
+            activeColor: Colors.purple,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              division,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivisionLimitField(String division) {
+    final controller = TextEditingController();
+    controller.text = (_divisionMaxTeams[division] ?? 32).toString();
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              division,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Max. Teams',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.group),
+              ),
+              onChanged: (value) {
+                final intValue = int.tryParse(value);
+                if (intValue != null && intValue > 0) {
+                  setState(() {
+                    _divisionMaxTeams[division] = intValue;
+                  });
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileDivisionsView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.category, color: Colors.purple),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Divisionen & Pools verwalten',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Verwalten Sie Divisionen und Pools in einer optimierten mobilen Ansicht.',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Open Dedicated Screen Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => DivisionPoolsScreen(
+                              tournament: widget.tournament ?? Tournament(
+                                id: '',
+                                name: _nameController.text,
+                                categories: _selectedCategories,
+                                location: _locationController.text,
+                                startDate: _startDate ?? DateTime.now(),
+                                endDate: _endDate,
+                                points: int.tryParse(_pointsController.text) ?? 0,
+                                status: _status,
+                              ),
+                              selectedTeamIds: _selectedTeamIds,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.open_in_new),
+                      label: Text('Divisionen & Pools öffnen'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                  
+                  if (_selectedTeamIds.isEmpty) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Wählen Sie zuerst Teams im Teams-Tab aus',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDivisionSelectionView() {
@@ -1895,61 +2602,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       final teams = entry.value;
                       
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: _getDivisionColor(division).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.group,
-                              color: _getDivisionColor(division),
-                              size: 24,
-                            ),
-                          ),
-                          title: Text(
-                            division,
-                            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${teams.length} Teams'),
-                              Text(
-                                _getDivisionDescription(division),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Pools verwalten',
-                                  style: TextStyle(
-                                    color: Colors.blue,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(Icons.arrow_forward_ios, size: 16),
-                            ],
-                          ),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: InkWell(
                           onTap: () {
                             setState(() {
                               _selectedDivisionForPools = division;
@@ -1959,6 +2613,174 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               }
                             });
                           },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    // Use a simplified vertical layout for very small screens
+                                    if (constraints.maxWidth < 350) {
+                                      return Column(
+                                        children: [
+                                          // Icon and title row
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  color: _getDivisionColor(division).withValues(alpha: 0.2),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  Icons.group,
+                                                  color: _getDivisionColor(division),
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  division,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: Colors.black87,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          // Team count
+                                          Row(
+                                            children: [
+                                              Text(
+                                                '${teams.length} Teams',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.grey[700],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              Icon(
+                                                Icons.arrow_forward_ios,
+                                                color: Colors.grey[400],
+                                                size: 14,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    } else {
+                                      // Regular horizontal layout for larger screens
+                                      return Row(
+                                        children: [
+                                          // Division Icon
+                                          Container(
+                                            width: 50,
+                                            height: 50,
+                                            decoration: BoxDecoration(
+                                              color: _getDivisionColor(division).withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              Icons.group,
+                                              color: _getDivisionColor(division),
+                                              size: 24,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          
+                                          // Division Info
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  division,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color: Colors.black87,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${teams.length} Teams',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.grey[700],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          
+                                          // Arrow Icon
+                                          Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: Colors.grey[400],
+                                            size: 16,
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                
+                                // Description
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    _getDivisionDescription(division),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                
+                                // Action Button
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    'Pools verwalten',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       );
                     }).toList(),
@@ -3488,6 +4310,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
         courts: _tournamentCourts,
+        divisions: _selectedDivisions,
+        divisionTeams: widget.tournament?.divisionTeams ?? {},
+        divisionMaxTeams: _divisionMaxTeams,
+        isRegistrationOpen: _isRegistrationOpen,
+        registrationDeadline: _registrationDeadline,
       );
       
       print('Tournament object created');

@@ -43,13 +43,17 @@ class TournamentService {
     if (_cachedTournaments != null) {
       // Create a stream controller to manage the flow
       late StreamController<List<Tournament>> controller;
+      late StreamSubscription firebaseSubscription;
+      
       controller = StreamController<List<Tournament>>(
         onListen: () async {
           // First emit cached data immediately
-          controller.add(_cachedTournaments!);
+          if (!controller.isClosed) {
+            controller.add(_cachedTournaments!);
+          }
           
           // Then listen for Firebase updates
-          _firestore
+          firebaseSubscription = _firestore
               .collection(_collection)
               .snapshots()
               .map((snapshot) {
@@ -66,12 +70,29 @@ class TournamentService {
                 return tournaments;
               })
               .listen(
-                (tournaments) => controller.add(tournaments),
-                onError: (error) => controller.addError(error),
-                onDone: () => controller.close(),
+                (tournaments) {
+                  if (!controller.isClosed) {
+                    controller.add(tournaments);
+                  }
+                },
+                onError: (error) {
+                  if (!controller.isClosed) {
+                    controller.addError(error);
+                  }
+                },
+                onDone: () {
+                  if (!controller.isClosed) {
+                    controller.close();
+                  }
+                },
               );
         },
-        onCancel: () => controller.close(),
+        onCancel: () {
+          firebaseSubscription.cancel();
+          if (!controller.isClosed) {
+            controller.close();
+          }
+        },
       );
       
       return controller.stream;
@@ -198,38 +219,212 @@ class TournamentService {
       Tournament(
         id: '',
         name: 'Verdener Beach-Cup mU18 + mU16',
-        categories: ['GBO Juniors Cup'], // Juniors only
-        location: 'Verden (Aller), DEU',
-        startDate: DateTime(2025, 6, 14),
-        points: 20,
+        categories: ['GBO Juniors Cup'],
+        location: 'Verden, DEU',
+        startDate: DateTime(2025, 7, 5),
+        points: 15,
         status: 'upcoming',
-        description: 'Youth tournament for U18 and U16 categories',
-      ),
-      Tournament(
-        id: '',
-        name: 'MOB BeachCup 2025',
-        categories: ['GBO Juniors Cup', 'GBO Seniors Cup'], // Both categories
-        location: 'Wittingen, DEU',
-        startDate: DateTime(2025, 6, 15),
-        points: 20,
-        status: 'upcoming',
-        description: 'Multi-age beach handball competition',
-      ),
-      Tournament(
-        id: '',
-        name: 'HVNB Cuxhaven Tournament',
-        categories: ['GBO Seniors Cup'], // Seniors only
-        location: 'Cuxhaven, DEU',
-        startDate: DateTime(2025, 6, 19),
-        endDate: DateTime(2025, 6, 21),
-        points: 20,
-        status: 'upcoming',
-        description: 'Senior tournament at the coast',
+        description: 'Junior tournament for U18 and U16 divisions',
       ),
     ];
 
     for (Tournament tournament in sampleTournaments) {
       await addTournament(tournament);
+    }
+  }
+
+  // Register a team for a tournament division
+  Future<bool> registerTeamForTournament(String tournamentId, String teamId, String division, {List<Map<String, String>>? roster}) async {
+    try {
+      // Get the tournament first
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      // Check if team can register
+      final team = await FirebaseFirestore.instance.collection('teams').doc(teamId).get();
+      if (!team.exists) return false;
+      
+      final teamData = team.data() as Map<String, dynamic>;
+      final teamDivision = teamData['division'] as String;
+      
+      if (!tournament.canRegisterForDivision(division, teamDivision)) return false;
+
+      // Check if team is already registered
+      if (tournament.isTeamRegistered(teamId)) return false;
+
+      // Update the tournament with the new team registration
+      Map<String, List<String>> updatedDivisionTeams = Map.from(tournament.divisionTeams);
+      if (!updatedDivisionTeams.containsKey(division)) {
+        updatedDivisionTeams[division] = [];
+      }
+      updatedDivisionTeams[division]!.add(teamId);
+
+      // Also add to general teamIds for backward compatibility
+      List<String> updatedTeamIds = List.from(tournament.teamIds);
+      if (!updatedTeamIds.contains(teamId)) {
+        updatedTeamIds.add(teamId);
+      }
+
+      Map<String, dynamic> updateData = {
+        'divisionTeams': updatedDivisionTeams.map((key, value) => MapEntry(key, value)),
+        'teamIds': updatedTeamIds,
+      };
+
+      // Store roster information if provided
+      if (roster != null && roster.isNotEmpty) {
+        updateData['rosters'] = {
+          ...tournament.toMap()['rosters'] ?? {},
+          teamId: roster,
+        };
+      }
+
+      await _firestore.collection(_collection).doc(tournamentId).update(updateData);
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error registering team for tournament: $e');
+      return false;
+    }
+  }
+
+  // Unregister a team from a tournament
+  Future<bool> unregisterTeamFromTournament(String tournamentId, String teamId) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      // Find and remove team from division
+      Map<String, List<String>> updatedDivisionTeams = Map.from(tournament.divisionTeams);
+      bool teamFound = false;
+      
+      for (String division in updatedDivisionTeams.keys) {
+        if (updatedDivisionTeams[division]!.contains(teamId)) {
+          updatedDivisionTeams[division]!.remove(teamId);
+          teamFound = true;
+          break;
+        }
+      }
+
+      if (!teamFound) return false;
+
+      // Also remove from general teamIds
+      List<String> updatedTeamIds = List.from(tournament.teamIds);
+      updatedTeamIds.remove(teamId);
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'divisionTeams': updatedDivisionTeams.map((key, value) => MapEntry(key, value)),
+        'teamIds': updatedTeamIds,
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error unregistering team from tournament: $e');
+      return false;
+    }
+  }
+
+  // Update tournament divisions and settings
+  Future<bool> updateTournamentDivisions(String tournamentId, {
+    List<String>? divisions,
+    Map<String, int>? divisionMaxTeams,
+    bool? isRegistrationOpen,
+    DateTime? registrationDeadline,
+  }) async {
+    try {
+      Map<String, dynamic> updates = {};
+      
+      if (divisions != null) updates['divisions'] = divisions;
+      if (divisionMaxTeams != null) updates['divisionMaxTeams'] = divisionMaxTeams;
+      if (isRegistrationOpen != null) updates['isRegistrationOpen'] = isRegistrationOpen;
+      if (registrationDeadline != null) {
+        updates['registrationDeadline'] = registrationDeadline.millisecondsSinceEpoch;
+      }
+
+      await _firestore.collection(_collection).doc(tournamentId).update(updates);
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error updating tournament divisions: $e');
+      return false;
+    }
+  }
+
+  // Get tournaments that a specific team can register for
+  Stream<List<Tournament>> getTournamentsForTeamRegistration(String teamDivision) {
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => 
+            tournament.isRegistrationOpen && 
+            tournament.divisions.contains(teamDivision) &&
+            tournament.status == 'upcoming' &&
+            (tournament.registrationDeadline == null || 
+             DateTime.now().isBefore(tournament.registrationDeadline!))
+        ).toList());
+  }
+
+  // Get tournaments where a specific team is registered
+  Stream<List<Tournament>> getTournamentsForTeam(String teamId) {
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => tournament.isTeamRegistered(teamId)).toList());
+  }
+
+  // Update existing tournaments to have default divisions if they don't have any
+  Future<void> updateTournamentsWithDefaultDivisions() async {
+    try {
+      final snapshot = await _firestore.collection(_collection).get();
+      
+      for (final doc in snapshot.docs) {
+        final tournament = Tournament.fromMap(doc.data(), doc.id);
+        
+        // Skip if tournament already has divisions configured
+        if (tournament.divisions.isNotEmpty) continue;
+        
+        // Configure default divisions based on categories
+        List<String> defaultDivisions = [];
+        Map<String, int> defaultMaxTeams = {};
+        
+        if (tournament.categories.contains('GBO Seniors Cup')) {
+          defaultDivisions.addAll([
+            'Women\'s Seniors',
+            'Women\'s FUN',
+            'Men\'s Seniors', 
+            'Men\'s FUN',
+          ]);
+          for (String division in defaultDivisions) {
+            defaultMaxTeams[division] = 32;
+          }
+        }
+        
+        if (tournament.categories.contains('GBO Juniors Cup')) {
+          defaultDivisions.addAll([
+            'Women\'s U14',
+            'Women\'s U16',
+            'Women\'s U18',
+            'Men\'s U14',
+            'Men\'s U16',
+            'Men\'s U18',
+          ]);
+          for (String division in ['Women\'s U14', 'Women\'s U16', 'Women\'s U18', 'Men\'s U14', 'Men\'s U16', 'Men\'s U18']) {
+            defaultMaxTeams[division] = 32;
+          }
+        }
+        
+        // Update tournament with default divisions
+        if (defaultDivisions.isNotEmpty) {
+          await _firestore.collection(_collection).doc(doc.id).update({
+            'divisions': defaultDivisions,
+            'divisionMaxTeams': defaultMaxTeams,
+            'isRegistrationOpen': true,
+          });
+          print('Updated tournament ${tournament.name} with default divisions: $defaultDivisions');
+        }
+      }
+      
+      // Invalidate cache to reload updated tournaments
+      _invalidateCache();
+    } catch (e) {
+      print('Error updating tournaments with default divisions: $e');
     }
   }
 } 

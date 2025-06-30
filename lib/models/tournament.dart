@@ -259,6 +259,11 @@ class Tournament {
   final Map<String, CustomBracketStructure> customBrackets; // division -> custom bracket structure
   final TournamentCriteria? criteria; // Tournament criteria for Seniors Cup
   final List<Court> courts; // Courts available for this tournament
+  final List<String> divisions; // Available divisions for this tournament
+  final Map<String, List<String>> divisionTeams; // division -> list of team IDs
+  final Map<String, int> divisionMaxTeams; // division -> max teams allowed
+  final bool isRegistrationOpen; // Whether team registration is open
+  final DateTime? registrationDeadline; // When registration closes
 
   Tournament({
     required this.id,
@@ -281,6 +286,11 @@ class Tournament {
     this.customBrackets = const {},
     this.criteria,
     this.courts = const [],
+    this.divisions = const [],
+    this.divisionTeams = const {},
+    this.divisionMaxTeams = const {},
+    this.isRegistrationOpen = true,
+    this.registrationDeadline,
   });
 
   String get category => categories.isNotEmpty ? categories.first : '';
@@ -365,6 +375,58 @@ class Tournament {
     return points;
   }
 
+  // Check if a team can register for a specific division
+  bool canRegisterForDivision(String division, String teamDivision) {
+    if (!divisions.contains(division)) return false;
+    if (!isRegistrationOpen) return false;
+    if (registrationDeadline != null && DateTime.now().isAfter(registrationDeadline!)) return false;
+    
+    // For seniors teams, allow registration in either their regular division or FUN division
+    bool canRegister = false;
+    if (teamDivision.contains('Seniors')) {
+      // Seniors team can register for their division or corresponding FUN division
+      String funDivision = teamDivision.replaceAll('Seniors', 'FUN');
+      canRegister = (division == teamDivision) || (division == funDivision);
+    } else {
+      // Non-seniors teams must match exactly
+      canRegister = (division == teamDivision);
+    }
+    
+    if (!canRegister) return false;
+    
+    // Check if division has space
+    final currentTeams = divisionTeams[division] ?? [];
+    final maxTeams = divisionMaxTeams[division] ?? 32; // Default max
+    
+    return currentTeams.length < maxTeams;
+  }
+
+  // Get registered teams count for a division
+  int getRegisteredTeamsCount(String division) {
+    return divisionTeams[division]?.length ?? 0;
+  }
+
+  // Get max teams allowed for a division
+  int getMaxTeamsForDivision(String division) {
+    return divisionMaxTeams[division] ?? 32;
+  }
+
+  // Check if team is already registered for any division
+  bool isTeamRegistered(String teamId) {
+    for (final teams in divisionTeams.values) {
+      if (teams.contains(teamId)) return true;
+    }
+    return false;
+  }
+
+  // Get division that a team is registered for
+  String? getTeamDivision(String teamId) {
+    for (final entry in divisionTeams.entries) {
+      if (entry.value.contains(teamId)) return entry.key;
+    }
+    return null;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -387,6 +449,11 @@ class Tournament {
       'customBrackets': customBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'criteria': criteria?.toMap(),
       'courts': courts.map((court) => court.toMap()).toList(),
+      'divisions': divisions,
+      'divisionTeams': divisionTeams,
+      'divisionMaxTeams': divisionMaxTeams,
+      'isRegistrationOpen': isRegistrationOpen,
+      'registrationDeadline': registrationDeadline?.millisecondsSinceEpoch,
     };
   }
 
@@ -408,6 +475,15 @@ class Tournament {
       final catEndMap = map['categoryEndDates'] as Map<String, dynamic>;
       for (String key in catEndMap.keys) {
         categoryEndDates[key] = (catEndMap[key] as Timestamp).toDate();
+      }
+    }
+
+    // Parse division teams
+    Map<String, List<String>> divisionTeams = {};
+    if (map['divisionTeams'] != null) {
+      final divTeamsMap = map['divisionTeams'] as Map<String, dynamic>;
+      for (String key in divTeamsMap.keys) {
+        divisionTeams[key] = List<String>.from(divTeamsMap[key] ?? []);
       }
     }
 
@@ -438,6 +514,13 @@ class Tournament {
       courts: (map['courts'] as List<dynamic>?)
           ?.map((court) => Court.fromMap(court))
           .toList() ?? [],
+      divisions: List<String>.from(map['divisions'] ?? []),
+      divisionTeams: divisionTeams,
+      divisionMaxTeams: Map<String, int>.from(map['divisionMaxTeams'] ?? {}),
+      isRegistrationOpen: map['isRegistrationOpen'] ?? true,
+      registrationDeadline: map['registrationDeadline'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(map['registrationDeadline'])
+          : null,
     );
   }
 } 

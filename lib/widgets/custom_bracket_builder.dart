@@ -21,6 +21,7 @@ class CustomBracketBuilder extends StatefulWidget {
   final Function(String, String)? onTeamRemove; // callback for team removal (poolId, teamId)
   final Map<String, List<String>> placeholderTeams; // poolId -> list of placeholder team IDs
   final Tournament tournament; // Add tournament reference
+  final bool showLeftSidebar; // Add parameter to control sidebar visibility
 
   const CustomBracketBuilder({
     Key? key,
@@ -35,6 +36,7 @@ class CustomBracketBuilder extends StatefulWidget {
     this.onTeamRemove,
     this.placeholderTeams = const {},
     required this.tournament,
+    this.showLeftSidebar = true,
   }) : super(key: key);
 
   @override
@@ -112,12 +114,14 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         children: [
           _buildToolbar(),
           Expanded(
-            child: Row(
+            child: widget.showLeftSidebar 
+                ? Row(
               children: [
                 _buildLeftSidebar(),
                 Expanded(child: _buildCanvas()),
               ],
-            ),
+                  )
+                : _buildCanvas(),
           ),
         ],
       ),
