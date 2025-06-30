@@ -97,8 +97,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     'completed',
   ];
 
-  // Navigation state
+            // Navigation state
   String _selectedTab = 'basic'; // basic, teams, divisions, criteria, games, scheduling, courts, referees, delegates, settings
+  
+  // Division management
+  List<String> _selectedDivisions = [];
+  Map<String, int> _divisionMaxTeams = {};
+  bool _isRegistrationOpen = true;
+  DateTime? _registrationDeadline;
   
   // Referee management
   List<Referee> _allReferees = [];
@@ -351,6 +357,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       
       // Load tournament courts
       _tournamentCourts = List<Court>.from(tournament.courts);
+      
+      // Load division registration settings
+      _selectedDivisions = List<String>.from(tournament.divisions);
+      _divisionMaxTeams = Map<String, int>.from(tournament.divisionMaxTeams);
+      _isRegistrationOpen = tournament.isRegistrationOpen;
+      _registrationDeadline = tournament.registrationDeadline;
     } else {
       // Default values for new tournament
       _pointsController.text = '20';
@@ -366,6 +378,30 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _useCategorySpecificDates = false;
       _categoryStartDates = {};
       _categoryEndDates = {};
+      
+      // Default division registration settings - include common divisions
+      _selectedDivisions = [
+        'Women\'s U16',
+        'Women\'s U18', 
+        'Women\'s Seniors',
+        'Women\'s FUN',
+        'Men\'s U16',
+        'Men\'s U18',
+        'Men\'s Seniors',
+        'Men\'s FUN',
+      ];
+      _divisionMaxTeams = {
+        'Women\'s U16': 32,
+        'Women\'s U18': 32,
+        'Women\'s Seniors': 32,
+        'Women\'s FUN': 32,
+        'Men\'s U16': 32,
+        'Men\'s U18': 32,
+        'Men\'s Seniors': 32,
+        'Men\'s FUN': 32,
+      };
+      _isRegistrationOpen = true;
+      _registrationDeadline = null;
     }
   }
 
@@ -2113,17 +2149,287 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   Widget _buildDivisionsTab() {
-    // For mobile platforms, navigate to dedicated screen
-    if (ResponsiveHelper.isMobile(MediaQuery.of(context).size.width)) {
-      return _buildMobileDivisionsView();
-    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Division Registration Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.category, color: Colors.purple),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Turnier Divisionen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Wählen Sie die Divisionen aus, für die sich Teams zu diesem Turnier anmelden können.',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Available Divisions Checklist
+                  Text(
+                    'Verfügbare Divisionen:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  ...(_divisions.map((division) => _buildDivisionCheckbox(division))),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Registration Settings Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.app_registration, color: Colors.green),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Anmeldungseinstellungen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Registration Open Toggle
+                  Row(
+                    children: [
+                      Switch(
+                        value: _isRegistrationOpen,
+                        onChanged: (value) {
+                          setState(() {
+                            _isRegistrationOpen = value;
+                          });
+                        },
+                        activeColor: Colors.green,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Anmeldung geöffnet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Registration Deadline
+                  Text(
+                    'Anmeldeschluss (optional):',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _registrationDeadline ?? DateTime.now().add(Duration(days: 30)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _registrationDeadline = date;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, color: Colors.grey[600]),
+                          const SizedBox(width: 12),
+                          Text(
+                            _registrationDeadline != null
+                                ? '${_registrationDeadline!.day}.${_registrationDeadline!.month}.${_registrationDeadline!.year}'
+                                : 'Kein Anmeldeschluss festgelegt',
+                          ),
+                          const Spacer(),
+                          if (_registrationDeadline != null)
+                            IconButton(
+                              icon: Icon(Icons.clear, color: Colors.grey[600]),
+                              onPressed: () {
+                                setState(() {
+                                  _registrationDeadline = null;
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Division Limits Card (only show if divisions are selected)
+          if (_selectedDivisions.isNotEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.numbers, color: Colors.orange),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Team-Limits pro Division',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Legen Sie die maximale Anzahl von Teams pro Division fest.',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    ..._selectedDivisions.map((division) => _buildDivisionLimitField(division)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivisionCheckbox(String division) {
+    final isSelected = _selectedDivisions.contains(division);
     
-    // Desktop/web version
-    if (_selectedDivisionForPools == null) {
-      return _buildDivisionSelectionView();
-    } else {
-      return _buildPoolManagementView();
-    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Checkbox(
+            value: isSelected,
+            onChanged: (value) {
+              setState(() {
+                if (value == true) {
+                  if (!_selectedDivisions.contains(division)) {
+                    _selectedDivisions.add(division);
+                    // Set default max teams if not already set
+                    if (!_divisionMaxTeams.containsKey(division)) {
+                      _divisionMaxTeams[division] = 32;
+                    }
+                  }
+                } else {
+                  _selectedDivisions.remove(division);
+                  _divisionMaxTeams.remove(division);
+                }
+              });
+            },
+            activeColor: Colors.purple,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              division,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivisionLimitField(String division) {
+    final controller = TextEditingController();
+    controller.text = (_divisionMaxTeams[division] ?? 32).toString();
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              division,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Max. Teams',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.group),
+              ),
+              onChanged: (value) {
+                final intValue = int.tryParse(value);
+                if (intValue != null && intValue > 0) {
+                  setState(() {
+                    _divisionMaxTeams[division] = intValue;
+                  });
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMobileDivisionsView() {
@@ -4004,6 +4310,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
         courts: _tournamentCourts,
+        divisions: _selectedDivisions,
+        divisionTeams: widget.tournament?.divisionTeams ?? {},
+        divisionMaxTeams: _divisionMaxTeams,
+        isRegistrationOpen: _isRegistrationOpen,
+        registrationDeadline: _registrationDeadline,
       );
       
       print('Tournament object created');

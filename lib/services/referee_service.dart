@@ -191,6 +191,50 @@ class RefereeService {
     }
   }
 
+  // Create sample referees for testing
+  Future<void> createSampleReferees() async {
+    List<Referee> sampleReferees = [
+      Referee(
+        id: '',
+        firstName: 'Max',
+        lastName: 'Mustermann',
+        email: 'referee1@gbo.test',
+        licenseType: 'DHB Elitekader',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      Referee(
+        id: '',
+        firstName: 'Anna',
+        lastName: 'Schmidt',
+        email: 'referee2@gbo.test',
+        licenseType: 'DHB Stamm+Anschlusskader',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      Referee(
+        id: '',
+        firstName: 'Thomas',
+        lastName: 'Weber',
+        email: 'referee3@gbo.test',
+        licenseType: 'Basis-Lizenz',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    for (Referee referee in sampleReferees) {
+      // Check if referee already exists
+      final existingReferees = await getAllReferees();
+      final exists = existingReferees.any((r) => r.email == referee.email);
+      
+      if (!exists) {
+        await addReferee(referee);
+        print('Created sample referee: ${referee.fullName} (${referee.email})');
+      }
+    }
+  }
+
   // Dispose method (kept for compatibility but not needed for Firebase)
   void dispose() {
     // Firebase streams dispose automatically

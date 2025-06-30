@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/responsive_helper.dart';
 import 'side_navigation.dart';
+import '../services/team_manager_service.dart';
+import '../models/team.dart';
+import '../models/user.dart' as app_user;
 
 class ResponsiveLayout extends StatefulWidget {
   final String selectedSection;
@@ -10,6 +14,7 @@ class ResponsiveLayout extends StatefulWidget {
   final Widget body;
   final bool showBackButton;
   final VoidCallback? onBackPressed;
+  final app_user.User? currentUser;
 
   const ResponsiveLayout({
     super.key,
@@ -19,6 +24,7 @@ class ResponsiveLayout extends StatefulWidget {
     required this.body,
     this.showBackButton = false,
     this.onBackPressed,
+    this.currentUser,
   });
 
   @override
@@ -27,6 +33,10 @@ class ResponsiveLayout extends StatefulWidget {
 
 class _ResponsiveLayoutState extends State<ResponsiveLayout> {
   User? _currentUser;
+  final TeamManagerService _teamManagerService = TeamManagerService();
+  List<Team> _managedTeams = [];
+  bool _isTeamManager = false;
+  bool _isLoadingTeams = false;
 
   @override
   void initState() {
@@ -39,8 +49,76 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
         setState(() {
           _currentUser = user;
         });
+        _loadTeamManagerData();
       }
     });
+    
+    _loadTeamManagerData();
+  }
+
+  Future<void> _loadTeamManagerData() async {
+    if (_currentUser == null) {
+      setState(() {
+        _isTeamManager = false;
+        _managedTeams = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingTeams = true;
+    });
+
+    try {
+      // Check if current user is a team manager (either through role or existing system)
+      bool isManager = false;
+      
+      // First check if currentUser has teamManager role
+      if (widget.currentUser?.role == app_user.UserRole.teamManager) {
+        isManager = true;
+      } else {
+        // Fallback to old system check
+        isManager = await _teamManagerService.isUserTeamManager(_currentUser!.uid);
+      }
+      
+      // Debug: Check if team manager exists by email and try to link if needed
+      final teamManagerByEmail = await _teamManagerService.getTeamManagerByEmail(_currentUser!.email ?? '');
+      print('Team manager by email: ${teamManagerByEmail?.name}');
+      
+      // If team manager exists by email but not linked, try to link
+      if (teamManagerByEmail != null && teamManagerByEmail.userId == null) {
+        print('Attempting to link user to team manager...');
+        final linked = await _teamManagerService.linkUserToTeamManager(_currentUser!.email!, _currentUser!.uid);
+        print('Link successful: $linked');
+        if (linked) isManager = true;
+      }
+      
+      print('Is user team manager: $isManager');
+      
+      if (isManager) {
+        final teams = await _teamManagerService.getTeamsManagedByUser(_currentUser!.uid);
+        print('Managed teams: ${teams.length}');
+        setState(() {
+          _isTeamManager = true;
+          _managedTeams = teams;
+        });
+      } else {
+        setState(() {
+          _isTeamManager = false;
+          _managedTeams = [];
+        });
+      }
+    } catch (e) {
+      print('Error loading team manager data: $e');
+      setState(() {
+        _isTeamManager = false;
+        _managedTeams = [];
+      });
+    } finally {
+      setState(() {
+        _isLoadingTeams = false;
+      });
+    }
   }
 
   @override
@@ -168,11 +246,11 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
           children: [
             // Header
             Container(
-              height: 160,
+              height: 190,
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF1976D2),
+                color: const Color(0xFFffd665),
                 border: Border(
                   bottom: BorderSide(color: Colors.grey.shade300, width: 1),
                 ),
@@ -182,18 +260,8 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                 children: [
                   Image.asset(
                     'logo.png',
-                    height: 60,
-                    width: 90,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'German Beach Open',
-                    style: TextStyle(
-                      fontSize: 16 * ResponsiveHelper.getFontScale(screenWidth),
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    height: 119,
+                    width: 190,
                   ),
                 ],
               ),
@@ -226,6 +294,116 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                     screenWidth: screenWidth,
                   ),
                   
+                  // Team Manager Section
+                  if (_isTeamManager && _managedTeams.isNotEmpty) ...[
+                    const Divider(height: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.sports_volleyball,
+                            color: const Color(0xFF2D5016),
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'MEINE TEAMS',
+                            style: TextStyle(
+                              color: const Color(0xFF2D5016),
+                              fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          if (_isLoadingTeams) ...[
+                            const Spacer(),
+                            SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2D5016)),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    ...(_managedTeams.map((team) => [
+                      _buildDrawerTeamItem(
+                        team: team,
+                        key: 'team_${team.id}',
+                        isSelected: widget.selectedSection.startsWith('team_${team.id}'),
+                        screenWidth: screenWidth,
+                      ),
+                      // Sub-items always visible
+                      _buildDrawerTeamSubItem(
+                        title: 'Übersicht',
+                        key: 'team_${team.id}_overview',
+                        icon: Icons.dashboard,
+                        isSelected: widget.selectedSection == 'team_${team.id}_overview' || widget.selectedSection == 'team_${team.id}',
+                        screenWidth: screenWidth,
+                      ),
+                      _buildDrawerTeamSubItem(
+                        title: 'Turnier Anmeldung',
+                        key: 'team_${team.id}_tournaments',
+                        icon: Icons.sports_volleyball,
+                        isSelected: widget.selectedSection == 'team_${team.id}_tournaments',
+                        screenWidth: screenWidth,
+                      ),
+                      _buildDrawerTeamSubItem(
+                        title: 'Kader Verwaltung',
+                        key: 'team_${team.id}_roster',
+                        icon: Icons.people,
+                        isSelected: widget.selectedSection == 'team_${team.id}_roster',
+                        screenWidth: screenWidth,
+                      ),
+                      _buildDrawerTeamSubItem(
+                        title: 'Einstellungen',
+                        key: 'team_${team.id}_settings',
+                        icon: Icons.settings,
+                        isSelected: widget.selectedSection == 'team_${team.id}_settings',
+                        screenWidth: screenWidth,
+                      ),
+                    ]).expand((x) => x)),
+                  ],
+                  
+                  // Referee Section (only show for referees)
+                  if (widget.currentUser?.role == app_user.UserRole.referee) ...[
+                    const Divider(height: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.sports_hockey,
+                            color: Colors.orange.shade600,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'SCHIEDSRICHTER',
+                            style: TextStyle(
+                              color: Colors.orange.shade600,
+                              fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.dashboard,
+                      title: 'Dashboard',
+                      key: 'referee_dashboard',
+                      isSelected: widget.selectedSection == 'referee_dashboard',
+                      screenWidth: screenWidth,
+                      isReferee: true,
+                    ),
+                  ],
+                  
                   const Divider(height: 32),
                   
                   // Admin Section
@@ -241,14 +419,15 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                       ),
                     ),
                   ),
-                  _buildDrawerItem(
-                    icon: Icons.architecture,
-                    title: 'Preset Verwaltung',
-                    key: 'preset_management',
-                    isSelected: widget.selectedSection == 'preset_management',
-                    screenWidth: screenWidth,
-                    isAdmin: true,
-                  ),
+                  if (defaultTargetPlatform != TargetPlatform.iOS)
+                    _buildDrawerItem(
+                      icon: Icons.architecture,
+                      title: 'Preset Verwaltung',
+                      key: 'preset_management',
+                      isSelected: widget.selectedSection == 'preset_management',
+                      screenWidth: screenWidth,
+                      isAdmin: true,
+                    ),
                   _buildDrawerItem(
                     icon: Icons.settings,
                     title: 'Tournament Management',
@@ -281,6 +460,22 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                     screenWidth: screenWidth,
                     isAdmin: true,
                   ),
+                  _buildDrawerItem(
+                    icon: Icons.supervisor_account,
+                    title: 'Team Manager Verwaltung',
+                    key: 'team_manager_management',
+                    isSelected: widget.selectedSection == 'team_manager_management',
+                    screenWidth: screenWidth,
+                    isAdmin: true,
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.people,
+                    title: 'Kader Verwaltung (Global)',
+                    key: 'player_management',
+                    isSelected: widget.selectedSection == 'player_management',
+                    screenWidth: screenWidth,
+                    isAdmin: true,
+                  ),
                 ],
               ),
             ),
@@ -297,13 +492,18 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
     required bool isSelected,
     required double screenWidth,
     bool isAdmin = false,
+    bool isReferee = false,
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: isSelected 
-          ? (isAdmin ? const Color(0xFF4A5568).withOpacity(0.2) : Colors.blue.withOpacity(0.1))
-          : Colors.transparent,
+            ? (isAdmin 
+                ? const Color(0xFF4A5568).withOpacity(0.2) 
+                : isReferee 
+                    ? Colors.orange.withOpacity(0.2)
+                    : const Color(0xFFffd665).withOpacity(0.2))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Builder(
@@ -312,16 +512,32 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
           leading: Icon(
             icon,
             color: isSelected 
-              ? (isAdmin ? const Color(0xFF4A5568) : Colors.blue.shade700)
-              : (isAdmin ? const Color(0xFF4A5568).withOpacity(0.7) : Colors.grey.shade600),
+              ? (isAdmin 
+                  ? const Color(0xFF4A5568) 
+                  : isReferee 
+                      ? Colors.orange.shade600
+                      : Colors.black87)
+              : (isAdmin 
+                  ? const Color(0xFF4A5568).withOpacity(0.7) 
+                  : isReferee 
+                      ? Colors.orange.shade600.withOpacity(0.7)
+                      : Colors.grey.shade600),
             size: 20,
           ),
           title: Text(
             title,
             style: TextStyle(
               color: isSelected 
-                ? (isAdmin ? const Color(0xFF4A5568) : Colors.blue.shade700)
-                : (isAdmin ? const Color(0xFF4A5568).withOpacity(0.8) : Colors.black87),
+                ? (isAdmin 
+                    ? const Color(0xFF4A5568) 
+                    : isReferee 
+                        ? Colors.orange.shade600
+                        : Colors.black87)
+                : (isAdmin 
+                    ? const Color(0xFF4A5568).withOpacity(0.8) 
+                    : isReferee 
+                        ? Colors.orange.shade600.withOpacity(0.8)
+                        : Colors.black87),
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
             ),
@@ -331,6 +547,114 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
             Navigator.of(context).pop(); // Close drawer after selection
           },
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerTeamItem({
+    required Team team,
+    required String key,
+    required bool isSelected,
+    required double screenWidth,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? const Color(0xFF2D5016).withOpacity(0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Builder(
+        builder: (context) => ListTile(
+          dense: true,
+          leading: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? const Color(0xFF2D5016) 
+                  : const Color(0xFF2D5016).withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.group,
+              color: isSelected ? Colors.white : const Color(0xFF2D5016),
+              size: 14,
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                team.name,
+                style: TextStyle(
+                  color: isSelected 
+                      ? const Color(0xFF2D5016) 
+                      : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 13 * ResponsiveHelper.getFontScale(screenWidth),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                team.division,
+                style: TextStyle(
+                  color: const Color(0xFF2D5016).withOpacity(0.7),
+                  fontSize: 11 * ResponsiveHelper.getFontScale(screenWidth),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          onTap: () {
+            widget.onSectionChanged('${key}_overview');
+            Navigator.of(context).pop();
+          },
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerTeamSubItem({
+    required String title,
+    required String key,
+    required IconData icon,
+    required bool isSelected,
+    required double screenWidth,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? const Color(0xFF1A3009)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Builder(
+        builder: (context) => ListTile(
+          dense: true,
+          leading: Icon(
+            icon,
+            color: isSelected ? const Color(0xFFffd665) : const Color(0xFF2D5016).withOpacity(0.6),
+            size: 16,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF2D5016),
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+            ),
+          ),
+          onTap: () {
+            widget.onSectionChanged(key);
+            Navigator.of(context).pop(); // Close drawer after selection
+          },
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         ),
       ),
     );
@@ -357,9 +681,9 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: const Color(0xFFffd665).withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFFffd665).withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -373,7 +697,7 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1976D2),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(

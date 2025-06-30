@@ -9,6 +9,7 @@ class Team {
   final String bundesland;
   final String division; // Women's, Men's, U14, U16, U18, Seniors, FUN
   final String? clubId; // Reference to parent club
+  final List<String> rosterPlayerIds; // List of player IDs in the roster
   final DateTime createdAt;
 
   Team({
@@ -20,6 +21,7 @@ class Team {
     required this.bundesland,
     required this.division,
     this.clubId,
+    this.rosterPlayerIds = const [],
     required this.createdAt,
   });
 
@@ -32,6 +34,7 @@ class Team {
       'bundesland': bundesland,
       'division': division,
       'clubId': clubId,
+      'rosterPlayerIds': rosterPlayerIds,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -48,6 +51,7 @@ class Team {
       bundesland: data['bundesland'] ?? '',
       division: data['division'] ?? 'Men\'s Seniors',
       clubId: data['clubId'],
+      rosterPlayerIds: List<String>.from(data['rosterPlayerIds'] ?? []),
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
           : DateTime.now(),

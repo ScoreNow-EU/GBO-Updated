@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/team_manager_service.dart';
+import '../models/team.dart';
 
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
@@ -17,6 +20,10 @@ class SideNavigation extends StatefulWidget {
 
 class _SideNavigationState extends State<SideNavigation> {
   User? _currentUser;
+  final TeamManagerService _teamManagerService = TeamManagerService();
+  List<Team> _managedTeams = [];
+  bool _isTeamManager = false;
+  bool _isLoadingTeams = false;
 
   @override
   void initState() {
@@ -29,8 +36,68 @@ class _SideNavigationState extends State<SideNavigation> {
         setState(() {
           _currentUser = user;
         });
+        _loadTeamManagerData();
       }
     });
+    
+    _loadTeamManagerData();
+  }
+
+  Future<void> _loadTeamManagerData() async {
+    if (_currentUser == null) {
+      setState(() {
+        _isTeamManager = false;
+        _managedTeams = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingTeams = true;
+    });
+
+    try {
+      // Debug: Check if team manager exists by email
+      final teamManagerByEmail = await _teamManagerService.getTeamManagerByEmail(_currentUser!.email ?? '');
+      print('Team manager by email: ${teamManagerByEmail?.name}');
+      
+      // If team manager exists by email but not linked, try to link
+      if (teamManagerByEmail != null && teamManagerByEmail.userId == null) {
+        print('Attempting to link user to team manager...');
+        final linked = await _teamManagerService.linkUserToTeamManager(_currentUser!.email!, _currentUser!.uid);
+        print('Link successful: $linked');
+      }
+      
+      final isManager = await _teamManagerService.isUserTeamManager(_currentUser!.uid);
+      print('Is user team manager: $isManager');
+      
+      if (isManager) {
+        final teams = await _teamManagerService.getTeamsManagedByUser(_currentUser!.uid);
+        print('Managed teams: ${teams.length}');
+        for (final team in teams) {
+          print('Team: ${team.name} - ${team.division}');
+        }
+        setState(() {
+          _isTeamManager = true;
+          _managedTeams = teams;
+        });
+      } else {
+        setState(() {
+          _isTeamManager = false;
+          _managedTeams = [];
+        });
+      }
+    } catch (e) {
+      print('Error loading team manager data: $e');
+      setState(() {
+        _isTeamManager = false;
+        _managedTeams = [];
+      });
+    } finally {
+      setState(() {
+        _isLoadingTeams = false;
+      });
+    }
   }
 
   @override
@@ -49,6 +116,7 @@ class _SideNavigationState extends State<SideNavigation> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
+              color: const Color(0xFFffd665),
               border: Border(
                 bottom: BorderSide(color: Colors.grey.shade300, width: 1),
               ),
@@ -99,12 +167,186 @@ class _SideNavigationState extends State<SideNavigation> {
                 
                 const SizedBox(height: 16),
                 
+                // Team Manager Section
+                if (_isTeamManager && _managedTeams.isNotEmpty)
+                  _buildTeamManagerSection(),
+                
+                if (_isTeamManager && _managedTeams.isNotEmpty)
+                  const SizedBox(height: 16),
+                
                 // Admin Section with continuous black background
                 _buildAdminSection(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTeamManagerSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D5016), // Dark green for team manager
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Team Manager Section Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.sports_volleyball,
+                  color: Color(0xFFffd665),
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'MEINE TEAMS',
+                  style: TextStyle(
+                    color: Color(0xFFffd665),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                if (_isLoadingTeams) ...[
+                  const Spacer(),
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFffd665)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          
+          // Team Items
+          ...(_managedTeams.map((team) => [
+            _buildTeamManagerItem(
+              title: '${team.name} - ${team.division}',
+              key: 'team_${team.id}',
+              isSelected: widget.selectedSection.startsWith('team_${team.id}'),
+              team: team,
+            ),
+            // Sub-items always visible
+            _buildTeamSubItem(
+              title: 'Übersicht',
+              key: 'team_${team.id}_overview',
+              icon: Icons.dashboard,
+              isSelected: widget.selectedSection == 'team_${team.id}_overview' || widget.selectedSection == 'team_${team.id}',
+            ),
+            _buildTeamSubItem(
+              title: 'Turnier Anmeldung',
+              key: 'team_${team.id}_tournaments',
+              icon: Icons.sports_volleyball,
+              isSelected: widget.selectedSection == 'team_${team.id}_tournaments',
+            ),
+            _buildTeamSubItem(
+              title: 'Einstellungen',
+              key: 'team_${team.id}_settings',
+              icon: Icons.settings,
+              isSelected: widget.selectedSection == 'team_${team.id}_settings',
+            ),
+          ]).expand((x) => x)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeamManagerItem({
+    required String title,
+    required String key,
+    required bool isSelected,
+    required Team team,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF1A3009) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFffd665) : Colors.white24,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.group,
+            color: isSelected ? Colors.black87 : Colors.white70,
+            size: 14,
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              team.name,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              team.division,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFFffd665) : Colors.white54,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        onTap: () => widget.onSectionChanged('${key}_overview'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
+  Widget _buildTeamSubItem({
+    required String title,
+    required String key,
+    required IconData icon,
+    required bool isSelected,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF0D1A05) : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? const Color(0xFFffd665) : Colors.white54,
+          size: 16,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white60,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
     );
   }
@@ -125,7 +367,7 @@ class _SideNavigationState extends State<SideNavigation> {
             child: const Text(
               'ADMIN BEREICH',
               style: TextStyle(
-                color: Colors.white70,
+                color: Color(0xFFffd665),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.2,
@@ -134,12 +376,13 @@ class _SideNavigationState extends State<SideNavigation> {
           ),
           
           // Admin Items
-          _buildAdminItem(
-            icon: Icons.architecture,
-            title: 'Preset Verwaltung',
-            key: 'preset_management',
-            isSelected: widget.selectedSection == 'preset_management',
-          ),
+          if (defaultTargetPlatform != TargetPlatform.iOS)
+            _buildAdminItem(
+              icon: Icons.architecture,
+              title: 'Preset Verwaltung',
+              key: 'preset_management',
+              isSelected: widget.selectedSection == 'preset_management',
+            ),
           _buildAdminItem(
             icon: Icons.settings,
             title: 'Tournament Management',
@@ -163,6 +406,12 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Delegierte Verwaltung',
             key: 'delegate_management',
             isSelected: widget.selectedSection == 'delegate_management',
+          ),
+          _buildAdminItem(
+            icon: Icons.supervisor_account,
+            title: 'Team Manager Verwaltung',
+            key: 'team_manager_management',
+            isSelected: widget.selectedSection == 'team_manager_management',
           ),
         ],
       ),
@@ -212,20 +461,20 @@ class _SideNavigationState extends State<SideNavigation> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+        color: isSelected ? const Color(0xFFffd665).withOpacity(0.2) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? Colors.blue.shade700 : Colors.grey.shade600,
+          color: isSelected ? Colors.black87 : Colors.grey.shade600,
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.blue.shade700 : Colors.black87,
+            color: isSelected ? Colors.black87 : Colors.black87,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 14,
           ),
@@ -264,9 +513,9 @@ class _SideNavigationState extends State<SideNavigation> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
+        color: const Color(0xFFffd665).withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+        border: Border.all(color: const Color(0xFFffd665).withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -280,7 +529,7 @@ class _SideNavigationState extends State<SideNavigation> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1976D2),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(

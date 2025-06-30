@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
 import '../utils/responsive_helper.dart';
+import '../services/team_manager_service.dart';
+import '../services/auth_service.dart';
+import '../models/user.dart' as app_user;
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,6 +23,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _passwordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final TeamManagerService _teamManagerService = TeamManagerService();
+  final AuthService _authService = AuthService();
   
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -92,9 +97,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF1976D2), // Primary blue
-              const Color(0xFF1565C0), // Darker blue
-              const Color(0xFF0D47A1), // Deep blue
+              const Color(0xFFffeb99), // Brighter yellow
+              const Color(0xFFffd665), // Main yellow (#ffd665)
+              const Color(0xFFffcc32), // Darker yellow
             ],
           ),
         ),
@@ -143,25 +148,35 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Container(
-                                padding: EdgeInsets.all(isMobile ? 32 : 40),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _buildHeader(isMobile),
-                                      const SizedBox(height: 40),
-                                      _buildLoginForm(isMobile),
-                                      const SizedBox(height: 32),
-                                      _buildLoginButton(isMobile),
-                                      const SizedBox(height: 24),
-                                      _buildRememberMeAndForgotPassword(),
-                                    ],
-                                  ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Main content area
+                                    Container(
+                                      padding: EdgeInsets.all(isMobile ? 32 : 40),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                      ),
+                                      child: SingleChildScrollView(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildHeader(isMobile),
+                                            const SizedBox(height: 40),
+                                            _buildLoginForm(isMobile),
+                                            const SizedBox(height: 32),
+                                            _buildLoginButton(isMobile),
+                                            const SizedBox(height: 24),
+                                            _buildRememberMeAndForgotPassword(),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // German flag stripes
+                                    _buildGermanFlagStripes(),
+                                  ],
                                 ),
                               ),
                             ),
@@ -190,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1976D2).withOpacity(0.2),
+                color: Colors.black87.withOpacity(0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -204,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1976D2),
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(
@@ -225,21 +240,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           style: TextStyle(
             fontSize: isMobile ? 24 : 28,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF1976D2),
+            color: Colors.black87,
             letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 8),
         
-        // Subtitle
-        Text(
-          'Turnier Management System',
-          style: TextStyle(
-            fontSize: isMobile ? 14 : 16,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+
       ],
     );
   }
@@ -259,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 hintText: 'Max',
                 prefixIcon: Icon(
                   Icons.person_outline,
-                  color: const Color(0xFF1976D2),
+                  color: Colors.black54,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -267,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+                  borderSide: const BorderSide(color: Colors.black87, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -294,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 hintText: 'Mustermann',
                 prefixIcon: Icon(
                   Icons.person_outline,
-                  color: const Color(0xFF1976D2),
+                  color: Colors.black54,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -302,7 +309,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+                  borderSide: const BorderSide(color: Colors.black87, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -330,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               hintText: 'max.mustermann@example.com',
               prefixIcon: Icon(
                 Icons.email_outlined,
-                color: const Color(0xFF1976D2),
+                color: Colors.black54,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -338,7 +345,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+                borderSide: const BorderSide(color: Colors.black87, width: 2),
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -365,7 +372,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               hintText: _isLoginMode ? 'Ihr Passwort eingeben' : 'Mindestens 6 Zeichen',
               prefixIcon: Icon(
                 Icons.lock_outline,
-                color: const Color(0xFF1976D2),
+                color: Colors.black54,
               ),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -384,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+                borderSide: const BorderSide(color: Colors.black87, width: 2),
               ),
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -412,10 +419,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       child: ElevatedButton(
         onPressed: _isLoading ? null : (_isLoginMode ? _handleLogin : _handleRegister),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1976D2),
-          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFFffd665),
+          foregroundColor: Colors.black,
           elevation: 4,
-          shadowColor: const Color(0xFF1976D2).withOpacity(0.4),
+          shadowColor: Colors.black87.withOpacity(0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -455,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     _rememberMe = value ?? false;
                   });
                 },
-                activeColor: const Color(0xFF1976D2),
+                activeColor: Colors.black87,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -478,52 +485,60 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Mode toggle
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isLoginMode = !_isLoginMode;
-                  // Clear form when switching modes
-                  _formKey.currentState?.reset();
-                  _emailController.clear();
-                  _passwordController.clear();
-                  _firstNameController.clear();
-                  _lastNameController.clear();
-                });
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF1976D2),
-                backgroundColor: Colors.grey.shade100,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                _isLoginMode ? 'Registrieren' : 'Anmelden',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            
-            // Forgot Password (only for login mode)
-            if (_isLoginMode)
-              TextButton(
-                onPressed: _handleForgotPassword,
+            Flexible(
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoginMode = !_isLoginMode;
+                    // Clear form when switching modes
+                    _formKey.currentState?.reset();
+                    _emailController.clear();
+                    _passwordController.clear();
+                    _firstNameController.clear();
+                    _lastNameController.clear();
+                  });
+                },
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF1976D2),
+                  foregroundColor: Colors.black87,
                   backgroundColor: Colors.grey.shade100,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Passwort vergessen?',
-                  style: TextStyle(
+                child: Text(
+                  _isLoginMode ? 'Registrieren' : 'Anmelden',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 8),
+            
+            // Forgot Password (only for login mode)
+            if (_isLoginMode)
+              Flexible(
+                child: TextButton(
+                  onPressed: _handleForgotPassword,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Passwort vergessen?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -543,18 +558,30 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     });
 
     try {
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final user = await _authService.registerWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
       );
 
-      if (credential.user != null) {
-        // Update the user's display name with first and last name
-        await credential.user!.updateDisplayName(
-          '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
-        );
+      if (user != null) {
+        String successMessage = 'Registrierung erfolgreich! Sie sind jetzt angemeldet.';
         
-        _showSuccessToast('Registrierung erfolgreich! Sie sind jetzt angemeldet.');
+        // If user is not a referee, create/link team manager profile
+        if (user.role != app_user.UserRole.referee) {
+          final linkedToTeamManager = await _teamManagerService.linkUserToTeamManager(
+            user.email,
+            user.id,
+          );
+          if (linkedToTeamManager) {
+            successMessage += ' Ihr Team Manager-Konto wurde verknüpft.';
+          }
+        } else {
+          successMessage += ' Willkommen als Schiedsrichter!';
+        }
+        
+        _showSuccessToast(successMessage);
         
         // Navigate to home screen
         Navigator.of(context).pushReplacement(
@@ -599,12 +626,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     });
 
     try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      final user = await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
 
-      if (credential.user != null) {
+      if (user != null) {
         _showSuccessToast('Erfolgreich angemeldet');
         
         // Navigate to home screen
@@ -693,6 +720,63 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       alignment: Alignment.topRight,
       autoCloseDuration: const Duration(seconds: 4),
       showProgressBar: false,
+    );
+  }
+
+  Widget _buildGermanFlagStripes() {
+    return SizedBox(
+      height: 6,
+      child: Row(
+        mainAxisSize: MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Black stripe - 30%
+          Flexible(
+            flex: 30,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black,
+              ),
+            ),
+          ),
+          // White gap - 5%
+          Flexible(
+            flex: 5,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+              ),
+            ),
+          ),
+          // Red stripe - 30%
+          Flexible(
+            flex: 30,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFDD0000), // German flag red
+              ),
+            ),
+          ),
+          // White gap - 5%
+          Flexible(
+            flex: 5,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+              ),
+            ),
+          ),
+          // Gold/Yellow stripe - 30%
+          Flexible(
+            flex: 30,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFffd665), // Your brand yellow
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 } 
