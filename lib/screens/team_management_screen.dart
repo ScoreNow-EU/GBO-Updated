@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/team.dart';
 import '../models/club.dart';
 import '../services/team_service.dart';
@@ -8,6 +9,7 @@ import '../widgets/team_avatar.dart';
 import '../data/german_cities.dart';
 import 'club_management_screen.dart';
 import 'team_club_migration_screen.dart';
+import 'team_form_screen.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -31,16 +33,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
 
   // Available divisions
   final List<String> _divisions = [
-    'Women\'s U14',
-    'Women\'s U16',
-    'Women\'s U18',
-    'Women\'s Seniors',
-    'Women\'s FUN',
     'Men\'s U14',
     'Men\'s U16',
     'Men\'s U18',
     'Men\'s Seniors',
-    'Men\'s FUN',
+    'Women\'s U14',
+    'Women\'s U16',
+    'Women\'s U18',
+    'Women\'s Seniors',
   ];
 
   @override
@@ -138,7 +138,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                 icon: const Icon(Icons.business),
                 label: const Text('Vereine verwalten'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -375,7 +375,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
              ),
        floatingActionButton: FloatingActionButton(
          onPressed: () => _addTeamToClub(club),
-         backgroundColor: Colors.blue,
+         backgroundColor: Colors.black87,
          child: Icon(Icons.add),
        ),
      );
@@ -406,7 +406,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
              ),
              child: Row(
                children: [
-                 Icon(Icons.business, color: Colors.blue),
+                 Icon(Icons.business, color: Colors.black87),
                  const SizedBox(width: 8),
                  Text(
                    'Vereine',
@@ -454,7 +454,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
        sliver: SliverGrid(
          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
            crossAxisCount: 2,
-           childAspectRatio: 0.9,
+           childAspectRatio: 0.75,
            crossAxisSpacing: 12,
            mainAxisSpacing: 12,
          ),
@@ -520,7 +520,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                  width: double.infinity,
                  height: 60,
                  decoration: BoxDecoration(
-                   color: Colors.blue.shade100,
+                   color: const Color(0xFFffd665).withOpacity(0.2),
                    borderRadius: BorderRadius.circular(8),
                  ),
                  child: club.logoUrl != null && club.logoUrl!.isNotEmpty
@@ -530,11 +530,11 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                            club.logoUrl!,
                            fit: BoxFit.cover,
                            errorBuilder: (context, error, stackTrace) {
-                             return Icon(Icons.business, color: Colors.blue, size: 30);
+                             return const Icon(Icons.business, color: Colors.black87, size: 30);
                            },
                          ),
                        )
-                     : Icon(Icons.business, color: Colors.blue, size: 30),
+                     : const Icon(Icons.business, color: Colors.black87, size: 30),
                ),
                const SizedBox(height: 12),
                
@@ -568,7 +568,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                Container(
                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                  decoration: BoxDecoration(
-                   color: clubTeams.isEmpty ? Colors.grey.shade200 : Colors.blue.shade100,
+                   color: clubTeams.isEmpty ? Colors.grey.shade200 : const Color(0xFFffd665).withOpacity(0.3),
                    borderRadius: BorderRadius.circular(12),
                  ),
                       child: Text(
@@ -997,7 +997,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
              icon: Icon(Icons.add),
              label: Text('Team hinzufügen'),
              style: ElevatedButton.styleFrom(
-               backgroundColor: Colors.blue,
+               backgroundColor: Colors.black87,
                foregroundColor: Colors.white,
              ),
            ),
@@ -1067,8 +1067,33 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
    }
 
    void _showTeamDialog({Club? club, Team? team}) {
-     // Implement team creation/editing dialog
-     // This would open a detailed form for team management
+     // On iOS and mobile, navigate to dedicated form screen
+     if (defaultTargetPlatform == TargetPlatform.iOS || ResponsiveHelper.isMobile(MediaQuery.of(context).size.width)) {
+       Navigator.of(context).push(
+         MaterialPageRoute(
+           builder: (context) => TeamFormScreen(
+             team: team,
+             preselectedClub: club,
+           ),
+         ),
+       ).then((_) {
+         // Reload data when returning from form
+         _loadData();
+       });
+     } else {
+       // On desktop, you could implement a dialog or side panel
+       // For now, also navigate to the form screen
+       Navigator.of(context).push(
+         MaterialPageRoute(
+           builder: (context) => TeamFormScreen(
+             team: team,
+             preselectedClub: club,
+           ),
+         ),
+       ).then((_) {
+         _loadData();
+       });
+     }
    }
 
    Widget _buildClubSelectionSheet(Team team) {

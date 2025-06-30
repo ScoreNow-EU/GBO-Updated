@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../models/club.dart';
 import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
 import '../data/german_cities.dart';
+import 'club_form_screen.dart';
 
 class ClubManagementScreen extends StatefulWidget {
   const ClubManagementScreen({super.key});
@@ -240,7 +242,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                 icon: const Icon(Icons.add),
                 label: const Text('Neuer Verein'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -377,7 +379,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: isSelected ? Colors.blue.shade50 : Colors.white,
+        color: isSelected ? const Color(0xFFffd665).withOpacity(0.2) : Colors.white,
         borderRadius: BorderRadius.circular(8),
         elevation: isSelected ? 2 : 1,
         child: InkWell(
@@ -392,7 +394,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
+                    color: const Color(0xFFffd665).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: club.logoUrl != null && club.logoUrl!.isNotEmpty
@@ -406,7 +408,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                             },
                           ),
                         )
-                      : Icon(Icons.business, color: Colors.blue),
+                      : const Icon(Icons.business, color: Colors.black87),
                 ),
                 const SizedBox(width: 16),
                 
@@ -731,32 +733,52 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
   }
 
   void _showClubDialog() {
-    setState(() {
-      _editingClub = null;
-      _clearForm();
-    });
+    // On iOS and mobile, navigate to dedicated form screen
+    if (defaultTargetPlatform == TargetPlatform.iOS || ResponsiveHelper.isMobile(MediaQuery.of(context).size.width)) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const ClubFormScreen(),
+        ),
+      );
+    } else {
+      // On desktop, use the existing form in the side panel
+      setState(() {
+        _editingClub = null;
+        _clearForm();
+      });
+    }
   }
 
   void _editClub(Club club) {
-    setState(() {
-      _editingClub = club;
-      _nameController.text = club.name;
-      _cityController.text = club.city;
-      _selectedBundesland = club.bundesland;
-      
-      // Find matching city from German cities data
-      _selectedCity = GermanCities.cities.firstWhere(
-        (city) => city.name == club.city && city.state == club.bundesland,
-        orElse: () => GermanCity(name: club.city, state: club.bundesland),
+    // On iOS and mobile, navigate to dedicated form screen
+    if (defaultTargetPlatform == TargetPlatform.iOS || ResponsiveHelper.isMobile(MediaQuery.of(context).size.width)) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ClubFormScreen(club: club),
+        ),
       );
-      
-      _contactEmailController.text = club.contactEmail ?? '';
-      _contactPhoneController.text = club.contactPhone ?? '';
-      _websiteController.text = club.website ?? '';
-      _descriptionController.text = club.description ?? '';
-      _logoUrlController.text = club.logoUrl ?? '';
-      _hasUnsavedChanges = false;
-    });
+    } else {
+      // On desktop, use the existing form in the side panel
+      setState(() {
+        _editingClub = club;
+        _nameController.text = club.name;
+        _cityController.text = club.city;
+        _selectedBundesland = club.bundesland;
+        
+        // Find matching city from German cities data
+        _selectedCity = GermanCities.cities.firstWhere(
+          (city) => city.name == club.city && city.state == club.bundesland,
+          orElse: () => GermanCity(name: club.city, state: club.bundesland),
+        );
+        
+        _contactEmailController.text = club.contactEmail ?? '';
+        _contactPhoneController.text = club.contactPhone ?? '';
+        _websiteController.text = club.website ?? '';
+        _descriptionController.text = club.description ?? '';
+        _logoUrlController.text = club.logoUrl ?? '';
+        _hasUnsavedChanges = false;
+      });
+    }
   }
 
   void _clearForm() {

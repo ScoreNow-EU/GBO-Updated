@@ -183,7 +183,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _previewTeams,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Colors.black87,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     ),

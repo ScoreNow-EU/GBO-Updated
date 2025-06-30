@@ -75,7 +75,9 @@ class PreloaderService {
         }
         
         if (tournamentService != null) {
+          futures.add(tournamentService!.initializeSampleData());
           futures.add(tournamentService!.preloadTournaments());
+          futures.add(tournamentService!.updateTournamentsWithDefaultDivisions());
         }
         
         // Only preload services that have preload methods implemented

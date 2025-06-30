@@ -272,12 +272,12 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                   height: 4,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blue.shade300,
-                        Colors.blue.shade600,
-                        Colors.blue.shade300,
-                      ],
+                            gradient: LinearGradient(
+          colors: [
+            const Color(0xFFffd665).withOpacity(0.5),
+            const Color(0xFFffd665),
+            const Color(0xFFffd665).withOpacity(0.5),
+          ],
                     ),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -287,11 +287,11 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade600,
+                    color: const Color(0xFFffd665),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
+                        color: const Color(0xFFffd665).withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -344,7 +344,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                 ),
               ],
               border: Border.all(
-                color: isCurrent ? Colors.blue.shade400 : Colors.grey.shade200, 
+                color: isCurrent ? const Color(0xFFffd665) : Colors.grey.shade200, 
                 width: isCurrent ? 2 : 1
               ),
             ),

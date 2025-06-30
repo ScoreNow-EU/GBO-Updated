@@ -127,7 +127,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             icon: const Icon(Icons.add),
             label: const Text('Neues Turnier'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
             ),
           ),
@@ -159,7 +159,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           icon: const Icon(Icons.add),
           label: const Text('Neues Turnier'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
+            backgroundColor: Colors.black87,
             foregroundColor: Colors.white,
           ),
         ),

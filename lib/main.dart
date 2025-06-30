@@ -59,11 +59,41 @@ class GBOApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1976D2), // Blue theme matching the logo
+          seedColor: const Color(0xFFffd665), // Golden theme matching the new design
           brightness: Brightness.light,
+          primary: const Color(0xFFffd665),
+          secondary: Colors.black87,
+          surface: Colors.white,
+          onPrimary: Colors.black87,
+          onSecondary: Colors.white,
+          onSurface: Colors.black87,
         ),
         useMaterial3: true,
         fontFamily: 'Roboto',
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFffd665),
+          foregroundColor: Colors.black87,
+          elevation: 2,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black87,
+            foregroundColor: Colors.white,
+            elevation: 4,
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.black87,
+          ),
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.black87,
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: WidgetStateProperty.all(Colors.black87),
+          checkColor: WidgetStateProperty.all(Colors.white),
+        ),
       ),
       home: const HomeScreen(),
       navigatorObservers: observer != null ? <NavigatorObserver>[observer!] : <NavigatorObserver>[],

@@ -1,4 +1,4 @@
-name: gbo_updated
+name: GermanBeachOpen
 description: "German Beach Open - Tournament Management System"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
