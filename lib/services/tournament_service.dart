@@ -156,14 +156,97 @@ class TournamentService {
     return null;
   }
 
-  // Update referee nominations for a tournament
+  // Update referee nominations for a tournament (deprecated - use inviteRefereeToTournament)
   Future<void> updateTournamentReferees(String tournamentId, List<String> refereeIds) async {
+    // Convert old refereeIds to invitations for backward compatibility
+    final invitations = refereeIds.map((refereeId) => 
+        RefereeInvitation(
+          refereeId: refereeId,
+          status: 'pending',
+          invitedAt: DateTime.now(),
+        ).toMap()
+    ).toList();
+    
     await _firestore
         .collection(_collection)
         .doc(tournamentId)
-        .update({'refereeIds': refereeIds});
+        .update({'refereeInvitations': invitations});
     // Invalidate cache
     _invalidateCache();
+  }
+
+  // Invite a referee to a tournament
+  Future<bool> inviteRefereeToTournament(String tournamentId, String refereeId) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      // Check if referee is already invited
+      final existingInvitation = tournament.refereeInvitations
+          .where((invitation) => invitation.refereeId == refereeId)
+          .firstOrNull;
+
+      if (existingInvitation != null) {
+        // Already invited, don't duplicate
+        return false;
+      }
+
+      // Add new invitation
+      final newInvitation = RefereeInvitation(
+        refereeId: refereeId,
+        status: 'pending',
+        invitedAt: DateTime.now(),
+      );
+
+      final updatedInvitations = [...tournament.refereeInvitations, newInvitation];
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error inviting referee to tournament: $e');
+      return false;
+    }
+  }
+
+  // Respond to referee invitation
+  Future<bool> respondToRefereeInvitation(
+    String tournamentId, 
+    String refereeId, 
+    String response, // 'accepted', 'declined', 'pending'
+    {String? notes}
+  ) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      // Find the invitation
+      final invitationIndex = tournament.refereeInvitations
+          .indexWhere((invitation) => invitation.refereeId == refereeId);
+
+      if (invitationIndex == -1) return false;
+
+      // Update the invitation
+      final updatedInvitations = List<RefereeInvitation>.from(tournament.refereeInvitations);
+      updatedInvitations[invitationIndex] = tournament.refereeInvitations[invitationIndex].copyWith(
+        status: response,
+        respondedAt: response != 'pending' ? DateTime.now() : null,
+        notes: notes,
+      );
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error responding to referee invitation: $e');
+      return false;
+    }
   }
 
   // Preload tournaments for faster initial access
@@ -367,6 +450,45 @@ class TournamentService {
   Stream<List<Tournament>> getTournamentsForTeam(String teamId) {
     return getTournamentsWithCache().map((tournaments) => 
         tournaments.where((tournament) => tournament.isTeamRegistered(teamId)).toList());
+  }
+
+  // Get tournaments where a specific referee is assigned (any status)
+  Stream<List<Tournament>> getTournamentsForReferee(String refereeId) {
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => 
+            tournament.refereeInvitations.any((invitation) => invitation.refereeId == refereeId)
+        ).toList());
+  }
+
+  // Get upcoming tournaments for a referee (future tournaments only)
+  Stream<List<Tournament>> getUpcomingTournamentsForReferee(String refereeId) {
+    final now = DateTime.now();
+    return getTournamentsForReferee(refereeId).map((tournaments) => 
+        tournaments.where((tournament) => 
+            tournament.startDate.isAfter(now) || 
+            (tournament.endDate != null && tournament.endDate!.isAfter(now))
+        ).toList());
+  }
+
+  // Get tournaments with pending invitations for a referee
+  Stream<List<Tournament>> getPendingInvitationsForReferee(String refereeId) {
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => 
+            tournament.refereeInvitations.any((invitation) => 
+                invitation.refereeId == refereeId && invitation.isPending)
+        ).toList());
+  }
+
+  // Get tournaments where referee has accepted invitations
+  Stream<List<Tournament>> getAcceptedTournamentsForReferee(String refereeId) {
+    final now = DateTime.now();
+    return getTournamentsWithCache().map((tournaments) => 
+        tournaments.where((tournament) => 
+            tournament.refereeInvitations.any((invitation) => 
+                invitation.refereeId == refereeId && invitation.isAccepted) &&
+            (tournament.startDate.isAfter(now) || 
+             (tournament.endDate != null && tournament.endDate!.isAfter(now)))
+        ).toList());
   }
 
   // Update existing tournaments to have default divisions if they don't have any

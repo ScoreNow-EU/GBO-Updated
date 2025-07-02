@@ -9,6 +9,8 @@ class Player {
   final DateTime? birthDate;
   final String? position; // Optional position like 'Blocker', 'Defender', etc.
   final String? jerseyNumber;
+  final String? clubId; // Reference to club
+  final String gender; // 'male' or 'female'
   final bool isActive;
   final DateTime createdAt;
 
@@ -21,6 +23,8 @@ class Player {
     this.birthDate,
     this.position,
     this.jerseyNumber,
+    this.clubId,
+    required this.gender,
     this.isActive = true,
     required this.createdAt,
   });
@@ -36,6 +40,8 @@ class Player {
       'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
       'position': position,
       'jerseyNumber': jerseyNumber,
+      'clubId': clubId,
+      'gender': gender,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
     };
@@ -55,6 +61,8 @@ class Player {
           : null,
       position: data['position'],
       jerseyNumber: data['jerseyNumber'],
+      clubId: data['clubId'],
+      gender: data['gender'] ?? 'male', // Default to male for backwards compatibility
       isActive: data['isActive'] ?? true,
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
@@ -70,6 +78,8 @@ class Player {
     DateTime? birthDate,
     String? position,
     String? jerseyNumber,
+    String? clubId,
+    String? gender,
     bool? isActive,
   }) {
     return Player(
@@ -81,6 +91,8 @@ class Player {
       birthDate: birthDate ?? this.birthDate,
       position: position ?? this.position,
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
+      clubId: clubId ?? this.clubId,
+      gender: gender ?? this.gender,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt,
     );

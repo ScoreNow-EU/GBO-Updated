@@ -14,6 +14,19 @@ class ClubService {
         .map((snapshot) => snapshot.docs.map((doc) => Club.fromFirestore(doc)).toList());
   }
 
+  // Get all clubs as a future (for bulk operations)
+  Future<List<Club>> getAllClubs() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection(_collection)
+          .orderBy('name')
+          .get();
+      return snapshot.docs.map((doc) => Club.fromFirestore(doc)).toList();
+    } catch (e) {
+      print('Error getting all clubs: $e');
+      return [];
+    }
+  }
+
   // Get a specific club by ID
   Future<Club?> getClub(String clubId) async {
     try {

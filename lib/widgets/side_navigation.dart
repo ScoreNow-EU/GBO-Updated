@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/team_manager_service.dart';
+import '../services/auth_service.dart';
 import '../models/team.dart';
+import '../models/user.dart' as app_user;
 
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
@@ -20,7 +22,9 @@ class SideNavigation extends StatefulWidget {
 
 class _SideNavigationState extends State<SideNavigation> {
   User? _currentUser;
+  app_user.User? _currentAppUser;
   final TeamManagerService _teamManagerService = TeamManagerService();
+  final AuthService _authService = AuthService();
   List<Team> _managedTeams = [];
   bool _isTeamManager = false;
   bool _isLoadingTeams = false;
@@ -36,11 +40,35 @@ class _SideNavigationState extends State<SideNavigation> {
         setState(() {
           _currentUser = user;
         });
-        _loadTeamManagerData();
+        _loadUserData();
       }
     });
     
-    _loadTeamManagerData();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    // Load app user data
+    if (_currentUser != null) {
+      try {
+        final appUser = await _authService.getUserById(_currentUser!.uid);
+        setState(() {
+          _currentAppUser = appUser;
+        });
+      } catch (e) {
+        print('Error loading app user: $e');
+        setState(() {
+          _currentAppUser = null;
+        });
+      }
+    } else {
+      setState(() {
+        _currentAppUser = null;
+      });
+    }
+    
+    // Load team manager data
+    await _loadTeamManagerData();
   }
 
   Future<void> _loadTeamManagerData() async {
@@ -115,10 +143,17 @@ class _SideNavigationState extends State<SideNavigation> {
           // Logo Section
           Container(
             padding: const EdgeInsets.all(20),
+            width: 280,
+            
             decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(8),
+              bottomRight: Radius.circular(8),
+            ),
               color: const Color(0xFFffd665),
               border: Border(
                 bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                
               ),
             ),
             child: Column(
@@ -173,6 +208,10 @@ class _SideNavigationState extends State<SideNavigation> {
                 
                 if (_isTeamManager && _managedTeams.isNotEmpty)
                   const SizedBox(height: 16),
+                
+                // Referee Section - Only show if user is logged in and has referee role
+                if (_currentUser != null && _currentAppUser?.role == app_user.UserRole.referee)
+                  _buildRefereeSection(),
                 
                 // Admin Section with continuous black background
                 _buildAdminSection(),
@@ -413,7 +452,92 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'team_manager_management',
             isSelected: widget.selectedSection == 'team_manager_management',
           ),
+          _buildAdminItem(
+            icon: Icons.people,
+            title: 'Kader Verwaltung (Global)',
+            key: 'player_management',
+            isSelected: widget.selectedSection == 'player_management',
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRefereeSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade600,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Referee Section Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.sports_hockey,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'SCHIEDSRICHTER',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Referee Items
+          _buildRefereeItem(
+            icon: Icons.dashboard,
+            title: 'Dashboard',
+            key: 'referee_dashboard',
+            isSelected: widget.selectedSection == 'referee_dashboard',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefereeItem({
+    required IconData icon,
+    required String title,
+    required String key,
+    required bool isSelected,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.orange.shade800 : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.white : Colors.white70,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
     );
   }

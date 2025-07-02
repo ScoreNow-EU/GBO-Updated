@@ -3,6 +3,7 @@ import 'package:toastification/toastification.dart';
 import '../models/player.dart';
 import '../services/player_service.dart';
 import '../widgets/responsive_layout.dart';
+import 'bulk_add_players_screen.dart';
 
 class PlayerManagementScreen extends StatefulWidget {
   const PlayerManagementScreen({super.key});
@@ -467,6 +468,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         position: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
         jerseyNumber: _jerseyNumberController.text.trim().isEmpty ? null : _jerseyNumberController.text.trim(),
+        gender: isEdit ? existingPlayer!.gender : 'male', // Default to male for existing functionality
         createdAt: isEdit ? existingPlayer!.createdAt : DateTime.now(),
       );
 
@@ -554,12 +556,10 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   }
 
   void _showBulkAddDialog() {
-    toastification.show(
-      context: context,
-      type: ToastificationType.info,
-      style: ToastificationStyle.fillColored,
-      title: const Text('Bulk Import - Coming Soon!'),
-      autoCloseDuration: const Duration(seconds: 3),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BulkAddPlayersScreen(),
+      ),
     );
   }
 

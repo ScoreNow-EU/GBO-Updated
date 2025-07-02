@@ -30,6 +30,28 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadCurrentUser();
+    _listenToAuthChanges();
+  }
+
+  void _listenToAuthChanges() {
+    _authService.currentUser.listen((user) {
+      if (user == null) {
+        // User logged out, reset to default section
+        setState(() {
+          _currentUser = null;
+          selectedSection = 'turniere';
+        });
+      } else {
+        // User logged in, update current user
+        setState(() {
+          _currentUser = user;
+          // Set default section based on user role
+          if (user.role == app_user.UserRole.referee) {
+            selectedSection = 'referee_dashboard';
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadCurrentUser() async {
@@ -42,6 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
         if (user?.role == app_user.UserRole.referee) {
           selectedSection = 'referee_dashboard';
         }
+      });
+    } else {
+      // No user, ensure we're on the default section
+      setState(() {
+        _currentUser = null;
+        selectedSection = 'turniere';
       });
     }
   }
@@ -64,6 +92,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return ResponsiveLayout(
       selectedSection: selectedSection,
       onSectionChanged: (section) {
+        // Prevent unauthorized access to referee dashboard
+        if (section == 'referee_dashboard') {
+          if (_currentUser == null || _currentUser!.role != app_user.UserRole.referee) {
+            // Redirect to login or home if not authorized
+            section = _currentUser == null ? 'login' : 'turniere';
+          }
+        }
+        
         setState(() {
           selectedSection = section;
         });

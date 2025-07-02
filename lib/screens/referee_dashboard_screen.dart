@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
+import '../models/tournament.dart';
 import '../services/referee_service.dart';
+import '../services/tournament_service.dart';
+import '../widgets/referee_invitation_dialog.dart';
 
 class RefereeDashboardScreen extends StatefulWidget {
   final app_user.User currentUser;
@@ -18,6 +21,7 @@ class RefereeDashboardScreen extends StatefulWidget {
 
 class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   final RefereeService _refereeService = RefereeService();
+  final TournamentService _tournamentService = TournamentService();
   Referee? _refereeProfile;
   bool _isLoading = true;
 
@@ -25,6 +29,15 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   void initState() {
     super.initState();
     _loadRefereeProfile();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check for pending invitations after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForPendingInvitations();
+    });
   }
 
   Future<void> _loadRefereeProfile() async {
@@ -38,6 +51,34 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
     setState(() {
       _isLoading = false;
     });
+  }
+
+  Future<void> _checkForPendingInvitations() async {
+    if (_refereeProfile == null) return;
+
+    try {
+      // Get pending tournaments
+      final pendingStream = _tournamentService.getPendingInvitationsForReferee(_refereeProfile!.id);
+      final pendingTournaments = await pendingStream.first;
+
+      if (pendingTournaments.isNotEmpty && mounted) {
+        // Show the invitation dialog
+        await showDialog(
+          context: context,
+          barrierDismissible: false, // User must respond
+          builder: (context) => RefereeInvitationDialog(
+            pendingTournaments: pendingTournaments,
+            refereeId: _refereeProfile!.id,
+            onCompleted: () {
+              // Refresh the dashboard data after responding to invitations
+              setState(() {});
+            },
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error checking for pending invitations: $e');
+    }
   }
 
   @override
@@ -184,7 +225,7 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
                           title: 'Meine Einsätze',
                           subtitle: 'Kommende Spiele',
                           color: Colors.blue,
-                          onTap: () => _showComingSoon('Meine Einsätze'),
+                          onTap: () => _showUpcomingAssignments(),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -289,8 +330,186 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
               ),
             ),
           ),
+
+          const SizedBox(height: 24),
+
+          // Upcoming Assignments Section
+          if (_refereeProfile != null) _buildUpcomingAssignmentsSection(),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpcomingAssignmentsSection() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, color: Colors.blue.shade600),
+                const SizedBox(width: 8),
+                const Text(
+                  'Meine Einsätze',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            StreamBuilder<List<Tournament>>(
+              stream: _tournamentService.getAcceptedTournamentsForReferee(_refereeProfile!.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (snapshot.hasError) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red.shade600),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Fehler beim Laden der Einsätze.',
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                final tournaments = snapshot.data ?? [];
+                
+                if (tournaments.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.grey.shade600),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Keine kommenden Einsätze geplant.',
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                return Column(
+                  children: tournaments.take(3).map((tournament) => 
+                    _buildTournamentAssignmentCard(tournament)
+                  ).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTournamentAssignmentCard(Tournament tournament) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  tournament.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  tournament.categoryDisplayNames,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.grey.shade600, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                tournament.location,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Icon(Icons.calendar_today, color: Colors.grey.shade600, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                tournament.dateString,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUpcomingAssignments() {
+    // This method can be used to show a detailed view of all assignments
+    // For now, we're displaying them directly in the dashboard
+    toastification.show(
+      context: context,
+      type: ToastificationType.info,
+      style: ToastificationStyle.fillColored,
+      title: const Text('Meine Einsätze'),
+      description: const Text('Hier sind Ihre kommenden Turnier-Einsätze zu sehen.'),
+      autoCloseDuration: const Duration(seconds: 3),
     );
   }
 

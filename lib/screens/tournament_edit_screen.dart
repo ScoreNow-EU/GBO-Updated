@@ -4116,7 +4116,28 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ? _criteria.totalPoints + _criteria.supercupBonus 
             : int.tryParse(_pointsController.text) ?? widget.tournament!.points,
         teamIds: _selectedTeamIds,
-        refereeIds: _selectedRefereeIds,
+        refereeInvitations: _selectedRefereeIds.map((refereeId) {
+          // Check if this referee already has an invitation
+          RefereeInvitation? existingInvitation;
+          if (widget.tournament != null) {
+            try {
+              existingInvitation = widget.tournament!.refereeInvitations
+                  .firstWhere((inv) => inv.refereeId == refereeId);
+            } catch (e) {
+              // No existing invitation found
+            }
+          }
+
+          // If existing invitation found, keep the same status
+          // Otherwise, create new pending invitation
+          return RefereeInvitation(
+            refereeId: refereeId,
+            status: existingInvitation?.status ?? 'pending',
+            invitedAt: existingInvitation?.invitedAt ?? DateTime.now(),
+            respondedAt: existingInvitation?.respondedAt,
+            notes: existingInvitation?.notes,
+          );
+        }).toList(),
         delegateIds: _selectedDelegateIds,
         refereeGespanne: _refereeGespanne, // This is the key part - saving gespanne
         divisionBrackets: divisionBrackets,
@@ -4303,7 +4324,28 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ? _criteria.totalPoints + _criteria.supercupBonus 
             : int.tryParse(_pointsController.text) ?? 0,
         teamIds: _selectedTeamIds,
-        refereeIds: _selectedRefereeIds,
+        refereeInvitations: _selectedRefereeIds.map((refereeId) {
+          // Check if this referee already has an invitation
+          RefereeInvitation? existingInvitation;
+          if (widget.tournament != null) {
+            try {
+              existingInvitation = widget.tournament!.refereeInvitations
+                  .firstWhere((inv) => inv.refereeId == refereeId);
+            } catch (e) {
+              // No existing invitation found
+            }
+          }
+
+          // If existing invitation found, keep the same status
+          // Otherwise, create new pending invitation
+          return RefereeInvitation(
+            refereeId: refereeId,
+            status: existingInvitation?.status ?? 'pending',
+            invitedAt: existingInvitation?.invitedAt ?? DateTime.now(),
+            respondedAt: existingInvitation?.respondedAt,
+            notes: existingInvitation?.notes,
+          );
+        }).toList(),
         delegateIds: _selectedDelegateIds,
         refereeGespanne: _refereeGespanne,
         divisionBrackets: divisionBrackets,
@@ -5060,14 +5102,32 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ...filteredReferees.map((referee) {
               final isSelected = _selectedRefereeIds.contains(referee.id);
               
+              // Get invitation status for this referee
+              RefereeInvitation? invitation;
+              if (widget.tournament != null) {
+                try {
+                  invitation = widget.tournament!.refereeInvitations
+                      .firstWhere((inv) => inv.refereeId == referee.id);
+                } catch (e) {
+                  // No invitation found
+                }
+              }
+              
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: CheckboxListTile(
-                  title: Text(
-                    referee.fullName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                    ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          referee.fullName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (invitation != null) _buildInvitationStatusBadge(invitation.status),
+                    ],
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -5075,20 +5135,34 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       const SizedBox(height: 4),
                       Text(referee.email),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          referee.licenseType,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue[700],
-                            fontWeight: FontWeight.w500,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              referee.licenseType,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (invitation != null && invitation.respondedAt != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              'Antwort: ${invitation.respondedAt!.day}.${invitation.respondedAt!.month}.${invitation.respondedAt!.year}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -5106,6 +5180,66 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 ),
               );
             }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvitationStatusBadge(String status) {
+    Color badgeColor;
+    Color textColor;
+    String statusText;
+    IconData icon;
+
+    switch (status) {
+      case 'pending':
+        badgeColor = Colors.orange.shade100;
+        textColor = Colors.orange.shade700;
+        statusText = 'Ausstehend';
+        icon = Icons.schedule;
+        break;
+      case 'accepted':
+        badgeColor = Colors.green.shade100;
+        textColor = Colors.green.shade700;
+        statusText = 'Zugesagt';
+        icon = Icons.check_circle;
+        break;
+      case 'declined':
+        badgeColor = Colors.red.shade100;
+        textColor = Colors.red.shade700;
+        statusText = 'Abgesagt';
+        icon = Icons.cancel;
+        break;
+      default:
+        badgeColor = Colors.grey.shade100;
+        textColor = Colors.grey.shade700;
+        statusText = 'Unbekannt';
+        icon = Icons.help;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: textColor,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            statusText,
+            style: TextStyle(
+              fontSize: 11,
+              color: textColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -11221,7 +11355,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         categories: widget.tournament!.categories,
         points: widget.tournament!.points,
         teamIds: widget.tournament!.teamIds,
-        refereeIds: widget.tournament!.refereeIds,
+        refereeInvitations: widget.tournament!.refereeInvitations,
         divisionBrackets: widget.tournament!.divisionBrackets,
         customBrackets: widget.tournament!.customBrackets,
         criteria: widget.tournament!.criteria,

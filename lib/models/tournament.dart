@@ -2,6 +2,65 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'tournament_criteria.dart';
 import 'court.dart';
 
+class RefereeInvitation {
+  final String refereeId;
+  final String status; // 'pending', 'accepted', 'declined'
+  final DateTime invitedAt;
+  final DateTime? respondedAt;
+  final String? notes; // Optional notes from referee
+
+  RefereeInvitation({
+    required this.refereeId,
+    required this.status,
+    required this.invitedAt,
+    this.respondedAt,
+    this.notes,
+  });
+
+  bool get isPending => status == 'pending';
+  bool get isAccepted => status == 'accepted';
+  bool get isDeclined => status == 'declined';
+
+  RefereeInvitation copyWith({
+    String? refereeId,
+    String? status,
+    DateTime? invitedAt,
+    DateTime? respondedAt,
+    String? notes,
+  }) {
+    return RefereeInvitation(
+      refereeId: refereeId ?? this.refereeId,
+      status: status ?? this.status,
+      invitedAt: invitedAt ?? this.invitedAt,
+      respondedAt: respondedAt ?? this.respondedAt,
+      notes: notes ?? this.notes,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'refereeId': refereeId,
+      'status': status,
+      'invitedAt': Timestamp.fromDate(invitedAt),
+      'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
+      'notes': notes,
+    };
+  }
+
+  factory RefereeInvitation.fromMap(Map<String, dynamic> map) {
+    return RefereeInvitation(
+      refereeId: map['refereeId'] ?? '',
+      status: map['status'] ?? 'pending',
+      invitedAt: (map['invitedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      respondedAt: (map['respondedAt'] as Timestamp?)?.toDate(),
+      notes: map['notes'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => toMap();
+  factory RefereeInvitation.fromJson(Map<String, dynamic> json) => RefereeInvitation.fromMap(json);
+}
+
 class TournamentBracket {
   final Map<String, List<String>> pools; // poolId -> list of team IDs
   final Map<String, bool> poolIsFunBracket; // poolId -> is fun bracket
@@ -252,7 +311,7 @@ class Tournament {
   final String? description;
   final String? imageUrl; // Tournament image URL
   final List<String> teamIds; // Team IDs
-  final List<String> refereeIds; // Referee IDs
+  final List<RefereeInvitation> refereeInvitations; // Referee invitations with status
   final List<String> delegateIds; // Delegate IDs
   final List<Map<String, dynamic>> refereeGespanne; // Referee pairs
   final Map<String, TournamentBracket> divisionBrackets; // division -> bracket structure
@@ -279,7 +338,7 @@ class Tournament {
     this.description,
     this.imageUrl,
     this.teamIds = const [],
-    this.refereeIds = const [],
+    this.refereeInvitations = const [],
     this.delegateIds = const [],
     this.refereeGespanne = const [],
     this.divisionBrackets = const {},
@@ -300,6 +359,9 @@ class Tournament {
   bool hasCategory(String category) {
     return categories.contains(category);
   }
+
+  // Helper getter for backward compatibility
+  List<String> get refereeIds => refereeInvitations.map((invitation) => invitation.refereeId).toList();
   
   bool get isJuniors => categories.contains('GBO Juniors Cup');
   
@@ -442,7 +504,7 @@ class Tournament {
       'description': description,
       'imageUrl': imageUrl,
       'teamIds': teamIds,
-      'refereeIds': refereeIds,
+      'refereeInvitations': refereeInvitations.map((invitation) => invitation.toMap()).toList(),
       'delegateIds': delegateIds,
       'refereeGespanne': refereeGespanne,
       'divisionBrackets': divisionBrackets.map((key, value) => MapEntry(key, value.toMap())),
@@ -501,7 +563,18 @@ class Tournament {
       description: map['description'],
       imageUrl: map['imageUrl'],
       teamIds: List<String>.from(map['teamIds'] ?? []),
-      refereeIds: List<String>.from(map['refereeIds'] ?? []),
+      refereeInvitations: (map['refereeInvitations'] as List<dynamic>?)
+          ?.map((invitation) => RefereeInvitation.fromMap(invitation))
+          .toList() ??
+          // Fallback for old tournaments with refereeIds
+          (map['refereeIds'] as List<dynamic>?)
+              ?.map((refereeId) => RefereeInvitation(
+                    refereeId: refereeId,
+                    status: 'accepted', // Assume old entries were accepted
+                    invitedAt: DateTime.now(),
+                  ))
+              .toList() ??
+          [],
       delegateIds: List<String>.from(map['delegateIds'] ?? []),
       refereeGespanne: List<Map<String, dynamic>>.from(map['refereeGespanne'] ?? []),
       divisionBrackets: (map['divisionBrackets'] as Map<String, dynamic>?)

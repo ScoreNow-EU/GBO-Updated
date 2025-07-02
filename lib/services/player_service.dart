@@ -27,6 +27,8 @@ class PlayerService {
         'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
         'position': player.position,
         'jerseyNumber': player.jerseyNumber,
+        'clubId': player.clubId,
+        'gender': player.gender,
         'isActive': player.isActive,
         'createdAt': Timestamp.fromDate(player.createdAt),
       });
@@ -61,6 +63,8 @@ class PlayerService {
         'birthDate': updatedPlayer.birthDate != null ? Timestamp.fromDate(updatedPlayer.birthDate!) : null,
         'position': updatedPlayer.position,
         'jerseyNumber': updatedPlayer.jerseyNumber,
+        'clubId': updatedPlayer.clubId,
+        'gender': updatedPlayer.gender,
         'isActive': updatedPlayer.isActive,
       });
       return true;
@@ -146,6 +150,47 @@ class PlayerService {
     }
   }
 
+  // Bulk add players
+  Future<List<String>> addPlayersInBulk(List<Player> players) async {
+    List<String> results = [];
+    
+    for (Player player in players) {
+      try {
+        // Check if email already exists
+        QuerySnapshot existingEmail = await _firestore
+            .collection(_collection)
+            .where('email', isEqualTo: player.email.toLowerCase())
+            .get();
+
+        if (existingEmail.docs.isNotEmpty) {
+          results.add('FEHLER: Spieler ${player.fullName} - E-Mail bereits vorhanden');
+          continue;
+        }
+
+        // Create player
+        DocumentReference docRef = await _firestore.collection(_collection).add({
+          'firstName': player.firstName,
+          'lastName': player.lastName,
+          'email': player.email.toLowerCase(),
+          'phone': player.phone,
+          'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
+          'position': player.position,
+          'jerseyNumber': player.jerseyNumber,
+          'clubId': player.clubId,
+          'gender': player.gender,
+          'isActive': player.isActive,
+          'createdAt': Timestamp.fromDate(player.createdAt),
+        });
+        
+        results.add('ERFOLG: Spieler ${player.fullName} erstellt');
+      } catch (e) {
+        results.add('FEHLER: Spieler ${player.fullName} - $e');
+      }
+    }
+    
+    return results;
+  }
+
   // Create sample players for testing
   Future<void> createSamplePlayers() async {
     List<Player> samplePlayers = [
@@ -157,6 +202,7 @@ class PlayerService {
         phone: '+49 123 456789',
         position: 'Blocker',
         jerseyNumber: '1',
+        gender: 'male',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -167,6 +213,7 @@ class PlayerService {
         phone: '+49 987 654321',
         position: 'Defender',
         jerseyNumber: '2',
+        gender: 'female',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -176,6 +223,7 @@ class PlayerService {
         email: 'thomas.weber@example.com',
         position: 'Setter',
         jerseyNumber: '3',
+        gender: 'male',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -186,6 +234,7 @@ class PlayerService {
         phone: '+49 555 123456',
         position: 'Libero',
         jerseyNumber: '4',
+        gender: 'female',
         createdAt: DateTime.now(),
       ),
     ];
