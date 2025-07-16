@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
-import 'package:local_auth/local_auth.dart';
 import '../utils/responsive_helper.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
-import '../services/secure_storage_service.dart';
 import '../models/user.dart' as app_user;
 import 'home_screen.dart';
 
@@ -32,10 +30,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoginMode = true; // Toggle between login and registration
-  bool _biometricAvailable = false;
-  bool _biometricEnabled = false;
-  bool _hasSavedCredentials = false;
-  List<BiometricType> _availableBiometrics = [];
   
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -75,9 +69,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     // Start animations
     _fadeController.forward();
     _slideController.forward();
-    
-    // Initialize biometric authentication
-    _initializeBiometrics();
   }
 
   @override
@@ -89,46 +80,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _initializeBiometrics() async {
-    try {
-      final bool available = await SecureStorageService.isBiometricAvailable();
-      final bool enabled = await SecureStorageService.isBiometricEnabled();
-      final bool hasCredentials = await SecureStorageService.hasCredentials();
-      final List<BiometricType> biometrics = await SecureStorageService.getAvailableBiometrics();
-      
-      if (mounted) {
-        setState(() {
-          _biometricAvailable = available;
-          _biometricEnabled = enabled;
-          _hasSavedCredentials = hasCredentials;
-          _availableBiometrics = biometrics;
-        });
-      }
-      
-      // Auto-fill credentials if available
-      if (hasCredentials && enabled) {
-        await _loadSavedCredentials();
-      }
-    } catch (e) {
-      print('Error initializing biometrics: $e');
-    }
-  }
-
-  Future<void> _loadSavedCredentials() async {
-    try {
-      final credentials = await SecureStorageService.getSavedCredentials();
-      if (credentials != null && mounted) {
-        setState(() {
-          _emailController.text = credentials['email'] ?? '';
-          _passwordController.text = credentials['password'] ?? '';
-          _rememberMe = true;
-        });
-      }
-    } catch (e) {
-      print('Error loading saved credentials: $e');
-    }
   }
 
   @override
@@ -526,13 +477,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
             ],
           ),
-          
-          // Biometric authentication options
-          if (_biometricAvailable && _hasSavedCredentials) ...[
-            const SizedBox(height: 8),
-            _buildBiometricAuthOption(),
-          ],
-          
           const SizedBox(height: 16),
         ],
         
@@ -602,125 +546,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ),
       ],
     );
-  }
-
-  Widget _buildBiometricAuthOption() {
-    String biometricText = 'Face ID';
-    IconData biometricIcon = Icons.face;
-    
-    if (_availableBiometrics.isNotEmpty) {
-      if (_availableBiometrics.contains(BiometricType.face)) {
-        biometricText = 'Face ID';
-        biometricIcon = Icons.face;
-      } else if (_availableBiometrics.contains(BiometricType.fingerprint)) {
-        biometricText = 'Fingerabdruck';
-        biometricIcon = Icons.fingerprint;
-      } else if (_availableBiometrics.contains(BiometricType.iris)) {
-        biometricText = 'Iris';
-        biometricIcon = Icons.visibility;
-      }
-    }
-    
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            biometricIcon,
-            color: Colors.black87,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mit $biometricText anmelden',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Gespeicherte Anmeldedaten verwenden',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: _handleBiometricLogin,
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.black87,
-              backgroundColor: Colors.black.withOpacity(0.05),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            child: const Text(
-              'Anmelden',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleBiometricLogin() async {
-    try {
-      final credentials = await SecureStorageService.getSavedCredentials();
-      if (credentials != null) {
-        setState(() {
-          _isLoading = true;
-        });
-        
-        final user = await _authService.signInWithEmailAndPassword(
-          credentials['email']!,
-          credentials['password']!,
-        );
-        
-        if (user != null) {
-          _showSuccessToast('Erfolgreich mit ${ 
-            _availableBiometrics.contains(BiometricType.face) ? 'Face ID' : 
-            _availableBiometrics.contains(BiometricType.fingerprint) ? 'Fingerabdruck' : 
-            'biometrischer Authentifizierung'
-          } angemeldet');
-          
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        }
-      }
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = 'Anmeldung fehlgeschlagen: ${e.message}';
-      _showErrorToast(errorMessage);
-    } catch (e) {
-      print('Biometric login error: $e');
-      _showErrorToast('Fehler bei der biometrischen Anmeldung');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
   }
 
   Future<void> _handleRegister() async {
@@ -807,24 +632,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (user != null) {
-        // Save credentials if remember me is checked
-        if (_rememberMe) {
-          try {
-            await SecureStorageService.saveCredentials(
-              _emailController.text.trim(),
-              _passwordController.text.trim(),
-            );
-            
-            // Enable biometric authentication if available
-            if (_biometricAvailable) {
-              await SecureStorageService.setBiometricEnabled(true);
-            }
-          } catch (e) {
-            print('Error saving credentials: $e');
-            // Don't show error to user, just log it
-          }
-        }
-        
         _showSuccessToast('Erfolgreich angemeldet');
         
         // Navigate to home screen

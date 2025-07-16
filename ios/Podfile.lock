@@ -1505,7 +1505,7 @@ SPEC CHECKSUMS:
   FirebaseFirestoreInternal: 6c8aa676751593471f66d857db5b8674ea66116b
   FirebaseInstallations: 0ee9074f2c1e86561ace168ee1470dc67aabaf02
   FirebaseSharedSwift: bdd5c8674c4712a98e70287c936bc5cca5d640f6
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   GoogleAppMeasurement: 0dfca1a4b534d123de3945e28f77869d10d0d600
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
