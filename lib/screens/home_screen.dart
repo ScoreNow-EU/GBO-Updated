@@ -11,7 +11,6 @@ import 'referee_dashboard_screen.dart';
 import 'delegate_management_screen.dart';
 import 'team_manager_management_screen.dart';
 import 'player_management_screen.dart';
-import 'live_notifications_screen.dart';
 import 'team_detail_screen.dart';
 import 'login_screen.dart';
 
@@ -140,8 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Team Manager Verwaltung';
       case 'player_management':
         return 'Kader Verwaltung';
-      case 'live_notifications':
-        return 'Live Notifications';
       case 'referee_dashboard':
         return 'Schiedsrichter Dashboard';
       default:
@@ -190,8 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const TeamManagerManagementScreen();
       case 'player_management':
         return const PlayerManagementScreen();
-      case 'live_notifications':
-        return const LiveNotificationsScreen();
       case 'referee_dashboard':
         return _currentUser != null 
             ? RefereeDashboardScreen(currentUser: _currentUser!)
