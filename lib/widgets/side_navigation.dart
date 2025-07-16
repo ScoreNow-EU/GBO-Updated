@@ -290,6 +290,12 @@ class _SideNavigationState extends State<SideNavigation> {
               isSelected: widget.selectedSection == 'team_${team.id}_tournaments',
             ),
             _buildTeamSubItem(
+              title: 'Kader Verwaltung',
+              key: 'team_${team.id}_roster',
+              icon: Icons.people,
+              isSelected: widget.selectedSection == 'team_${team.id}_roster',
+            ),
+            _buildTeamSubItem(
               title: 'Einstellungen',
               key: 'team_${team.id}_settings',
               icon: Icons.settings,
@@ -457,6 +463,12 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Kader Verwaltung (Global)',
             key: 'player_management',
             isSelected: widget.selectedSection == 'player_management',
+          ),
+          _buildAdminItem(
+            icon: Icons.notifications_active,
+            title: 'Live Notifications',
+            key: 'live_notifications',
+            isSelected: widget.selectedSection == 'live_notifications',
           ),
         ],
       ),

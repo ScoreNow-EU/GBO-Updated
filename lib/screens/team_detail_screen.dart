@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:toastification/toastification.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
+import '../models/player.dart';
 import '../services/team_service.dart';
 import '../services/tournament_service.dart';
+import '../services/player_service.dart';
 import '../widgets/responsive_layout.dart';
+import '../screens/bulk_add_players_screen.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final String teamId;
@@ -17,8 +21,11 @@ class TeamDetailScreen extends StatefulWidget {
 
 class _TeamDetailScreenState extends State<TeamDetailScreen> {
   final TeamService _teamService = TeamService();
+  final PlayerService _playerService = PlayerService();
   Team? _team;
+  List<Player> _teamPlayers = [];
   bool _isLoading = true;
+  bool _playersLoading = false;
   late String _selectedSubSection;
 
   @override
@@ -36,12 +43,41 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
           _team = team;
           _isLoading = false;
         });
+        _loadTeamPlayers();
       }
     } catch (e) {
       print('Error loading team: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadTeamPlayers() async {
+    if (_team == null) return;
+    
+    setState(() {
+      _playersLoading = true;
+    });
+
+    try {
+      // For now, avoid complex queries that require Firestore indexes
+      // In a real implementation, you would have a proper team-player relationship
+      final teamPlayers = <Player>[];
+      
+      if (mounted) {
+        setState(() {
+          _teamPlayers = teamPlayers;
+          _playersLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading team players: $e');
+      if (mounted) {
+        setState(() {
+          _playersLoading = false;
         });
       }
     }
@@ -90,6 +126,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return 'Übersicht';
       case 'tournaments':
         return 'Turnier Anmeldung';
+      case 'roster':
+        return 'Kader Verwaltung';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -103,6 +141,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return _buildOverviewContent();
       case 'tournaments':
         return _buildTournamentRegistrationContent();
+      case 'roster':
+        return _buildRosterContent();
       case 'settings':
         return _buildSettingsContent();
       default:
@@ -521,6 +561,681 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       ),
     );
   }
+
+  Widget _buildRosterContent() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.people, color: Colors.black87),
+              const SizedBox(width: 8),
+              const Text(
+                'Kader Verwaltung',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Spieler Verwaltung',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.group_add,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Kader-Verwaltung wird entwickelt',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Hier können Sie bald Ihre Spieler verwalten, hinzufügen und bearbeiten.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  Column(
+                    children: [
+                      // First row of buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showAddPlayerDialog(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2D5016),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Spieler hinzufügen'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showBulkImportDialog(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.upload),
+                              label: const Text('Bulk Import'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Second row of buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showCurrentRoster(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.list),
+                              label: const Text('Aktueller Kader'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showPlayerSearchDialog(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.search),
+                              label: const Text('Spieler suchen'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPlayerDialog() {
+    final firstNameController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final positionController = TextEditingController();
+    final jerseyNumberController = TextEditingController();
+    String selectedGender = 'male';
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Neuer Spieler hinzufügen'),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: firstNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Vorname *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: lastNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nachname *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'E-Mail *',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Telefon',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: positionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Position',
+                            border: OutlineInputBorder(),
+                            hintText: 'z.B. Blocker, Defender',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: jerseyNumberController,
+                          decoration: const InputDecoration(
+                            labelText: 'Trikotnummer',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedGender,
+                    decoration: const InputDecoration(
+                      labelText: 'Geschlecht *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'male', child: Text('Männlich')),
+                      DropdownMenuItem(value: 'female', child: Text('Weiblich')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGender = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                if (firstNameController.text.trim().isEmpty || 
+                    lastNameController.text.trim().isEmpty ||
+                    emailController.text.trim().isEmpty) {
+                  toastification.show(
+                    context: context,
+                    type: ToastificationType.error,
+                    style: ToastificationStyle.fillColored,
+                    title: const Text('Fehler'),
+                    description: const Text('Bitte füllen Sie alle Pflichtfelder aus.'),
+                    autoCloseDuration: const Duration(seconds: 3),
+                  );
+                  return;
+                }
+
+                setState(() {
+                  isLoading = true;
+                });
+
+                try {
+                  final player = Player(
+                    id: '',
+                    firstName: firstNameController.text.trim(),
+                    lastName: lastNameController.text.trim(),
+                    email: emailController.text.trim(),
+                    phone: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
+                    position: positionController.text.trim().isEmpty ? null : positionController.text.trim(),
+                    jerseyNumber: jerseyNumberController.text.trim().isEmpty ? null : jerseyNumberController.text.trim(),
+                    clubId: _team?.clubId,
+                    gender: selectedGender,
+                    createdAt: DateTime.now(),
+                  );
+
+                                                    // For demo purposes, add the player to the local list
+                  // In a real implementation, this would use the PlayerService
+                  final newPlayer = Player(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    firstName: firstNameController.text.trim(),
+                    lastName: lastNameController.text.trim(),
+                    email: emailController.text.trim(),
+                    phone: phoneController.text.trim().isEmpty ? null : phoneController.text.trim(),
+                    position: positionController.text.trim().isEmpty ? null : positionController.text.trim(),
+                    jerseyNumber: jerseyNumberController.text.trim().isEmpty ? null : jerseyNumberController.text.trim(),
+                    clubId: _team?.clubId,
+                    gender: selectedGender,
+                    createdAt: DateTime.now(),
+                  );
+                  
+                  // Add to local team players list
+                  setState(() {
+                    _teamPlayers.add(newPlayer);
+                  });
+                  
+                  Navigator.of(context).pop();
+                  toastification.show(
+                    context: context,
+                    type: ToastificationType.success,
+                    style: ToastificationStyle.fillColored,
+                    title: const Text('Erfolg'),
+                    description: Text('${newPlayer.fullName} wurde hinzugefügt.'),
+                    autoCloseDuration: const Duration(seconds: 3),
+                  );
+                } catch (e) {
+                  toastification.show(
+                    context: context,
+                    type: ToastificationType.error,
+                    style: ToastificationStyle.fillColored,
+                    title: const Text('Fehler'),
+                    description: Text('Fehler beim Hinzufügen: $e'),
+                    autoCloseDuration: const Duration(seconds: 3),
+                  );
+                } finally {
+                  setState(() {
+                    isLoading = false;
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2D5016),
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Hinzufügen'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBulkImportDialog() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const BulkAddPlayersScreen(),
+      ),
+    ).then((_) {
+      // Reload players when returning from bulk import
+      _loadTeamPlayers();
+    });
+  }
+
+  void _showCurrentRoster() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.people, color: Color(0xFF2D5016)),
+            const SizedBox(width: 8),
+            const Text('Aktueller Kader'),
+            const Spacer(),
+            Text(
+              '${_teamPlayers.length} Spieler',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 600,
+          height: 400,
+          child: _playersLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _teamPlayers.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.group_off, size: 48, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'Noch keine Spieler im Kader',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Fügen Sie Spieler hinzu, um Ihren Kader aufzubauen.',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        // Header row
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            children: [
+                              Expanded(flex: 3, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(flex: 2, child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(child: Text('Nr.', style: TextStyle(fontWeight: FontWeight.bold))),
+                              Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Players list
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _teamPlayers.length,
+                            itemBuilder: (context, index) {
+                              final player = _teamPlayers[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              player.fullName,
+                                              style: const TextStyle(fontWeight: FontWeight.w500),
+                                            ),
+                                            if (player.email.isNotEmpty)
+                                              Text(
+                                                player.email,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Text(
+                                          player.position ?? '-',
+                                          style: TextStyle(color: Colors.grey[700]),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          player.jerseyNumber ?? '-',
+                                          style: TextStyle(color: Colors.grey[700]),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: player.isActive ? Colors.green.shade100 : Colors.red.shade100,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            player.isActive ? 'Aktiv' : 'Inaktiv',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: player.isActive ? Colors.green.shade800 : Colors.red.shade800,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
+          ),
+          if (_teamPlayers.isNotEmpty)
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showAddPlayerDialog();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2D5016),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Spieler hinzufügen'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showPlayerSearchDialog() {
+    final searchController = TextEditingController();
+    List<Player> searchResults = [];
+    List<Player> allPlayers = [];
+    bool isLoading = false;
+    bool isSearching = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+                     // For now, avoid complex queries that require Firestore indexes
+           if (allPlayers.isEmpty && !isLoading) {
+             setState(() {
+               allPlayers = []; // Empty for now to avoid index requirement
+               searchResults = [];
+               isLoading = false;
+             });
+           }
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.search, color: Color(0xFF2D5016)),
+                SizedBox(width: 8),
+                Text('Spieler suchen'),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              height: 400,
+              child: Column(
+                children: [
+                  // Search field
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Name oder E-Mail eingeben...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onChanged: (query) {
+                      setState(() {
+                        isSearching = true;
+                        if (query.trim().isEmpty) {
+                          searchResults = allPlayers.take(10).toList();
+                        } else {
+                          searchResults = allPlayers.where((player) {
+                            final name = '${player.firstName} ${player.lastName}'.toLowerCase();
+                            final email = player.email.toLowerCase();
+                            final searchQuery = query.toLowerCase();
+                            return name.contains(searchQuery) || email.contains(searchQuery);
+                          }).toList();
+                        }
+                        isSearching = false;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Results
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : isSearching
+                            ? const Center(child: CircularProgressIndicator())
+                            : searchResults.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          searchController.text.trim().isEmpty
+                                              ? 'Noch keine Spieler im System'
+                                              : 'Keine Spieler gefunden',
+                                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: searchResults.length,
+                                    itemBuilder: (context, index) {
+                                      final player = searchResults[index];
+                                      final isAlreadyInTeam = _teamPlayers.any((p) => p.id == player.id);
+                                      
+                                      return Card(
+                                        margin: const EdgeInsets.symmetric(vertical: 2),
+                                        child: ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor: const Color(0xFF2D5016),
+                                            child: Text(
+                                              player.firstName[0].toUpperCase(),
+                                              style: const TextStyle(color: Colors.white),
+                                            ),
+                                          ),
+                                          title: Text(player.fullName),
+                                          subtitle: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(player.email),
+                                              if (player.position != null)
+                                                Text('Position: ${player.position}'),
+                                            ],
+                                          ),
+                                          trailing: isAlreadyInTeam
+                                              ? const Chip(
+                                                  label: Text('Im Team'),
+                                                  backgroundColor: Colors.green,
+                                                  labelStyle: TextStyle(color: Colors.white),
+                                                )
+                                              : ElevatedButton(
+                                                  onPressed: () async {
+                                                    // In a real implementation, you would add the player to the team
+                                                    // For now, we'll show a toast that the feature is coming
+                                                    toastification.show(
+                                                      context: context,
+                                                      type: ToastificationType.info,
+                                                      style: ToastificationStyle.fillColored,
+                                                      title: const Text('Info'),
+                                                      description: Text('${player.fullName} zum Team hinzufügen - Diese Funktion wird noch implementiert.'),
+                                                      autoCloseDuration: const Duration(seconds: 3),
+                                                    );
+                                                  },
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFF2D5016),
+                                                    foregroundColor: Colors.white,
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                                  ),
+                                                  child: const Text('Hinzufügen'),
+                                                ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Schließen'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 // Content-only widget for use within ResponsiveLayout
@@ -537,10 +1252,13 @@ class TeamDetailContent extends StatefulWidget {
 class _TeamDetailContentState extends State<TeamDetailContent> {
   final TeamService _teamService = TeamService();
   final TournamentService _tournamentService = TournamentService();
+  final PlayerService _playerService = PlayerService();
   Team? _team;
   List<Tournament> _tournaments = [];
+  List<Player> _teamPlayers = [];
   bool _isLoading = true;
   bool _tournamentsLoading = true;
+  bool _playersLoading = false;
   late String _selectedSubSection;
 
   @override
@@ -568,14 +1286,43 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
           _team = team;
           _isLoading = false;
         });
-        // Load tournaments after team is loaded
+        // Load tournaments and players after team is loaded
         _loadTournaments();
+        _loadTeamPlayers();
       }
     } catch (e) {
       print('Error loading team: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadTeamPlayers() async {
+    if (_team == null) return;
+    
+    setState(() {
+      _playersLoading = true;
+    });
+
+    try {
+      // For now, avoid complex queries that require Firestore indexes
+      // In a real implementation, you would have a proper team-player relationship
+      final teamPlayers = <Player>[];
+      
+      if (mounted) {
+        setState(() {
+          _teamPlayers = teamPlayers;
+          _playersLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading team players: $e');
+      if (mounted) {
+        setState(() {
+          _playersLoading = false;
         });
       }
     }
@@ -661,6 +1408,8 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
         return _buildOverviewContent();
       case 'tournaments':
         return _buildTournamentRegistrationContent();
+      case 'roster':
+        return _buildRosterContent();
       case 'settings':
         return _buildSettingsContent();
       default:
@@ -1119,6 +1868,211 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
               value,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRosterContent() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.people, color: Colors.black87),
+              const SizedBox(width: 8),
+              const Text(
+                'Kader Verwaltung',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Spieler Verwaltung',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.group_add,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Kader-Verwaltung wird entwickelt',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Hier können Sie bald Ihre Spieler verwalten, hinzufügen und bearbeiten.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  Column(
+                    children: [
+                      // First row of buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _showAddPlayerDialog(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2D5016),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Spieler hinzufügen'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showBulkImportDialog(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.upload),
+                              label: const Text('Bulk Import'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Second row of buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showCurrentRoster(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.list),
+                              label: const Text('Aktueller Kader'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showPlayerSearchDialog(),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              icon: const Icon(Icons.search),
+                              label: const Text('Spieler suchen'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPlayerDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Spieler hinzufügen'),
+        content: const Text('Diese Funktion wird implementiert, um Spieler direkt zu Ihrem Team hinzuzufügen.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBulkImportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bulk Import'),
+        content: const Text('Diese Funktion wird implementiert, um mehrere Spieler gleichzeitig zu importieren.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCurrentRoster() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aktueller Kader'),
+        content: const Text('Diese Funktion wird implementiert, um den aktuellen Kader anzuzeigen und zu bearbeiten.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPlayerSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Spieler suchen'),
+        content: const Text('Diese Funktion wird implementiert, um Spieler zu suchen und zu Ihrem Team hinzuzufügen.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Schließen'),
           ),
         ],
       ),
