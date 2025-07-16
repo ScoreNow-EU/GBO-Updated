@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament.dart';
+import '../models/referee.dart';
+import '../models/team.dart';
+import '../services/referee_service.dart';
 
 class TournamentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final RefereeService _refereeService = RefereeService();
   final String _collection = 'tournaments';
 
   // Cache for faster subsequent loads
@@ -127,8 +131,74 @@ class TournamentService {
         .collection(_collection)
         .doc(tournament.id)
         .update(tournament.toMap());
+    
     // Invalidate cache
     _invalidateCache();
+  }
+  
+  // Auto-update tournament statuses based on current date
+  Future<void> updateTournamentStatuses() async {
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      // Get all tournaments that might need status updates
+      final snapshot = await _firestore
+          .collection(_collection)
+          .get();
+      
+      final batch = _firestore.batch();
+      bool hasUpdates = false;
+      
+      for (final doc in snapshot.docs) {
+        final tournament = Tournament.fromMap(doc.data(), doc.id);
+        String newStatus = tournament.status;
+        
+        // Determine the actual start and end dates
+        DateTime tournamentStart = tournament.startDate;
+        DateTime? tournamentEnd = tournament.endDate;
+        
+        // If tournament has category-specific dates, find the earliest start and latest end
+        if (tournament.categoryStartDates != null && tournament.categoryStartDates!.isNotEmpty) {
+          tournamentStart = tournament.categoryStartDates!.values.reduce((a, b) => a.isBefore(b) ? a : b);
+        }
+        
+        if (tournament.categoryEndDates != null && tournament.categoryEndDates!.isNotEmpty) {
+          tournamentEnd = tournament.categoryEndDates!.values.reduce((a, b) => a.isAfter(b) ? a : b);
+        }
+        
+        // Convert to date-only for comparison
+        final startDate = DateTime(tournamentStart.year, tournamentStart.month, tournamentStart.day);
+        final endDate = tournamentEnd != null 
+            ? DateTime(tournamentEnd.year, tournamentEnd.month, tournamentEnd.day)
+            : startDate;
+        
+        // Determine new status based on dates
+        if (today.isAfter(endDate)) {
+          newStatus = 'completed';
+        } else if (today.isAfter(startDate) || today.isAtSameMomentAs(startDate)) {
+          newStatus = 'ongoing';
+        } else {
+          newStatus = 'upcoming';
+        }
+        
+        // Update if status changed
+        if (newStatus != tournament.status) {
+          batch.update(doc.reference, {'status': newStatus});
+          hasUpdates = true;
+        }
+      }
+      
+      // Commit all updates
+      if (hasUpdates) {
+        await batch.commit();
+        
+        // Invalidate cache to reload updated tournaments
+        _invalidateCache();
+      }
+    } catch (e) {
+      print('Error updating tournament statuses: $e');
+    }
   }
 
   // Delete tournament
@@ -156,23 +226,104 @@ class TournamentService {
     return null;
   }
 
-  // Update referee nominations for a tournament (deprecated - use inviteRefereeToTournament)
+  // Sync pending invitations count for all referees
+  Future<void> syncAllRefereesPendingInvitationsCount() async {
+    try {
+      // First, initialize the pendingInvitations field for all referees
+      await _refereeService.initializePendingInvitationsFieldForAllReferees();
+
+      // Get all tournaments
+      final tournamentsSnapshot = await _firestore.collection(_collection).get();
+      final Map<String, List<String>> refereesPendingInvitations = {};
+
+      // Collect pending invitations for each referee
+      for (final doc in tournamentsSnapshot.docs) {
+        final tournament = Tournament.fromMap(doc.data(), doc.id);
+        
+        for (final invitation in tournament.refereeInvitations) {
+          if (invitation.isPending) {
+            refereesPendingInvitations[invitation.refereeId] = 
+                (refereesPendingInvitations[invitation.refereeId] ?? [])..add(tournament.id);
+          }
+        }
+      }
+
+      // Update all referees with their actual pending invitations
+      await _refereeService.updateMultipleRefereesPendingInvitations(refereesPendingInvitations);
+
+      print('Synced pending invitations for ${refereesPendingInvitations.length} referees');
+    } catch (e) {
+      print('Error syncing referees pending invitations: $e');
+    }
+  }
+
+  // Update tournament referee nominations (deprecated but kept for backward compatibility)
   Future<void> updateTournamentReferees(String tournamentId, List<String> refereeIds) async {
-    // Convert old refereeIds to invitations for backward compatibility
-    final invitations = refereeIds.map((refereeId) => 
-        RefereeInvitation(
-          refereeId: refereeId,
-          status: 'pending',
-          invitedAt: DateTime.now(),
-        ).toMap()
-    ).toList();
-    
-    await _firestore
-        .collection(_collection)
-        .doc(tournamentId)
-        .update({'refereeInvitations': invitations});
-    // Invalidate cache
-    _invalidateCache();
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return;
+
+      // Track changes in pending invitations
+      final Set<String> refereesWithRemovedPendingInvitations = {};
+      final Set<String> refereesWithAddedPendingInvitations = {};
+      
+      // Check for removed pending invitations
+      for (final oldInvitation in tournament.refereeInvitations) {
+        if (oldInvitation.isPending && !refereeIds.contains(oldInvitation.refereeId)) {
+          refereesWithRemovedPendingInvitations.add(oldInvitation.refereeId);
+        }
+      }
+
+      // Check for new pending invitations
+      for (final refereeId in refereeIds) {
+        final existingInvitation = tournament.refereeInvitations
+            .where((inv) => inv.refereeId == refereeId)
+            .firstOrNull;
+        
+        if (existingInvitation == null) {
+          // New invitation
+          refereesWithAddedPendingInvitations.add(refereeId);
+        }
+      }
+
+      // Convert refereeIds to invitations for backward compatibility
+      final invitations = refereeIds.map((refereeId) {
+        // Check if this referee already has an invitation
+        final existingInvitation = tournament.refereeInvitations
+            .where((inv) => inv.refereeId == refereeId)
+            .firstOrNull;
+
+        if (existingInvitation != null) {
+          // Keep existing invitation
+          return existingInvitation;
+        } else {
+          // Create new pending invitation
+          return RefereeInvitation(
+            refereeId: refereeId,
+            status: 'pending',
+            invitedAt: DateTime.now(),
+          );
+        }
+      }).toList();
+
+      await _firestore
+          .collection(_collection)
+          .doc(tournamentId)
+          .update({'refereeInvitations': invitations.map((inv) => inv.toMap()).toList()});
+
+      // Update pending invitations for affected referees
+      for (final refereeId in refereesWithRemovedPendingInvitations) {
+        await _refereeService.removePendingInvitation(refereeId, tournamentId);
+      }
+      
+      for (final refereeId in refereesWithAddedPendingInvitations) {
+        await _refereeService.addPendingInvitation(refereeId, tournamentId);
+      }
+
+      _invalidateCache();
+    } catch (e) {
+      print('Error updating tournament referees: $e');
+    }
   }
 
   // Invite a referee to a tournament
@@ -204,6 +355,9 @@ class TournamentService {
         'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
       });
 
+      // Add pending invitation to referee
+      await _refereeService.addPendingInvitation(refereeId, tournamentId);
+
       _invalidateCache();
       return true;
     } catch (e) {
@@ -229,6 +383,8 @@ class TournamentService {
 
       if (invitationIndex == -1) return false;
 
+      final oldInvitation = tournament.refereeInvitations[invitationIndex];
+
       // Update the invitation
       final updatedInvitations = List<RefereeInvitation>.from(tournament.refereeInvitations);
       updatedInvitations[invitationIndex] = tournament.refereeInvitations[invitationIndex].copyWith(
@@ -240,6 +396,15 @@ class TournamentService {
       await _firestore.collection(_collection).doc(tournamentId).update({
         'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
       });
+
+      // Update pending invitations for referee
+      if (oldInvitation.status == 'pending' && response != 'pending') {
+        // Was pending, now responded - remove from pending
+        await _refereeService.removePendingInvitation(refereeId, tournamentId);
+      } else if (oldInvitation.status != 'pending' && response == 'pending') {
+        // Was responded, now pending again - add to pending
+        await _refereeService.addPendingInvitation(refereeId, tournamentId);
+      }
 
       _invalidateCache();
       return true;

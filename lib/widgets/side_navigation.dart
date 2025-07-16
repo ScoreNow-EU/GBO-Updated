@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
+import '../services/tournament_service.dart';
 import '../models/team.dart';
+import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
+import '../models/referee.dart';
+import '../services/referee_service.dart';
 
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
@@ -25,9 +29,14 @@ class _SideNavigationState extends State<SideNavigation> {
   app_user.User? _currentAppUser;
   final TeamManagerService _teamManagerService = TeamManagerService();
   final AuthService _authService = AuthService();
+  final TournamentService _tournamentService = TournamentService();
+  final RefereeService _refereeService = RefereeService();
   List<Team> _managedTeams = [];
   bool _isTeamManager = false;
   bool _isLoadingTeams = false;
+  List<Tournament> _refereeTournaments = [];
+  bool _isLoadingTournaments = false;
+  Referee? _refereeProfile;
 
   @override
   void initState() {
@@ -55,20 +64,90 @@ class _SideNavigationState extends State<SideNavigation> {
         setState(() {
           _currentAppUser = appUser;
         });
+        await _loadRefereeProfile();
       } catch (e) {
         print('Error loading app user: $e');
         setState(() {
           _currentAppUser = null;
+          _refereeProfile = null;
         });
       }
     } else {
       setState(() {
         _currentAppUser = null;
+        _refereeProfile = null;
       });
     }
     
     // Load team manager data
     await _loadTeamManagerData();
+  }
+
+  Future<void> _loadRefereeProfile() async {
+    // Check if currentAppUser is available
+    if (_currentAppUser == null) {
+      print('⏳ Nav: currentAppUser is null, waiting...');
+      setState(() {
+        _refereeProfile = null;
+        _refereeTournaments = [];
+      });
+      return;
+    }
+
+    if (_currentAppUser!.role == app_user.UserRole.referee && _currentAppUser!.refereeId != null) {
+      try {
+        print('📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}');
+        _refereeProfile = await _refereeService.getRefereeById(_currentAppUser!.refereeId!);
+        if (_refereeProfile != null) {
+          print('✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}');
+          await _loadRefereeTournaments();
+        } else {
+          print('❌ Nav: Referee profile not found');
+          setState(() {
+            _refereeProfile = null;
+            _refereeTournaments = [];
+          });
+        }
+      } catch (e) {
+        print('❌ Nav: Error loading referee profile: $e');
+        setState(() {
+          _refereeProfile = null;
+          _refereeTournaments = [];
+        });
+      }
+    } else {
+      print('ℹ️ Nav: User is not a referee (role: ${_currentAppUser!.role}, refereeId: ${_currentAppUser!.refereeId})');
+      setState(() {
+        _refereeProfile = null;
+        _refereeTournaments = [];
+      });
+    }
+  }
+
+  Future<void> _loadRefereeTournaments() async {
+    if (_refereeProfile == null) return;
+
+    setState(() {
+      _isLoadingTournaments = true;
+    });
+
+    try {
+      print('🔄 Nav: Loading tournaments for referee: ${_refereeProfile!.fullName}');
+      final tournamentsStream = _tournamentService.getAcceptedTournamentsForReferee(_refereeProfile!.id);
+      final tournaments = await tournamentsStream.first;
+      
+      print('✅ Nav: Loaded ${tournaments.length} tournaments');
+      setState(() {
+        _refereeTournaments = tournaments;
+        _isLoadingTournaments = false;
+      });
+    } catch (e) {
+      print('❌ Nav: Error loading tournaments: $e');
+      setState(() {
+        _refereeTournaments = [];
+        _isLoadingTournaments = false;
+      });
+    }
   }
 
   Future<void> _loadTeamManagerData() async {
@@ -127,6 +206,8 @@ class _SideNavigationState extends State<SideNavigation> {
       });
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -209,9 +290,12 @@ class _SideNavigationState extends State<SideNavigation> {
                 if (_isTeamManager && _managedTeams.isNotEmpty)
                   const SizedBox(height: 16),
                 
-                // Referee Section - Only show if user is logged in and has referee role
-                if (_currentUser != null && _currentAppUser?.role == app_user.UserRole.referee)
+                // Referee Section - Only show if user is logged in and has referee role with loaded profile
+                if (_currentAppUser?.role == app_user.UserRole.referee && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   _buildRefereeSection(),
+                
+                if (_currentAppUser?.role == app_user.UserRole.referee && _currentAppUser?.refereeId != null && _refereeProfile != null)
+                  const SizedBox(height: 16),
                 
                 // Admin Section with continuous black background
                 _buildAdminSection(),
@@ -465,7 +549,7 @@ class _SideNavigationState extends State<SideNavigation> {
 
   Widget _buildRefereeSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.orange.shade600,
         borderRadius: BorderRadius.circular(12),
@@ -476,15 +560,15 @@ class _SideNavigationState extends State<SideNavigation> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+            child: const Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.sports_hockey,
                   color: Colors.white,
                   size: 16,
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'SCHIEDSRICHTER',
                   style: TextStyle(
                     color: Colors.white,
@@ -497,13 +581,76 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
           ),
           
-          // Referee Items
+          // Dashboard Item
           _buildRefereeItem(
             icon: Icons.dashboard,
             title: 'Dashboard',
             key: 'referee_dashboard',
             isSelected: widget.selectedSection == 'referee_dashboard',
           ),
+          
+          // Tournament Items
+          if (_isLoadingTournaments)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: const Row(
+                children: [
+                  Spacer(),
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  Spacer(),
+                ],
+              ),
+            )
+          else if (_refereeTournaments.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Keine Turniere',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: _refereeTournaments.map((tournament) => [
+                _buildRefereeTournamentItem(
+                  title: tournament.name,
+                  key: 'referee_tournament_${tournament.id}',
+                  isSelected: widget.selectedSection.startsWith('referee_tournament_${tournament.id}'),
+                  tournament: tournament,
+                ),
+                // Sub-items for tournament details
+                _buildRefereeSubItem(
+                  title: 'Übersicht',
+                  key: 'referee_tournament_${tournament.id}_overview',
+                  icon: Icons.info_outline,
+                  isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_overview' || widget.selectedSection == 'referee_tournament_${tournament.id}',
+                ),
+                _buildRefereeSubItem(
+                  title: 'Spielplan',
+                  key: 'referee_tournament_${tournament.id}_schedule',
+                  icon: Icons.schedule,
+                  isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_schedule',
+                ),
+              ]).expand((x) => x).toList(),
+            ),
         ],
       ),
     );
@@ -538,6 +685,96 @@ class _SideNavigationState extends State<SideNavigation> {
         ),
         onTap: () => widget.onSectionChanged(key),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  Widget _buildRefereeTournamentItem({
+    required String title,
+    required String key,
+    required bool isSelected,
+    required Tournament tournament,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.orange.shade700 : Colors.orange.shade600,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.sports_volleyball,
+            color: Colors.orange.shade600,
+            size: 14,
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tournament.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              tournament.location,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        onTap: () => widget.onSectionChanged('${key}_overview'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
+  Widget _buildRefereeSubItem({
+    required String title,
+    required String key,
+    required IconData icon,
+    required bool isSelected,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.orange.shade100 : Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.orange.shade200, width: 0.5),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.orange.shade800 : Colors.orange.shade600,
+          size: 14,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.orange.shade800 : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 13,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       ),
     );
   }

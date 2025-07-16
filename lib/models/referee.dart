@@ -8,6 +8,7 @@ class Referee {
   final String licenseType; // EHF Kader, DHB Elite Kader, DHB Stamm Kader, Perspektiv Kader, Basis Lizenz
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<String> invitationsPending; // Tournament IDs with pending invitations
 
   Referee({
     required this.id,
@@ -17,9 +18,16 @@ class Referee {
     required this.licenseType,
     required this.createdAt,
     required this.updatedAt,
+    this.invitationsPending = const [],
   });
 
   String get fullName => '$firstName $lastName';
+
+  // Get count of pending invitations
+  int get pendingInvitationsCount => invitationsPending.length;
+
+  // Check if has pending invitation for specific tournament
+  bool hasPendingInvitation(String tournamentId) => invitationsPending.contains(tournamentId);
 
   Map<String, dynamic> toJson() {
     return {
@@ -30,6 +38,7 @@ class Referee {
       'licenseType': licenseType,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'invitationsPending': invitationsPending,
     };
   }
 
@@ -42,6 +51,7 @@ class Referee {
       licenseType: json['licenseType'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      invitationsPending: List<String>.from(json['invitationsPending'] ?? []),
     );
   }
 
@@ -54,10 +64,24 @@ class Referee {
       'licenseType': licenseType,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'invitationsPending': invitationsPending,
     };
   }
 
   factory Referee.fromMap(Map<String, dynamic> map, String documentId) {
+    // Handle migration from int to List<String>
+    dynamic invitationsPendingData = map['invitationsPending'];
+    List<String> invitationsPending = [];
+    
+    if (invitationsPendingData != null) {
+      if (invitationsPendingData is int) {
+        // Old format - just ignore the count as we'll sync it properly
+        invitationsPending = [];
+      } else if (invitationsPendingData is List) {
+        invitationsPending = List<String>.from(invitationsPendingData);
+      }
+    }
+
     return Referee(
       id: documentId,
       firstName: map['firstName'] ?? '',
@@ -66,6 +90,7 @@ class Referee {
       licenseType: map['licenseType'] ?? 'Basis-Lizenz',
       createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
       updatedAt: map['updatedAt']?.toDate() ?? DateTime.now(),
+      invitationsPending: invitationsPending,
     );
   }
 
@@ -77,6 +102,7 @@ class Referee {
     String? licenseType,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<String>? invitationsPending,
   }) {
     return Referee(
       id: id ?? this.id,
@@ -86,12 +112,13 @@ class Referee {
       licenseType: licenseType ?? this.licenseType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      invitationsPending: invitationsPending ?? this.invitationsPending,
     );
   }
 
   @override
   String toString() {
-    return 'Referee{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType}';
+    return 'Referee{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType, invitationsPending: $invitationsPending}';
   }
 
   @override
@@ -103,13 +130,13 @@ class Referee {
   @override
   int get hashCode => id.hashCode;
 
-  // Static list of available license types
+  // Available license types
   static const List<String> licenseTypes = [
+    'EHF Kader',
+    'DHB Elite Kader', 
+    'DHB Stamm Kader',
+    'Perspektiv Kader',
     'Basis-Lizenz',
-    'Perspektivkader',
-    'DHB Stamm+Anschlusskader',
-    'DHB Elitekader',
-    'EBT Referee',
   ];
 }
 

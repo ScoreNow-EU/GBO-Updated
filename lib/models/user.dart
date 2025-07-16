@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'device.dart';
 
 enum UserRole {
   admin,
@@ -19,6 +20,7 @@ class User {
   final String? refereeId; // Link to referee document if role is referee
   final String? teamManagerId; // Link to team manager document if role is teamManager
   final String? delegateId; // Link to delegate document if role is delegate
+  final Map<String, Device> devices; // Device-specific settings
 
   User({
     required this.id,
@@ -32,6 +34,7 @@ class User {
     this.refereeId,
     this.teamManagerId,
     this.delegateId,
+    this.devices = const {},
   });
 
   String get fullName => '$firstName $lastName';
@@ -48,11 +51,21 @@ class User {
       'refereeId': refereeId,
       'teamManagerId': teamManagerId,
       'delegateId': delegateId,
+      'devices': devices.map((key, device) => MapEntry(key, device.toFirestore())),
     };
   }
 
   static User fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    // Parse devices map
+    Map<String, Device> devices = {};
+    if (data['devices'] != null) {
+      Map<String, dynamic> devicesData = data['devices'] as Map<String, dynamic>;
+      devices = devicesData.map((key, value) => 
+        MapEntry(key, Device.fromFirestore(value as Map<String, dynamic>))
+      );
+    }
     
     return User(
       id: doc.id,
@@ -73,6 +86,7 @@ class User {
       refereeId: data['refereeId'],
       teamManagerId: data['teamManagerId'],
       delegateId: data['delegateId'],
+      devices: devices,
     );
   }
 
@@ -86,6 +100,7 @@ class User {
     String? refereeId,
     String? teamManagerId,
     String? delegateId,
+    Map<String, Device>? devices,
   }) {
     return User(
       id: id,
@@ -99,6 +114,7 @@ class User {
       refereeId: refereeId ?? this.refereeId,
       teamManagerId: teamManagerId ?? this.teamManagerId,
       delegateId: delegateId ?? this.delegateId,
+      devices: devices ?? this.devices,
     );
   }
 } 

@@ -5017,14 +5017,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.sports_hockey, color: Colors.purple),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Schiedsrichter verwalten',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      Icon(Icons.sports_hockey, color: Colors.purple, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Schiedsrichter verwalten',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                     ],
@@ -5133,7 +5135,10 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      Text(referee.email),
+                      Text(
+                        referee.email,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -5154,11 +5159,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           ),
                           if (invitation != null && invitation.respondedAt != null) ...[
                             const SizedBox(width: 8),
-                            Text(
-                              'Antwort: ${invitation.respondedAt!.day}.${invitation.respondedAt!.month}.${invitation.respondedAt!.year}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
+                            Expanded(
+                              child: Text(
+                                'Antwort: ${invitation.respondedAt!.day}.${invitation.respondedAt!.month}.${invitation.respondedAt!.year}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -5370,14 +5378,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.person_pin, color: Colors.orange),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Delegierte verwalten',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      Icon(Icons.person_pin, color: Colors.orange, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Delegierte verwalten',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                     ],
@@ -5463,12 +5473,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     style: const TextStyle(
                       fontWeight: FontWeight.w500,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
-                      Text(delegate.email),
+                      Text(
+                        delegate.email,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -5537,14 +5551,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.group, color: Colors.indigo),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Schiedsrichter Gespanne verwalten',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      Icon(Icons.group, color: Colors.indigo, size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Schiedsrichter Gespanne verwalten',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                     ],
@@ -5598,7 +5614,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   const SizedBox(height: 16),
                   
                   // Statistics
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -5614,7 +5632,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
@@ -5622,14 +5639,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Zugewiesene Schiedsrichter: ${assignedRefereeIds.length}',
+                          'Zugewiesene: ${assignedRefereeIds.length}',
                           style: TextStyle(
                             color: Colors.green.shade700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
@@ -5637,7 +5653,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Verfügbare Schiedsrichter: ${unassignedReferees.length}',
+                          'Verfügbare: ${unassignedReferees.length}',
                           style: TextStyle(
                             color: Colors.orange.shade700,
                             fontWeight: FontWeight.w500,
@@ -6800,6 +6816,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 color: Colors.deepPurple.shade600,
                 fontSize: 12,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               '${referee2.firstName} ${referee2.lastName}',
@@ -6807,6 +6824,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 color: Colors.deepPurple.shade600,
                 fontSize: 12,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

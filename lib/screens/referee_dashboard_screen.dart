@@ -5,7 +5,9 @@ import '../models/referee.dart';
 import '../models/tournament.dart';
 import '../services/referee_service.dart';
 import '../services/tournament_service.dart';
-import '../widgets/referee_invitation_dialog.dart';
+import '../services/referee_invitation_monitoring_service.dart';
+import '../widgets/referee_invitation_bottom_overlay.dart';
+import '../widgets/notification_status_widget.dart';
 
 class RefereeDashboardScreen extends StatefulWidget {
   final app_user.User currentUser;
@@ -24,6 +26,8 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   final TournamentService _tournamentService = TournamentService();
   Referee? _refereeProfile;
   bool _isLoading = true;
+  List<Tournament> _pendingTournaments = [];
+  bool _showPendingCard = false;
 
   @override
   void initState() {
@@ -34,19 +38,37 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Check for pending invitations after the widget is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkForPendingInvitations();
-    });
+    // Pending invitations will be checked after referee profile is loaded
+    print('🏁 Referee dashboard loaded, waiting for profile to load...');
+  }
+
+  @override
+  void dispose() {
+    // Note: Monitoring is now handled globally in HomeScreen
+    super.dispose();
   }
 
   Future<void> _loadRefereeProfile() async {
     if (widget.currentUser.refereeId != null) {
       try {
+        print('📝 Loading referee profile for ID: ${widget.currentUser.refereeId}');
         _refereeProfile = await _refereeService.getRefereeById(widget.currentUser.refereeId!);
+        if (_refereeProfile != null) {
+          print('✅ Referee profile loaded: ${_refereeProfile!.fullName}');
+          print('   - Initial pending invitations array: ${_refereeProfile!.invitationsPending}');
+          print('   - Initial pending count: ${_refereeProfile!.pendingInvitationsCount}');
+          
+          // Note: Monitoring is now handled globally in HomeScreen
+          // Check for pending invitations after profile is loaded
+          _checkForPendingInvitations();
+        } else {
+          print('❌ Referee profile not found');
+        }
       } catch (e) {
-        print('Error loading referee profile: $e');
+        print('❌ Error loading referee profile: $e');
       }
+    } else {
+      print('❌ No referee ID found for user: ${widget.currentUser.fullName}');
     }
     setState(() {
       _isLoading = false;
@@ -54,31 +76,110 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   }
 
   Future<void> _checkForPendingInvitations() async {
-    if (_refereeProfile == null) return;
+    if (_refereeProfile == null) {
+      print('❌ Cannot check pending invitations - referee profile is null');
+      return;
+    }
+
+    print('🔍 Checking pending invitations for referee: ${_refereeProfile!.fullName} (ID: ${_refereeProfile!.id})');
 
     try {
-      // Get pending tournaments
+      // First, ensure the referee's pending invitations are synced
+      print('🔄 Syncing referee pending invitations...');
+      await _tournamentService.syncAllRefereesPendingInvitationsCount();
+      
+      // Reload referee profile to get updated pending invitations
+      print('🔄 Reloading referee profile...');
+      _refereeProfile = await _refereeService.getRefereeById(_refereeProfile!.id);
+      
+      // Get pending tournaments from tournament service
+      print('🔄 Getting pending tournaments...');
       final pendingStream = _tournamentService.getPendingInvitationsForReferee(_refereeProfile!.id);
       final pendingTournaments = await pendingStream.first;
 
-      if (pendingTournaments.isNotEmpty && mounted) {
-        // Show the invitation dialog
-        await showDialog(
+      print('📊 RESULTS:');
+      print('   - Referee: ${_refereeProfile!.fullName}');
+      print('   - Pending tournaments count: ${pendingTournaments.length}');
+      print('   - Referee pending array: ${_refereeProfile!.invitationsPending}');
+      
+      if (pendingTournaments.isNotEmpty) {
+        print('   - Tournament details:');
+        for (int i = 0; i < pendingTournaments.length; i++) {
+          final tournament = pendingTournaments[i];
+          print('     ${i + 1}. ${tournament.name} (ID: ${tournament.id})');
+        }
+      } else {
+        print('   ✅ No pending invitations found');
+      }
+
+      // Store pending tournaments for dashboard display
+      setState(() {
+        _pendingTournaments = pendingTournaments;
+      });
+      
+      if (pendingTournaments.isNotEmpty && mounted && !_showPendingCard) {
+        print('🔔 Showing bottom overlay for ${pendingTournaments.length} pending invitations');
+        // Show the bottom overlay only if card is not already shown
+        showGeneralDialog(
           context: context,
-          barrierDismissible: false, // User must respond
-          builder: (context) => RefereeInvitationDialog(
-            pendingTournaments: pendingTournaments,
-            refereeId: _refereeProfile!.id,
-            onCompleted: () {
-              // Refresh the dashboard data after responding to invitations
-              setState(() {});
-            },
-          ),
+          barrierDismissible: false,
+          barrierColor: Colors.transparent,
+          pageBuilder: (context, animation, secondaryAnimation) {
+            return RefereeInvitationBottomOverlay(
+              pendingTournaments: pendingTournaments,
+              refereeId: _refereeProfile!.id,
+              onCompleted: () {
+                print('✅ Referee responded to invitation, refreshing profile...');
+                // Refresh the dashboard data after responding to invitations
+                _loadRefereeProfile();
+              },
+              onPending: () {
+                print('⏳ Referee chose "Später entscheiden", showing card...');
+                // Show the card and close the bottom sheet
+                setState(() {
+                  _showPendingCard = true;
+                });
+              },
+            );
+          },
         );
+      } else if (pendingTournaments.isEmpty) {
+        print('✅ No pending invitations found');
+        setState(() {
+          _showPendingCard = false;
+        });
       }
     } catch (e) {
-      print('Error checking for pending invitations: $e');
+      print('❌ Error checking for pending invitations: $e');
     }
+  }
+
+  void _showPendingInvitationsDialog() {
+    if (_pendingTournaments.isEmpty) return;
+    
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return RefereeInvitationBottomOverlay(
+          pendingTournaments: _pendingTournaments,
+          refereeId: _refereeProfile!.id,
+          onCompleted: () {
+            print('✅ Referee responded to invitation, refreshing profile...');
+            // Refresh the dashboard data after responding to invitations
+            _loadRefereeProfile();
+          },
+          onPending: () {
+            print('⏳ Referee chose "Später entscheiden" from card, keeping card visible...');
+            // Keep the card visible since they clicked from the card
+            setState(() {
+              _showPendingCard = true;
+            });
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -136,6 +237,85 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
 
           const SizedBox(height: 32),
 
+          // Pending Invitations Card
+          if (_pendingTournaments.isNotEmpty && _showPendingCard) ...[
+            Card(
+              elevation: 3,
+              color: Colors.orange.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.notifications_active, 
+                             color: Colors.orange.shade700, 
+                             size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Offene Turnier-Einladungen',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade200,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_pendingTournaments.length}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Sie haben ${_pendingTournaments.length} offene Turnier-Einladungen, die auf Ihre Antwort warten.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _showPendingInvitationsDialog,
+                            icon: const Icon(Icons.visibility, size: 18),
+                            label: const Text('Einladungen anzeigen'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // Referee Profile Card
           Card(
             elevation: 2,
@@ -163,6 +343,8 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
                     _buildProfileRow('Name', _refereeProfile!.fullName),
                     _buildProfileRow('E-Mail', _refereeProfile!.email),
                     _buildProfileRow('Lizenz', _refereeProfile!.licenseType),
+                    _buildProfileRow('Offene Einladungen', 
+                        '${_refereeProfile!.pendingInvitationsCount} ${_refereeProfile!.pendingInvitationsCount == 1 ? 'Einladung' : 'Einladungen'}'),
                     _buildProfileRow('Registriert seit', 
                         '${_refereeProfile!.createdAt.day}.${_refereeProfile!.createdAt.month}.${_refereeProfile!.createdAt.year}'),
                   ] else ...[
@@ -191,6 +373,11 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
               ),
             ),
           ),
+
+          const SizedBox(height: 24),
+
+          // Notification Status (Debug Widget)
+          if (_refereeProfile != null) const NotificationStatusWidget(),
 
           const SizedBox(height: 24),
 
@@ -433,69 +620,99 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   Widget _buildTournamentAssignmentCard(Tournament tournament) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      child: Material(
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  tournament.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/tournament-detail',
+              arguments: {
+                'tournament': tournament,
+                'currentUser': widget.currentUser,
+              },
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tournament.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tournament.categoryDisplayNames,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.blue.shade600,
+                      size: 16,
+                    ),
+                  ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: Colors.grey.shade600, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        tournament.location,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(Icons.calendar_today, color: Colors.grey.shade600, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        tournament.dateString,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  tournament.categoryDisplayNames,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.location_on, color: Colors.grey.shade600, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                tournament.location,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Icon(Icons.calendar_today, color: Colors.grey.shade600, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                tournament.dateString,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -38,6 +38,26 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   void initState() {
     super.initState();
     _loadTournamentDivisions();
+    _updateTournamentStatuses();
+    _syncRefereeInvitations();
+  }
+
+  // Sync referee pending invitations count
+  Future<void> _syncRefereeInvitations() async {
+    try {
+      await _tournamentService.syncAllRefereesPendingInvitationsCount();
+    } catch (e) {
+      print('Error syncing referee invitations: $e');
+    }
+  }
+  
+  // Update tournament statuses based on current date
+  Future<void> _updateTournamentStatuses() async {
+    try {
+      await _tournamentService.updateTournamentStatuses();
+    } catch (e) {
+      // Silently handle errors - don't show error to user for background update
+    }
   }
 
   @override
@@ -52,7 +72,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         children: [
           // Header with responsive layout
           isMobile ? _buildMobileHeader() : _buildDesktopHeader(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
           // Tournament List
           Expanded(
@@ -104,15 +124,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Turniere verwalten',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 16),
         // Division Filter
         Container(
           constraints: const BoxConstraints(maxWidth: double.infinity),
@@ -139,14 +150,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   Widget _buildDesktopHeader() {
     return Row(
       children: [
-        const Text(
-          'Turniere verwalten',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
         const Spacer(),
         // Division Filter Dropdown
         Container(
@@ -399,17 +402,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         const SizedBox(height: 12),
         // Divisions
         if (divisions.isNotEmpty) ...[
-          Row(
-            children: [
-              Icon(Icons.groups, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 6),
-              Text(
-                'Divisionen:',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           _buildDivisionChips(divisions),
         ],
       ],
@@ -459,23 +451,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         Expanded(
           flex: 3,
           child: divisions.isNotEmpty
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.groups, size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Divisionen:',
-                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _buildDivisionChips(divisions),
-                  ],
-                )
+              ? _buildDivisionChips(divisions)
               : Container(),
         ),
       ],

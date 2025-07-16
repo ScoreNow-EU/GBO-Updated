@@ -4,8 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/responsive_helper.dart';
 import 'side_navigation.dart';
 import '../services/team_manager_service.dart';
+import '../services/tournament_service.dart';
 import '../models/team.dart';
+import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
+import '../models/referee.dart';
+import '../services/referee_service.dart';
 
 class ResponsiveLayout extends StatefulWidget {
   final String selectedSection;
@@ -34,9 +38,14 @@ class ResponsiveLayout extends StatefulWidget {
 class _ResponsiveLayoutState extends State<ResponsiveLayout> {
   User? _currentUser;
   final TeamManagerService _teamManagerService = TeamManagerService();
+  final TournamentService _tournamentService = TournamentService();
+  final RefereeService _refereeService = RefereeService();
   List<Team> _managedTeams = [];
   bool _isTeamManager = false;
   bool _isLoadingTeams = false;
+  List<Tournament> _refereeTournaments = [];
+  bool _isLoadingTournaments = false;
+  Referee? _refereeProfile;
 
   @override
   void initState() {
@@ -50,10 +59,96 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
           _currentUser = user;
         });
         _loadTeamManagerData();
+        _loadRefereeProfile();
       }
     });
     
     _loadTeamManagerData();
+    _loadRefereeProfile();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadTeamManagerData();
+    _loadRefereeProfile();
+  }
+
+  @override
+  void didUpdateWidget(ResponsiveLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if currentUser changed
+    if (oldWidget.currentUser != widget.currentUser) {
+      print('🔄 Responsive: currentUser changed, reloading referee profile');
+      _loadRefereeProfile();
+    }
+  }
+
+  Future<void> _loadRefereeProfile() async {
+    // Only try to load if currentUser is available
+    if (widget.currentUser == null) {
+      print('⏳ Responsive: currentUser is null, waiting...');
+      setState(() {
+        _refereeProfile = null;
+        _refereeTournaments = [];
+      });
+      return;
+    }
+
+    if (widget.currentUser!.role == app_user.UserRole.referee && widget.currentUser!.refereeId != null) {
+      try {
+        print('📝 Responsive: Loading referee profile for ID: ${widget.currentUser!.refereeId}');
+        _refereeProfile = await _refereeService.getRefereeById(widget.currentUser!.refereeId!);
+        if (_refereeProfile != null) {
+          print('✅ Responsive: Referee profile loaded: ${_refereeProfile!.fullName}');
+          await _loadRefereeTournaments();
+        } else {
+          print('❌ Responsive: Referee profile not found');
+          setState(() {
+            _refereeProfile = null;
+            _refereeTournaments = [];
+          });
+        }
+      } catch (e) {
+        print('❌ Responsive: Error loading referee profile: $e');
+        setState(() {
+          _refereeProfile = null;
+          _refereeTournaments = [];
+        });
+      }
+    } else {
+      print('ℹ️ Responsive: User is not a referee (role: ${widget.currentUser!.role}, refereeId: ${widget.currentUser!.refereeId})');
+      setState(() {
+        _refereeProfile = null;
+        _refereeTournaments = [];
+      });
+    }
+  }
+
+  Future<void> _loadRefereeTournaments() async {
+    if (_refereeProfile == null) return;
+
+    setState(() {
+      _isLoadingTournaments = true;
+    });
+
+    try {
+      print('🔄 Responsive: Loading tournaments for referee: ${_refereeProfile!.fullName}');
+      final tournamentsStream = _tournamentService.getAcceptedTournamentsForReferee(_refereeProfile!.id);
+      final tournaments = await tournamentsStream.first;
+      
+      print('✅ Responsive: Loaded ${tournaments.length} tournaments');
+      setState(() {
+        _refereeTournaments = tournaments;
+        _isLoadingTournaments = false;
+      });
+    } catch (e) {
+      print('❌ Responsive: Error loading tournaments: $e');
+      setState(() {
+        _refereeTournaments = [];
+        _isLoadingTournaments = false;
+      });
+    }
   }
 
   Future<void> _loadTeamManagerData() async {
@@ -120,6 +215,8 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
       });
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -369,8 +466,8 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                     ]).expand((x) => x)),
                   ],
                   
-                  // Referee Section (only show for referees)
-                  if (widget.currentUser?.role == app_user.UserRole.referee) ...[
+                  // Referee Section (only show for referees with loaded profile)
+                  if (widget.currentUser?.role == app_user.UserRole.referee && widget.currentUser?.refereeId != null && _refereeProfile != null) ...[
                     const Divider(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -402,6 +499,70 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                       screenWidth: screenWidth,
                       isReferee: true,
                     ),
+                    // Tournament Items
+                    if (_isLoadingTournaments)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Spacer(),
+                            SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade600),
+                              ),
+                            ),
+                            const Spacer(),
+                          ],
+                        ),
+                      )
+                    else if (_refereeTournaments.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.grey.shade600, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Keine Turniere',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        children: _refereeTournaments.map((tournament) => [
+                          _buildDrawerRefereeTournamentItem(
+                            tournament: tournament,
+                            key: 'referee_tournament_${tournament.id}',
+                            isSelected: widget.selectedSection.startsWith('referee_tournament_${tournament.id}'),
+                            screenWidth: screenWidth,
+                          ),
+                          // Sub-items for tournament details
+                          _buildDrawerRefereeSubItem(
+                            title: 'Übersicht',
+                            key: 'referee_tournament_${tournament.id}_overview',
+                            icon: Icons.info_outline,
+                            isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_overview' || widget.selectedSection == 'referee_tournament_${tournament.id}',
+                            screenWidth: screenWidth,
+                          ),
+                          _buildDrawerRefereeSubItem(
+                            title: 'Spielplan',
+                            key: 'referee_tournament_${tournament.id}_schedule',
+                            icon: Icons.schedule,
+                            isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_schedule',
+                            screenWidth: screenWidth,
+                          ),
+                        ]).expand((x) => x).toList(),
+                      ),
                   ],
                   
                   const Divider(height: 32),
@@ -802,6 +963,103 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerRefereeTournamentItem({
+    required Tournament tournament,
+    required String key,
+    required bool isSelected,
+    required double screenWidth,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.orange.shade700 : Colors.orange.shade600,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.sports_volleyball,
+            color: Colors.orange.shade600,
+            size: 12,
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tournament.name,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13 * ResponsiveHelper.getFontScale(screenWidth),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              tournament.location,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 11 * ResponsiveHelper.getFontScale(screenWidth),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        onTap: () {
+          widget.onSectionChanged('${key}_overview');
+          Navigator.of(context).pop();
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
+  Widget _buildDrawerRefereeSubItem({
+    required String title,
+    required String key,
+    required IconData icon,
+    required bool isSelected,
+    required double screenWidth,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.orange.shade100 : Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.orange.shade200, width: 0.5),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.orange.shade800 : Colors.orange.shade600,
+          size: 14,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.orange.shade800 : Colors.black87,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 13 * ResponsiveHelper.getFontScale(screenWidth),
+          ),
+        ),
+        onTap: () {
+          widget.onSectionChanged(key);
+          Navigator.of(context).pop();
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
       ),
     );
   }

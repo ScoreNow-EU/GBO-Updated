@@ -235,8 +235,146 @@ class RefereeService {
     }
   }
 
-  // Dispose method (kept for compatibility but not needed for Firebase)
+  // Clear cache and close stream
   void dispose() {
     // Firebase streams dispose automatically
+  }
+
+  // Update referee pending invitations array
+  Future<void> updatePendingInvitations(String refereeId, List<String> tournamentIds) async {
+    try {
+      await _firestore
+          .collection(_collection)
+          .doc(refereeId)
+          .set({
+        'invitationsPending': tournamentIds,
+        'updatedAt': DateTime.now(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error updating pending invitations: $e');
+    }
+  }
+
+  // Add pending invitation for a tournament
+  Future<void> addPendingInvitation(String refereeId, String tournamentId) async {
+    try {
+      final referee = await getRefereeById(refereeId);
+      if (referee != null && !referee.hasPendingInvitation(tournamentId)) {
+        final updatedPending = [...referee.invitationsPending, tournamentId];
+        await updatePendingInvitations(refereeId, updatedPending);
+      }
+    } catch (e) {
+      print('Error adding pending invitation: $e');
+    }
+  }
+
+  // Remove pending invitation for a tournament
+  Future<void> removePendingInvitation(String refereeId, String tournamentId) async {
+    try {
+      final referee = await getRefereeById(refereeId);
+      if (referee != null && referee.hasPendingInvitation(tournamentId)) {
+        final updatedPending = referee.invitationsPending.where((id) => id != tournamentId).toList();
+        await updatePendingInvitations(refereeId, updatedPending);
+      }
+    } catch (e) {
+      print('Error removing pending invitation: $e');
+    }
+  }
+
+  // Get pending invitations count for a referee
+  Future<int> getPendingInvitationsCount(String refereeId) async {
+    try {
+      final referee = await getRefereeById(refereeId);
+      return referee?.pendingInvitationsCount ?? 0;
+    } catch (e) {
+      print('Error getting pending invitations count: $e');
+      return 0;
+    }
+  }
+
+  // Get pending tournament IDs for a referee
+  Future<List<String>> getPendingInvitations(String refereeId) async {
+    try {
+      final referee = await getRefereeById(refereeId);
+      return referee?.invitationsPending ?? [];
+    } catch (e) {
+      print('Error getting pending invitations: $e');
+      return [];
+    }
+  }
+
+  // Update multiple referees' pending invitations (batch operation)
+  Future<void> updateMultipleRefereesPendingInvitations(Map<String, List<String>> refereeInvitationsMap) async {
+    try {
+      final batch = _firestore.batch();
+      final now = DateTime.now();
+      
+      for (final entry in refereeInvitationsMap.entries) {
+        final refereeId = entry.key;
+        final tournamentIds = entry.value;
+        
+        final docRef = _firestore.collection(_collection).doc(refereeId);
+        batch.set(docRef, {
+          'invitationsPending': tournamentIds,
+          'updatedAt': now,
+        }, SetOptions(merge: true));
+      }
+      
+      await batch.commit();
+    } catch (e) {
+      print('Error updating multiple referees pending invitations: $e');
+    }
+  }
+
+  // Update all referees to have invitationsPending field set to empty array if missing
+  Future<void> initializePendingInvitationsFieldForAllReferees() async {
+    try {
+      final batch = _firestore.batch();
+      final now = DateTime.now();
+      
+      // Get all referees
+      final snapshot = await _firestore.collection(_collection).get();
+      
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        // Initialize if missing or if it's the old int format
+        if (!data.containsKey('invitationsPending') || data['invitationsPending'] is int) {
+          batch.set(doc.reference, {
+            'invitationsPending': <String>[],
+            'updatedAt': now,
+          }, SetOptions(merge: true));
+        }
+      }
+      
+      await batch.commit();
+      print('Initialized invitationsPending field for all referees');
+    } catch (e) {
+      print('Error initializing pending invitations field: $e');
+    }
+  }
+
+  // Legacy methods for backward compatibility (deprecated)
+  @Deprecated('Use addPendingInvitation instead')
+  Future<void> incrementPendingInvitations(String refereeId) async {
+    // This method is deprecated and does nothing
+    print('Warning: incrementPendingInvitations is deprecated');
+  }
+
+  @Deprecated('Use removePendingInvitation instead')
+  Future<void> decrementPendingInvitations(String refereeId) async {
+    // This method is deprecated and does nothing
+    print('Warning: decrementPendingInvitations is deprecated');
+  }
+
+  @Deprecated('Use updatePendingInvitations instead')
+  Future<void> updatePendingInvitationsCount(String refereeId, int count) async {
+    // This method is deprecated and does nothing
+    print('Warning: updatePendingInvitationsCount is deprecated');
+  }
+
+  @Deprecated('Use updateMultipleRefereesPendingInvitations instead')
+  Future<void> updateMultipleRefereesPendingCount(Map<String, int> refereeCountMap) async {
+    // This method is deprecated and does nothing
+    print('Warning: updateMultipleRefereesPendingCount is deprecated');
   }
 } 

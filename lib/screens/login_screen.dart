@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
 import '../utils/responsive_helper.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
+import '../services/face_id_service.dart';
 import '../models/user.dart' as app_user;
+import '../widgets/login_face_id_overlay.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _lastNameController = TextEditingController();
   final TeamManagerService _teamManagerService = TeamManagerService();
   final AuthService _authService = AuthService();
+  final FaceIdService _faceIdService = FaceIdService();
   
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -252,20 +256,97 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildLoginForm(bool isMobile) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          // First Name Field (only for registration)
-          if (!_isLoginMode) ...[
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // First Name Field (only for registration)
+            if (!_isLoginMode) ...[
+              TextFormField(
+                controller: _firstNameController,
+                keyboardType: TextInputType.name,
+                autofillHints: const [AutofillHints.givenName],
+                decoration: InputDecoration(
+                  labelText: 'Vorname',
+                  hintText: 'Max',
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: Colors.black54,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black87, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bitte geben Sie Ihren Vornamen ein';
+                  }
+                  if (value.trim().length < 2) {
+                    return 'Der Vorname muss mindestens 2 Zeichen lang sein';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              
+              // Last Name Field (only for registration)
+              TextFormField(
+                controller: _lastNameController,
+                keyboardType: TextInputType.name,
+                autofillHints: const [AutofillHints.familyName],
+                decoration: InputDecoration(
+                  labelText: 'Nachname',
+                  hintText: 'Mustermann',
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: Colors.black54,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black87, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bitte geben Sie Ihren Nachnamen ein';
+                  }
+                  if (value.trim().length < 2) {
+                    return 'Der Nachname muss mindestens 2 Zeichen lang sein';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+            
+            // Email Field
             TextFormField(
-              controller: _firstNameController,
-              keyboardType: TextInputType.name,
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              enableSuggestions: false,
+              autofillHints: const [AutofillHints.email],
               decoration: InputDecoration(
-                labelText: 'Vorname',
-                hintText: 'Max',
+                labelText: 'E-Mail-Adresse',
+                hintText: 'max.mustermann@example.com',
                 prefixIcon: Icon(
-                  Icons.person_outline,
+                  Icons.email_outlined,
                   color: Colors.black54,
                 ),
                 border: OutlineInputBorder(
@@ -282,26 +363,42 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Bitte geben Sie Ihren Vornamen ein';
+                  return 'Bitte geben Sie Ihre E-Mail-Adresse ein';
                 }
-                if (value.trim().length < 2) {
-                  return 'Der Vorname muss mindestens 2 Zeichen lang sein';
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
+                  return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 20),
             
-            // Last Name Field (only for registration)
+            // Password Field
             TextFormField(
-              controller: _lastNameController,
-              keyboardType: TextInputType.name,
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              enableSuggestions: false,
+              autocorrect: false,
+              autofillHints: _isLoginMode 
+                ? const [AutofillHints.password]
+                : const [AutofillHints.newPassword],
               decoration: InputDecoration(
-                labelText: 'Nachname',
-                hintText: 'Mustermann',
+                labelText: 'Passwort',
+                hintText: _isLoginMode ? 'Ihr Passwort eingeben' : 'Mindestens 6 Zeichen',
                 prefixIcon: Icon(
-                  Icons.person_outline,
+                  Icons.lock_outline,
                   color: Colors.black54,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey.shade600,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -317,97 +414,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Bitte geben Sie Ihren Nachnamen ein';
+                  return 'Bitte geben Sie Ihr Passwort ein';
                 }
-                if (value.trim().length < 2) {
-                  return 'Der Nachname muss mindestens 2 Zeichen lang sein';
+                if (value.length < 6) {
+                  return 'Das Passwort muss mindestens 6 Zeichen lang sein';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 20),
           ],
-          
-          // Email Field
-          TextFormField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'E-Mail-Adresse',
-              hintText: 'max.mustermann@example.com',
-              prefixIcon: Icon(
-                Icons.email_outlined,
-                color: Colors.black54,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black87, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Bitte geben Sie Ihre E-Mail-Adresse ein';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
-                return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
-          
-          // Password Field
-          TextFormField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'Passwort',
-              hintText: _isLoginMode ? 'Ihr Passwort eingeben' : 'Mindestens 6 Zeichen',
-              prefixIcon: Icon(
-                Icons.lock_outline,
-                color: Colors.black54,
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey.shade600,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black87, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Bitte geben Sie Ihr Passwort ein';
-              }
-              if (value.length < 6) {
-                return 'Das Passwort muss mindestens 6 Zeichen lang sein';
-              }
-              return null;
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -417,7 +433,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : (_isLoginMode ? _handleLogin : _handleRegister),
+        onPressed: _isLoading ? null : (_isLoginMode ? _handleLoginWithOverlay : _handleRegister),
         style: ElevatedButton.styleFrom(
           backgroundColor: Color(0xFFffd665),
           foregroundColor: Colors.black,
@@ -553,6 +569,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -581,12 +598,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           successMessage += ' Willkommen als Schiedsrichter!';
         }
         
-        _showSuccessToast(successMessage);
+        // Trigger iOS password save prompt
+        TextInput.finishAutofillContext(shouldSave: true);
         
-        // Navigate to home screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
+        if (mounted) {
+          _showSuccessToast(successMessage);
+          
+          // Small delay to allow iOS save prompt to appear before navigation
+          await Future.delayed(const Duration(milliseconds: 100));
+          
+          if (mounted) {
+            // Navigate to home screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -606,13 +633,118 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         default:
           errorMessage = 'Registrierung fehlgeschlagen: ${e.message}';
       }
-      _showErrorToast(errorMessage);
+      if (mounted) {
+        _showErrorToast(errorMessage);
+      }
     } catch (e) {
-      _showErrorToast('Ein unerwarteter Fehler ist aufgetreten');
+      if (mounted) {
+        _showErrorToast('Ein unerwarteter Fehler ist aufgetreten');
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLoginWithOverlay() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Check if device supports Face ID
+    final isDeviceSupported = await _faceIdService.isDeviceSupported();
+    
+    if (isDeviceSupported) {
+      // Check if Face ID is already enabled for this email
+      final isFaceIdEnabled = await _faceIdService.isFaceIdEnabledForEmail(_emailController.text.trim());
+      
+      if (isFaceIdEnabled) {
+        // Face ID is already set up, authenticate directly
+        setState(() {
+          _isLoading = true;
+        });
+        
+        try {
+          final authenticated = await _faceIdService.authenticateForLogin();
+          
+          if (authenticated) {
+            // Face ID successful, proceed with login
+            final user = await _authService.signInWithEmailAndPassword(
+              _emailController.text.trim(),
+              _passwordController.text.trim(),
+            );
+
+            if (user != null) {
+              // Trigger iOS password save prompt
+              TextInput.finishAutofillContext(shouldSave: true);
+              
+              if (mounted) {
+                _showSuccessToast('Erfolgreich mit Face ID angemeldet');
+                
+                // Navigate to home screen
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              }
+            }
+          } else {
+            // Face ID failed, fall back to manual login
+            if (mounted) {
+              _showErrorToast('Face ID-Authentifizierung fehlgeschlagen');
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            _showErrorToast('Fehler bei der Face ID-Authentifizierung');
+          }
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        // Face ID not set up yet, show overlay to allow setup
+        await showLoginFaceIdOverlay(
+          context,
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          onLoginComplete: (success, message) {
+            if (mounted) {
+              Navigator.of(context).pop(); // Close the overlay
+              
+              if (success) {
+                // Trigger iOS password save prompt
+                TextInput.finishAutofillContext(shouldSave: true);
+                
+                if (message != null) {
+                  _showSuccessToast(message);
+                }
+                
+                // Navigate to home screen
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              } else {
+                if (message != null) {
+                  _showErrorToast(message);
+                }
+              }
+            }
+          },
+          onManualLogin: () {
+            Navigator.of(context).pop(); // Close the overlay
+            _handleLogin(); // Proceed with manual login
+          },
+        );
+      }
+    } else {
+      // Device doesn't support Face ID, proceed with manual login
+      await _handleLogin();
     }
   }
 
@@ -621,6 +753,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       return;
     }
 
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
@@ -632,12 +765,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (user != null) {
-        _showSuccessToast('Erfolgreich angemeldet');
+        // Trigger iOS password save prompt
+        TextInput.finishAutofillContext(shouldSave: true);
         
-        // Navigate to home screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
+        if (mounted) {
+          _showSuccessToast('Erfolgreich angemeldet');
+          
+          // Small delay to allow iOS save prompt to appear before navigation
+          await Future.delayed(const Duration(milliseconds: 100));
+          
+          if (mounted) {
+            // Navigate to home screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -660,13 +803,19 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         default:
           errorMessage = 'Anmeldung fehlgeschlagen: ${e.message}';
       }
-      _showErrorToast(errorMessage);
+      if (mounted) {
+        _showErrorToast(errorMessage);
+      }
     } catch (e) {
-      _showErrorToast('Ein unerwarteter Fehler ist aufgetreten');
+      if (mounted) {
+        _showErrorToast('Ein unerwarteter Fehler ist aufgetreten');
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

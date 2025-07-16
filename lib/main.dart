@@ -4,6 +4,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'services/preloader_service.dart';
+import 'services/referee_invitation_monitoring_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,13 @@ void main() async {
     preloader.preloadEssentialData(); // Don't await - let it load in background
   } catch (e) {
     print('Preloader error: $e - continuing without preloading');
+  }
+  
+  // Initialize internal monitoring service for referee invitations
+  try {
+    await RefereeInvitationMonitoringService.initialize();
+  } catch (e) {
+    print('Monitoring service initialization error: $e');
   }
   
   runApp(const GBOApp());
