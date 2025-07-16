@@ -1,6 +1,12 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
 
+// Workaround for Swift version parsing issue
+SWIFT_VERSION = 5.0
+SWIFT_EXEC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc
+TOOLCHAIN_DIR = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain
+DEVELOPER_DIR = /Applications/Xcode.app/Contents/Developer
+
 // Build optimization settings for faster debug builds
 SWIFT_COMPILATION_MODE = singlefile
 DEBUG_INFORMATION_FORMAT = dwarf
