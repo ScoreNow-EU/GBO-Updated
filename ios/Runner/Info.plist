@@ -51,5 +51,7 @@
 	<array>
 		<string>_dartVmService._tcp</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Diese App verwendet Face ID für die sichere Anmeldung mit gespeicherten Passwörtern.</string>
 </dict>
 </plist>
