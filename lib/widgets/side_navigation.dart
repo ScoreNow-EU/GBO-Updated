@@ -542,6 +542,12 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'player_management',
             isSelected: widget.selectedSection == 'player_management',
           ),
+          _buildAdminItem(
+            icon: Icons.notifications_active,
+            title: 'Benachrichtigungen senden',
+            key: 'custom_notifications',
+            isSelected: widget.selectedSection == 'custom_notifications',
+          ),
         ],
       ),
     );

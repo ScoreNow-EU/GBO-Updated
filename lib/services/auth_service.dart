@@ -296,5 +296,22 @@ class AuthService {
     return null;
   }
 
+  // Get all users
+  Future<List<app_user.User>> getAllUsers() async {
+    try {
+      final query = await _firestore
+          .collection(_usersCollection)
+          .orderBy('firstName')
+          .get();
+      
+      return query.docs
+          .map((doc) => app_user.User.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('Error getting all users: $e');
+      return [];
+    }
+  }
+
 
 } 

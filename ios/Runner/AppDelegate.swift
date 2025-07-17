@@ -78,6 +78,17 @@ class RefereeInvitationMonitor: NSObject {
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Tournament data required", details: nil))
             }
             
+        case "sendCustomNotification":
+            if let args = call.arguments as? [String: Any],
+               let title = args["title"] as? String,
+               let message = args["message"] as? String,
+               let userEmail = args["userEmail"] as? String {
+                showCustomNotification(title: title, message: message, userEmail: userEmail)
+                result(nil)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENT", message: "Title, message and userEmail required", details: nil))
+            }
+            
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -252,10 +263,44 @@ class RefereeInvitationMonitor: NSObject {
             if let error = error {
                 print("📱 iOS: Failed to show notification: \(error)")
             } else {
-                print("📱 iOS: Notification successfully scheduled for \(tournaments.count) tournaments")
-            }
-        }
+                        print("📱 iOS: Notification successfully scheduled for \(tournaments.count) tournaments")
+      }
     }
+  }
+  
+  private func showCustomNotification(title: String, message: String, userEmail: String) {
+    print("📱 iOS: showCustomNotification called for user: \(userEmail)")
+    print("📱 iOS: Title: \(title), Message: \(message)")
+    
+    let content = UNMutableNotificationContent()
+    content.title = title
+    content.body = message
+    content.sound = .default
+    content.badge = 1
+    content.categoryIdentifier = "custom_notification"
+    
+    // Add custom data to userInfo
+    content.userInfo = [
+      "type": "custom_notification",
+      "userEmail": userEmail,
+      "title": title,
+      "message": message
+    ]
+    
+    let request = UNNotificationRequest(
+      identifier: "custom_notification_\(Date().timeIntervalSince1970)",
+      content: content,
+      trigger: nil
+    )
+    
+    UNUserNotificationCenter.current().add(request) { error in
+      if let error = error {
+        print("📱 iOS: Failed to show custom notification: \(error)")
+      } else {
+        print("📱 iOS: Custom notification successfully scheduled")
+      }
+    }
+  }
 }
 
 // MARK: - UNUserNotificationCenterDelegate

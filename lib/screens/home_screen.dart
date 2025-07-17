@@ -19,6 +19,7 @@ import '../screens/team_manager_management_screen.dart';
 import '../screens/player_management_screen.dart';
 import '../screens/preset_management_screen.dart';
 import '../screens/team_detail_screen.dart';
+import '../screens/custom_notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -133,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'team_manager_management',
       'player_management',
       'preset_management',
+      'custom_notifications',
     ];
     
     return adminSections.contains(section);
@@ -270,6 +272,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Team Manager Verwaltung';
       case 'player_management':
         return 'Kader Verwaltung';
+      case 'custom_notifications':
+        return 'Benachrichtigungen senden';
       case 'referee_dashboard':
         return 'Schiedsrichter Dashboard';
       default:
@@ -318,6 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const TeamManagerManagementScreen();
       case 'player_management':
         return const PlayerManagementScreen();
+      case 'custom_notifications':
+        return const CustomNotificationScreen();
       case 'referee_dashboard':
         return _currentUser != null 
             ? RefereeDashboardScreen(currentUser: _currentUser!)
