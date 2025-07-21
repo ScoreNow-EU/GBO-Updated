@@ -1,13 +1,16 @@
 {
-    "name": "gbo_updated",
-    "short_name": "gbo_updated",
+    "name": "German Beach Open",
+    "short_name": "GBO",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#ffd665",
+    "theme_color": "#ffd665",
+    "description": "German Beach Open",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["sports", "productivity"],
+    "lang": "de-DE",
+    "scope": "/",
     "icons": [
         {
             "src": "icons/Icon-192.png",
