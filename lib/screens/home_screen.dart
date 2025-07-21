@@ -20,6 +20,8 @@ import '../screens/player_management_screen.dart';
 import '../screens/preset_management_screen.dart';
 import '../screens/team_detail_screen.dart';
 import '../screens/custom_notification_screen.dart';
+import '../screens/user_role_management_screen.dart';
+import '../screens/referee_games_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,13 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentUser = user;
           // Set default section based on user role
-          if (user.role == app_user.UserRole.referee) {
+          if (user.roles.contains(app_user.UserRole.referee)) {
             selectedSection = 'referee_dashboard';
           }
         });
         
         // Start monitoring if user is a referee
-        if (user.role == app_user.UserRole.referee && user.refereeId != null) {
+        if (user.roles.contains(app_user.UserRole.referee) && user.refereeId != null) {
           try {
             print('🟢 Referee logged in, starting monitoring');
             final referee = await _refereeService.getRefereeById(user.refereeId!);
@@ -95,13 +97,13 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentUser = user;
         // Set default section based on user role
-        if (user?.role == app_user.UserRole.referee) {
+        if (user?.roles.contains(app_user.UserRole.referee) == true) {
           selectedSection = 'referee_dashboard';
         }
       });
       
       // Start monitoring if user is a referee and app is starting up
-      if (user?.role == app_user.UserRole.referee && user?.refereeId != null) {
+      if (user?.roles.contains(app_user.UserRole.referee) == true && user?.refereeId != null) {
         try {
           print('🟢 App startup: Referee found, starting monitoring');
           final referee = await _refereeService.getRefereeById(user!.refereeId!);
@@ -135,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'player_management',
       'preset_management',
       'custom_notifications',
+      'user_role_management',
     ];
     
     return adminSections.contains(section);
@@ -173,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onSectionChanged: (section) async {
         // Prevent unauthorized access to referee dashboard
         if (section == 'referee_dashboard') {
-          if (_currentUser == null || _currentUser!.role != app_user.UserRole.referee) {
+          if (_currentUser == null || !_currentUser!.roles.contains(app_user.UserRole.referee)) {
             // Redirect to login or home if not authorized
             section = _currentUser == null ? 'login' : 'turniere';
           }
@@ -186,6 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
             // User not logged in, redirect to login
             setState(() {
               selectedSection = 'login';
+            });
+            return;
+          }
+          
+          // Check if user has admin role
+          if (!_currentUser!.roles.contains(app_user.UserRole.admin)) {
+            // User doesn't have admin role, redirect to home
+            setState(() {
+              selectedSection = 'turniere';
             });
             return;
           }
@@ -247,10 +259,27 @@ class _HomeScreenState extends State<HomeScreen> {
       title: _getScreenTitle(),
       body: _buildMainContent(),
       currentUser: _currentUser,
+      onUserUpdated: () {
+        // Refresh current user after auto-linking
+        print('🔄 User updated, refreshing current user...');
+        _loadCurrentUser();
+      },
     );
   }
 
   String _getScreenTitle() {
+    // Handle referee tournament sections
+    if (selectedSection.startsWith('referee_tournament_')) {
+      final parts = selectedSection.split('_');
+      if (parts.length >= 3) {
+        final tournamentId = parts[2];
+        final subSection = parts.length > 3 ? parts[3] : 'overview';
+        if (subSection == 'games') {
+          return 'Spielplan';
+        }
+      }
+    }
+
     switch (selectedSection) {
       case 'login':
         return 'Login';
@@ -276,6 +305,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Benachrichtigungen senden';
       case 'referee_dashboard':
         return 'Schiedsrichter Dashboard';
+      case 'referee_games':
+        return 'Meine Spiele';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -293,6 +324,20 @@ class _HomeScreenState extends State<HomeScreen> {
         final teamId = parts[1];
         final subSection = parts.length > 2 ? parts[2] : 'overview';
         return TeamDetailContent(teamId: teamId, subSection: subSection);
+      }
+    }
+
+    // Handle referee tournament sections
+    if (selectedSection.startsWith('referee_tournament_')) {
+      final parts = selectedSection.split('_');
+      if (parts.length >= 3) {
+        final tournamentId = parts[2];
+        final subSection = parts.length > 3 ? parts[3] : 'overview';
+        if (subSection == 'games') {
+          return _currentUser?.refereeId != null
+              ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!, tournamentId: tournamentId)
+              : const Center(child: Text('Bitte melden Sie sich an.'));
+        }
       }
     }
     
@@ -324,9 +369,15 @@ class _HomeScreenState extends State<HomeScreen> {
         return const PlayerManagementScreen();
       case 'custom_notifications':
         return const CustomNotificationScreen();
+      case 'user_role_management':
+        return const UserRoleManagementScreen();
       case 'referee_dashboard':
         return _currentUser != null 
             ? RefereeDashboardScreen(currentUser: _currentUser!)
+            : const Center(child: Text('Bitte melden Sie sich an.'));
+      case 'referee_games':
+        return _currentUser?.refereeId != null
+            ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!)
             : const Center(child: Text('Bitte melden Sie sich an.'));
       default:
         return const TournamentOverview();

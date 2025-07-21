@@ -24,6 +24,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
   String? _selectedUserEmail;
   bool _isLoading = false;
   bool _isSending = false;
+  bool _isTimeSensitive = false;
+  bool _isRequestingPermission = false;
   List<app_user.User> _users = [];
   Map<String, List<String>> _userTeamNames = {};
   
@@ -51,7 +53,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
       
       // Get team names for team managers
       for (final user in users) {
-        if (user.role == app_user.UserRole.teamManager && user.teamManagerId != null) {
+        if (user.roles.contains(app_user.UserRole.teamManager) && user.teamManagerId != null) {
           try {
             final teamManager = await _teamManagerService.getTeamManagerByUserId(user.id);
             if (teamManager != null) {
@@ -107,10 +109,65 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     });
     
     try {
+      // Check time-sensitive permissions if needed
+      if (_isTimeSensitive) {
+        setState(() {
+          _isRequestingPermission = true;
+        });
+        
+        if (mounted) {
+          toastification.show(
+            context: context,
+            type: ToastificationType.info,
+            style: ToastificationStyle.fillColored,
+            title: const Text('Berechtigung erforderlich'),
+            description: const Text('Prüfe Berechtigung für zeitkritische Benachrichtigungen...'),
+            autoCloseDuration: const Duration(seconds: 2),
+          );
+        }
+        
+        print('📱 Requesting time-sensitive notification permission...');
+        final hasPermission = await _notificationService.requestTimeSensitivePermission();
+        
+        setState(() {
+          _isRequestingPermission = false;
+        });
+        
+        if (!hasPermission) {
+          if (mounted) {
+            toastification.show(
+              context: context,
+              type: ToastificationType.error,
+              style: ToastificationStyle.fillColored,
+              title: const Text('Berechtigung verweigert'),
+              description: const Text('Zeitkritische Benachrichtigungen sind nicht verfügbar. Bitte prüfen Sie die Einstellungen.'),
+              autoCloseDuration: const Duration(seconds: 5),
+            );
+          }
+          setState(() {
+            _isSending = false;
+          });
+          return;
+        }
+        
+        if (mounted) {
+          toastification.show(
+            context: context,
+            type: ToastificationType.success,
+            style: ToastificationStyle.fillColored,
+            title: const Text('Berechtigung erteilt'),
+            description: const Text('Zeitkritische Benachrichtigungen sind jetzt verfügbar.'),
+            autoCloseDuration: const Duration(seconds: 2),
+          );
+        }
+      }
+      
+      // Send the notification
       final success = await _notificationService.sendCustomNotification(
         title: _titleController.text.trim(),
         message: _messageController.text.trim(),
         userEmail: _selectedUserEmail!,
+        isTimeSensitive: _isTimeSensitive,
       );
       
       if (success) {
@@ -119,17 +176,18 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
             context: context,
             type: ToastificationType.success,
             style: ToastificationStyle.fillColored,
-            title: const Text('Erfolgreich'),
-            description: const Text('Benachrichtigung wurde gesendet!'),
+            title: const Text('Benachrichtigung gesendet'),
+            description: Text('Benachrichtigung wurde erfolgreich an $_selectedUserEmail gesendet.'),
             autoCloseDuration: const Duration(seconds: 3),
           );
         }
         
-        // Clear form
+        // Clear the form
         _titleController.clear();
         _messageController.clear();
         setState(() {
           _selectedUserEmail = null;
+          _isTimeSensitive = false;
         });
       } else {
         if (mounted) {
@@ -144,20 +202,24 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         }
       }
     } catch (e) {
+      print('❌ Error sending notification: $e');
       if (mounted) {
         toastification.show(
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Fehler beim Senden der Benachrichtigung: $e'),
+          description: Text('Unerwarteter Fehler: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
     } finally {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+          _isRequestingPermission = false;
+        });
+      }
     }
   }
   
@@ -360,78 +422,53 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                               value: _selectedUserEmail,
                               decoration: const InputDecoration(
                                 labelText: 'Empfänger',
-                                hintText: 'Empfänger auswählen',
-                                prefixIcon: Icon(Icons.person),
+                                hintText: 'Wählen',
                                 border: OutlineInputBorder(),
+                                isDense: false,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 30),
                               ),
-                                                             items: _users.map((user) {
-                                 return DropdownMenuItem<String>(
-                                   value: user.email,
-                                   child: Container(
-                                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                                     child: Column(
-                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                       mainAxisSize: MainAxisSize.min,
-                                       children: [
-                                         Row(
-                                           mainAxisSize: MainAxisSize.min,
-                                           children: [
-                                             Container(
-                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                               decoration: BoxDecoration(
-                                                 color: _getRoleColor(user.role),
-                                                 borderRadius: BorderRadius.circular(8),
-                                               ),
-                                               child: Text(
-                                                 _getRoleText(user.role),
-                                                 style: TextStyle(
-                                                   fontSize: 8,
-                                                   color: _getRoleTextColor(user.role),
-                                                   fontWeight: FontWeight.w600,
-                                                 ),
-                                               ),
-                                             ),
-                                             const SizedBox(width: 8),
-                                             Text(
-                                               user.fullName,
-                                               style: const TextStyle(
-                                                 fontWeight: FontWeight.w600,
-                                                 fontSize: 14,
-                                               ),
-                                               overflow: TextOverflow.ellipsis,
-                                             ),
-                                           ],
-                                         ),
-                                         const SizedBox(height: 2),
-                                         Text(
-                                           user.email,
-                                           style: TextStyle(
-                                             fontSize: 12,
-                                             color: Colors.grey[600],
-                                           ),
-                                           overflow: TextOverflow.ellipsis,
-                                         ),
-                                         // Show team names for team managers
-                                         if (user.role == app_user.UserRole.teamManager && 
-                                             _userTeamNames[user.email] != null &&
-                                             _userTeamNames[user.email]!.isNotEmpty) ...[
-                                           const SizedBox(height: 2),
-                                           Text(
-                                             'Teams: ${_userTeamNames[user.email]!.join(', ')}',
-                                             style: TextStyle(
-                                               fontSize: 11,
-                                               color: Colors.blue[600],
-                                               fontWeight: FontWeight.w500,
-                                             ),
-                                             overflow: TextOverflow.ellipsis,
-                                             maxLines: 1,
-                                           ),
-                                         ],
-                                       ],
-                                     ),
-                                   ),
-                                 );
-                               }).toList(),
+                              menuMaxHeight: 400,
+                              isExpanded: true,
+                              items: _users.map((user) {
+                                return DropdownMenuItem<String>(
+                                  value: user.email,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: _getRoleColor(user.roles.first).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(3),
+                                          ),
+                                          child: Text(
+                                            _getRoleDisplayName(user.roles.first),
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: _getRoleColor(user.roles.first),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '${user.firstName} ${user.lastName} (${user.email})',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                               onChanged: (value) {
                                 setState(() {
                                   _selectedUserEmail = value;
@@ -445,6 +482,45 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                               },
                             ),
                             
+                            const SizedBox(height: 16),
+                            
+                            // Critical Notification Checkbox
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _isTimeSensitive,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _isTimeSensitive = value ?? false;
+                                    });
+                                  },
+                                  activeColor: Colors.orange,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Zeitkritische Benachrichtigung',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Durchbricht "Nicht stören" und wird als zeitkritisch markiert',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
                             const SizedBox(height: 32),
                             
                             // Send Button
@@ -452,8 +528,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                               width: double.infinity,
                               height: 50,
                               child: ElevatedButton.icon(
-                                onPressed: _isSending ? null : _sendNotification,
-                                icon: _isSending 
+                                onPressed: (_isSending || _isRequestingPermission) ? null : _sendNotification,
+                                icon: (_isSending || _isRequestingPermission)
                                     ? const SizedBox(
                                         width: 20,
                                         height: 20,
@@ -463,7 +539,13 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                                         ),
                                       )
                                     : const Icon(Icons.send),
-                                label: Text(_isSending ? 'Wird gesendet...' : 'Benachrichtigung senden'),
+                                label: Text(
+                                  _isRequestingPermission 
+                                    ? 'Berechtigung wird angefragt...' 
+                                    : _isSending 
+                                      ? 'Wird gesendet...' 
+                                      : 'Benachrichtigung senden'
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.orange.shade600,
                                   foregroundColor: Colors.white,
@@ -513,6 +595,9 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                             '• Nur Benutzer, die in der App angemeldet sind, erhalten Benachrichtigungen\n'
                             '• Der Titel darf maximal 50 Zeichen haben\n'
                             '• Die Nachricht darf maximal 200 Zeichen haben\n'
+                            '• Zeitkritische Benachrichtigungen können "Nicht stören" durchbrechen\n'
+                            '• Beim ersten Versuch wird nach Berechtigung für zeitkritische Benachrichtigungen gefragt\n'
+                            '• Berechtigungen können in iOS-Einstellungen → Benachrichtigungen → App geändert werden\n'
                             '• Benachrichtigungen werden sofort versendet',
                             style: TextStyle(
                               fontSize: 14,
@@ -559,7 +644,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     }
   }
   
-  String _getRoleText(app_user.UserRole role) {
+  String _getRoleDisplayName(app_user.UserRole role) {
     switch (role) {
       case app_user.UserRole.admin:
         return 'ADMIN';

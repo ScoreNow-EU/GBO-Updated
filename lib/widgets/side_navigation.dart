@@ -13,11 +13,13 @@ import '../services/referee_service.dart';
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
   final Function(String) onSectionChanged;
+  final VoidCallback? onUserUpdated;
 
   const SideNavigation({
     super.key,
     required this.selectedSection,
     required this.onSectionChanged,
+    this.onUserUpdated,
   });
 
   @override
@@ -94,29 +96,72 @@ class _SideNavigationState extends State<SideNavigation> {
       return;
     }
 
-    if (_currentAppUser!.role == app_user.UserRole.referee && _currentAppUser!.refereeId != null) {
-      try {
-        print('📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}');
-        _refereeProfile = await _refereeService.getRefereeById(_currentAppUser!.refereeId!);
-        if (_refereeProfile != null) {
-          print('✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}');
-          await _loadRefereeTournaments();
-        } else {
-          print('❌ Nav: Referee profile not found');
+    if (_currentAppUser!.roles.contains(app_user.UserRole.referee)) {
+      if (_currentAppUser!.refereeId != null) {
+        try {
+          print('📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}');
+          _refereeProfile = await _refereeService.getRefereeById(_currentAppUser!.refereeId!);
+          if (_refereeProfile != null) {
+            print('✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}');
+            await _loadRefereeTournaments();
+          } else {
+            print('❌ Nav: Referee profile not found');
+            setState(() {
+              _refereeProfile = null;
+              _refereeTournaments = [];
+            });
+          }
+        } catch (e) {
+          print('❌ Nav: Error loading referee profile: $e');
           setState(() {
             _refereeProfile = null;
             _refereeTournaments = [];
           });
         }
-      } catch (e) {
-        print('❌ Nav: Error loading referee profile: $e');
-        setState(() {
-          _refereeProfile = null;
-          _refereeTournaments = [];
-        });
+      } else {
+        // User has referee role but no refereeId - try to find and link it
+        print('🔍 Nav: User has referee role but no refereeId, searching for matching referee...');
+        try {
+          final referees = await _refereeService.getAllReferees();
+          final matchingReferee = referees.firstWhere(
+            (referee) => referee.email.toLowerCase() == _currentAppUser!.email.toLowerCase(),
+            orElse: () => throw Exception('No referee found with email: ${_currentAppUser!.email}'),
+          );
+          
+          print('✅ Nav: Found matching referee: ${matchingReferee.fullName} (ID: ${matchingReferee.id})');
+          
+          // Update user record with the referee ID
+          final authService = AuthService();
+          final success = await authService.addRoleToUser(
+            _currentAppUser!.id,
+            app_user.UserRole.referee,
+            refereeId: matchingReferee.id,
+          );
+          
+          if (success) {
+            // Load the referee profile
+            _refereeProfile = matchingReferee;
+            await _loadRefereeTournaments();
+            print('✅ Nav: Auto-linked referee ID and loaded profile');
+            
+            // Notify parent to refresh current user
+            if (widget.onUserUpdated != null) {
+              widget.onUserUpdated!();
+            }
+          } else {
+            print('❌ Nav: Failed to update user record');
+          }
+          
+        } catch (e) {
+          print('❌ Nav: Failed to auto-link referee ID: $e');
+          setState(() {
+            _refereeProfile = null;
+            _refereeTournaments = [];
+          });
+        }
       }
     } else {
-      print('ℹ️ Nav: User is not a referee (role: ${_currentAppUser!.role}, refereeId: ${_currentAppUser!.refereeId})');
+      print('ℹ️ Nav: User does not have referee role (roles: ${_currentAppUser!.roles})');
       setState(() {
         _refereeProfile = null;
         _refereeTournaments = [];
@@ -291,14 +336,15 @@ class _SideNavigationState extends State<SideNavigation> {
                   const SizedBox(height: 16),
                 
                 // Referee Section - Only show if user is logged in and has referee role with loaded profile
-                if (_currentAppUser?.role == app_user.UserRole.referee && _currentAppUser?.refereeId != null && _refereeProfile != null)
+                if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   _buildRefereeSection(),
                 
-                if (_currentAppUser?.role == app_user.UserRole.referee && _currentAppUser?.refereeId != null && _refereeProfile != null)
+                if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   const SizedBox(height: 16),
                 
-                // Admin Section with continuous black background
-                _buildAdminSection(),
+                // Admin Section - Only show if user has admin role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true)
+                  _buildAdminSection(),
               ],
             ),
           ),
@@ -548,6 +594,12 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'custom_notifications',
             isSelected: widget.selectedSection == 'custom_notifications',
           ),
+          _buildAdminItem(
+            icon: Icons.manage_accounts,
+            title: 'Benutzer-Rollen-Verwaltung',
+            key: 'user_role_management',
+            isSelected: widget.selectedSection == 'user_role_management',
+          ),
         ],
       ),
     );
@@ -593,6 +645,14 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Dashboard',
             key: 'referee_dashboard',
             isSelected: widget.selectedSection == 'referee_dashboard',
+          ),
+
+          // Games Item
+          _buildRefereeItem(
+            icon: Icons.sports_hockey,
+            title: 'Meine Spiele',
+            key: 'referee_games',
+            isSelected: widget.selectedSection == 'referee_games',
           ),
           
           // Tournament Items
@@ -651,9 +711,9 @@ class _SideNavigationState extends State<SideNavigation> {
                 ),
                 _buildRefereeSubItem(
                   title: 'Spielplan',
-                  key: 'referee_tournament_${tournament.id}_schedule',
-                  icon: Icons.schedule,
-                  isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_schedule',
+                  key: 'referee_tournament_${tournament.id}_games',
+                  icon: Icons.sports_hockey,
+                  isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_games',
                 ),
               ]).expand((x) => x).toList(),
             ),

@@ -29,7 +29,7 @@ import '../utils/bracket_templates.dart';
 import '../utils/bracket_id_helper.dart';
 import '../utils/responsive_helper.dart';
 import '../widgets/responsive_layout.dart';
-import 'division_pools_screen.dart';
+import 'new_division_pools_screen.dart';
 
 // Add this class at the top of the file after imports
 class GamePosition {
@@ -150,20 +150,15 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     'Men\'s FUN',
   ];
 
-  // Add state variables for pool management
+  // Pool management variables
   String? _selectedDivisionForPools;
-  Map<String, List<String>> _divisionPools = {}; // division -> list of pool names
-  Map<String, List<String>> _poolTeams = {}; // poolId -> list of team IDs
-  Map<String, List<String>> _placeholderTeams = {}; // poolId -> list of placeholder team IDs from presets
-  Map<String, bool> _poolIsFunBracket = {}; // poolId -> is fun bracket (doesn't count for ranking)
-  Map<String, List<BracketRound>> _divisionBrackets = {}; // division -> knockout rounds
-  int _poolCounter = 1;
+  Map<String, List<String>> _divisionPools = {};
+  Map<String, List<String>> _poolTeams = {};
+  Map<String, bool> _poolIsFunBracket = {};
+  Map<String, List<BracketRound>> _divisionBrackets = {};
 
-  // Add state variables for custom bracket management
+  // Pool management state has been moved to DivisionPoolsScreen
   Map<String, List<CustomBracketNode>> _divisionCustomBrackets = {}; // division -> custom bracket nodes
-
-  // Bracket view mode toggle (for migration from old to new system)
-  bool _showOldBrackets = false;
 
   // Court management
   List<Court> _allCourts = [];
@@ -326,29 +321,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       // Set map location if we have coordinates - removed automatic coordinate lookup
       // The map will stay centered on Germany for now
       
-      // Load existing bracket data
-      for (String division in tournament.divisionBrackets.keys) {
-        final bracket = tournament.divisionBrackets[division]!;
-        
-        // Load pools
-        final divisionPoolNames = <String>[];
-        for (String poolId in bracket.pools.keys) {
-          // Extract pool name from poolId (format: "division_poolName")
-          final poolName = poolId.substring(division.length + 1);
-          divisionPoolNames.add(poolName);
-          
-          // Load pool teams with explicit type casting
-          _poolTeams[poolId] = List<String>.from(bracket.pools[poolId] ?? []);
-          
-          // Load fun bracket status
-          _poolIsFunBracket[poolId] = bracket.poolIsFunBracket[poolId] ?? false;
-        }
-        _divisionPools[division] = divisionPoolNames;
-        
-        // Load knockout rounds
-        _divisionBrackets[division] = List<BracketRound>.from(bracket.knockoutRounds);
-      }
-      
       // Load custom brackets if they exist
       for (String division in tournament.customBrackets.keys) {
         final customBracket = tournament.customBrackets[division]!;
@@ -369,10 +341,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _selectedCategories = ['GBO Juniors Cup'];
       _selectedTeamIds = []; // Start with no teams selected
       _locationController.text = ''; // Start with empty location
-      _divisionPools = {}; // Start with no pools
-      _poolTeams = {}; // Start with no pool teams
-      _poolIsFunBracket = {}; // Start with no fun brackets
-      _divisionBrackets = {}; // Start with no knockout rounds
       _criteria = TournamentCriteria(); // Initialize with default criteria
       _selectedCourtIds = []; // Start with no courts selected
       _useCategorySpecificDates = false;
@@ -610,7 +578,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     color: Colors.grey[100],
                     child: Column(
                       children: [
-                        _buildHeader(),
                         Expanded(
                           child: _buildTabContent(),
                         ),
@@ -626,125 +593,159 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
+  Widget _buildTournamentNavigationDrawer(double screenWidth) {
+    return Drawer(
+      child: Container(
+        color: const Color(0xFF4A5568),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              height: 160,
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF4A5568),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.edit, color: Colors.white, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            // Navigation Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _buildDrawerNavItem('basic', 'Grunddaten', Icons.info_outline, screenWidth),
+                  _buildDrawerNavItem('teams', 'Team Auswahl', Icons.group, screenWidth),
+                  _buildDrawerNavItem('divisions', 'Divisionen', Icons.category, screenWidth),
+                  _buildDrawerNavItem('pools', 'Pools', Icons.workspaces, screenWidth),
+                  _buildDrawerNavItem('criteria', 'Turnier Kriterien', Icons.rule, screenWidth),
+                  _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
+                  _buildDrawerNavItem('courts', 'Plätze', Icons.place, screenWidth),
+                  _buildDrawerNavItem('referees', 'Schiedsrichter', Icons.sports_hockey, screenWidth),
+                  _buildDrawerNavItem('delegates', 'Delegierte', Icons.person_outline, screenWidth),
+                  _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
+                ],
+              ),
+            ),
+            // Save and Back Buttons
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveTournament,
+                      icon: _isSaving 
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(widget.tournament == null ? 'Erstellen' : 'Speichern'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                      label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTournamentNavigation() {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF4A5568),
         border: Border(
           right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
       ),
       child: Column(
         children: [
-          // Logo Section
+          // Header
           Container(
+            height: 160,
+            width: double.infinity,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-              ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF4A5568),
             ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'logo.png',
-                  height: 80,
-                  width: 120,
-                ),
+                const Icon(Icons.edit, color: Colors.white, size: 32),
                 const SizedBox(height: 8),
-                const Text(
-                  'German Beach Open',
+                Text(
+                  widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Colors.white70,
+                    fontSize: 12 * ResponsiveHelper.getFontScale(MediaQuery.of(context).size.width),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          
-          // Navigation Items Section with dark background like admin section
+          // Navigation Items
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A5568),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  // Tournament Editor Header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Icon(Icons.edit, color: Colors.white, size: 24),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (widget.tournament != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            _nameController.text.isNotEmpty 
-                                ? _nameController.text
-                                : widget.tournament!.name,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  // Navigation Items
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      children: [
-                        _buildNavItem('basic', 'Grunddaten', Icons.info_outline),
-                        _buildNavItem('teams', 'Teams (${_selectedTeamIds.length})', Icons.group),
-                        _buildNavItem('divisions', 'Divisionen', Icons.category),
-                        if (_selectedCategories.contains('GBO Seniors Cup'))
-                          _buildNavItem('criteria', 'Kriterien', Icons.assignment_turned_in),
-                        _buildNavItem('games', 'Spiele', Icons.sports_volleyball),
-                        _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
-                        _buildNavItem('courts', 'Plätze', Icons.location_on),
-                        _buildNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey),
-                        _buildNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin),
-                        _buildNavItem('settings', 'Einstellungen', Icons.settings),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _buildNavItem('basic', 'Grunddaten', Icons.info_outline),
+                _buildNavItem('teams', 'Team Auswahl', Icons.group),
+                _buildNavItem('divisions', 'Divisionen', Icons.category),
+                _buildNavItem('pools', 'Pools', Icons.workspaces),
+                _buildNavItem('criteria', 'Turnier Kriterien', Icons.rule),
+                _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
+                _buildNavItem('courts', 'Plätze', Icons.place),
+                _buildNavItem('referees', 'Schiedsrichter', Icons.sports_hockey),
+                _buildNavItem('delegates', 'Delegierte', Icons.person_outline),
+                _buildNavItem('settings', 'Einstellungen', Icons.settings),
+              ],
             ),
           ),
-          
-          // Footer with action buttons
+          // Save and Back Buttons
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Colors.grey.shade300, width: 1),
-              ),
-            ),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 SizedBox(
@@ -771,10 +772,10 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   width: double.infinity,
                   child: TextButton.icon(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Zurück'),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white70),
+                    label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600],
+                      foregroundColor: Colors.white70,
                     ),
                   ),
                 ),
@@ -784,6 +785,62 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         ],
       ),
     );
+  }
+
+  String _getTabTitle() {
+    switch (_selectedTab) {
+      case 'basic':
+        return 'Grunddaten';
+      case 'teams':
+        return 'Team Auswahl';
+      case 'divisions':
+        return 'Divisionen';
+      case 'pools':
+        return '';
+      case 'criteria':
+        return 'Turnier Kriterien';
+      case 'scheduling':
+        return 'Spielplanung';
+      case 'courts':
+        return 'Plätze';
+      case 'referees':
+        return 'Schiedsrichter';
+      case 'delegates':
+        return 'Delegierte';
+      case 'settings':
+        return 'Einstellungen';
+      default:
+        return 'Grunddaten';
+    }
+  }
+
+  Widget _buildTabContent() {
+    switch (_selectedTab) {
+      case 'basic':
+        return _buildBasicDataTab();
+      case 'teams':
+        return _buildTeamsTab();
+      case 'divisions':
+        return _buildDivisionsTab();
+      case 'pools':
+        return NewDivisionPoolsScreen(tournament: widget.tournament!);
+      case 'criteria':
+        return _buildCriteriaTab();
+      case 'games':
+        return _buildGamesTab();
+      case 'scheduling':
+        return _buildSchedulingTab();
+      case 'courts':
+        return _buildCourtsTab();
+      case 'referees':
+        return _buildRefereesTab();
+      case 'delegates':
+        return _buildDelegatesTab();
+      case 'settings':
+        return _buildSettingsTab();
+      default:
+        return _buildBasicDataTab();
+    }
   }
 
   Widget _buildNavItem(String tabId, String title, IconData icon) {
@@ -823,122 +880,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           }
         },
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      ),
-    );
-  }
-
-  Widget _buildTournamentNavigationDrawer(double screenWidth) {
-    return Drawer(
-      child: Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              height: 160,
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF4A5568),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.edit, color: Colors.white, size: 32),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (widget.tournament != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _nameController.text.isNotEmpty 
-                          ? _nameController.text
-                          : widget.tournament!.name,
-                      style: TextStyle(
-                        fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            // Navigation Menu
-            Expanded(
-              child: Container(
-                color: const Color(0xFF4A5568),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: [
-                    _buildDrawerNavItem('basic', 'Grunddaten', Icons.info_outline, screenWidth),
-                    _buildDrawerNavItem('teams', 'Teams (${_selectedTeamIds.length})', Icons.group, screenWidth),
-                    _buildDrawerNavItem('divisions', 'Divisionen', Icons.category, screenWidth),
-                    if (_selectedCategories.contains('GBO Seniors Cup'))
-                      _buildDrawerNavItem('criteria', 'Kriterien', Icons.assignment_turned_in, screenWidth),
-                    _buildDrawerNavItem('games', 'Spiele', Icons.sports_volleyball, screenWidth),
-                    _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
-                    _buildDrawerNavItem('courts', 'Plätze', Icons.location_on, screenWidth),
-                    _buildDrawerNavItem('referees', 'Schiedsrichter (${_selectedRefereeIds.length})', Icons.sports_hockey, screenWidth),
-                    _buildDrawerNavItem('delegates', 'Delegierte (${_selectedDelegateIds.length})', Icons.person_pin, screenWidth),
-                    _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
-                  ],
-                ),
-              ),
-            ),
-            // Footer with action buttons
-            Container(
-              padding: const EdgeInsets.all(20),
-              color: const Color(0xFF4A5568),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isSaving ? null : _saveTournament,
-                      icon: _isSaving 
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.save),
-                      label: Text(widget.tournament == null ? 'Erstellen' : 'Speichern'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                      label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1043,80 +984,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              _getTabTitle(),
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (_selectedTab == 'teams')
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${_selectedTeamIds.length} Teams ausgewählt',
-                style: const TextStyle(
-                  color: Colors.blue,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _getTabTitle() {
-    switch (_selectedTab) {
-      case 'basic':
-        return 'Grunddaten';
-      case 'teams':
-        return 'Team Auswahl';
-      case 'divisions':
-        return 'Divisionen';
-      case 'criteria':
-        return 'Turnier Kriterien';
-      case 'scheduling':
-        return 'Spielplanung';
-      case 'courts':
-        return 'Plätze';
-      case 'referees':
-        return 'Schiedsrichter';
-      case 'delegates':
-        return 'Delegierte';
-      case 'settings':
-        return 'Einstellungen';
-      default:
-        return 'Grunddaten';
-    }
-  }
-
+ 
   Widget _buildTabNavigation() {
     // Remove this method as navigation is now in the sidebar
     return const SizedBox.shrink();
   }
 
-  Widget _buildTabContent() {
+  Widget _buildMainContent() {
     switch (_selectedTab) {
       case 'basic':
         return _buildBasicDataTab();
@@ -1124,6 +998,19 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildTeamsTab();
       case 'divisions':
         return _buildDivisionsTab();
+      case 'pools':
+        if (widget.tournament == null) {
+          return Center(
+            child: Text(
+              'Bitte speichern Sie das Turnier zuerst, um Pools zu verwalten.',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          );
+        }
+        return Container(
+          color: Colors.white,
+          child: NewDivisionPoolsScreen(tournament: widget.tournament!),
+        );
       case 'criteria':
         return _buildCriteriaTab();
       case 'games':
@@ -2472,18 +2359,19 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => DivisionPoolsScreen(
+                            builder: (context) => NewDivisionPoolsScreen(
                               tournament: widget.tournament ?? Tournament(
                                 id: '',
                                 name: _nameController.text,
                                 categories: _selectedCategories,
                                 location: _locationController.text,
                                 startDate: _startDate ?? DateTime.now(),
-                                endDate: _endDate,
+                                endDate: _endDate ?? DateTime.now(),
                                 points: int.tryParse(_pointsController.text) ?? 0,
                                 status: _status,
+                                divisions: _selectedDivisions,
+                                teamIds: _selectedTeamIds,
                               ),
-                              selectedTeamIds: _selectedTeamIds,
                             ),
                           ),
                         );
@@ -2793,239 +2681,52 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
-  Widget _buildPoolManagementView() {
-    // Get teams for selected division
-    List<Team> divisionTeams = [];
-    Set<String> teamsInPools = {};
+  // Pool management has been moved to NewDivisionPoolsScreen
+
+  bool _isTeamCompatibleWithDivision(Team team, String tournamentDivision) {
+    // Teams are compatible if:
+    // 1. Their division exactly matches the tournament division
+    // 2. Women's Fun can access Women's Senior teams
+    // 3. Men's Fun can access Men's Senior teams
+    if (team.division == tournamentDivision) {
+      return true;
+    }
     
-    for (String teamId in _selectedTeamIds) {
-      Team? team = _allTeams.firstWhere((t) => t.id == teamId, orElse: () => Team(
-        id: '', name: '', city: '', bundesland: '', division: '', createdAt: DateTime.now()
-      ));
-      
-      if (team.id.isNotEmpty && _isTeamCompatibleWithDivision(team, _selectedDivisionForPools!)) {
-        divisionTeams.add(team);
+    // Allow Fun tournaments to access Senior teams
+    if (tournamentDivision.contains('FUN') && team.division.contains('Seniors')) {
+      // Check if they're the same gender
+      if ((tournamentDivision.contains('Women') && team.division.contains('Women')) ||
+          (tournamentDivision.contains('Men') && team.division.contains('Men'))) {
+        return true;
       }
     }
-
-    // Get teams that are already in pools (including corresponding A/B tournaments)
-    for (String poolId in _poolTeams.keys) {
-      if (_isPoolIdRelatedToDivision(poolId, _selectedDivisionForPools!)) {
-        teamsInPools.addAll(_poolTeams[poolId] ?? []);
-      }
-    }
-
-    // Available teams (not in any pool)
-    List<Team> availableTeams = divisionTeams.where((team) => !teamsInPools.contains(team.id)).toList();
-
-    return Column(
-      children: [
-        // Header with back button
-        Container(
-          padding: const EdgeInsets.all(24),
-          color: Colors.white,
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.arrow_back, color: Colors.blue),
-                onPressed: () {
-                  setState(() {
-                    _selectedDivisionForPools = null;
-                  });
-                },
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _getDivisionColor(_selectedDivisionForPools!).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.group,
-                  color: _getDivisionColor(_selectedDivisionForPools!),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _selectedDivisionForPools!,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Pool Management - ${divisionTeams.length} Teams',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                  ],
-                            ),
-                          ),
-                          const Spacer(),
-              // Toggle button for bracket view mode
-                          Container(
-                            decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                        child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                          children: [
-                    _buildToggleButton(
-                      'New Bracket', 
-                      !_showOldBrackets, 
-                      () => setState(() => _showOldBrackets = false),
-                    ),
-                    _buildToggleButton(
-                      'Migration View', 
-                      _showOldBrackets, 
-                      () => setState(() => _showOldBrackets = true),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-        
-        // Main content area - USE FULL HEIGHT
-                  Expanded(
-          child: _showOldBrackets 
-              ? _buildOldPoolView(divisionTeams, availableTeams)
-              : _buildCustomBracketView(availableTeams, divisionTeams),
-        ),
-      ],
-    );
+    
+    return false;
   }
 
-  Widget _buildCustomBracketView(List<Team> teams, List<Team> divisionTeams) {
-    final customNodes = _divisionCustomBrackets[_selectedDivisionForPools] ?? [];
+  Map<String, List<Team>> _expandDivisionsWithFunTournaments(Map<String, List<Team>> originalDivisions) {
+    Map<String, List<Team>> expandedDivisions = Map.from(originalDivisions);
     
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: CustomBracketBuilder(
-        initialNodes: customNodes,
-        divisionName: _selectedDivisionForPools!,
-        availableTeams: teams,
-        poolTeams: _poolTeams,
-        allTeams: divisionTeams,
-        tournament: Tournament(
-          id: widget.tournament?.id ?? '',
-          name: _nameController.text,
-          categories: _divisionPools.keys.toList(),
-          location: _locationController.text,
-          startDate: _startDate ?? DateTime.now(),
-          endDate: _endDate,
-          points: 0,
-          status: 'upcoming',
-        ),
-        onPresetTeamsLoaded: (poolId, presetTeamIds) {
-          // Handle preset team loading - these become placeholders
-          setState(() {
-            _poolTeams[poolId] = List.from(presetTeamIds);
-            // Track these as placeholder teams
-            _placeholderTeams[poolId] = List.from(presetTeamIds);
-          });
-        },
-        onTeamRemove: (poolId, teamId) {
-          _removeTeamFromPool(poolId, teamId);
-        },
-        placeholderTeams: _placeholderTeams,
-        onTeamDrop: (team, node) {
-          // Handle team assignment to pool
-          if (node.nodeType == 'pool') {
-            setState(() {
-              // Create a pool ID based on the node
-              final poolId = '${_selectedDivisionForPools}_${node.title}';
-              
-              print('Assigning ${team.name} to pool: $poolId');
-              
-              // Remove team from any other pools first (including corresponding A/B tournaments)
-              for (String existingPoolId in _poolTeams.keys.toList()) {
-                if (_isPoolIdRelatedToDivision(existingPoolId, _selectedDivisionForPools!) && existingPoolId != poolId) {
-                  if (_poolTeams[existingPoolId]!.contains(team.id)) {
-                    print('Removing ${team.name} from pool: $existingPoolId (cross-tournament removal)');
-                    _poolTeams[existingPoolId]!.remove(team.id);
-                    
-                    // Restore placeholder teams if this pool has them and now has fewer teams than placeholders
-                    if (_placeholderTeams.containsKey(existingPoolId)) {
-                      final placeholders = _placeholderTeams[existingPoolId]!;
-                      final currentTeams = _poolTeams[existingPoolId]!;
-                      
-                      // If we have fewer real teams than placeholder slots, fill with placeholders
-                      if (currentTeams.length < placeholders.length) {
-                        final missingCount = placeholders.length - currentTeams.length;
-                        final availablePlaceholders = placeholders.where((p) => !currentTeams.contains(p)).take(missingCount);
-                        _poolTeams[existingPoolId]!.addAll(availablePlaceholders);
-                      }
-                    }
-                  }
-                }
-              }
-              
-              // Initialize pool if it doesn't exist
-              if (!_poolTeams.containsKey(poolId)) {
-                _poolTeams[poolId] = [];
-              }
-              
-              // If this pool has placeholders, replace one with the real team or add beyond placeholder limit
-              if (_placeholderTeams.containsKey(poolId)) {
-                final placeholders = _placeholderTeams[poolId]!;
-                final currentTeams = _poolTeams[poolId]!;
-                
-                // First try to replace a placeholder
-                bool replacedPlaceholder = false;
-                for (String placeholder in placeholders) {
-                  if (currentTeams.contains(placeholder)) {
-                    // Replace placeholder with real team
-                    final index = currentTeams.indexOf(placeholder);
-                    currentTeams[index] = team.id;
-                    print('Replaced placeholder $placeholder with ${team.name} at index $index (proceeding team)');
-                    replacedPlaceholder = true;
-                    break;
-                  }
-                }
-                
-                // If no placeholder to replace, add the team anyway (as non-proceeding if beyond placeholder limit)
-                if (!replacedPlaceholder && !currentTeams.contains(team.id)) {
-                  currentTeams.add(team.id);
-                  final isProceeding = _getProceedingTeamCount(poolId) < placeholders.length;
-                  print('Added ${team.name} to pool as ${isProceeding ? "proceeding" : "non-proceeding"} team');
-                }
-              } else {
-                // No placeholders, add team normally if not already there
-                if (!_poolTeams[poolId]!.contains(team.id)) {
-                  _poolTeams[poolId]!.add(team.id);
-                  print('Added ${team.name} to pool: $poolId');
-                }
-              }
-              
-              // Add pool name to division pools if not already there
-              final poolNames = _divisionPools[_selectedDivisionForPools!] ?? [];
-              if (!poolNames.contains(node.title)) {
-                poolNames.add(node.title);
-                _divisionPools[_selectedDivisionForPools!] = poolNames;
-              }
-              
-              print('Current pool teams state: $_poolTeams');
-              print('Placeholder teams state: $_placeholderTeams');
-            });
-          }
-        },
-        onBracketChanged: (nodes) {
-      setState(() {
-            _divisionCustomBrackets[_selectedDivisionForPools!] = nodes;
-              });
-            },
-      ),
-    );
+    // For each Senior division, add a corresponding Fun division
+    for (String division in originalDivisions.keys) {
+      if (division.contains('Seniors')) {
+        String funDivision = division.replaceAll('Seniors', 'FUN');
+        // Add the Fun division with the same teams (they can participate in both)
+        expandedDivisions[funDivision] = List.from(originalDivisions[division]!);
+      }
+    }
+    
+    return expandedDivisions;
+  }
+
+  String _getDivisionDescription(String division) {
+    if (division.contains('Seniors')) {
+      return 'A-Turnier - Zählt zur Rangliste der Deutschen Meisterschaft';
+    } else if (division.contains('FUN')) {
+      return 'B-Turnier - Just for Fun';
+    } else {
+      return 'Jugendturnier';
+    }
   }
 
   int _getRefereePoints() {
@@ -3515,7 +3216,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 children: [
                   TileLayer(
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.gbo_updated',
+                  userAgentPackageName: 'com.scorenow.germanbeachopen',
                     tileProvider: CancellableNetworkTileProvider(),
                   ),
                   MarkerLayer(
@@ -4256,30 +3957,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
     try {
       print('Building division brackets...');
-      // Create division brackets from current state  
-      Map<String, TournamentBracket> divisionBrackets = {};
-      
-      for (String division in _divisionPools.keys) {
-        final poolNames = _divisionPools[division] ?? [];
-        Map<String, List<String>> pools = {};
-        Map<String, bool> poolIsFunBracket = {};
-        
-        // Convert pool data to the format expected by TournamentBracket
-        for (String poolName in poolNames) {
-          final poolId = '${division}_$poolName';
-          pools[poolId] = _poolTeams[poolId] ?? [];
-          poolIsFunBracket[poolId] = _poolIsFunBracket[poolId] ?? false;
-        }
-        
-        divisionBrackets[division] = TournamentBracket(
-          pools: pools,
-          poolIsFunBracket: poolIsFunBracket,
-          knockoutRounds: _divisionBrackets[division] ?? [],
-        );
-      }
-      
-      print('Division brackets created');
-      
       // Create custom brackets from current state
       Map<String, CustomBracketStructure> customBrackets = {};
       for (String division in _divisionCustomBrackets.keys) {
@@ -4348,7 +4025,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         }).toList(),
         delegateIds: _selectedDelegateIds,
         refereeGespanne: _refereeGespanne,
-        divisionBrackets: divisionBrackets,
+        divisionBrackets: widget.tournament?.divisionBrackets ?? {},
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : null,
         courts: _tournamentCourts,
@@ -7492,371 +7169,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildToggleButton(String label, bool isSelected, VoidCallback onPressed) {
-    return TextButton(
-      onPressed: onPressed,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.blue : Colors.grey,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOldPoolView(List<Team> divisionTeams, List<Team> availableTeams) {
-    final division = _selectedDivisionForPools!;
-    final poolNames = _divisionPools[division] ?? [];
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Info banner
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.orange.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Migration View: Here you can see your existing pools and remove teams to make them available for the new bracket builder.',
-                    style: TextStyle(
-                      color: Colors.orange.shade700,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Available teams section
-          if (availableTeams.isNotEmpty) ...[
-            Text(
-              'Available Teams (${availableTeams.length})',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: availableTeams.length,
-                itemBuilder: (context, index) {
-                  final team = availableTeams[index];
-                  return Container(
-                    width: 120,
-                    margin: const EdgeInsets.only(right: 8),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              team.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              team.city,
-                              style: TextStyle(color: Colors.grey[600], fontSize: 10),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-          
-          // Existing pools section
-          Text(
-            'Existing Pools (${poolNames.length})',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          
-          if (poolNames.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  'No pools created yet',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: poolNames.length,
-                itemBuilder: (context, index) {
-                  final poolName = poolNames[index];
-                  final poolId = '${division}_$poolName';
-                  final teamsInPool = _poolTeams[poolId] ?? [];
-                  final isFunBracket = _poolIsFunBracket[poolId] ?? false;
-                  
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'Pool $poolName',
-                                  style: TextStyle(
-                                    color: Colors.blue.shade800,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              if (isFunBracket)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'FUN',
-                                    style: TextStyle(
-                                      color: Colors.orange.shade800,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${teamsInPool.length} Teams',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: teamsInPool.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      'No teams',
-                                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: teamsInPool.length,
-                                    itemBuilder: (context, teamIndex) {
-                                      final teamId = teamsInPool[teamIndex];
-                                      final team = divisionTeams.firstWhere(
-                                        (t) => t.id == teamId,
-                                        orElse: () => Team(
-                                          id: teamId,
-                                          name: 'Unknown Team',
-                                          city: '',
-                                          bundesland: '',
-                                          division: '',
-                                          createdAt: DateTime.now(),
-                                        ),
-                                      );
-                                      
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 4),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                team.name,
-                                                style: const TextStyle(fontSize: 11),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: Icon(Icons.remove_circle_outline, 
-                                                  color: Colors.red, size: 16),
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(
-                                                minWidth: 24,
-                                                minHeight: 24,
-                                              ),
-                                              onPressed: () => _removeTeamFromPool(poolId, teamId),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  bool _isTeamCompatibleWithDivision(Team team, String tournamentDivision) {
-    // Teams are compatible if:
-    // 1. Their division exactly matches the tournament division
-    // 2. Women's Fun can access Women's Senior teams
-    // 3. Men's Fun can access Men's Senior teams
-    if (team.division == tournamentDivision) {
-      return true;
-    }
-    
-    // Allow Fun tournaments to access Senior teams
-    if (tournamentDivision.contains('FUN') && team.division.contains('Seniors')) {
-      // Check if they're the same gender
-      if ((tournamentDivision.contains('Women') && team.division.contains('Women')) ||
-          (tournamentDivision.contains('Men') && team.division.contains('Men'))) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  Map<String, List<Team>> _expandDivisionsWithFunTournaments(Map<String, List<Team>> originalDivisions) {
-    Map<String, List<Team>> expandedDivisions = Map.from(originalDivisions);
-    
-    // For each Senior division, add a corresponding Fun division
-    for (String division in originalDivisions.keys) {
-      if (division.contains('Seniors')) {
-        String funDivision = division.replaceAll('Seniors', 'FUN');
-        // Add the Fun division with the same teams (they can participate in both)
-        expandedDivisions[funDivision] = List.from(originalDivisions[division]!);
-      }
-    }
-    
-    return expandedDivisions;
-  }
-
-  String _getDivisionDescription(String division) {
-    if (division.contains('Seniors')) {
-      return 'A-Turnier - Zählt zur Rangliste der Deutschen Meisterschaft';
-    } else if (division.contains('FUN')) {
-      return 'B-Turnier - Just for Fun';
-    } else {
-      return 'Jugendturnier';
-    }
-  }
-
-  bool _isPoolIdRelatedToDivision(String poolId, String currentDivision) {
-    // Check if pool belongs to current division
-    if (poolId.startsWith('${currentDivision}_')) {
-      return true;
-    }
-    
-    // Check if pool belongs to corresponding A/B tournament
-    String correspondingDivision = _getCorrespondingDivision(currentDivision);
-    if (correspondingDivision != currentDivision && poolId.startsWith('${correspondingDivision}_')) {
-      return true;
-    }
-    
-    return false;
-  }
-
-  String _getCorrespondingDivision(String division) {
-    // If it's a Senior division, return the Fun division
-    if (division.contains('Seniors')) {
-      return division.replaceAll('Seniors', 'FUN');
-    }
-    // If it's a Fun division, return the Senior division
-    else if (division.contains('FUN')) {
-      return division.replaceAll('FUN', 'Seniors');
-    }
-    // For youth divisions, return the same division
-    else {
-      return division;
-    }
-  }
-
-  int _getProceedingTeamCount(String poolId) {
-    // Count how many real teams (non-placeholder) are in the pool
-    final currentTeams = _poolTeams[poolId] ?? [];
-    final placeholders = _placeholderTeams[poolId] ?? [];
-    
-    return currentTeams.where((teamId) => !placeholders.contains(teamId)).length;
-  }
-
-  void _removeTeamFromPool(String poolId, String teamId) {
-    setState(() {
-      _poolTeams[poolId]?.remove(teamId);
-      
-      // If this pool has placeholders, restore them to maintain minimum structure
-      if (_placeholderTeams.containsKey(poolId)) {
-        final placeholders = _placeholderTeams[poolId]!;
-        final currentTeams = _poolTeams[poolId] ?? [];
-        
-        // If we have fewer real teams than placeholder slots, fill with placeholders
-        if (currentTeams.length < placeholders.length) {
-          final missingCount = placeholders.length - currentTeams.length;
-          final availablePlaceholders = placeholders.where((p) => !currentTeams.contains(p)).take(missingCount);
-          _poolTeams[poolId] ??= [];
-          _poolTeams[poolId]!.addAll(availablePlaceholders);
-        }
-      }
-      
-      // Clean up empty lists only if there are no placeholders
-      if ((_poolTeams[poolId]?.isEmpty ?? false) && !_placeholderTeams.containsKey(poolId)) {
-        _poolTeams.remove(poolId);
-      }
-    });
-    
-    toastification.show(
-      context: context,
-      type: ToastificationType.info,
-      style: ToastificationStyle.fillColored,
-      title: const Text('Info'),
-      description: const Text('Team aus Pool entfernt'),
-      alignment: Alignment.topRight,
-      autoCloseDuration: const Duration(seconds: 2),
-      showProgressBar: false,
     );
   }
 
@@ -11378,6 +10690,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         customBrackets: widget.tournament!.customBrackets,
         criteria: widget.tournament!.criteria,
         courts: _tournamentCourts, // Updated courts
+        pools: widget.tournament!.pools, // Added pools
       );
 
       await _tournamentService.updateTournament(updatedTournament);

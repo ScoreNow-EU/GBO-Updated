@@ -4,6 +4,8 @@ import '../models/player.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../services/tournament_service.dart';
+import '../services/team_manager_service.dart';
+import '../services/custom_notification_service.dart';
 
 class RosterCreationScreen extends StatefulWidget {
   final Team team;
@@ -30,6 +32,8 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
     PlayerFormData(), // Start with one empty player
     PlayerFormData(), // Always have one extra for adding new players
   ];
+  final TeamManagerService _teamManagerService = TeamManagerService();
+  final CustomNotificationService _notificationService = CustomNotificationService();
 
   @override
   Widget build(BuildContext context) {
@@ -367,6 +371,19 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
       );
 
       if (success) {
+        // Send notification to team manager if one exists
+        if (widget.team.teamManager != null) {
+          // Get team manager's email
+          final teamManager = await _teamManagerService.getTeamManagerByName(widget.team.teamManager!);
+          if (teamManager != null) {
+            await _notificationService.sendCustomNotification(
+              title: 'Team hat sich für Turnier angemeldet',
+              message: '${widget.team.name} hat sich für ${widget.tournament.name} angemeldet.',
+              userEmail: teamManager.email,
+            );
+          }
+        }
+
         final divisionType = widget.selectedDivision.contains('FUN') ? 'Fun Turnier' : 'A Cup';
         toastification.show(
           context: context,

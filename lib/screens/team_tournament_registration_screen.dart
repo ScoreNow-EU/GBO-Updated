@@ -3,6 +3,8 @@ import '../models/tournament.dart';
 import '../models/team.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
+import '../services/team_manager_service.dart';
+import '../services/custom_notification_service.dart';
 import '../widgets/responsive_layout.dart';
 import '../utils/responsive_helper.dart';
 import 'package:toastification/toastification.dart';
@@ -22,6 +24,8 @@ class TeamTournamentRegistrationScreen extends StatefulWidget {
 class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistrationScreen> {
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
+  final TeamManagerService _teamManagerService = TeamManagerService();
+  final CustomNotificationService _notificationService = CustomNotificationService();
   
   bool _isLoading = false;
   String _selectedFilter = 'Verfügbar'; // Verfügbar, Angemeldet, Alle
@@ -581,6 +585,19 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
       );
 
       if (success) {
+        // Send notification to team manager if one exists
+        if (widget.team.teamManager != null) {
+          // Get team manager's email
+          final teamManager = await _teamManagerService.getTeamManagerByName(widget.team.teamManager!);
+          if (teamManager != null) {
+            await _notificationService.sendCustomNotification(
+              title: 'Team hat sich für Turnier angemeldet',
+              message: '${widget.team.name} hat sich für ${tournament.name} angemeldet.',
+              userEmail: teamManager.email,
+            );
+          }
+        }
+
         toastification.show(
           context: context,
           type: ToastificationType.success,

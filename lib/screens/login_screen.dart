@@ -155,26 +155,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
                                 child: Column(
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     // Main content area
-                                    Container(
-                                      padding: EdgeInsets.all(isMobile ? 32 : 40),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                      ),
-                                      child: SingleChildScrollView(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            _buildHeader(isMobile),
-                                            const SizedBox(height: 40),
-                                            _buildLoginForm(isMobile),
-                                            const SizedBox(height: 32),
-                                            _buildLoginButton(isMobile),
-                                            const SizedBox(height: 24),
-                                            _buildRememberMeAndForgotPassword(),
-                                          ],
+                                    Expanded(
+                                      child: Container(
+                                        padding: EdgeInsets.all(isMobile ? 32 : 40),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                        ),
+                                        child: SingleChildScrollView(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _buildHeader(isMobile),
+                                              const SizedBox(height: 40),
+                                              _buildLoginForm(isMobile),
+                                              const SizedBox(height: 32),
+                                              _buildLoginButton(isMobile),
+                                              const SizedBox(height: 24),
+                                              _buildRememberMeAndForgotPassword(),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -586,7 +587,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         String successMessage = 'Registrierung erfolgreich! Sie sind jetzt angemeldet.';
         
         // If user is not a referee, create/link team manager profile
-        if (user.role != app_user.UserRole.referee) {
+        if (!user.roles.contains(app_user.UserRole.referee)) {
           final linkedToTeamManager = await _teamManagerService.linkUserToTeamManager(
             user.email,
             user.id,

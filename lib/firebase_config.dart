@@ -19,7 +19,7 @@ class FirebaseConfig {
     storageBucket: "gbo-updated.firebasestorage.app",
     messagingSenderId: "295754050567",
     appId: "1:295754050567:ios:db5a9f8b9d3c2a1e0e20ea2",
-    iosBundleId: "com.example.gboUpdated",
+    iosBundleId: "com.scorenow.germanbeachopen",
   );
 
   static const FirebaseOptions android = FirebaseOptions(

@@ -4,6 +4,8 @@ import '../models/tournament.dart';
 import '../models/referee.dart';
 import '../models/team.dart';
 import '../services/referee_service.dart';
+import '../services/team_manager_service.dart';
+import '../services/custom_notification_service.dart';
 
 class TournamentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -127,13 +129,142 @@ class TournamentService {
 
   // Update tournament
   Future<void> updateTournament(Tournament tournament) async {
-    await _firestore
-        .collection(_collection)
-        .doc(tournament.id)
-        .update(tournament.toMap());
+    try {
+      print('\n📊 Tournament Update Summary for: ${tournament.name}');
+      
+      // Get the old tournament to compare team changes
+      final oldTournament = await getTournamentById(tournament.id);
+      final oldTeamIds = oldTournament?.teamIds ?? [];
+      final newTeamIds = tournament.teamIds;
+      
+      // Find newly added teams
+      final addedTeamIds = newTeamIds.where((id) => !oldTeamIds.contains(id)).toList();
+      print('📋 Found ${addedTeamIds.length} newly added teams');
+      
+      // Update tournament in Firestore
+      await _firestore
+          .collection(_collection)
+          .doc(tournament.id)
+          .update(tournament.toMap());
+      
+      // Send notifications for newly added teams
+      if (addedTeamIds.isNotEmpty) {
+        await _notifyTeamManagers(addedTeamIds, tournament);
+      }
+      
+      // Log all teams and their managers
+      await _logTeamsAndManagers(tournament);
+      
+      // Invalidate cache
+      _invalidateCache();
+      print('✅ Tournament update completed\n');
+    } catch (e) {
+      print('❌ Error updating tournament: $e');
+      rethrow;
+    }
+  }
+
+  /// Notify team managers about their teams being added to the tournament
+  Future<void> _notifyTeamManagers(List<String> teamIds, Tournament tournament) async {
+    print('📬 Sending notifications to team managers...');
     
-    // Invalidate cache
-    _invalidateCache();
+    // Fetch all teams in parallel
+    final teamFutures = teamIds.map((teamId) => 
+      FirebaseFirestore.instance.collection('teams').doc(teamId).get()
+    );
+    final teamDocs = await Future.wait(teamFutures);
+    
+    // Group teams by manager to avoid duplicate notifications
+    final managerTeams = <String, List<String>>{};
+    
+    for (final teamDoc in teamDocs) {
+      if (!teamDoc.exists) continue;
+      
+      final teamData = teamDoc.data()!;
+      final teamName = teamData['name'] as String;
+      final teamManager = teamData['teamManager'] as String?;
+      
+      if (teamManager != null) {
+        if (!managerTeams.containsKey(teamManager)) {
+          managerTeams[teamManager] = [];
+        }
+        managerTeams[teamManager]!.add(teamName);
+      }
+    }
+    
+    // Send notifications to each manager
+    final teamManagerService = TeamManagerService();
+    final notificationService = CustomNotificationService();
+    
+    for (final entry in managerTeams.entries) {
+      final managerName = entry.key;
+      final teamNames = entry.value;
+      
+      print('🔍 Looking up team manager: $managerName');
+      final manager = await teamManagerService.getTeamManagerByName(managerName);
+      
+      if (manager != null) {
+        print('✉️ Sending notification to ${manager.name} (${manager.email})');
+        
+        String message;
+        if (teamNames.length == 1) {
+          message = '${teamNames[0]} wurde zu ${tournament.name} hinzugefügt.';
+        } else {
+          message = 'Ihre Teams (${teamNames.join(", ")}) wurden zu ${tournament.name} hinzugefügt.';
+        }
+        
+        await notificationService.sendCustomNotification(
+          title: 'Teams zum Turnier hinzugefügt',
+          message: message,
+          userEmail: manager.email,
+        );
+      } else {
+        print('❌ Team manager not found: $managerName');
+      }
+    }
+  }
+
+  /// Log all teams and their managers in the tournament
+  Future<void> _logTeamsAndManagers(Tournament tournament) async {
+    print('\n👥 Teams in Tournament:');
+    
+    final teamIds = tournament.teamIds;
+    
+    if (teamIds.isEmpty) {
+      print('   No teams registered yet');
+      return;
+    }
+
+    // Fetch all teams in parallel
+    final teamFutures = teamIds.map((teamId) => 
+      FirebaseFirestore.instance.collection('teams').doc(teamId).get()
+    );
+    final teamDocs = await Future.wait(teamFutures);
+
+    // Process each team
+    for (final teamDoc in teamDocs) {
+      if (!teamDoc.exists) {
+        print('   ❌ Team ${teamDoc.id} not found');
+        continue;
+      }
+
+      final teamData = teamDoc.data()!;
+      final teamName = teamData['name'] as String;
+      final teamManager = teamData['teamManager'] as String?;
+      final division = teamData['division'] as String;
+
+      // Find which tournament division this team is in
+      final teamDivisions = tournament.divisionTeams.entries
+          .where((entry) => entry.value.contains(teamDoc.id))
+          .map((entry) => entry.key)
+          .toList();
+
+      print('   📋 Team: $teamName');
+      print('      Division: $division');
+      print('      Tournament Divisions: ${teamDivisions.isEmpty ? "Not assigned to division" : teamDivisions.join(", ")}');
+      print('      Team Manager: ${teamManager ?? "none"}');
+    }
+    print(''); // Empty line for better readability
   }
   
   // Auto-update tournament statuses based on current date
@@ -484,21 +615,39 @@ class TournamentService {
   // Register a team for a tournament division
   Future<bool> registerTeamForTournament(String tournamentId, String teamId, String division, {List<Map<String, String>>? roster}) async {
     try {
+      print('🏆 Registering team $teamId for tournament $tournamentId in division $division');
+      
       // Get the tournament first
       final tournament = await getTournamentById(tournamentId);
-      if (tournament == null) return false;
+      if (tournament == null) {
+        print('❌ Tournament not found: $tournamentId');
+        return false;
+      }
+      print('📅 Found tournament: ${tournament.name}');
 
       // Check if team can register
       final team = await FirebaseFirestore.instance.collection('teams').doc(teamId).get();
-      if (!team.exists) return false;
+      if (!team.exists) {
+        print('❌ Team not found: $teamId');
+        return false;
+      }
       
       final teamData = team.data() as Map<String, dynamic>;
       final teamDivision = teamData['division'] as String;
+      final teamName = teamData['name'] as String;
+      final teamManager = teamData['teamManager'];
+      print('👥 Found team: $teamName (Manager: $teamManager)');
       
-      if (!tournament.canRegisterForDivision(division, teamDivision)) return false;
+      if (!tournament.canRegisterForDivision(division, teamDivision)) {
+        print('❌ Team cannot register for division $division (team division: $teamDivision)');
+        return false;
+      }
 
       // Check if team is already registered
-      if (tournament.isTeamRegistered(teamId)) return false;
+      if (tournament.isTeamRegistered(teamId)) {
+        print('❌ Team is already registered');
+        return false;
+      }
 
       // Update the tournament with the new team registration
       Map<String, List<String>> updatedDivisionTeams = Map.from(tournament.divisionTeams);
@@ -506,6 +655,7 @@ class TournamentService {
         updatedDivisionTeams[division] = [];
       }
       updatedDivisionTeams[division]!.add(teamId);
+      print('✅ Added team to division $division');
 
       // Also add to general teamIds for backward compatibility
       List<String> updatedTeamIds = List.from(tournament.teamIds);
@@ -524,14 +674,16 @@ class TournamentService {
           ...tournament.toMap()['rosters'] ?? {},
           teamId: roster,
         };
+        print('📋 Added roster information for team');
       }
 
       await _firestore.collection(_collection).doc(tournamentId).update(updateData);
+      print('💾 Tournament updated with new team registration');
 
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error registering team for tournament: $e');
+      print('❌ Error registering team for tournament: $e');
       return false;
     }
   }

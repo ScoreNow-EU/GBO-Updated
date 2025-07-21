@@ -33,6 +33,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   
   List<String> _selectedDivisions = [];
   Map<String, List<String>> _tournamentDivisions = {}; // tournamentId -> divisions
+  
+  // Collapsible sections state
+  bool _isUpcomingExpanded = true;
+  bool _isOngoingExpanded = true;
+  bool _isCompletedExpanded = true;
 
   @override
   void initState() {
@@ -173,15 +178,115 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   Widget _buildTournamentDataTable(List<Tournament> tournaments, double screenWidth) {
     final isMobile = ResponsiveHelper.isMobile(screenWidth);
     
-    // Remove the horizontal scroll hint and table, replace with cards
-    return ListView.builder(
-      itemCount: tournaments.length,
-      itemBuilder: (context, index) {
-        final tournament = tournaments[index];
-        final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
+    // Group tournaments by status
+    List<Tournament> upcomingTournaments = tournaments
+        .where((t) => t.status == 'upcoming')
+        .toList();
+    List<Tournament> ongoingTournaments = tournaments
+        .where((t) => t.status == 'ongoing')
+        .toList();
+    List<Tournament> completedTournaments = tournaments
+        .where((t) => t.status == 'completed')
+        .toList();
+    
+    return ListView(
+      children: [
+        // Completed Tournaments Section
+        if (completedTournaments.isNotEmpty)
+          _buildCollapsibleSection(
+            title: 'Abgeschlossene Turniere',
+            icon: Icons.check_circle,
+            color: Colors.grey,
+            count: completedTournaments.length,
+            isExpanded: _isCompletedExpanded,
+            onToggle: (expanded) => setState(() => _isCompletedExpanded = expanded),
+            tournaments: completedTournaments,
+            isMobile: isMobile,
+          ),
         
-        return _buildTournamentManagementCard(tournament, tournamentDivisions, isMobile);
-      },
+        // Ongoing Tournaments Section
+        if (ongoingTournaments.isNotEmpty)
+          _buildCollapsibleSection(
+            title: 'Laufende Turniere',
+            icon: Icons.play_circle,
+            color: Colors.green,
+            count: ongoingTournaments.length,
+            isExpanded: _isOngoingExpanded,
+            onToggle: (expanded) => setState(() => _isOngoingExpanded = expanded),
+            tournaments: ongoingTournaments,
+            isMobile: isMobile,
+          ),
+        
+        // Upcoming Tournaments Section
+        if (upcomingTournaments.isNotEmpty)
+          _buildCollapsibleSection(
+            title: 'Bevorstehende Turniere',
+            icon: Icons.schedule,
+            color: Colors.blue,
+            count: upcomingTournaments.length,
+            isExpanded: _isUpcomingExpanded,
+            onToggle: (expanded) => setState(() => _isUpcomingExpanded = expanded),
+            tournaments: upcomingTournaments,
+            isMobile: isMobile,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCollapsibleSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required int count,
+    required bool isExpanded,
+    required ValueChanged<bool> onToggle,
+    required List<Tournament> tournaments,
+    required bool isMobile,
+  }) {
+    return Column(
+      children: [
+        ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.only(bottom: 16),
+          initiallyExpanded: isExpanded,
+          onExpansionChanged: onToggle,
+          leading: Icon(icon, color: color, size: 20),
+          title: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: color.withOpacity(0.3),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Text(
+            '$count Turnier${count == 1 ? '' : 'e'}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          children: tournaments.map((tournament) {
+            final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildTournamentManagementCard(tournament, tournamentDivisions, isMobile),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
 

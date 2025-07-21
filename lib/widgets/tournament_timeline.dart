@@ -18,6 +18,11 @@ class TournamentTimeline extends StatefulWidget {
 class _TournamentTimelineState extends State<TournamentTimeline> {
   final TournamentService _tournamentService = TournamentService();
   final ScrollController _scrollController = ScrollController();
+  
+  // Collapsible sections state
+  bool _isUpcomingExpanded = true;
+  bool _isOngoingExpanded = true;
+  bool _isCompletedExpanded = true;
 
   @override
   void dispose() {
@@ -144,41 +149,47 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
             children: [
               // Completed Tournaments (Above the line)
               if (completedTournaments.isNotEmpty) ...[
-                _buildSectionHeader('Abgeschlossene Turniere', Icons.check_circle, Colors.grey),
-                const SizedBox(height: 16),
-                ...completedTournaments.map((tournament) => 
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 600;
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
-                        child: _buildTournamentCard(tournament, isCompleted: true),
-                      );
-                    },
-                  ),
+                _buildCollapsibleTimelineSection(
+                  title: 'Abgeschlossene Turniere',
+                  icon: Icons.check_circle,
+                  color: Colors.grey,
+                  count: completedTournaments.length,
+                  isExpanded: _isCompletedExpanded,
+                  onToggle: (expanded) => setState(() => _isCompletedExpanded = expanded),
+                  tournaments: completedTournaments,
+                  sectionType: 'completed',
                 ),
                 const SizedBox(height: 24),
               ],
 
               // Timeline Center Line with current tournaments or "JETZT" indicator
-              _buildTimelineCenter(currentTournaments),
+              if (currentTournaments.isNotEmpty)
+                _buildCollapsibleTimelineSection(
+                  title: 'Laufende Turniere',
+                  icon: Icons.play_circle,
+                  color: Colors.green,
+                  count: currentTournaments.length,
+                  isExpanded: _isOngoingExpanded,
+                  onToggle: (expanded) => setState(() => _isOngoingExpanded = expanded),
+                  tournaments: currentTournaments,
+                  sectionType: 'ongoing',
+                )
+              else
+                _buildTimelineCenter(currentTournaments),
               
               const SizedBox(height: 24),
 
               // Upcoming Tournaments (Below the line)
               if (upcomingTournaments.isNotEmpty) ...[
-                _buildSectionHeader('Bevorstehende Turniere', Icons.schedule, Colors.orange),
-                const SizedBox(height: 16),
-                ...upcomingTournaments.map((tournament) => 
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 600;
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
-                        child: _buildTournamentCard(tournament, isUpcoming: true),
-                      );
-                    },
-                  ),
+                _buildCollapsibleTimelineSection(
+                  title: 'Bevorstehende Turniere',
+                  icon: Icons.schedule,
+                  color: Colors.orange,
+                  count: upcomingTournaments.length,
+                  isExpanded: _isUpcomingExpanded,
+                  onToggle: (expanded) => setState(() => _isUpcomingExpanded = expanded),
+                  tournaments: upcomingTournaments,
+                  sectionType: 'upcoming',
                 ),
               ],
               
@@ -211,6 +222,72 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
             color: color.withOpacity(0.3),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCollapsibleTimelineSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required int count,
+    required bool isExpanded,
+    required ValueChanged<bool> onToggle,
+    required List<Tournament> tournaments,
+    required String sectionType,
+  }) {
+    return Column(
+      children: [
+        ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          childrenPadding: const EdgeInsets.only(bottom: 16),
+          initiallyExpanded: isExpanded,
+          onExpansionChanged: onToggle,
+          leading: Icon(icon, color: color, size: 20),
+          title: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: color.withOpacity(0.3),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Text(
+            '$count Turnier${count == 1 ? '' : 'e'}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          children: tournaments.map((tournament) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
+                  child: _buildTournamentCard(
+                    tournament,
+                    isCompleted: sectionType == 'completed',
+                    isUpcoming: sectionType == 'upcoming',
+                    isCurrent: sectionType == 'ongoing',
+                  ),
+                );
+              },
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }

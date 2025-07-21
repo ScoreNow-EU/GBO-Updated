@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:toastification/toastification.dart';
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'services/preloader_service.dart';
@@ -62,49 +63,51 @@ class GBOApp extends StatelessWidget {
       initializeAnalytics();
     }
 
-    return MaterialApp(
-      title: 'German Beach Open',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFffd665), // Golden theme matching the new design
-          brightness: Brightness.light,
-          primary: const Color(0xFFffd665),
-          secondary: Colors.black87,
-          surface: Colors.white,
-          onPrimary: Colors.black87,
-          onSecondary: Colors.white,
-          onSurface: Colors.black87,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFffd665),
-          foregroundColor: Colors.black87,
-          elevation: 2,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black87,
-            foregroundColor: Colors.white,
-            elevation: 4,
+    return ToastificationWrapper(
+      child: MaterialApp(
+        title: 'German Beach Open',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFffd665), // Golden theme matching the new design
+            brightness: Brightness.light,
+            primary: const Color(0xFFffd665),
+            secondary: Colors.black87,
+            surface: Colors.white,
+            onPrimary: Colors.black87,
+            onSecondary: Colors.white,
+            onSurface: Colors.black87,
           ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
+          useMaterial3: true,
+          fontFamily: 'Roboto',
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFffd665),
             foregroundColor: Colors.black87,
+            elevation: 2,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+              elevation: 4,
+            ),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black87,
+            ),
+          ),
+          iconTheme: const IconThemeData(
+            color: Colors.black87,
+          ),
+          checkboxTheme: CheckboxThemeData(
+            fillColor: WidgetStateProperty.all(Colors.black87),
+            checkColor: WidgetStateProperty.all(Colors.white),
           ),
         ),
-        iconTheme: const IconThemeData(
-          color: Colors.black87,
-        ),
-        checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.all(Colors.black87),
-          checkColor: WidgetStateProperty.all(Colors.white),
-        ),
+        home: const HomeScreen(),
+        navigatorObservers: observer != null ? <NavigatorObserver>[observer!] : <NavigatorObserver>[],
       ),
-      home: const HomeScreen(),
-      navigatorObservers: observer != null ? <NavigatorObserver>[observer!] : <NavigatorObserver>[],
     );
   }
 }

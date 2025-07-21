@@ -5,6 +5,7 @@ import '../models/referee.dart';
 import '../models/team_manager.dart';
 import '../services/referee_service.dart';
 import '../services/team_manager_service.dart';
+import '../services/notification_monitoring_service.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
@@ -20,8 +21,18 @@ class AuthService {
   // Get current app user stream
   Stream<app_user.User?> get currentUser {
     return _firebaseAuth.authStateChanges().asyncMap((firebaseUser) async {
-      if (firebaseUser == null) return null;
-      return await getUserById(firebaseUser.uid);
+      if (firebaseUser == null) {
+        // Stop notification monitoring when user logs out
+        await NotificationMonitoringService.stopMonitoring();
+        return null;
+      }
+      final user = await getUserById(firebaseUser.uid);
+      if (user != null) {
+        // Start notification monitoring for logged in user
+        await NotificationMonitoringService.initialize();
+        await NotificationMonitoringService.startMonitoring(user.email);
+      }
+      return user;
     });
   }
 
@@ -58,6 +69,10 @@ class AuthService {
         // Update last login
         if (user != null) {
           await _updateLastLogin(user.id);
+          
+          // Initialize and start notification monitoring
+          await NotificationMonitoringService.initialize();
+          await NotificationMonitoringService.startMonitoring(user.email);
         }
 
         return user;
@@ -108,7 +123,7 @@ class AuthService {
           email: email,
           firstName: firstName,
           lastName: lastName,
-          role: role,
+          roles: [role],
           createdAt: DateTime.now(),
           refereeId: refereeId,
           teamManagerId: teamManagerId,
@@ -126,6 +141,7 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    await NotificationMonitoringService.stopMonitoring();
     await _firebaseAuth.signOut();
   }
 
@@ -171,7 +187,7 @@ class AuthService {
       email: firebaseUser.email!,
       firstName: referee.firstName,
       lastName: referee.lastName,
-      role: app_user.UserRole.referee,
+      roles: [app_user.UserRole.referee],
       createdAt: DateTime.now(),
       refereeId: referee.id,
     );
@@ -190,7 +206,7 @@ class AuthService {
       email: firebaseUser.email!,
       firstName: teamManager.name.split(' ').first,
       lastName: teamManager.name.split(' ').skip(1).join(' '),
-      role: app_user.UserRole.teamManager,
+      roles: [app_user.UserRole.teamManager],
       createdAt: DateTime.now(),
       teamManagerId: teamManager.id,
     );
@@ -209,7 +225,7 @@ class AuthService {
       email: firebaseUser.email!,
       firstName: firstName,
       lastName: lastName,
-      role: app_user.UserRole.admin,
+      roles: [app_user.UserRole.admin],
       createdAt: DateTime.now(),
     );
 
@@ -265,7 +281,7 @@ class AuthService {
             email: referee.email,
             firstName: referee.firstName,
             lastName: referee.lastName,
-            role: app_user.UserRole.referee,
+            roles: [app_user.UserRole.referee],
             createdAt: DateTime.now(),
             refereeId: referee.id,
           );
@@ -310,6 +326,122 @@ class AuthService {
     } catch (e) {
       print('Error getting all users: $e');
       return [];
+    }
+  }
+
+  // Update user active status
+  Future<void> updateUserStatus(String userId, bool isActive) async {
+    try {
+      await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .update({'isActive': isActive});
+    } catch (e) {
+      print('Error updating user status: $e');
+      throw Exception('Failed to update user status');
+    }
+  }
+
+  // Add role to user (supports multiple roles)
+  Future<bool> addRoleToUser(String userId, app_user.UserRole role, {
+    String? refereeId,
+    String? teamManagerId,
+    String? delegateId,
+  }) async {
+    try {
+      final user = await getUserById(userId);
+      if (user == null) {
+        print('User not found: $userId');
+        return false;
+      }
+
+      // Check if user already has this role
+      bool hasRole = user.roles.contains(role);
+      bool needsUpdate = false;
+      
+      final updateData = <String, dynamic>{};
+      
+      // Add role if not already present
+      if (!hasRole) {
+        final updatedRoles = [...user.roles, role];
+        updateData['roles'] = updatedRoles.map((r) => r.name).toList();
+        needsUpdate = true;
+        print('Adding role ${role.name} to user');
+      }
+
+      // Set specific role IDs if provided (even if user already has the role)
+      if (refereeId != null && user.refereeId != refereeId) {
+        updateData['refereeId'] = refereeId;
+        needsUpdate = true;
+        print('Updating refereeId to: $refereeId');
+      }
+      if (teamManagerId != null && user.teamManagerId != teamManagerId) {
+        updateData['teamManagerId'] = teamManagerId;
+        needsUpdate = true;
+        print('Updating teamManagerId to: $teamManagerId');
+      }
+      if (delegateId != null && user.delegateId != delegateId) {
+        updateData['delegateId'] = delegateId;
+        needsUpdate = true;
+        print('Updating delegateId to: $delegateId');
+      }
+
+      if (!needsUpdate) {
+        print('No updates needed for user ${user.fullName}');
+        return false;
+      }
+
+      await _firestore.collection(_usersCollection).doc(userId).update(updateData);
+      print('✅ Successfully updated user record');
+      return true;
+    } catch (e) {
+      print('Error adding role to user: $e');
+      return false;
+    }
+  }
+
+  // Remove role from user (supports multiple roles)
+  Future<bool> removeRoleFromUser(String userId, app_user.UserRole role) async {
+    try {
+      final user = await getUserById(userId);
+      if (user == null) {
+        print('User not found: $userId');
+        return false;
+      }
+
+      // Check if user has this role
+      if (!user.roles.contains(role)) {
+        print('User does not have role: ${role.name}');
+        return false;
+      }
+
+      // Remove the role from the list
+      final updatedRoles = user.roles.where((r) => r != role).toList();
+      
+      // Ensure user has at least one role
+      if (updatedRoles.isEmpty) {
+        print('Cannot remove last role from user');
+        return false;
+      }
+
+      final updateData = <String, dynamic>{
+        'roles': updatedRoles.map((r) => r.name).toList(),
+      };
+
+      // Clear specific role IDs when removing roles
+      if (role == app_user.UserRole.referee) {
+        updateData['refereeId'] = null;
+      } else if (role == app_user.UserRole.teamManager) {
+        updateData['teamManagerId'] = null;
+      } else if (role == app_user.UserRole.delegate) {
+        updateData['delegateId'] = null;
+      }
+
+      await _firestore.collection(_usersCollection).doc(userId).update(updateData);
+      return true;
+    } catch (e) {
+      print('Error removing role from user: $e');
+      return false;
     }
   }
 

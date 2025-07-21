@@ -5,6 +5,7 @@ import '../utils/responsive_helper.dart';
 import 'side_navigation.dart';
 import '../services/team_manager_service.dart';
 import '../services/tournament_service.dart';
+import '../services/auth_service.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
@@ -19,6 +20,7 @@ class ResponsiveLayout extends StatefulWidget {
   final bool showBackButton;
   final VoidCallback? onBackPressed;
   final app_user.User? currentUser;
+  final VoidCallback? onUserUpdated;
 
   const ResponsiveLayout({
     super.key,
@@ -29,6 +31,7 @@ class ResponsiveLayout extends StatefulWidget {
     this.showBackButton = false,
     this.onBackPressed,
     this.currentUser,
+    this.onUserUpdated,
   });
 
   @override
@@ -95,29 +98,72 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
       return;
     }
 
-    if (widget.currentUser!.role == app_user.UserRole.referee && widget.currentUser!.refereeId != null) {
-      try {
-        print('📝 Responsive: Loading referee profile for ID: ${widget.currentUser!.refereeId}');
-        _refereeProfile = await _refereeService.getRefereeById(widget.currentUser!.refereeId!);
-        if (_refereeProfile != null) {
-          print('✅ Responsive: Referee profile loaded: ${_refereeProfile!.fullName}');
-          await _loadRefereeTournaments();
-        } else {
-          print('❌ Responsive: Referee profile not found');
+    if (widget.currentUser!.roles.contains(app_user.UserRole.referee)) {
+      if (widget.currentUser!.refereeId != null) {
+        try {
+          print('📝 Responsive: Loading referee profile for ID: ${widget.currentUser!.refereeId}');
+          _refereeProfile = await _refereeService.getRefereeById(widget.currentUser!.refereeId!);
+          if (_refereeProfile != null) {
+            print('✅ Responsive: Referee profile loaded: ${_refereeProfile!.fullName}');
+            await _loadRefereeTournaments();
+          } else {
+            print('❌ Responsive: Referee profile not found');
+            setState(() {
+              _refereeProfile = null;
+              _refereeTournaments = [];
+            });
+          }
+        } catch (e) {
+          print('❌ Responsive: Error loading referee profile: $e');
           setState(() {
             _refereeProfile = null;
             _refereeTournaments = [];
           });
         }
-      } catch (e) {
-        print('❌ Responsive: Error loading referee profile: $e');
-        setState(() {
-          _refereeProfile = null;
-          _refereeTournaments = [];
-        });
+      } else {
+        // User has referee role but no refereeId - try to find and link it
+        print('🔍 Responsive: User has referee role but no refereeId, searching for matching referee...');
+        try {
+          final referees = await _refereeService.getAllReferees();
+          final matchingReferee = referees.firstWhere(
+            (referee) => referee.email.toLowerCase() == widget.currentUser!.email.toLowerCase(),
+            orElse: () => throw Exception('No referee found with email: ${widget.currentUser!.email}'),
+          );
+          
+          print('✅ Responsive: Found matching referee: ${matchingReferee.fullName} (ID: ${matchingReferee.id})');
+          
+          // Update user record with the referee ID
+          final authService = AuthService();
+          final success = await authService.addRoleToUser(
+            widget.currentUser!.id,
+            app_user.UserRole.referee,
+            refereeId: matchingReferee.id,
+          );
+          
+          if (success) {
+            // Load the referee profile
+            _refereeProfile = matchingReferee;
+            await _loadRefereeTournaments();
+            print('✅ Responsive: Auto-linked referee ID and loaded profile');
+            
+            // Notify parent to refresh current user
+            if (widget.onUserUpdated != null) {
+              widget.onUserUpdated!();
+            }
+          } else {
+            print('❌ Responsive: Failed to update user record');
+          }
+          
+        } catch (e) {
+          print('❌ Responsive: Failed to auto-link referee ID: $e');
+          setState(() {
+            _refereeProfile = null;
+            _refereeTournaments = [];
+          });
+        }
       }
     } else {
-      print('ℹ️ Responsive: User is not a referee (role: ${widget.currentUser!.role}, refereeId: ${widget.currentUser!.refereeId})');
+      print('ℹ️ Responsive: User does not have referee role (roles: ${widget.currentUser!.roles})');
       setState(() {
         _refereeProfile = null;
         _refereeTournaments = [];
@@ -169,8 +215,44 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
       bool isManager = false;
       
       // First check if currentUser has teamManager role
-      if (widget.currentUser?.role == app_user.UserRole.teamManager) {
+      if (widget.currentUser?.roles.contains(app_user.UserRole.teamManager) == true) {
         isManager = true;
+        
+        // If user has team manager role but no teamManagerId, try to find and link it
+        if (widget.currentUser?.teamManagerId == null) {
+          print('🔍 Responsive: User has team manager role but no teamManagerId, searching for matching team manager...');
+          try {
+            final teamManagers = await _teamManagerService.getAllTeamManagers();
+            final matchingTeamManager = teamManagers.firstWhere(
+              (tm) => tm.email.toLowerCase() == widget.currentUser!.email.toLowerCase(),
+              orElse: () => throw Exception('No team manager found with email: ${widget.currentUser!.email}'),
+            );
+            
+            print('✅ Responsive: Found matching team manager: ${matchingTeamManager.name} (ID: ${matchingTeamManager.id})');
+            
+            // Update user record with the team manager ID
+            final authService = AuthService();
+            final success = await authService.addRoleToUser(
+              widget.currentUser!.id,
+              app_user.UserRole.teamManager,
+              teamManagerId: matchingTeamManager.id,
+            );
+            
+            if (success) {
+              print('✅ Responsive: Auto-linked team manager ID');
+              
+              // Notify parent to refresh current user
+              if (widget.onUserUpdated != null) {
+                widget.onUserUpdated!();
+              }
+            } else {
+              print('❌ Responsive: Failed to update team manager record');
+            }
+            
+          } catch (e) {
+            print('❌ Responsive: Failed to auto-link team manager ID: $e');
+          }
+        }
       } else {
         // Fallback to old system check
         isManager = await _teamManagerService.isUserTeamManager(_currentUser!.uid);
@@ -280,6 +362,7 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                 SideNavigation(
                   selectedSection: widget.selectedSection,
                   onSectionChanged: widget.onSectionChanged,
+                  onUserUpdated: widget.onUserUpdated,
                 ),
                 Expanded(
                   child: Container(
@@ -467,7 +550,7 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                   ],
                   
                   // Referee Section (only show for referees with loaded profile)
-                  if (widget.currentUser?.role == app_user.UserRole.referee && widget.currentUser?.refereeId != null && _refereeProfile != null) ...[
+                  if (widget.currentUser?.roles.contains(app_user.UserRole.referee) == true && widget.currentUser?.refereeId != null && _refereeProfile != null) ...[
                     const Divider(height: 32),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -565,21 +648,22 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                       ),
                   ],
                   
-                  const Divider(height: 32),
-                  
-                  // Admin Section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Text(
-                      'ADMIN BEREICH',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
+                  // Admin Section - Only show if user has admin role
+                  if (widget.currentUser?.roles.contains(app_user.UserRole.admin) == true) ...[
+                    const Divider(height: 32),
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Text(
+                        'ADMIN BEREICH',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
-                  ),
                   if (defaultTargetPlatform != TargetPlatform.iOS)
                     _buildDrawerItem(
                       icon: Icons.architecture,
@@ -645,6 +729,15 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
                     screenWidth: screenWidth,
                     isAdmin: true,
                   ),
+                  _buildDrawerItem(
+                    icon: Icons.manage_accounts,
+                    title: 'Benutzer-Rollen-Verwaltung',
+                    key: 'user_role_management',
+                    isSelected: widget.selectedSection == 'user_role_management',
+                    screenWidth: screenWidth,
+                    isAdmin: true,
+                  ),
+                  ], // Close admin section conditional
                 ],
               ),
             ),

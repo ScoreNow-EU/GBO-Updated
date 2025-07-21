@@ -53,6 +53,29 @@ class TeamManagerService {
     }
   }
 
+  // Get team manager by name
+  Future<TeamManager?> getTeamManagerByName(String name) async {
+    try {
+      print('🔍 Looking up team manager by name: $name');
+      final querySnapshot = await _teamManagersCollection
+          .where('name', isEqualTo: name)
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isEmpty) {
+        print('❌ No team manager found with name: $name');
+        return null;
+      }
+      
+      final teamManager = TeamManager.fromFirestore(querySnapshot.docs.first);
+      print('✅ Found team manager: ${teamManager.name} (Email: ${teamManager.email})');
+      return teamManager;
+    } catch (e) {
+      print('❌ Error getting team manager by name: $e');
+      return null;
+    }
+  }
+
   // Get team manager by user ID
   Future<TeamManager?> getTeamManagerByUserId(String userId) async {
     try {

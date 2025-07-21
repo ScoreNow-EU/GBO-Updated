@@ -5,6 +5,7 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.gbo.referee-check</string>
+		<string>com.gbo.notification-check</string>
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
@@ -41,7 +42,7 @@
 	<key>NSUserNotificationAlertStyle</key>
 	<string>alert</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>Diese App benötigt Benachrichtigungen, um Sie über neue Schiedsrichter-Einladungen zu informieren.</string>
+	<string>Diese App benötigt Benachrichtigungen, um Sie über neue Schiedsrichter-Einladungen und andere wichtige Updates zu informieren.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

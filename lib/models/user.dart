@@ -13,7 +13,7 @@ class User {
   final String email;
   final String firstName;
   final String lastName;
-  final UserRole role;
+  final List<UserRole> roles;
   final bool isActive;
   final DateTime createdAt;
   final DateTime? lastLoginAt;
@@ -27,7 +27,7 @@ class User {
     required this.email,
     required this.firstName,
     required this.lastName,
-    required this.role,
+    required this.roles,
     this.isActive = true,
     required this.createdAt,
     this.lastLoginAt,
@@ -44,7 +44,7 @@ class User {
       'email': email,
       'firstName': firstName,
       'lastName': lastName,
-      'role': role.name,
+      'roles': roles.map((role) => role.name).toList(),
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'lastLoginAt': lastLoginAt != null ? Timestamp.fromDate(lastLoginAt!) : null,
@@ -67,15 +67,35 @@ class User {
       );
     }
     
+    // Parse roles - support both old single role format and new multiple roles format
+    List<UserRole> roles = [];
+    if (data['roles'] != null) {
+      // New format - multiple roles
+      List<String> roleNames = List<String>.from(data['roles']);
+      roles = roleNames.map((roleName) => 
+        UserRole.values.firstWhere(
+          (role) => role.name == roleName,
+          orElse: () => UserRole.teamManager,
+        )
+      ).toList();
+    } else if (data['role'] != null) {
+      // Old format - single role, convert to list
+      UserRole singleRole = UserRole.values.firstWhere(
+        (role) => role.name == data['role'],
+        orElse: () => UserRole.teamManager,
+      );
+      roles = [singleRole];
+    } else {
+      // Default role if none specified
+      roles = [UserRole.teamManager];
+    }
+
     return User(
       id: doc.id,
       email: data['email'] ?? '',
       firstName: data['firstName'] ?? '',
       lastName: data['lastName'] ?? '',
-      role: UserRole.values.firstWhere(
-        (role) => role.name == data['role'],
-        orElse: () => UserRole.teamManager,
-      ),
+      roles: roles,
       isActive: data['isActive'] ?? true,
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
@@ -94,7 +114,7 @@ class User {
     String? email,
     String? firstName,
     String? lastName,
-    UserRole? role,
+    List<UserRole>? roles,
     bool? isActive,
     DateTime? lastLoginAt,
     String? refereeId,
@@ -107,7 +127,7 @@ class User {
       email: email ?? this.email,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
-      role: role ?? this.role,
+      roles: roles ?? this.roles,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,

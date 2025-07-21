@@ -139,6 +139,8 @@ class BracketMatch {
   final int? team2Score;
   final String status; // "pending", "in_progress", "completed"
   final DateTime? scheduledTime;
+  final String bestOf; // "one", "three", "five"
+  final List<Map<String, int>> subMatches; // For best of 3/5: [{team1: 2, team2: 1}, ...]
   
   BracketMatch({
     required this.id,
@@ -149,6 +151,8 @@ class BracketMatch {
     this.team2Score,
     this.status = "pending",
     this.scheduledTime,
+    this.bestOf = "one",
+    this.subMatches = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -161,6 +165,8 @@ class BracketMatch {
       'team2Score': team2Score,
       'status': status,
       'scheduledTime': scheduledTime?.millisecondsSinceEpoch,
+      'bestOf': bestOf,
+      'subMatches': subMatches,
     };
   }
 
@@ -176,6 +182,8 @@ class BracketMatch {
       scheduledTime: map['scheduledTime'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(map['scheduledTime'])
           : null,
+      bestOf: map['bestOf'] ?? 'one',
+      subMatches: List<Map<String, int>>.from(map['subMatches'] ?? []),
     );
   }
 }
@@ -323,6 +331,9 @@ class Tournament {
   final Map<String, int> divisionMaxTeams; // division -> max teams allowed
   final bool isRegistrationOpen; // Whether team registration is open
   final DateTime? registrationDeadline; // When registration closes
+  // Changed pools to store more data per pool
+  final Map<String, List<String>> pools;
+  final Map<String, Map<String, dynamic>> poolMetadata; // Store additional pool data
 
   Tournament({
     required this.id,
@@ -350,7 +361,10 @@ class Tournament {
     this.divisionMaxTeams = const {},
     this.isRegistrationOpen = true,
     this.registrationDeadline,
-  });
+    Map<String, List<String>>? pools,
+    Map<String, Map<String, dynamic>>? poolMetadata,
+  }) : this.pools = pools ?? {},
+       this.poolMetadata = poolMetadata ?? {};
 
   String get category => categories.isNotEmpty ? categories.first : '';
   
@@ -516,6 +530,8 @@ class Tournament {
       'divisionMaxTeams': divisionMaxTeams,
       'isRegistrationOpen': isRegistrationOpen,
       'registrationDeadline': registrationDeadline?.millisecondsSinceEpoch,
+      'pools': pools,
+      'poolMetadata': poolMetadata,
     };
   }
 
@@ -549,6 +565,24 @@ class Tournament {
       }
     }
 
+    // Parse pools
+    Map<String, List<String>> pools = {};
+    if (map['pools'] != null) {
+      final poolMap = map['pools'] as Map<String, dynamic>;
+      for (String key in poolMap.keys) {
+        pools[key] = List<String>.from(poolMap[key] ?? []);
+      }
+    }
+
+    // Parse pool metadata
+    Map<String, Map<String, dynamic>> poolMetadata = {};
+    if (map['poolMetadata'] != null) {
+      final metadataMap = map['poolMetadata'] as Map<String, dynamic>;
+      for (String key in metadataMap.keys) {
+        poolMetadata[key] = Map<String, dynamic>.from(metadataMap[key] ?? {});
+      }
+    }
+
     return Tournament(
       id: documentId,
       name: map['name'] ?? '',
@@ -566,11 +600,10 @@ class Tournament {
       refereeInvitations: (map['refereeInvitations'] as List<dynamic>?)
           ?.map((invitation) => RefereeInvitation.fromMap(invitation))
           .toList() ??
-          // Fallback for old tournaments with refereeIds
           (map['refereeIds'] as List<dynamic>?)
               ?.map((refereeId) => RefereeInvitation(
                     refereeId: refereeId,
-                    status: 'accepted', // Assume old entries were accepted
+                    status: 'accepted',
                     invitedAt: DateTime.now(),
                   ))
               .toList() ??
@@ -594,6 +627,69 @@ class Tournament {
       registrationDeadline: map['registrationDeadline'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(map['registrationDeadline'])
           : null,
+      pools: pools,
+      poolMetadata: poolMetadata,
+    );
+  }
+
+  // Add copyWith method
+  Tournament copyWith({
+    String? id,
+    String? name,
+    List<String>? categories,
+    String? location,
+    DateTime? startDate,
+    DateTime? endDate,
+    Map<String, DateTime>? categoryStartDates,
+    Map<String, DateTime>? categoryEndDates,
+    int? points,
+    String? status,
+    String? description,
+    String? imageUrl,
+    List<String>? teamIds,
+    List<RefereeInvitation>? refereeInvitations,
+    List<String>? delegateIds,
+    List<Map<String, dynamic>>? refereeGespanne,
+    Map<String, TournamentBracket>? divisionBrackets,
+    Map<String, CustomBracketStructure>? customBrackets,
+    TournamentCriteria? criteria,
+    List<Court>? courts,
+    List<String>? divisions,
+    Map<String, List<String>>? divisionTeams,
+    Map<String, int>? divisionMaxTeams,
+    bool? isRegistrationOpen,
+    DateTime? registrationDeadline,
+    Map<String, List<String>>? pools,
+    Map<String, Map<String, dynamic>>? poolMetadata,
+  }) {
+    return Tournament(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      categories: categories ?? List.from(this.categories),
+      location: location ?? this.location,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      categoryStartDates: categoryStartDates ?? Map.from(this.categoryStartDates ?? {}),
+      categoryEndDates: categoryEndDates ?? Map.from(this.categoryEndDates ?? {}),
+      points: points ?? this.points,
+      status: status ?? this.status,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      teamIds: teamIds ?? List.from(this.teamIds),
+      refereeInvitations: refereeInvitations ?? List.from(this.refereeInvitations),
+      delegateIds: delegateIds ?? List.from(this.delegateIds),
+      refereeGespanne: refereeGespanne ?? List.from(this.refereeGespanne),
+      divisionBrackets: divisionBrackets ?? Map.from(this.divisionBrackets),
+      customBrackets: customBrackets ?? Map.from(this.customBrackets),
+      criteria: criteria ?? this.criteria,
+      courts: courts ?? List.from(this.courts),
+      divisions: divisions ?? List.from(this.divisions),
+      divisionTeams: divisionTeams ?? Map.from(this.divisionTeams),
+      divisionMaxTeams: divisionMaxTeams ?? Map.from(this.divisionMaxTeams),
+      isRegistrationOpen: isRegistrationOpen ?? this.isRegistrationOpen,
+      registrationDeadline: registrationDeadline ?? this.registrationDeadline,
+      pools: pools ?? Map.from(this.pools),
+      poolMetadata: poolMetadata ?? Map.from(this.poolMetadata),
     );
   }
 } 

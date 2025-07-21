@@ -10,7 +10,7 @@ import SwiftUI
 import WidgetKit
 
 struct AppWidgetTestControl: ControlWidget {
-    static let kind: String = "com.example.gboUpdated.AppWidgetTest"
+    static let kind: String = "com.scorenow.germanbeachopen.AppWidgetTest"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(
