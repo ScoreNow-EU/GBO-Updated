@@ -45,12 +45,6 @@
 	<string>Diese App benötigt Benachrichtigungen, um Sie über neue Schiedsrichter-Einladungen und andere wichtige Updates zu informieren.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-		<string>processing</string>
-	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
