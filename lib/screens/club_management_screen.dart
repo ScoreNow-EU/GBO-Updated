@@ -4,6 +4,7 @@ import 'dart:async';
 import '../models/club.dart';
 import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
+import '../utils/app_colors.dart';
 import '../data/german_cities.dart';
 import 'club_form_screen.dart';
 
@@ -379,7 +380,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: isSelected ? const Color(0xFFffd665).withOpacity(0.2) : Colors.white,
+        color: isSelected ? AppColors.primaryColorLight : Colors.white,
         borderRadius: BorderRadius.circular(8),
         elevation: isSelected ? 2 : 1,
         child: InkWell(
@@ -394,7 +395,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFffd665).withOpacity(0.2),
+                    color: AppColors.primaryColorLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: club.logoUrl != null && club.logoUrl!.isNotEmpty

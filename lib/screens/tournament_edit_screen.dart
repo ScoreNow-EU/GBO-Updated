@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../models/referee.dart';
@@ -48,10 +49,12 @@ class GamePosition {
 
 class TournamentEditScreen extends StatefulWidget {
   final Tournament? tournament; // null for creating new tournament
+  final bool isWizardMode; // true for new tournament creation wizard
 
   const TournamentEditScreen({
     super.key,
     this.tournament,
+    this.isWizardMode = false,
   });
 
   @override
@@ -209,6 +212,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   Timer? _autoRefreshTimer;
   bool _isAutoRefreshing = false;
   DateTime? _lastRefreshTime;
+
+  // ✅ ADD: Stream subscriptions to prevent memory leaks
+  StreamSubscription? _teamsSubscription;
+  StreamSubscription? _refereesSubscription;
+  StreamSubscription? _delegatesSubscription;
+  StreamSubscription? _courtsSubscription;
 
   @override
   void initState() {
@@ -374,30 +383,40 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   }
 
   void _loadTeams() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     
     try {
-      _teamService.getTeamsWithCache().listen((teams) {
-        setState(() {
-          _allTeams = teams;
-          _isLoading = false;
-        });
+      _teamsSubscription?.cancel(); // Cancel existing subscription
+      _teamsSubscription = _teamService.getTeamsWithCache().listen((teams) {
+        if (mounted) {
+          setState(() {
+            _allTeams = teams;
+            _isLoading = false;
+          });
+        }
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _loadReferees() async {
     try {
-      _refereeService.getReferees().listen((referees) {
-        setState(() {
-          _allReferees = referees;
-        });
+      _refereesSubscription?.cancel(); // Cancel existing subscription
+      _refereesSubscription = _refereeService.getReferees().listen((referees) {
+        if (mounted) {
+          setState(() {
+            _allReferees = referees;
+          });
+        }
       });
     } catch (e) {
       print('Error loading referees: $e');
@@ -406,10 +425,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   void _loadDelegates() async {
     try {
-      _delegateService.getDelegates().listen((delegates) {
-        setState(() {
-          _allDelegates = delegates;
-        });
+      _delegatesSubscription?.cancel(); // Cancel existing subscription
+      _delegatesSubscription = _delegateService.getDelegates().listen((delegates) {
+        if (mounted) {
+          setState(() {
+            _allDelegates = delegates;
+          });
+        }
       });
     } catch (e) {
       print('Error loading delegates: $e');
@@ -429,12 +451,15 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   void _loadCourts() async {
     try {
-      _courtService.getCourts().listen((courts) {
-        setState(() {
-          _allCourts = courts;
-          // Auto-position map when courts are loaded
-          _autoPositionMap();
-        });
+      _courtsSubscription?.cancel(); // Cancel existing subscription
+      _courtsSubscription = _courtService.getCourts().listen((courts) {
+        if (mounted) {
+          setState(() {
+            _allCourts = courts;
+            // Auto-position map when courts are loaded
+            _autoPositionMap();
+          });
+        }
       });
     } catch (e) {
       print('Error loading courts: $e');
@@ -479,10 +504,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }
 
     // Update map center and zoom
-    setState(() {
-      _mapCenter = targetPosition!;
-      _mapZoom = targetZoom;
-    });
+    if (mounted) {
+      setState(() {
+        _mapCenter = targetPosition!;
+        _mapZoom = targetZoom;
+      });
+    }
 
     // Move the map controller if it's initialized and widget is mounted
     try {
@@ -610,18 +637,32 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.edit, color: Colors.white, size: 32),
-                  const SizedBox(height: 8),
+                                  const Icon(Icons.edit, color: Colors.white, size: 32),
+                const SizedBox(height: 8),
+                Text(
+                  widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (widget.tournament != null && widget.tournament!.name.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    widget.tournament == null ? 'NEUES TURNIER' : 'TURNIER BEARBEITEN',
+                    widget.tournament!.name,
                     style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12 * ResponsiveHelper.getFontScale(screenWidth),
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
+                      color: Colors.white,
+                      fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ],
                 ],
               ),
             ),
@@ -722,6 +763,20 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (widget.tournament != null && widget.tournament!.name.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.tournament!.name,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14 * ResponsiveHelper.getFontScale(MediaQuery.of(context).size.width),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
@@ -948,13 +1003,40 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              _getTabTitle(),
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 18 * ResponsiveHelper.getFontScale(screenWidth),
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (widget.tournament != null && widget.tournament!.name.isNotEmpty) ...[
+                  Text(
+                    widget.tournament!.name,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    _getTabTitle(),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    _getTabTitle(),
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 18 * ResponsiveHelper.getFontScale(screenWidth),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (_selectedTab == 'teams')
@@ -1487,56 +1569,108 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       Column(
                         children: [
                           // Start Date
-                          InkWell(
-                            onTap: () => _selectStartDate(),
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: 'Startdatum *',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.calendar_today),
-                                suffixIcon: _isDateInPast(_startDate)
-                                    ? Tooltip(
-                                        message: 'Vergangenes Datum - Status wird automatisch gesetzt',
-                                        child: Icon(Icons.history, color: Colors.orange, size: 20),
-                                      )
-                                    : null,
-                              ),
-                              child: Text(
-                                _startDate != null 
-                                    ? '${_startDate!.day}.${_startDate!.month}.${_startDate!.year}'
-                                    : 'Datum auswählen',
-                                style: TextStyle(
-                                  color: _startDate != null ? Colors.black : Colors.grey[600],
-                                ),
+                          TextFormField(
+                            controller: TextEditingController(
+                              text: _startDate != null 
+                                ? '${_startDate!.day.toString().padLeft(2, '0')}.${_startDate!.month.toString().padLeft(2, '0')}.${_startDate!.year}'
+                                : ''
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Startdatum * (DD.MM.YYYY)',
+                              border: OutlineInputBorder(),
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isDateInPast(_startDate))
+                                    Tooltip(
+                                      message: 'Vergangenes Datum - Status wird automatisch gesetzt',
+                                      child: Icon(Icons.history, color: Colors.orange, size: 20),
+                                    ),
+                                  IconButton(
+                                    icon: Icon(Icons.calendar_today),
+                                    onPressed: () => _selectStartDate(),
+                                  ),
+                                ],
                               ),
                             ),
+                            onChanged: (value) {
+                              if (value.length == 10) {
+                                try {
+                                  final parts = value.split('.');
+                                  if (parts.length == 3) {
+                                    final day = int.parse(parts[0]);
+                                    final month = int.parse(parts[1]);
+                                    final year = int.parse(parts[2]);
+                                    final date = DateTime(year, month, day);
+                                    setState(() {
+                                      _startDate = date;
+                                    });
+                                  }
+                                } catch (e) {
+                                  // Invalid date format, ignore
+                                }
+                              }
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              LengthLimitingTextInputFormatter(10),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           
                           // End Date
-                          InkWell(
-                            onTap: () => _selectEndDate(),
-                            child: InputDecorator(
-                              decoration: InputDecoration(
-                                labelText: 'Enddatum (optional)',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.event_available),
-                                suffixIcon: _isDateInPast(_endDate)
-                                    ? Tooltip(
-                                        message: 'Vergangenes Datum - Status wird automatisch gesetzt',
-                                        child: Icon(Icons.history, color: Colors.orange, size: 20),
-                                      )
-                                    : null,
-                              ),
-                              child: Text(
-                                _endDate != null 
-                                    ? '${_endDate!.day}.${_endDate!.month}.${_endDate!.year}'
-                                    : 'Datum auswählen',
-                                style: TextStyle(
-                                  color: _endDate != null ? Colors.black : Colors.grey[600],
-                                ),
+                          TextFormField(
+                            controller: TextEditingController(
+                              text: _endDate != null 
+                                ? '${_endDate!.day.toString().padLeft(2, '0')}.${_endDate!.month.toString().padLeft(2, '0')}.${_endDate!.year}'
+                                : ''
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Enddatum (optional) (DD.MM.YYYY)',
+                              border: OutlineInputBorder(),
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isDateInPast(_endDate))
+                                    Tooltip(
+                                      message: 'Vergangenes Datum - Status wird automatisch gesetzt',
+                                      child: Icon(Icons.history, color: Colors.orange, size: 20),
+                                    ),
+                                  IconButton(
+                                    icon: Icon(Icons.calendar_today),
+                                    onPressed: () => _selectEndDate(),
+                                  ),
+                                ],
                               ),
                             ),
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  _endDate = null;
+                                });
+                                return;
+                              }
+                              if (value.length == 10) {
+                                try {
+                                  final parts = value.split('.');
+                                  if (parts.length == 3) {
+                                    final day = int.parse(parts[0]);
+                                    final month = int.parse(parts[1]);
+                                    final year = int.parse(parts[2]);
+                                    final date = DateTime(year, month, day);
+                                    setState(() {
+                                      _endDate = date;
+                                    });
+                                  }
+                                } catch (e) {
+                                  // Invalid date format, ignore
+                                }
+                              }
+                            },
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                              LengthLimitingTextInputFormatter(10),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           
@@ -4106,29 +4240,63 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     final date = await showDatePicker(
       context: context,
       initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime(2020), // Allow dates from 2020 onwards
+      firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('de'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (date != null) {
       setState(() {
         _startDate = date;
-        // Automatically set status to completed if tournament is in the past
         _updateStatusBasedOnDate();
       });
     }
   }
 
   void _selectEndDate() async {
+    if (_startDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bitte wählen Sie zuerst ein Startdatum'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final date = await showDatePicker(
       context: context,
-      initialDate: _endDate ?? _startDate ?? DateTime.now(),
-      firstDate: _startDate ?? DateTime(2020), // Start from tournament start date or 2020
+      initialDate: _endDate ?? _startDate!,
+      firstDate: _startDate!,
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('de'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (date != null) {
       setState(() {
         _endDate = date;
-        // Automatically set status to completed if tournament is in the past
         _updateStatusBasedOnDate();
       });
     }
@@ -7136,6 +7304,143 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Game Management Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.sports_basketball, color: Colors.red, size: 24),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Spiel Verwaltung',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Verwalten Sie alle Spiele dieses Turniers.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Remove All Games Button
+                  Container(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.tournament != null ? _showRemoveAllGamesDialog : null,
+                      icon: const Icon(Icons.delete_forever, color: Colors.white),
+                      label: const Text(
+                        'Alle Spiele löschen',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '⚠️ Diese Aktion löscht alle Spiele und Planungen unwiderruflich!',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Team Management Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.group, color: Colors.orange, size: 24),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Team Verwaltung',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Verwalten Sie alle Teams dieses Turniers.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Remove All Teams Button
+                  Container(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: widget.tournament != null ? _showRemoveAllTeamsDialog : null,
+                      icon: const Icon(Icons.group_remove, color: Colors.white),
+                      label: const Text(
+                        'Alle Teams entfernen',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '⚠️ Diese Aktion entfernt alle Teams aus diesem Turnier!',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Additional Settings Card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -7147,7 +7452,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       Icon(Icons.settings, color: Colors.blue, size: 24),
                       const SizedBox(width: 12),
                       const Text(
-                        'Turnier Einstellungen',
+                        'Weitere Einstellungen',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -7157,7 +7462,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Weitere Einstellungen für dieses Turnier werden hier hinzugefügt.',
+                    'Zusätzliche Turnier-Einstellungen werden hier hinzugefügt.',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
@@ -7176,6 +7481,494 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     setState(() {
       _criteria = newCriteria;
     });
+  }
+
+  // Show confirmation dialog for removing all games
+  void _showRemoveAllGamesDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 28),
+              const SizedBox(width: 12),
+              const Text('Alle Spiele löschen'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Sind Sie sicher, dass Sie alle Spiele dieses Turniers löschen möchten?',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dies wird folgende Daten unwiderruflich löschen:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('• Alle Gruppen- und Eliminationsspiele', style: TextStyle(color: Colors.red.shade700)),
+                    Text('• Alle Zeitpläne und Platzplanungen', style: TextStyle(color: Colors.red.shade700)),
+                    Text('• Alle Spielergebnisse', style: TextStyle(color: Colors.red.shade700)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _removeAllGames();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Alle Spiele löschen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show confirmation dialog for removing all teams
+  void _showRemoveAllTeamsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange, size: 28),
+              const SizedBox(width: 12),
+              const Text('Alle Teams entfernen'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Sind Sie sicher, dass Sie alle Teams aus diesem Turnier entfernen möchten?',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dies wird folgende Aktionen ausführen:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('• Alle Teams werden vom Turnier abgemeldet', style: TextStyle(color: Colors.orange.shade700)),
+                    Text('• Die Teams bleiben im System bestehen', style: TextStyle(color: Colors.orange.shade700)),
+                    Text('• Turnierplätze werden für neue Anmeldungen frei', style: TextStyle(color: Colors.orange.shade700)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _removeAllTeams();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Alle Teams entfernen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Remove all teams from the tournament
+  Future<void> _removeAllGames() async {
+    if (widget.tournament == null) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Lösche alle Spiele...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete all games from database
+      await _gameService.deleteAllGamesForTournament(widget.tournament!.id);
+
+      // Clear local scheduling data
+      setState(() {
+        _scheduledGames.clear();
+      });
+
+      // Force refresh of scheduled games
+      _loadScheduledGames();
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                const Text('Alle Spiele wurden erfolgreich gelöscht'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Fehler beim Löschen der Spiele: $e'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  // Remove all teams from the tournament
+  Future<void> _removeAllTeams() async {
+    if (widget.tournament == null) return;
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text('Entferne alle Teams...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Clear the team IDs from the tournament
+      final updatedTournament = widget.tournament!.copyWith(
+        teamIds: [],
+      );
+
+      // Update tournament in database
+      await _tournamentService.updateTournament(updatedTournament);
+
+      // Update local state
+      setState(() {
+        _selectedTeamIds.clear();
+      });
+
+      // Reload teams data
+      _loadTeams();
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                const Text('Alle Teams wurden erfolgreich entfernt'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+    } catch (e) {
+      // Close loading dialog if still open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Fehler beim Entfernen der Teams: $e'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  // Show context menu for unscheduling a game
+  void _showUnscheduleGameMenu(BuildContext context, Game game) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.schedule, color: Colors.orange, size: 24),
+              const SizedBox(width: 12),
+              const Text('Spiel aus Plan entfernen'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Möchten Sie dieses Spiel aus dem Zeitplan entfernen?',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getGameColor(game).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _getGameColor(game).withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _getGameTitle(game),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    if (game.scheduledTime != null)
+                      Text(
+                        'Geplant: ${_formatDateTime(game.scheduledTime!)}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    if (game.courtId != null)
+                      Text(
+                        'Platz: ${_getCourtNameForUnschedule(game.courtId!)}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Das Spiel wird zurück in die Liste der nicht geplanten Spiele verschoben.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _unscheduleGame(game);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Aus Plan entfernen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Unschedule a game and move it back to unassigned list
+  Future<void> _unscheduleGame(Game game) async {
+    try {
+      // Remove from local scheduled games map
+      _scheduledGames.removeWhere((key, scheduledGame) => scheduledGame.id == game.id);
+
+      // Create updated game with no schedule
+      final unscheduledGame = Game(
+        id: game.id,
+        tournamentId: game.tournamentId,
+        teamAId: game.teamAId,
+        teamBId: game.teamBId,
+        teamAName: game.teamAName,
+        teamBName: game.teamBName,
+        gameType: game.gameType,
+        poolId: game.poolId,
+        scheduledTime: null, // Remove scheduled time
+        courtId: null, // Remove court assignment
+        status: game.status,
+        result: game.result,
+        createdAt: game.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      // Update in database
+      await _gameService.updateGame(unscheduledGame);
+
+      // Refresh UI
+      setState(() {
+        _loadScheduledGames();
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Spiel "${_getGameTitle(game)}" aus dem Plan entfernt'),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('Fehler beim Entfernen: $e'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  // Helper method to get court name by ID for unscheduling
+  String _getCourtNameForUnschedule(String courtId) {
+    final court = _tournamentCourts.firstWhere(
+      (court) => court.id == courtId,
+      orElse: () => Court(
+        id: '',
+        name: 'Unbekannt',
+        description: '',
+        latitude: 0.0,
+        longitude: 0.0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    return court.name;
+  }
+
+  // Helper method to format date and time
+  String _formatDateTime(DateTime dateTime) {
+    final dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    final dayName = dayNames[dateTime.weekday - 1];
+    return '$dayName ${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _buildCriteriaSection(String title, String subtitle, MaterialColor color, List<Widget> children) {
@@ -7718,8 +8511,15 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   @override
   void dispose() {
+    // ✅ CANCEL ALL STREAM SUBSCRIPTIONS TO PREVENT MEMORY LEAKS
     _scheduleAutoSaveTimer?.cancel();
     _autoRefreshTimer?.cancel();
+    _teamsSubscription?.cancel();
+    _refereesSubscription?.cancel();
+    _delegatesSubscription?.cancel();
+    _courtsSubscription?.cancel();
+    
+    // Dispose controllers
     _teamSearchController.dispose();
     _refereeSearchController.dispose();
     _delegateSearchController.dispose();
@@ -9362,59 +10162,86 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         ),
         child: _buildGameCardContent(game, isPlaceholder: true),
       ),
-      child: Container(
-        margin: const EdgeInsets.all(1),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              divisionColor,
-              divisionColor.withOpacity(0.8),
+      child: GestureDetector(
+        onLongPress: () => _showUnscheduleGameMenu(context, game),
+        onSecondaryTap: () => _showUnscheduleGameMenu(context, game),
+        child: Container(
+          margin: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                divisionColor,
+                divisionColor.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(6),
+            border: hasConflict ? Border.all(color: Colors.red, width: 2) : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
             ],
           ),
-          borderRadius: BorderRadius.circular(6),
-          border: hasConflict ? Border.all(color: Colors.red, width: 2) : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            _buildModernGameCardContent(game),
-            // Conflict indicator
-            if (hasConflict)
+          child: Stack(
+            children: [
+              _buildModernGameCardContent(game),
+              // Conflict indicator
+              if (hasConflict)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(1),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.warning,
+                      size: 8,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              // Unschedule button (top-left)
               Positioned(
                 top: 2,
-                right: 2,
-                child: Container(
-                  padding: const EdgeInsets.all(1),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.warning,
-                    size: 8,
-                    color: Colors.white,
+                left: 2,
+                child: Tooltip(
+                  message: 'Spiel aus Plan entfernen',
+                  child: GestureDetector(
+                    onTap: () => _showUnscheduleGameMenu(context, game),
+                    child: Container(
+                      padding: const EdgeInsets.all(1),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        size: 8,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            // Drag indicator
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Icon(
-                Icons.drag_indicator,
-                size: 8,
-                color: Colors.white.withOpacity(0.7),
+              // Drag indicator
+              Positioned(
+                bottom: 2,
+                right: 2,
+                child: Icon(
+                  Icons.drag_indicator,
+                  size: 8,
+                  color: Colors.white.withOpacity(0.7),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -9424,16 +10251,17 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     final division = _getGameDivision(game);
     final color = _getGameColor(game);
     
-    // Get team names from team IDs
-    String teamAName = 'Team A';
-    String teamBName = 'Team B';
+    // Use team names directly from game object first, then try lookup
+    String teamAName = game.teamAName.isNotEmpty ? game.teamAName : 'Team A';
+    String teamBName = game.teamBName.isNotEmpty ? game.teamBName : 'Team B';
     
-    if (game.teamAId != null) {
+    // If still default names, try to get from team IDs
+    if (teamAName == 'Team A' && game.teamAId != null) {
       final teamA = _allTeams.firstWhere(
         (team) => team.id == game.teamAId,
         orElse: () => Team(
           id: '',
-          name: '',
+          name: 'Team A',
           city: '',
           bundesland: '',
           division: 'Men\'s Seniors',
@@ -9443,12 +10271,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       if (teamA.id.isNotEmpty) teamAName = teamA.name;
     }
     
-    if (game.teamBId != null) {
+    if (teamBName == 'Team B' && game.teamBId != null) {
       final teamB = _allTeams.firstWhere(
         (team) => team.id == game.teamBId,
         orElse: () => Team(
           id: '',
-          name: '',
+          name: 'Team B',
           city: '',
           bundesland: '',
           division: 'Men\'s Seniors',
@@ -9458,27 +10286,25 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       if (teamB.id.isNotEmpty) teamBName = teamB.name;
     }
     
-    // Fallback to game.teamAName/teamBName if available
-    if (teamAName == 'Team A' && game.teamAName.isNotEmpty) {
-      teamAName = game.teamAName;
-    }
-    if (teamBName == 'Team B' && game.teamBName.isNotEmpty) {
-      teamBName = game.teamBName;
-    }
-    
-    // Create abbreviations from team names (first 2 characters)
+    // Create abbreviations from team names (first 3 characters for better readability)
     String getAbbreviation(String teamName) {
-      if (teamName.length <= 2) return teamName.toUpperCase();
+      if (teamName.length <= 3) return teamName.toUpperCase();
       
-      // Try to get first letter + first consonant/vowel
-      String abbrev = teamName[0].toUpperCase();
-      for (int i = 1; i < teamName.length && abbrev.length < 2; i++) {
-        if (teamName[i] != ' ') {
-          abbrev += teamName[i].toUpperCase();
-          break;
+      // Try to get meaningful abbreviation
+      final words = teamName.split(' ');
+      if (words.length > 1) {
+        // Use first letter of each word (up to 3)
+        String abbrev = '';
+        for (int i = 0; i < words.length && abbrev.length < 3; i++) {
+          if (words[i].isNotEmpty) {
+            abbrev += words[i][0].toUpperCase();
+          }
         }
+        return abbrev.isNotEmpty ? abbrev : teamName.substring(0, 3).toUpperCase();
+      } else {
+        // Single word - take first 3 characters
+        return teamName.substring(0, 3).toUpperCase();
       }
-      return abbrev.length >= 2 ? abbrev.substring(0, 2) : abbrev;
     }
     
     final teamAAbbrev = getAbbreviation(teamAName);
@@ -9505,36 +10331,21 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               topRight: Radius.circular(8),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  _getSimpleGameTitle(game),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                _getDivisionShort(division),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          child: Text(
+            _getDivisionShort(division),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
         // Main content with light background
         Expanded(
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
               borderRadius: const BorderRadius.only(
@@ -9546,31 +10357,57 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Large abbreviated team names
-                Text(
-                  '$teamAAbbrev - $teamBAbbrev',
-                  style: TextStyle(
-                    color: color.withOpacity(0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    height: 1.0,
+                // Show team names if available, otherwise show game info
+                if (teamAName != 'Team A' && teamBName != 'Team B') ...[
+                  Text(
+                    teamAName,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 2),
-                // Full team names in single line
-                Text(
-                  '$teamAName    $teamBName',
-                  style: TextStyle(
-                    color: color.withOpacity(0.7),
-                    fontSize: 7,
-                    fontWeight: FontWeight.w500,
-                    height: 1.0,
+                  Text(
+                    'vs',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 7,
+                      fontWeight: FontWeight.w500,
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  Text(
+                    teamBName,
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ] else ...[
+                  // Fallback to game title if no team names
+                  Text(
+                    _getSimpleGameTitle(game),
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      height: 1.1,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
@@ -10411,6 +11248,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       setState(() {
                         _selectedDayIndex = index;
                       });
+                      // Auto-refresh games when day is changed
+                      _loadScheduledGames();
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -11306,9 +12145,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         ],
       ),
     );
-  }
-
-
+    }
 
   Future<void> _assignDelegateToGameDragDrop(Game game, String delegateId) async {
     try {

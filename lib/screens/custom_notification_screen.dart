@@ -43,9 +43,12 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
   }
   
   Future<void> _loadUsers() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // Set loading state only if mounted
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     
     try {
       final users = await _authService.getAllUsers();
@@ -67,17 +70,21 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         }
       }
       
-      setState(() {
-        _users = users;
-        _userTeamNames = userTeamNames;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      
+      // Update state only if still mounted
       if (mounted) {
+        setState(() {
+          _users = users;
+          _userTeamNames = userTeamNames;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Update loading state only if mounted
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
         toastification.show(
           context: context,
           type: ToastificationType.error,
@@ -104,16 +111,22 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
       return;
     }
     
-    setState(() {
-      _isSending = true;
-    });
+    // Set sending state only if mounted
+    if (mounted) {
+      setState(() {
+        _isSending = true;
+      });
+    }
     
     try {
       // Check time-sensitive permissions if needed
       if (_isTimeSensitive) {
-        setState(() {
-          _isRequestingPermission = true;
-        });
+        // Set requesting permission state only if mounted
+        if (mounted) {
+          setState(() {
+            _isRequestingPermission = true;
+          });
+        }
         
         if (mounted) {
           toastification.show(
@@ -129,9 +142,12 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         print('📱 Requesting time-sensitive notification permission...');
         final hasPermission = await _notificationService.requestTimeSensitivePermission();
         
-        setState(() {
-          _isRequestingPermission = false;
-        });
+        // Reset requesting permission state only if mounted
+        if (mounted) {
+          setState(() {
+            _isRequestingPermission = false;
+          });
+        }
         
         if (!hasPermission) {
           if (mounted) {
@@ -144,9 +160,13 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
               autoCloseDuration: const Duration(seconds: 5),
             );
           }
-          setState(() {
-            _isSending = false;
-          });
+          
+          // Reset sending state only if mounted
+          if (mounted) {
+            setState(() {
+              _isSending = false;
+            });
+          }
           return;
         }
         
@@ -185,10 +205,14 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         // Clear the form
         _titleController.clear();
         _messageController.clear();
-        setState(() {
-          _selectedUserEmail = null;
-          _isTimeSensitive = false;
-        });
+        
+        // Reset state only if mounted
+        if (mounted) {
+          setState(() {
+            _selectedUserEmail = null;
+            _isTimeSensitive = false;
+          });
+        }
       } else {
         if (mounted) {
           toastification.show(
@@ -202,23 +226,20 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error sending notification: $e');
+      // Reset sending state only if mounted
       if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+        
         toastification.show(
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Unerwarteter Fehler: $e'),
+          description: Text('Benachrichtigung konnte nicht gesendet werden: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-          _isRequestingPermission = false;
-        });
       }
     }
   }
@@ -624,8 +645,14 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.blue.shade100;
       case app_user.UserRole.delegate:
         return Colors.green.shade100;
-      default:
-        return Colors.grey.shade100;
+      case app_user.UserRole.scoringTablet:
+        return Colors.purple.shade100;
+      case app_user.UserRole.sanitater:
+        return Colors.teal.shade100;
+      case app_user.UserRole.seriesOrganizer:
+        return Colors.indigo.shade100;
+      case app_user.UserRole.spieler:
+        return Colors.amber.shade100;
     }
   }
   
@@ -639,8 +666,14 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.blue.shade700;
       case app_user.UserRole.delegate:
         return Colors.green.shade700;
-      default:
-        return Colors.grey.shade700;
+      case app_user.UserRole.scoringTablet:
+        return Colors.purple.shade700;
+      case app_user.UserRole.sanitater:
+        return Colors.teal.shade700;
+      case app_user.UserRole.seriesOrganizer:
+        return Colors.indigo.shade700;
+      case app_user.UserRole.spieler:
+        return Colors.amber.shade700;
     }
   }
   
@@ -654,8 +687,14 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return 'TEAM MANAGER';
       case app_user.UserRole.delegate:
         return 'DELEGATE';
-      default:
-        return 'USER';
+      case app_user.UserRole.scoringTablet:
+        return 'SCORING TABLET';
+      case app_user.UserRole.sanitater:
+        return 'SANITÄTER';
+      case app_user.UserRole.seriesOrganizer:
+        return 'SERIES ORGANIZER';
+      case app_user.UserRole.spieler:
+        return 'SPIELER';
     }
   }
   

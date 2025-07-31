@@ -5,10 +5,12 @@ import '../screens/tournament_detail_screen.dart';
 
 class TournamentTimeline extends StatefulWidget {
   final String? selectedCategory; // Accept category filter from parent
+  final String? selectedSeason; // Accept season filter from parent
   
   const TournamentTimeline({
     super.key,
     this.selectedCategory,
+    this.selectedSeason,
   });
 
   @override
@@ -58,10 +60,13 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
         }
 
         String categoryFilter = widget.selectedCategory ?? 'Alle';
+        String seasonFilter = widget.selectedSeason ?? '2025';
         List<Tournament> filteredTournaments = snapshot.data!
             .where((tournament) {
-              // Filter by category
-              return categoryFilter == 'Alle' || tournament.hasCategory(categoryFilter);
+              // Filter by category and season
+              bool matchesCategory = categoryFilter == 'Alle' || tournament.hasCategory(categoryFilter);
+              bool matchesSeason = tournament.season == seasonFilter;
+              return matchesCategory && matchesSeason;
             })
             .toList();
 

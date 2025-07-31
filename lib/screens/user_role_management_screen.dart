@@ -35,6 +35,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     'Referee',
     'Team Manager',
     'Delegate',
+    'Scoring Tablet',
+    'Sanitäter',
+    'Series Organizer',
+    'Spieler',
   ];
 
   @override
@@ -249,26 +253,28 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveHelper.isMobile(screenWidth);
     
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 16 : 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _buildHeader(isMobile),
-          const SizedBox(height: 24),
-          
-          // Filters
-          _buildFilters(isMobile),
-          const SizedBox(height: 24),
-          
-          // Users List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildUsersList(isMobile),
-          ),
-        ],
+    return Scaffold(
+      body: Container(
+        padding: EdgeInsets.all(isMobile ? 16 : 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            _buildHeader(isMobile),
+            const SizedBox(height: 24),
+            
+            // Filters
+            _buildFilters(isMobile),
+            const SizedBox(height: 24),
+            
+            // Users List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildUsersList(isMobile),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -325,25 +331,43 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   }
 
   Widget _buildFilters(bool isMobile) {
-    if (isMobile) {
-      return Column(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSearchField(),
+          Text(
+            'Filter',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
           const SizedBox(height: 16),
-          _buildRoleFilter(),
+          if (isMobile) ...[
+            _buildSearchField(),
+            const SizedBox(height: 16),
+            _buildRoleFilter(),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(child: _buildSearchField()),
+                const SizedBox(width: 16),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 200),
+                  child: _buildRoleFilter(),
+                ),
+              ],
+            ),
+          ],
         ],
-      );
-    }
-    
-    return Row(
-      children: [
-        Expanded(child: _buildSearchField()),
-        const SizedBox(width: 16),
-        Container(
-          constraints: const BoxConstraints(maxWidth: 200),
-          child: _buildRoleFilter(),
-        ),
-      ],
+      ),
     );
   }
 
@@ -417,154 +441,18 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       );
     }
 
-    if (isMobile) {
-      return ListView.builder(
-        itemCount: filteredUsers.length,
-        itemBuilder: (context, index) {
-          final user = filteredUsers[index];
-          return _buildUserCard(user, isMobile);
-        },
-      );
-    } else {
-      return _buildUsersTable(filteredUsers);
-    }
-  }
-
-  Widget _buildUsersTable(List<app_user.User> users) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Email')),
-            DataColumn(label: Text('Rollen')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Rolle hinzufügen')),
-            DataColumn(label: Text('Rolle entfernen')),
-          ],
-          rows: users.map((user) => _buildUserRow(user)).toList(),
-        ),
-      ),
+    return ListView.builder(
+      itemCount: filteredUsers.length,
+      itemBuilder: (context, index) {
+        final user = filteredUsers[index];
+        return _buildUserCard(user, isMobile);
+      },
     );
   }
 
-  DataRow _buildUserRow(app_user.User user) {
-    return DataRow(
-      cells: [
-        DataCell(
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: Colors.purple.shade100,
-                child: Text(
-                  user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : 'U',
-                  style: TextStyle(
-                    color: Colors.purple.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    user.fullName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        DataCell(Text(user.email)),
-        DataCell(
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: user.roles.map((role) => _buildRoleChip(role)).toList(),
-          ),
-        ),
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: user.isActive ? Colors.green.shade100 : Colors.red.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              user.isActive ? 'Aktiv' : 'Inaktiv',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: user.isActive ? Colors.green.shade700 : Colors.red.shade700,
-              ),
-            ),
-          ),
-        ),
-        DataCell(_buildAddRoleButton(user)),
-        DataCell(_buildRemoveRoleButton(user)),
-      ],
-    );
-  }
 
-  Widget _buildAddRoleButton(app_user.User user) {
-    final availableRoles = app_user.UserRole.values
-        .where((role) => !user.roles.contains(role))
-        .toList();
-    
-    if (availableRoles.isEmpty) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.add, color: Colors.grey),
-        tooltip: 'Alle Rollen vergeben',
-      );
-    }
 
-    return IconButton(
-      onPressed: () => _showAddRoleDialog(user, availableRoles),
-      icon: const Icon(Icons.add, color: Colors.green),
-      tooltip: 'Rolle hinzufügen',
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.green.shade100,
-      ),
-    );
-  }
 
-  Widget _buildRemoveRoleButton(app_user.User user) {
-    if (user.roles.length <= 1) {
-      return IconButton(
-        onPressed: null,
-        icon: const Icon(Icons.remove, color: Colors.grey),
-        tooltip: 'Mindestens eine Rolle',
-      );
-    }
-
-    return IconButton(
-      onPressed: () => _showRemoveRoleDialog(user),
-      icon: const Icon(Icons.remove, color: Colors.red),
-      tooltip: 'Rolle entfernen',
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.red.shade100,
-      ),
-    );
-  }
 
   Color _getRoleColor(app_user.UserRole role) {
     switch (role) {
@@ -576,6 +464,14 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Colors.blue;
       case app_user.UserRole.delegate:
         return Colors.green;
+      case app_user.UserRole.scoringTablet:
+        return Colors.purple;
+      case app_user.UserRole.sanitater:
+        return Colors.teal;
+      case app_user.UserRole.seriesOrganizer:
+        return Colors.indigo;
+      case app_user.UserRole.spieler:
+        return Colors.amber;
     }
   }
 
@@ -589,6 +485,14 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Icons.groups;
       case app_user.UserRole.delegate:
         return Icons.badge;
+      case app_user.UserRole.scoringTablet:
+        return Icons.tablet_android;
+      case app_user.UserRole.sanitater:
+        return Icons.medical_services;
+      case app_user.UserRole.seriesOrganizer:
+        return Icons.event_note;
+      case app_user.UserRole.spieler:
+        return Icons.person;
     }
   }
 
@@ -675,6 +579,11 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           
           // Role Management Actions
           _buildRoleActions(user, isMobile),
+          
+          const SizedBox(height: 8),
+          
+          // Quick Action Buttons
+          _buildQuickActions(user),
         ],
       ),
     );
@@ -723,6 +632,22 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.green;
         icon = Icons.badge;
         break;
+      case app_user.UserRole.scoringTablet:
+        color = Colors.purple;
+        icon = Icons.tablet_android;
+        break;
+      case app_user.UserRole.sanitater:
+        color = Colors.teal;
+        icon = Icons.medical_services;
+        break;
+      case app_user.UserRole.seriesOrganizer:
+        color = Colors.indigo;
+        icon = Icons.event_note;
+        break;
+      case app_user.UserRole.spieler:
+        color = Colors.amber;
+        icon = Icons.person;
+        break;
     }
     
     return Container(
@@ -755,6 +680,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         .where((role) => !user.roles.contains(role)) // Exclude current roles
         .toList();
     
+    if (availableRoles.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -772,6 +701,40 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           runSpacing: 8,
           children: availableRoles.map((role) => _buildRoleActionButton(user, role)).toList(),
         ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(app_user.User user) {
+    final availableRoles = app_user.UserRole.values
+        .where((role) => !user.roles.contains(role))
+        .toList();
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (user.roles.length > 1)
+          OutlinedButton.icon(
+            onPressed: () => _showRemoveRoleDialog(user),
+            icon: const Icon(Icons.remove, size: 16),
+            label: const Text('Rolle entfernen'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+            ),
+          ),
+        if (availableRoles.isNotEmpty) ...[
+          if (user.roles.length > 1) const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => _showAddRoleDialog(user, availableRoles),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Rolle hinzufügen'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -796,6 +759,22 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.delegate:
         color = Colors.green;
         icon = Icons.badge;
+        break;
+      case app_user.UserRole.scoringTablet:
+        color = Colors.purple;
+        icon = Icons.tablet_android;
+        break;
+      case app_user.UserRole.sanitater:
+        color = Colors.teal;
+        icon = Icons.medical_services;
+        break;
+      case app_user.UserRole.seriesOrganizer:
+        color = Colors.indigo;
+        icon = Icons.event_note;
+        break;
+      case app_user.UserRole.spieler:
+        color = Colors.amber;
+        icon = Icons.person;
         break;
     }
     
@@ -830,11 +809,25 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return 'Team Manager';
       case app_user.UserRole.delegate:
         return 'Delegate';
+      case app_user.UserRole.scoringTablet:
+        return 'Scoring Tablet';
+      case app_user.UserRole.sanitater:
+        return 'Sanitäter';
+      case app_user.UserRole.seriesOrganizer:
+        return 'Series Organizer';
+      case app_user.UserRole.spieler:
+        return 'Spieler';
     }
   }
 
   List<app_user.User> _getFilteredUsers() {
     List<app_user.User> filtered = _users;
+    
+    // Filter out system and managed accounts
+    filtered = filtered.where((user) {
+      final email = user.email.toLowerCase();
+      return !email.endsWith('@gbo-system.de') && !email.endsWith('@managed.gbo.app');
+    }).toList();
     
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
@@ -861,6 +854,18 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         case 'Delegate':
           filterRole = app_user.UserRole.delegate;
           break;
+        case 'Scoring Tablet':
+          filterRole = app_user.UserRole.scoringTablet;
+          break;
+        case 'Sanitäter':
+          filterRole = app_user.UserRole.sanitater;
+          break;
+        case 'Series Organizer':
+          filterRole = app_user.UserRole.seriesOrganizer;
+          break;
+        case 'Spieler':
+          filterRole = app_user.UserRole.spieler;
+          break;
       }
       
       if (filterRole != null) {
@@ -881,6 +886,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         break;
       case app_user.UserRole.admin:
       case app_user.UserRole.delegate:
+      case app_user.UserRole.scoringTablet:
+      case app_user.UserRole.sanitater:
+      case app_user.UserRole.seriesOrganizer:
+      case app_user.UserRole.spieler:
         await _assignSimpleRole(user, role);
         break;
     }

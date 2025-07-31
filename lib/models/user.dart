@@ -6,6 +6,10 @@ enum UserRole {
   teamManager,
   referee,
   delegate,
+  scoringTablet,
+  sanitater,
+  seriesOrganizer,
+  spieler,
 }
 
 class User {
@@ -21,6 +25,8 @@ class User {
   final String? teamManagerId; // Link to team manager document if role is teamManager
   final String? delegateId; // Link to delegate document if role is delegate
   final Map<String, Device> devices; // Device-specific settings
+  final String? defaultTournamentFilter; // Default tournament category filter
+  final String? defaultSeason; // Default season filter
 
   User({
     required this.id,
@@ -35,6 +41,8 @@ class User {
     this.teamManagerId,
     this.delegateId,
     this.devices = const {},
+    this.defaultTournamentFilter,
+    this.defaultSeason,
   });
 
   String get fullName => '$firstName $lastName';
@@ -52,6 +60,8 @@ class User {
       'teamManagerId': teamManagerId,
       'delegateId': delegateId,
       'devices': devices.map((key, device) => MapEntry(key, device.toFirestore())),
+      'defaultTournamentFilter': defaultTournamentFilter,
+      'defaultSeason': defaultSeason,
     };
   }
 
@@ -107,6 +117,8 @@ class User {
       teamManagerId: data['teamManagerId'],
       delegateId: data['delegateId'],
       devices: devices,
+      defaultTournamentFilter: data['defaultTournamentFilter'],
+      defaultSeason: data['defaultSeason'],
     );
   }
 
@@ -121,6 +133,8 @@ class User {
     String? teamManagerId,
     String? delegateId,
     Map<String, Device>? devices,
+    String? defaultTournamentFilter,
+    String? defaultSeason,
   }) {
     return User(
       id: id,
@@ -135,6 +149,8 @@ class User {
       teamManagerId: teamManagerId ?? this.teamManagerId,
       delegateId: delegateId ?? this.delegateId,
       devices: devices ?? this.devices,
+      defaultTournamentFilter: defaultTournamentFilter ?? this.defaultTournamentFilter,
+      defaultSeason: defaultSeason ?? this.defaultSeason,
     );
   }
 } 

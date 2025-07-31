@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'dart:math';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/tournament_service.dart';
@@ -9,6 +11,8 @@ import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
 import '../services/referee_service.dart';
+
+import '../utils/app_colors.dart';
 
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
@@ -39,6 +43,8 @@ class _SideNavigationState extends State<SideNavigation> {
   List<Tournament> _refereeTournaments = [];
   bool _isLoadingTournaments = false;
   Referee? _refereeProfile;
+  StreamSubscription<User?>? _authSubscription;
+  bool _isAdminExpanded = false;
 
   @override
   void initState() {
@@ -46,7 +52,7 @@ class _SideNavigationState extends State<SideNavigation> {
     _currentUser = FirebaseAuth.instance.currentUser;
     
     // Listen to auth state changes
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (mounted) {
         setState(() {
           _currentUser = user;
@@ -58,27 +64,39 @@ class _SideNavigationState extends State<SideNavigation> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadUserData() async {
     // Load app user data
     if (_currentUser != null) {
       try {
         final appUser = await _authService.getUserById(_currentUser!.uid);
-        setState(() {
-          _currentAppUser = appUser;
-        });
+        if (mounted) {
+          setState(() {
+            _currentAppUser = appUser;
+          });
+        }
         await _loadRefereeProfile();
       } catch (e) {
         print('Error loading app user: $e');
+        if (mounted) {
+          setState(() {
+            _currentAppUser = null;
+            _refereeProfile = null;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
         setState(() {
           _currentAppUser = null;
           _refereeProfile = null;
         });
       }
-    } else {
-      setState(() {
-        _currentAppUser = null;
-        _refereeProfile = null;
-      });
     }
     
     // Load team manager data
@@ -89,10 +107,12 @@ class _SideNavigationState extends State<SideNavigation> {
     // Check if currentAppUser is available
     if (_currentAppUser == null) {
       print('⏳ Nav: currentAppUser is null, waiting...');
-      setState(() {
-        _refereeProfile = null;
-        _refereeTournaments = [];
-      });
+      if (mounted) {
+        setState(() {
+          _refereeProfile = null;
+          _refereeTournaments = [];
+        });
+      }
       return;
     }
 
@@ -106,17 +126,21 @@ class _SideNavigationState extends State<SideNavigation> {
             await _loadRefereeTournaments();
           } else {
             print('❌ Nav: Referee profile not found');
+            if (mounted) {
+              setState(() {
+                _refereeProfile = null;
+                _refereeTournaments = [];
+              });
+            }
+          }
+        } catch (e) {
+          print('❌ Nav: Error loading referee profile: $e');
+          if (mounted) {
             setState(() {
               _refereeProfile = null;
               _refereeTournaments = [];
             });
           }
-        } catch (e) {
-          print('❌ Nav: Error loading referee profile: $e');
-          setState(() {
-            _refereeProfile = null;
-            _refereeTournaments = [];
-          });
         }
       } else {
         // User has referee role but no refereeId - try to find and link it
@@ -145,7 +169,7 @@ class _SideNavigationState extends State<SideNavigation> {
             print('✅ Nav: Auto-linked referee ID and loaded profile');
             
             // Notify parent to refresh current user
-            if (widget.onUserUpdated != null) {
+            if (widget.onUserUpdated != null && mounted) {
               widget.onUserUpdated!();
             }
           } else {
@@ -154,27 +178,33 @@ class _SideNavigationState extends State<SideNavigation> {
           
         } catch (e) {
           print('❌ Nav: Failed to auto-link referee ID: $e');
-          setState(() {
-            _refereeProfile = null;
-            _refereeTournaments = [];
-          });
+          if (mounted) {
+            setState(() {
+              _refereeProfile = null;
+              _refereeTournaments = [];
+            });
+          }
         }
       }
     } else {
       print('ℹ️ Nav: User does not have referee role (roles: ${_currentAppUser!.roles})');
-      setState(() {
-        _refereeProfile = null;
-        _refereeTournaments = [];
-      });
+      if (mounted) {
+        setState(() {
+          _refereeProfile = null;
+          _refereeTournaments = [];
+        });
+      }
     }
   }
 
   Future<void> _loadRefereeTournaments() async {
     if (_refereeProfile == null) return;
 
-    setState(() {
-      _isLoadingTournaments = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingTournaments = true;
+      });
+    }
 
     try {
       print('🔄 Nav: Loading tournaments for referee: ${_refereeProfile!.fullName}');
@@ -182,31 +212,39 @@ class _SideNavigationState extends State<SideNavigation> {
       final tournaments = await tournamentsStream.first;
       
       print('✅ Nav: Loaded ${tournaments.length} tournaments');
-      setState(() {
-        _refereeTournaments = tournaments;
-        _isLoadingTournaments = false;
-      });
+      if (mounted) {
+        setState(() {
+          _refereeTournaments = tournaments;
+          _isLoadingTournaments = false;
+        });
+      }
     } catch (e) {
       print('❌ Nav: Error loading tournaments: $e');
-      setState(() {
-        _refereeTournaments = [];
-        _isLoadingTournaments = false;
-      });
+      if (mounted) {
+        setState(() {
+          _refereeTournaments = [];
+          _isLoadingTournaments = false;
+        });
+      }
     }
   }
 
   Future<void> _loadTeamManagerData() async {
     if (_currentUser == null) {
-      setState(() {
-        _isTeamManager = false;
-        _managedTeams = [];
-      });
+      if (mounted) {
+        setState(() {
+          _isTeamManager = false;
+          _managedTeams = [];
+        });
+      }
       return;
     }
 
-    setState(() {
-      _isLoadingTeams = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoadingTeams = true;
+      });
+    }
 
     try {
       // Debug: Check if team manager exists by email
@@ -229,26 +267,34 @@ class _SideNavigationState extends State<SideNavigation> {
         for (final team in teams) {
           print('Team: ${team.name} - ${team.division}');
         }
-        setState(() {
-          _isTeamManager = true;
-          _managedTeams = teams;
-        });
+        if (mounted) {
+          setState(() {
+            _isTeamManager = true;
+            _managedTeams = teams;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _isTeamManager = false;
+            _managedTeams = [];
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading team manager data: $e');
+      if (mounted) {
         setState(() {
           _isTeamManager = false;
           _managedTeams = [];
         });
       }
-    } catch (e) {
-      print('Error loading team manager data: $e');
-      setState(() {
-        _isTeamManager = false;
-        _managedTeams = [];
-      });
     } finally {
-      setState(() {
-        _isLoadingTeams = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingTeams = false;
+        });
+      }
     }
   }
 
@@ -266,40 +312,104 @@ class _SideNavigationState extends State<SideNavigation> {
       ),
       child: Column(
         children: [
-          // Logo Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            width: 280,
-            
-            decoration: BoxDecoration(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(8),
-              bottomRight: Radius.circular(8),
-            ),
-              color: const Color(0xFFffd665),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+          // Logo Section with German flag overlay
+          Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                width: 280,
                 
-              ),
-            ),
-            child: Column(
-              children: [
-                Image.asset(
-                  'logo.png',
-                  height: 80,
-                  width: 120,
+                decoration: BoxDecoration(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'German Beach Open',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                  gradient: AppColors.primaryGradient,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300, width: 1),
                   ),
                 ),
-              ],
-            ),
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'logo_ball_half.png',
+                      height: 80,
+                      width: 120,
+                    ),
+                    Transform.translate(
+                      offset: const Offset(0, -5),
+                      child: const Text(
+                        'GBO',
+                        style: TextStyle(
+                          fontFamily: 'CasanovaScotia',
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          letterSpacing: 1,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                    Transform.translate(
+                      offset: const Offset(0, -10),
+                      child: const Text(
+                        'GERMAN BEACH OPEN',
+                        style: TextStyle(
+                          fontFamily: 'MyriadPro',
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                          letterSpacing: 0.5,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Sparkle overlay
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                  child: const SparkleOverlay(),
+                ),
+              ),
+              // German flag border overlay
+              Positioned(
+                bottom: 1, // Position above the border
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                    gradient: const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      stops: [0.0, 0.3, 0.3001, 0.35, 0.3501, 0.65, 0.6501, 0.7, 0.7001, 1.0],
+                      colors: [
+                        Color(0xFF000000), // Black start
+                        Color(0xFF000000), // Black end at 30%
+                        Colors.transparent, // Transparent start at 30.01%
+                        Colors.transparent, // Transparent end at 35%
+                        Color(0xFFc10003), // Red start at 35.01%
+                        Color(0xFFc10003), // Red end at 65%
+                        Colors.transparent, // Transparent start at 65.01%
+                        Colors.transparent, // Transparent end at 70%
+                        Color(0xFFffd765), // Yellow start at 70.01%
+                        Color(0xFFffd765), // Yellow end at 100%
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           // Navigation Menu
           Expanded(
@@ -420,6 +530,12 @@ class _SideNavigationState extends State<SideNavigation> {
               isSelected: widget.selectedSection == 'team_${team.id}_tournaments',
             ),
             _buildTeamSubItem(
+              title: 'Spiele & Kader',
+              key: 'team_${team.id}_roster',
+              icon: Icons.group,
+              isSelected: widget.selectedSection == 'team_${team.id}_roster',
+            ),
+            _buildTeamSubItem(
               title: 'Einstellungen',
               key: 'team_${team.id}_settings',
               icon: Icons.settings,
@@ -495,21 +611,20 @@ class _SideNavigationState extends State<SideNavigation> {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF0D1A05) : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: isSelected 
+        ? AppColors.selectedItemDecoration.copyWith(borderRadius: BorderRadius.circular(6))
+        : const BoxDecoration(),
       child: ListTile(
         dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? const Color(0xFFffd665) : Colors.white54,
+          color: isSelected ? AppColors.onPrimary : Colors.white54,
           size: 16,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white60,
+            color: isSelected ? AppColors.onPrimary : Colors.white60,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 12,
           ),
@@ -544,14 +659,7 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
           ),
           
-          // Admin Items
-          if (defaultTargetPlatform != TargetPlatform.iOS)
-            _buildAdminItem(
-              icon: Icons.architecture,
-              title: 'Preset Verwaltung',
-              key: 'preset_management',
-              isSelected: widget.selectedSection == 'preset_management',
-            ),
+          // Always visible admin items
           _buildAdminItem(
             icon: Icons.settings,
             title: 'Tournament Management',
@@ -589,17 +697,60 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'player_management',
           ),
           _buildAdminItem(
-            icon: Icons.notifications_active,
-            title: 'Benachrichtigungen senden',
-            key: 'custom_notifications',
-            isSelected: widget.selectedSection == 'custom_notifications',
-          ),
-          _buildAdminItem(
             icon: Icons.manage_accounts,
             title: 'Benutzer-Rollen-Verwaltung',
             key: 'user_role_management',
             isSelected: widget.selectedSection == 'user_role_management',
           ),
+          _buildAdminItem(
+            icon: Icons.tablet_android,
+            title: 'Verwaltete Accounts',
+            key: 'managed_accounts',
+            isSelected: widget.selectedSection == 'managed_accounts',
+          ),
+          
+          // "Mehr" entry after regular items
+          _buildAdminItem(
+            icon: _isAdminExpanded ? Icons.expand_less : Icons.expand_more,
+            title: _isAdminExpanded ? 'Weniger' : 'Mehr',
+            key: 'admin_expand',
+            isSelected: false,
+            onTap: () {
+              setState(() {
+                _isAdminExpanded = !_isAdminExpanded;
+              });
+            },
+            isYellow: true,
+          ),
+          
+          // Expandable admin items
+          if (_isAdminExpanded) ...[
+            if (defaultTargetPlatform != TargetPlatform.iOS)
+              _buildAdminItem(
+                icon: Icons.architecture,
+                title: 'Preset Verwaltung',
+                key: 'preset_management',
+                isSelected: widget.selectedSection == 'preset_management',
+              ),
+            _buildAdminItem(
+              icon: Icons.notifications_active,
+              title: 'Benachrichtigung Senden',
+              key: 'custom_notifications',
+              isSelected: widget.selectedSection == 'custom_notifications',
+            ),
+            _buildAdminItem(
+              icon: Icons.calendar_today,
+              title: 'Saison Management',
+              key: 'season_management',
+              isSelected: widget.selectedSection == 'season_management',
+            ),
+            _buildAdminItem(
+              icon: Icons.dashboard,
+              title: 'Kanban Board',
+              key: 'kanban_board',
+              isSelected: widget.selectedSection == 'kanban_board',
+            ),
+          ],
         ],
       ),
     );
@@ -819,22 +970,27 @@ class _SideNavigationState extends State<SideNavigation> {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.orange.shade100 : Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.orange.shade200, width: 0.5),
-      ),
+      decoration: isSelected 
+        ? AppColors.selectedItemDecoration.copyWith(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.primaryColorAlt, width: 0.5),
+          )
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.primaryColorAlt, width: 0.5),
+          ),
       child: ListTile(
         dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? Colors.orange.shade800 : Colors.orange.shade600,
+          color: isSelected ? AppColors.onPrimary : AppColors.primaryColorAlt,
           size: 14,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.orange.shade800 : Colors.black87,
+            color: isSelected ? AppColors.onPrimary : Colors.black87,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 13,
           ),
@@ -850,29 +1006,37 @@ class _SideNavigationState extends State<SideNavigation> {
     required String title,
     required String key,
     required bool isSelected,
+    VoidCallback? onTap,
+    bool isYellow = false,
   }) {
+    final textColor = isYellow 
+        ? const Color(0xFFffd665) 
+        : (isSelected ? AppColors.onPrimary : Colors.white70);
+    final iconColor = isYellow 
+        ? const Color(0xFFffd665) 
+        : (isSelected ? AppColors.onPrimary : Colors.white70);
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: isSelected 
+        ? AppColors.selectedItemDecoration
+        : const BoxDecoration(),
       child: ListTile(
         dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? Colors.white : Colors.white70,
+          color: iconColor,
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
+            color: textColor,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 14,
           ),
         ),
-        onTap: () => widget.onSectionChanged(key),
+        onTap: onTap ?? () => widget.onSectionChanged(key),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
     );
@@ -887,21 +1051,20 @@ class _SideNavigationState extends State<SideNavigation> {
   }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFffd665).withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: isSelected 
+        ? AppColors.selectedItemDecoration
+        : const BoxDecoration(),
       child: ListTile(
         dense: true,
         leading: Icon(
           icon,
-          color: isSelected ? Colors.black87 : Colors.grey.shade600,
+          color: isSelected ? AppColors.onPrimary : Colors.grey.shade600,
           size: 20,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.black87 : Colors.black87,
+            color: isSelected ? AppColors.onPrimary : Colors.black87,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 14,
           ),
@@ -1031,6 +1194,31 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
           ),
           
+          // Profile Settings Button
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: TextButton.icon(
+              onPressed: () => widget.onSectionChanged('profile_settings'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black87,
+                backgroundColor: Colors.grey.shade100,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: const Icon(Icons.settings, size: 16),
+              label: const Text(
+                'Profil Einstellungen',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+
           // Logout Button
           Container(
             width: double.infinity,
@@ -1063,4 +1251,121 @@ class _SideNavigationState extends State<SideNavigation> {
       ),
     );
   }
+} 
+
+class SparkleOverlay extends StatefulWidget {
+  const SparkleOverlay({super.key});
+
+  @override
+  State<SparkleOverlay> createState() => _SparkleOverlayState();
+}
+
+class _SparkleOverlayState extends State<SparkleOverlay>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<Sparkle> _sparkles = [];
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
+
+    // Generate random sparkles
+    for (int i = 0; i < 50; i++) {
+      _sparkles.add(Sparkle(
+        x: _random.nextDouble(),
+        y: _random.nextDouble(),
+        size: _random.nextDouble() * 3 + 1,
+        opacity: _random.nextDouble() * 0.6 + 0.2,
+        delay: _random.nextDouble(),
+      ));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: SparklePainter(_sparkles, _controller.value),
+          size: Size.infinite,
+        );
+      },
+    );
+  }
+}
+
+class Sparkle {
+  final double x;
+  final double y;
+  final double size;
+  final double opacity;
+  final double delay;
+
+  Sparkle({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.opacity,
+    required this.delay,
+  });
+}
+
+class SparklePainter extends CustomPainter {
+  final List<Sparkle> sparkles;
+  final double animationValue;
+
+  SparklePainter(this.sparkles, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (final sparkle in sparkles) {
+      final adjustedValue = (animationValue + sparkle.delay) % 1.0;
+      final sparkleOpacity = sparkle.opacity * 
+          (0.5 + 0.5 * sin(adjustedValue * 2 * pi));
+      
+      paint.color = Colors.white.withOpacity(sparkleOpacity);
+      
+      final x = sparkle.x * size.width;
+      final y = sparkle.y * size.height;
+      
+      // Draw sparkle as a small star
+      _drawStar(canvas, paint, Offset(x, y), sparkle.size);
+    }
+  }
+
+  void _drawStar(Canvas canvas, Paint paint, Offset center, double size) {
+    final path = Path();
+    
+    // Simple 4-pointed star
+    path.moveTo(center.dx, center.dy - size);
+    path.lineTo(center.dx + size * 0.3, center.dy - size * 0.3);
+    path.lineTo(center.dx + size, center.dy);
+    path.lineTo(center.dx + size * 0.3, center.dy + size * 0.3);
+    path.lineTo(center.dx, center.dy + size);
+    path.lineTo(center.dx - size * 0.3, center.dy + size * 0.3);
+    path.lineTo(center.dx - size, center.dy);
+    path.lineTo(center.dx - size * 0.3, center.dy - size * 0.3);
+    path.close();
+    
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 } 

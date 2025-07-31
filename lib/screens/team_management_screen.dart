@@ -10,6 +10,7 @@ import '../data/german_cities.dart';
 import 'club_management_screen.dart';
 import 'team_club_migration_screen.dart';
 import 'team_form_screen.dart';
+import 'team_edit_screen.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -794,6 +795,28 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                      ),
                    ),
                  ],
+               )
+             else
+               Row(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   IconButton(
+                     onPressed: () => _editTeam(team),
+                     icon: const Icon(Icons.edit, size: 18),
+                     tooltip: 'Team bearbeiten',
+                   ),
+                   if (showOrphanedWarning)
+                     IconButton(
+                       onPressed: () => _assignTeamToClub(team),
+                       icon: const Icon(Icons.business_center, size: 18),
+                       tooltip: 'Verein zuordnen',
+                     ),
+                   IconButton(
+                     onPressed: () => _deleteTeam(team),
+                     icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                     tooltip: 'Team löschen',
+                   ),
+                 ],
                ),
            ],
          ),
@@ -1025,7 +1048,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
    }
 
    void _editTeam(Team team) {
-     _showTeamDialog(team: team);
+     Navigator.of(context).push(
+       MaterialPageRoute(
+         builder: (context) => TeamEditScreen(teamId: team.id),
+       ),
+     ).then((_) {
+       // Reload data when returning from edit screen
+       _loadData();
+     });
    }
 
    void _assignTeamToClub(Team team) {

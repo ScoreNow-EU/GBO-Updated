@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/tournament.dart';
 import '../services/tournament_service.dart';
 import '../services/referee_service.dart';
-import '../screens/tournament_detail_screen.dart';
+import '../services/auth_service.dart';
 import '../utils/responsive_helper.dart';
 import 'tournament_timeline.dart';
 
@@ -16,17 +15,46 @@ class TournamentOverview extends StatefulWidget {
 class _TournamentOverviewState extends State<TournamentOverview> {
   final TournamentService _tournamentService = TournamentService();
   final RefereeService _refereeService = RefereeService();
-  String selectedCategory = 'Alle';
+  final AuthService _authService = AuthService();
+  String selectedCategory = 'GBO Seniors Cup'; // Default to Seniors only
+  String selectedSeason = '2026'; // Default to 2026 season
 
   @override
   void initState() {
     super.initState();
     _initializeData();
+    _loadUserPreferences();
   }
 
   Future<void> _initializeData() async {
     await _tournamentService.initializeSampleData();
     await _refereeService.initializeSampleData();
+  }
+
+  Future<void> _loadUserPreferences() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      if (user != null) {
+        // User is logged in - use their preferences
+        setState(() {
+          selectedCategory = user.defaultTournamentFilter ?? 'GBO Seniors Cup';
+          selectedSeason = user.defaultSeason ?? '2026';
+        });
+      } else {
+        // User is not logged in - use Seniors default
+        setState(() {
+          selectedCategory = 'GBO Seniors Cup';
+          selectedSeason = '2026';
+        });
+      }
+    } catch (e) {
+      print('Error loading user preferences: $e');
+      // Fallback to Seniors default on error
+      setState(() {
+        selectedCategory = 'GBO Seniors Cup';
+        selectedSeason = '2026';
+      });
+    }
   }
 
   @override
@@ -41,28 +69,78 @@ class _TournamentOverviewState extends State<TournamentOverview> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Category filter - responsive layout
-              isMobile
-                  ? Container(
-                      width: double.infinity,
-                      child: _buildCategoryDropdown(),
-                    )
-                  : Row(
-                      children: [
-                        const Spacer(),
-                        _buildCategoryDropdown(),
-                      ],
+              // Filters - responsive layout
+              if (isMobile) ...[
+                // Season filter
+                Container(
+                  width: double.infinity,
+                  child: _buildSeasonDropdown(),
+                ),
+                const SizedBox(height: 12),
+                // Category filter
+                Container(
+                  width: double.infinity,
+                  child: _buildCategoryDropdown(),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    const Spacer(),
+                    // Season filter
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: _buildSeasonDropdown(),
                     ),
+                    const SizedBox(width: 16),
+                    // Category filter
+                    _buildCategoryDropdown(),
+                  ],
+                ),
+              ],
               SizedBox(height: isMobile ? 12 : 24),
 
-              // Timeline View (only view now)
+              // Timeline View
               Expanded(
-                child: TournamentTimeline(selectedCategory: selectedCategory),
+                child: TournamentTimeline(
+                  selectedCategory: selectedCategory,
+                  selectedSeason: selectedSeason,
+                ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSeasonDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: selectedSeason,
+          isExpanded: true,
+          items: const [
+            DropdownMenuItem(
+              value: '2025',
+              child: Text('Saison 2025'),
+            ),
+            DropdownMenuItem(
+              value: '2026',
+              child: Text('Saison 2026'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              selectedSeason = value!;
+            });
+          },
+        ),
+      ),
     );
   }
 

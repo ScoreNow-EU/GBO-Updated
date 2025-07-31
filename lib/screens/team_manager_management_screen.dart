@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/team_manager.dart';
 import '../services/team_manager_service.dart';
 import '../utils/responsive_helper.dart';
-import '../widgets/responsive_layout.dart';
 
 class TeamManagerManagementScreen extends StatefulWidget {
   const TeamManagerManagementScreen({super.key});
@@ -43,13 +42,10 @@ class _TeamManagerManagementScreenState extends State<TeamManagerManagementScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ResponsiveLayout(
-        selectedSection: 'team_manager_management',
-        onSectionChanged: (section) {
-          Navigator.of(context).pop();
-        },
-        title: 'Team Manager Verwaltung',
-        body: Column(
+      backgroundColor: Colors.grey.shade50,
+      body: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
           children: [
             _buildHeader(),
             const SizedBox(height: 24),

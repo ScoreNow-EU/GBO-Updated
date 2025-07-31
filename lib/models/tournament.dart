@@ -308,6 +308,7 @@ class Tournament {
   final String id;
   final String name;
   final List<String> categories;
+  final String season; // e.g., "2025", "2026"
   final String location;
   final DateTime startDate;
   final DateTime? endDate;
@@ -334,11 +335,21 @@ class Tournament {
   // Changed pools to store more data per pool
   final Map<String, List<String>> pools;
   final Map<String, Map<String, dynamic>> poolMetadata; // Store additional pool data
+  // Tournament results by division
+  final Map<String, List<Map<String, dynamic>>>? results; // division -> list of team results
+
+  // Static method to determine season
+  static String determineSeason(DateTime startDate) {
+    // If tournament starts between January and December of a year, 
+    // assign it to that year's season
+    return startDate.year.toString();
+  }
 
   Tournament({
     required this.id,
     required this.name,
     required this.categories,
+    String? season, // Make season optional
     required this.location,
     required this.startDate,
     this.endDate,
@@ -363,8 +374,11 @@ class Tournament {
     this.registrationDeadline,
     Map<String, List<String>>? pools,
     Map<String, Map<String, dynamic>>? poolMetadata,
-  }) : this.pools = pools ?? {},
-       this.poolMetadata = poolMetadata ?? {};
+    this.results,
+  }) : 
+    pools = pools ?? {},
+    poolMetadata = poolMetadata ?? {},
+    season = season ?? determineSeason(startDate);
 
   String get category => categories.isNotEmpty ? categories.first : '';
   
@@ -508,6 +522,7 @@ class Tournament {
       'id': id,
       'name': name,
       'categories': categories,
+      'season': determineSeason(startDate), // Always use dynamic season determination
       'location': location,
       'startDate': Timestamp.fromDate(startDate),
       'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
@@ -532,104 +547,138 @@ class Tournament {
       'registrationDeadline': registrationDeadline?.millisecondsSinceEpoch,
       'pools': pools,
       'poolMetadata': poolMetadata,
+      'results': results,
     };
   }
 
-  factory Tournament.fromMap(Map<String, dynamic> map, String documentId) {
+  // Factory method to update season dynamically during deserialization
+  factory Tournament.fromMap(Map<String, dynamic> map, [String? documentId]) {
+    // Helper method to convert Timestamp or int to DateTime
+    DateTime _convertToDateTime(dynamic dateValue) {
+      if (dateValue == null) return DateTime.now();
+      if (dateValue is Timestamp) return dateValue.toDate();
+      if (dateValue is int) return DateTime.fromMillisecondsSinceEpoch(dateValue);
+      if (dateValue is DateTime) return dateValue;
+      return DateTime.now(); // Fallback
+    }
+
+    // Helper method to convert Timestamp or int maps
+    Map<String, DateTime>? _convertDateMap(Map<String, dynamic>? inputMap) {
+      if (inputMap == null) return null;
+      
+      return inputMap.map((key, value) {
+        return MapEntry(key, _convertToDateTime(value));
+      });
+    }
+
+    // Determine start date with robust conversion
+    final startDate = _convertToDateTime(map['startDate']);
+    
+    // Override season with dynamically determined season if not explicitly set
+    final season = map['season'] ?? determineSeason(startDate);
+
     // Parse category-specific dates
-    Map<String, DateTime>? categoryStartDates;
-    Map<String, DateTime>? categoryEndDates;
+    final categoryStartDates = _convertDateMap(map['categoryStartDates'] is Map 
+        ? Map<String, dynamic>.from(map['categoryStartDates']) 
+        : null);
     
-    if (map['categoryStartDates'] != null) {
-      categoryStartDates = {};
-      final catStartMap = map['categoryStartDates'] as Map<String, dynamic>;
-      for (String key in catStartMap.keys) {
-        categoryStartDates[key] = (catStartMap[key] as Timestamp).toDate();
-      }
-    }
-    
-    if (map['categoryEndDates'] != null) {
-      categoryEndDates = {};
-      final catEndMap = map['categoryEndDates'] as Map<String, dynamic>;
-      for (String key in catEndMap.keys) {
-        categoryEndDates[key] = (catEndMap[key] as Timestamp).toDate();
-      }
-    }
-
-    // Parse division teams
-    Map<String, List<String>> divisionTeams = {};
-    if (map['divisionTeams'] != null) {
-      final divTeamsMap = map['divisionTeams'] as Map<String, dynamic>;
-      for (String key in divTeamsMap.keys) {
-        divisionTeams[key] = List<String>.from(divTeamsMap[key] ?? []);
-      }
-    }
-
-    // Parse pools
-    Map<String, List<String>> pools = {};
-    if (map['pools'] != null) {
-      final poolMap = map['pools'] as Map<String, dynamic>;
-      for (String key in poolMap.keys) {
-        pools[key] = List<String>.from(poolMap[key] ?? []);
-      }
-    }
-
-    // Parse pool metadata
-    Map<String, Map<String, dynamic>> poolMetadata = {};
-    if (map['poolMetadata'] != null) {
-      final metadataMap = map['poolMetadata'] as Map<String, dynamic>;
-      for (String key in metadataMap.keys) {
-        poolMetadata[key] = Map<String, dynamic>.from(metadataMap[key] ?? {});
-      }
-    }
+    final categoryEndDates = _convertDateMap(map['categoryEndDates'] is Map 
+        ? Map<String, dynamic>.from(map['categoryEndDates']) 
+        : null);
 
     return Tournament(
-      id: documentId,
+      id: documentId ?? map['id'] ?? '',
       name: map['name'] ?? '',
       categories: List<String>.from(map['categories'] ?? []),
+      season: season,
       location: map['location'] ?? '',
-      startDate: (map['startDate'] as Timestamp).toDate(),
-      endDate: map['endDate'] != null ? (map['endDate'] as Timestamp).toDate() : null,
+      startDate: startDate,
+      endDate: map['endDate'] != null 
+        ? _convertToDateTime(map['endDate'])
+        : null,
       categoryStartDates: categoryStartDates,
       categoryEndDates: categoryEndDates,
-      points: map['points']?.toInt() ?? 0,
+      points: (map['points'] is int) 
+        ? map['points'] 
+        : (map['points'] is double) 
+          ? (map['points'] as double).toInt() 
+          : 0,
       status: map['status'] ?? 'upcoming',
       description: map['description'],
       imageUrl: map['imageUrl'],
       teamIds: List<String>.from(map['teamIds'] ?? []),
-      refereeInvitations: (map['refereeInvitations'] as List<dynamic>?)
-          ?.map((invitation) => RefereeInvitation.fromMap(invitation))
-          .toList() ??
-          (map['refereeIds'] as List<dynamic>?)
-              ?.map((refereeId) => RefereeInvitation(
-                    refereeId: refereeId,
-                    status: 'accepted',
-                    invitedAt: DateTime.now(),
-                  ))
-              .toList() ??
-          [],
+      refereeInvitations: map['refereeInvitations'] != null
+        ? (map['refereeInvitations'] as List)
+            .map((invitation) => RefereeInvitation.fromMap(invitation))
+            .toList()
+        : [],
       delegateIds: List<String>.from(map['delegateIds'] ?? []),
       refereeGespanne: List<Map<String, dynamic>>.from(map['refereeGespanne'] ?? []),
-      divisionBrackets: (map['divisionBrackets'] as Map<String, dynamic>?)
-          ?.map((key, value) => MapEntry(key, TournamentBracket.fromMap(value)))
-          ?? {},
-      customBrackets: (map['customBrackets'] as Map<String, dynamic>?)
-          ?.map((key, value) => MapEntry(key, CustomBracketStructure.fromMap(value)))
-          ?? {},
-      criteria: map['criteria'] != null ? TournamentCriteria.fromMap(map['criteria']) : null,
-      courts: (map['courts'] as List<dynamic>?)
-          ?.map((court) => Court.fromMap(court))
-          .toList() ?? [],
+      divisionBrackets: map['divisionBrackets'] != null
+        ? Map<String, TournamentBracket>.from(
+            map['divisionBrackets'].map((key, value) => 
+              MapEntry(key, TournamentBracket.fromMap(value))
+            )
+          )
+        : {},
+      customBrackets: map['customBrackets'] != null
+        ? Map<String, CustomBracketStructure>.from(
+            map['customBrackets'].map((key, value) => 
+              MapEntry(key, CustomBracketStructure.fromMap(value))
+            )
+          )
+        : {},
+      criteria: map['criteria'] != null 
+        ? TournamentCriteria.fromMap(map['criteria']) 
+        : null,
+      courts: map['courts'] != null
+        ? (map['courts'] as List).map((court) => Court.fromMap(court)).toList()
+        : [],
       divisions: List<String>.from(map['divisions'] ?? []),
-      divisionTeams: divisionTeams,
-      divisionMaxTeams: Map<String, int>.from(map['divisionMaxTeams'] ?? {}),
+      divisionTeams: map['divisionTeams'] != null
+        ? Map<String, List<String>>.from(map['divisionTeams'])
+        : {},
+      divisionMaxTeams: map['divisionMaxTeams'] != null
+        ? Map<String, int>.from(map['divisionMaxTeams'])
+        : {},
       isRegistrationOpen: map['isRegistrationOpen'] ?? true,
-      registrationDeadline: map['registrationDeadline'] != null 
-          ? DateTime.fromMillisecondsSinceEpoch(map['registrationDeadline'])
-          : null,
-      pools: pools,
-      poolMetadata: poolMetadata,
+      registrationDeadline: map['registrationDeadline'] != null
+        ? _convertToDateTime(map['registrationDeadline'])
+        : null,
+      pools: map['pools'] != null
+        ? Map<String, List<String>>.from(map['pools'])
+        : {},
+      poolMetadata: map['poolMetadata'] != null
+        ? Map<String, Map<String, dynamic>>.from(map['poolMetadata'])
+        : {},
+      results: map['results'] != null
+        ? _parseResults(map['results'])
+        : null,
     );
+  }
+
+  // Helper method to parse results from Firestore
+  static Map<String, List<Map<String, dynamic>>> _parseResults(dynamic resultsData) {
+    final Map<String, List<Map<String, dynamic>>> results = {};
+    
+    if (resultsData is Map) {
+      for (final entry in resultsData.entries) {
+        final String key = entry.key.toString();
+        final dynamic value = entry.value;
+        
+        if (value is List) {
+          final List<Map<String, dynamic>> divisionResults = [];
+          for (final item in value) {
+            if (item is Map) {
+              divisionResults.add(Map<String, dynamic>.from(item));
+            }
+          }
+          results[key] = divisionResults;
+        }
+      }
+    }
+    
+    return results;
   }
 
   // Add copyWith method
@@ -637,6 +686,7 @@ class Tournament {
     String? id,
     String? name,
     List<String>? categories,
+    String? season,
     String? location,
     DateTime? startDate,
     DateTime? endDate,
@@ -661,11 +711,13 @@ class Tournament {
     DateTime? registrationDeadline,
     Map<String, List<String>>? pools,
     Map<String, Map<String, dynamic>>? poolMetadata,
+    Map<String, List<Map<String, dynamic>>>? results,
   }) {
     return Tournament(
       id: id ?? this.id,
       name: name ?? this.name,
       categories: categories ?? List.from(this.categories),
+      season: season ?? this.season,
       location: location ?? this.location,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
@@ -690,6 +742,7 @@ class Tournament {
       registrationDeadline: registrationDeadline ?? this.registrationDeadline,
       pools: pools ?? Map.from(this.pools),
       poolMetadata: poolMetadata ?? Map.from(this.poolMetadata),
+      results: results ?? (this.results != null ? Map.from(this.results!) : null),
     );
   }
 } 

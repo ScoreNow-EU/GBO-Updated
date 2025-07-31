@@ -6,6 +6,8 @@ import '../models/team_manager.dart';
 import '../services/referee_service.dart';
 import '../services/team_manager_service.dart';
 import '../services/notification_monitoring_service.dart';
+import '../models/managed_account.dart';
+import '../services/managed_account_service.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
@@ -34,6 +36,88 @@ class AuthService {
       }
       return user;
     });
+  }
+
+  // Get current user as a Future
+  Future<app_user.User?> getCurrentUser() async {
+    final firebaseUser = _firebaseAuth.currentUser;
+    if (firebaseUser == null) return null;
+    return await getUserById(firebaseUser.uid);
+  }
+
+  // Update user profile information
+  Future<void> updateUserProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      // Update email in Firebase Auth if it changed
+      if (user.email != email) {
+        await user.verifyBeforeUpdateEmail(email);
+      }
+
+      // Update profile in Firestore
+      await _firestore.collection(_usersCollection).doc(user.uid).update({
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email.toLowerCase(),
+      });
+    } catch (e) {
+      print('Error updating user profile: $e');
+      rethrow;
+    }
+  }
+
+  // Update user password
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      // Re-authenticate user before password change
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+
+      // Update password
+      await user.updatePassword(newPassword);
+    } catch (e) {
+      print('Error updating password: $e');
+      rethrow;
+    }
+  }
+
+  // Update user preferences
+  Future<void> updateUserPreferences({
+    String? defaultTournamentFilter,
+    String? defaultSeason,
+  }) async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) throw Exception('No user logged in');
+
+      final updateData = <String, dynamic>{};
+      if (defaultTournamentFilter != null) {
+        updateData['defaultTournamentFilter'] = defaultTournamentFilter;
+      }
+      if (defaultSeason != null) {
+        updateData['defaultSeason'] = defaultSeason;
+      }
+
+      await _firestore.collection(_usersCollection).doc(user.uid).update(updateData);
+    } catch (e) {
+      print('Error updating user preferences: $e');
+      rethrow;
+    }
   }
 
   // Sign in with email and password
@@ -445,5 +529,72 @@ class AuthService {
     }
   }
 
+  // Sign in with one-time code for managed accounts
+  Future<app_user.User?> signInWithOneTimeCode(String code) async {
+    try {
+      // Use ManagedAccountService to validate the code
+      final ManagedAccountService managedAccountService = ManagedAccountService();
+      final managedAccount = await managedAccountService.validateAndUseOneTimeCode(code);
+      
+      if (managedAccount == null) {
+        throw Exception('Ungültiger oder bereits verwendeter Code');
+      }
+
+      // Sign in with the managed account credentials
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
+        email: managedAccount.email,
+        password: managedAccount.password,
+      );
+
+      if (credential.user != null) {
+        // Create or get user profile for managed account
+        app_user.User? user = await getUserById(credential.user!.uid);
+        
+        if (user == null) {
+          // Create a managed user profile
+          user = await _createManagedUser(credential.user!, managedAccount);
+        }
+
+        // Update last login
+        if (user != null) {
+          await _updateLastLogin(user.id);
+          
+          // Initialize and start notification monitoring
+          await NotificationMonitoringService.initialize();
+          await NotificationMonitoringService.startMonitoring(user.email);
+        }
+
+        return user;
+      }
+    } catch (e) {
+      print('Error signing in with one-time code: $e');
+      rethrow;
+    }
+    return null;
+  }
+
+  // Create user profile for managed account
+  Future<app_user.User?> _createManagedUser(firebase_auth.User firebaseUser, ManagedAccount managedAccount) async {
+    try {
+      final user = app_user.User(
+        id: firebaseUser.uid,
+        email: managedAccount.email,
+        firstName: managedAccount.name.split(' ').first,
+        lastName: managedAccount.name.split(' ').length > 1 
+            ? managedAccount.name.split(' ').sublist(1).join(' ')
+            : '',
+        roles: [app_user.UserRole.admin], // Managed accounts get admin access
+        isActive: true,
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+
+      await _firestore.collection(_usersCollection).doc(user.id).set(user.toFirestore());
+      return user;
+    } catch (e) {
+      print('Error creating managed user: $e');
+      return null;
+    }
+  }
 
 } 

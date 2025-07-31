@@ -127,39 +127,84 @@ class TournamentService {
     _invalidateCache();
   }
 
-  // Update tournament
-  Future<void> updateTournament(Tournament tournament) async {
+  // Update method to ensure season is set correctly
+  Future<Tournament?> updateTournament(Tournament tournament) async {
     try {
-      print('\n📊 Tournament Update Summary for: ${tournament.name}');
-      
-      // Get the old tournament to compare team changes
-      final oldTournament = await getTournamentById(tournament.id);
-      final oldTeamIds = oldTournament?.teamIds ?? [];
-      final newTeamIds = tournament.teamIds;
-      
-      // Find newly added teams
-      final addedTeamIds = newTeamIds.where((id) => !oldTeamIds.contains(id)).toList();
-      print('📋 Found ${addedTeamIds.length} newly added teams');
-      
-      // Update tournament in Firestore
+      // Ensure season is dynamically set based on start date
+      final tournamentMap = tournament.toMap();
+
+      // Update in Firestore
       await _firestore
           .collection(_collection)
           .doc(tournament.id)
-          .update(tournament.toMap());
-      
-      // Send notifications for newly added teams
-      if (addedTeamIds.isNotEmpty) {
-        await _notifyTeamManagers(addedTeamIds, tournament);
-      }
-      
-      // Log all teams and their managers
-      await _logTeamsAndManagers(tournament);
-      
+          .update(tournamentMap);
+
       // Invalidate cache
       _invalidateCache();
-      print('✅ Tournament update completed\n');
+
+      // Return the original tournament (with dynamically set season)
+      return tournament;
     } catch (e) {
-      print('❌ Error updating tournament: $e');
+      print('Error updating tournament: $e');
+      rethrow;
+    }
+  }
+
+  // Modify createTournament to use dynamic season
+  Future<Tournament> createTournament(Tournament tournament) async {
+    try {
+      // Ensure tournament has an ID if not provided
+      final tournamentId = tournament.id.isEmpty 
+          ? _firestore.collection(_collection).doc().id 
+          : tournament.id;
+
+      // Convert to map, which will use dynamic season determination
+      final tournamentMap = tournament.toMap();
+
+      // Add timestamp fields
+      tournamentMap['createdAt'] = FieldValue.serverTimestamp();
+      tournamentMap['updatedAt'] = FieldValue.serverTimestamp();
+
+      // Save to Firestore
+      await _firestore
+          .collection(_collection)
+          .doc(tournamentId)
+          .set(tournamentMap);
+
+      // Invalidate cache
+      _invalidateCache();
+
+      // Return the tournament with the correct ID
+      return Tournament(
+        id: tournamentId,
+        name: tournament.name,
+        categories: tournament.categories,
+        location: tournament.location,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        points: tournament.points,
+        status: tournament.status,
+        description: tournament.description,
+        imageUrl: tournament.imageUrl,
+        teamIds: tournament.teamIds,
+        refereeInvitations: tournament.refereeInvitations,
+        delegateIds: tournament.delegateIds,
+        refereeGespanne: tournament.refereeGespanne,
+        divisionBrackets: tournament.divisionBrackets,
+        customBrackets: tournament.customBrackets,
+        criteria: tournament.criteria,
+        courts: tournament.courts,
+        divisions: tournament.divisions,
+        divisionTeams: tournament.divisionTeams,
+        divisionMaxTeams: tournament.divisionMaxTeams,
+        isRegistrationOpen: tournament.isRegistrationOpen,
+        registrationDeadline: tournament.registrationDeadline,
+        pools: tournament.pools,
+        poolMetadata: tournament.poolMetadata,
+        results: tournament.results,
+      );
+    } catch (e) {
+      print('Error creating tournament: $e');
       rethrow;
     }
   }
@@ -864,6 +909,51 @@ class TournamentService {
       _invalidateCache();
     } catch (e) {
       print('Error updating tournaments with default divisions: $e');
+    }
+  }
+
+  // Migrate all tournaments to 2025 season
+  Future<int> migrateToSeason2025() async {
+    try {
+      // Get all tournaments
+      final querySnapshot = await _firestore.collection(_collection).get();
+      
+      // Batch write for better performance
+      final batch = _firestore.batch();
+      int count = 0;
+
+      for (var doc in querySnapshot.docs) {
+        batch.update(doc.reference, {'season': '2025'});
+        count++;
+      }
+
+      // Commit the batch
+      await batch.commit();
+      
+      // Invalidate cache
+      _invalidateCache();
+      
+      print('✅ Successfully migrated $count tournaments to 2025 season');
+      return count;
+    } catch (e) {
+      print('❌ Error migrating tournaments: $e');
+      rethrow;
+    }
+  }
+
+  // Update tournament points manually
+  Future<void> updateTournamentPoints(String tournamentId, int points) async {
+    try {
+      await _firestore
+          .collection(_collection)
+          .doc(tournamentId)
+          .update({'points': points});
+      
+      // Invalidate cache to ensure fresh data
+      _invalidateCache();
+    } catch (e) {
+      print('Error updating tournament points: $e');
+      rethrow;
     }
   }
 } 

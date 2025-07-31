@@ -3,13 +3,138 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
+import 'dart:io' show Platform;
+import 'dart:math';
 import '../utils/responsive_helper.dart';
+import '../utils/app_colors.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
 import '../models/user.dart' as app_user;
 import '../widgets/login_face_id_overlay.dart';
 import 'home_screen.dart';
+
+class Sparkle {
+  double x;
+  double y;
+  double size;
+  double opacity;
+  double delay;
+  
+  Sparkle({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.opacity,
+    required this.delay,
+  });
+}
+
+class SparkleOverlay extends StatefulWidget {
+  const SparkleOverlay({super.key});
+
+  @override
+  State<SparkleOverlay> createState() => _SparkleOverlayState();
+}
+
+class _SparkleOverlayState extends State<SparkleOverlay>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  List<Sparkle> _sparkles = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat();
+    
+    _generateSparkles();
+  }
+
+  void _generateSparkles() {
+    final random = Random();
+    _sparkles = List.generate(100, (index) {
+      return Sparkle(
+        x: random.nextDouble(),
+        y: random.nextDouble(),
+        size: random.nextDouble() * 3 + 1,
+        opacity: random.nextDouble() * 0.8 + 0.2,
+        delay: random.nextDouble() * 2,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: SparklePainter(_sparkles, _controller.value),
+          size: Size.infinite,
+        );
+      },
+    );
+  }
+}
+
+class SparklePainter extends CustomPainter {
+  final List<Sparkle> sparkles;
+  final double animationValue;
+
+  SparklePainter(this.sparkles, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    for (final sparkle in sparkles) {
+      final progress = ((animationValue + sparkle.delay) % 1.0);
+      final opacity = (sin(progress * pi * 2) * 0.5 + 0.5) * sparkle.opacity;
+      
+      paint.color = Colors.white.withOpacity(opacity);
+      
+      final x = sparkle.x * size.width;
+      final y = sparkle.y * size.height;
+      
+      // Draw 4-pointed star
+      final path = Path();
+      final centerX = x;
+      final centerY = y;
+      final outerRadius = sparkle.size;
+      final innerRadius = sparkle.size * 0.4;
+      
+      // Top point
+      path.moveTo(centerX, centerY - outerRadius);
+      path.lineTo(centerX - innerRadius * 0.3, centerY - innerRadius * 0.3);
+      // Left point
+      path.lineTo(centerX - outerRadius, centerY);
+      path.lineTo(centerX - innerRadius * 0.3, centerY + innerRadius * 0.3);
+      // Bottom point
+      path.lineTo(centerX, centerY + outerRadius);
+      path.lineTo(centerX + innerRadius * 0.3, centerY + innerRadius * 0.3);
+      // Right point
+      path.lineTo(centerX + outerRadius, centerY);
+      path.lineTo(centerX + innerRadius * 0.3, centerY - innerRadius * 0.3);
+      path.close();
+      
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback? onNavigateBack;
@@ -34,6 +159,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoginMode = true; // Toggle between login and registration
+  bool _isOneTimeCodeMode = false; // Toggle for one-time code login
+  
+  final _oneTimeCodeController = TextEditingController();
   
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -83,6 +211,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _passwordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _oneTimeCodeController.dispose();
     super.dispose();
   }
 
@@ -97,19 +226,43 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         width: double.infinity,
         height: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFffeb99), // Brighter yellow
-              const Color(0xFFffd665), // Main yellow (#ffd665)
-              const Color(0xFFffcc32), // Darker yellow
-            ],
-          ),
+          gradient: AppColors.primaryGradient,
         ),
         child: SafeArea(
           child: Stack(
             children: [
+              // Left palm image - spanning from bottom to top (wider)
+              Positioned(
+                left: 0,
+                bottom: 0,
+                top: 0,
+                child: SizedBox(
+                  width: 540,  // Tripled from 180 to 540
+                  child: Image.asset(
+                    'assets/palm_left.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+              ),
+              // Right palm image - positioned on the bottom right, moved left
+              Positioned(
+                right: 50,
+                bottom: 0,
+                child: SizedBox(
+                  width: 325,  // Added 25px to width
+                  height: 600, // 1.5x from 400 to 600
+                  child: Image.asset(
+                    'assets/palm_right.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              // Sparkle overlay
+              const Positioned.fill(
+                child: SparkleOverlay(),
+              ),
               // Back button
               Positioned(
                 top: 16,
@@ -132,8 +285,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ),
               // Main content
               Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(isMobile ? 24 : 32),
+                child: Padding(
+                  padding: EdgeInsets.all(isMobile ? 16 : 24),
                   child: AnimatedBuilder(
                     animation: _fadeAnimation,
                     builder: (context, child) {
@@ -141,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         opacity: _fadeAnimation,
                         child: SlideTransition(
                           position: _slideAnimation,
-                          child: Container(
+                          child: ConstrainedBox(
                             constraints: BoxConstraints(
                               maxWidth: isMobile ? double.infinity : 450,
                               maxHeight: screenHeight * 0.9,
@@ -150,39 +303,41 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               elevation: 24,
                               shadowColor: Colors.black.withOpacity(0.3),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(24),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: Column(
-                                  children: [
-                                    // Main content area
-                                    Expanded(
-                                      child: Container(
-                                        padding: EdgeInsets.all(isMobile ? 32 : 40),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                        ),
-                                        child: SingleChildScrollView(
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              _buildHeader(isMobile),
-                                              const SizedBox(height: 40),
-                                              _buildLoginForm(isMobile),
-                                              const SizedBox(height: 32),
-                                              _buildLoginButton(isMobile),
-                                              const SizedBox(height: 24),
-                                              _buildRememberMeAndForgotPassword(),
-                                            ],
-                                          ),
-                                        ),
+                              child: Stack(
+                                children: [
+                                  // Main content area
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      left: isMobile ? 24 : 32,
+                                      right: isMobile ? 24 : 32,
+                                      top: isMobile ? 24 : 32,
+                                      bottom: (isMobile ? 24 : 32) + 8, // Extra padding for flag stripes
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _buildHeader(isMobile),
+                                          SizedBox(height: isMobile ? 24 : 32),
+                                          _buildLoginForm(isMobile),
+                                          SizedBox(height: isMobile ? 20 : 24),
+                                          _buildLoginButton(isMobile),
+                                          SizedBox(height: isMobile ? 12 : 16),
+                                          _buildRememberMeAndForgotPassword(),
+                                        ],
                                       ),
                                     ),
-                                    // German flag stripes
-                                    _buildGermanFlagStripes(),
-                                  ],
-                                ),
+                                  ),
+                                  // German flag stripes at the bottom edge
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    child: _buildGermanFlagStripes(),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -202,6 +357,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   Widget _buildHeader(bool isMobile) {
     return Column(
       children: [
+        // Add padding at the top to prevent shadow cutoff
+        SizedBox(height: 20),
         // Logo
         Container(
           width: isMobile ? 120 : 140,
@@ -262,8 +419,56 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         key: _formKey,
         child: Column(
           children: [
+            // One-Time Code Field (only for one-time code mode)
+            if (_isOneTimeCodeMode) ...[
+              TextFormField(
+                controller: _oneTimeCodeController,
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
+                maxLength: 6,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(
+                  labelText: 'Einmaliger Code',
+                  hintText: 'ABCD12',
+                  prefixIcon: Icon(
+                    Icons.pin,
+                    color: Colors.black54,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  counterText: '',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Bitte geben Sie den einmaligen Code ein';
+                  }
+                  if (value.trim().length != 6) {
+                    return 'Der Code muss genau 6 Zeichen lang sein';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  // Auto-submit when 6 characters are entered
+                  if (value.length == 6) {
+                    _handleOneTimeCodeLogin();
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+            
             // First Name Field (only for registration)
-            if (!_isLoginMode) ...[
+            if (!_isLoginMode && !_isOneTimeCodeMode) ...[
               TextFormField(
                 controller: _firstNameController,
                 keyboardType: TextInputType.name,
@@ -281,7 +486,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black87, width: 2),
+                    borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
                   ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
@@ -317,7 +522,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black87, width: 2),
+                    borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
                   ),
                   filled: true,
                   fillColor: Colors.grey.shade50,
@@ -336,8 +541,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               const SizedBox(height: 20),
             ],
             
-            // Email Field
-            TextFormField(
+            // Email Field (not shown in one-time code mode)
+            if (!_isOneTimeCodeMode)
+              TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
@@ -356,7 +562,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2),
+                  borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -372,10 +578,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 return null;
               },
             ),
-            const SizedBox(height: 20),
-            
-            // Password Field
-            TextFormField(
+            if (!_isOneTimeCodeMode) ...[
+              const SizedBox(height: 20),
+              
+              // Password Field (not shown in one-time code mode)
+              TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               enableSuggestions: false,
@@ -407,7 +614,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black87, width: 2),
+                  borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
@@ -423,6 +630,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 return null;
               },
             ),
+            ],
           ],
         ),
       ),
@@ -430,38 +638,109 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildLoginButton(bool isMobile) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : (_isLoginMode ? _handleLoginWithOverlay : _handleRegister),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFFffd665),
-          foregroundColor: Colors.black,
-          elevation: 4,
-          shadowColor: Colors.black87.withOpacity(0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+    return Column(
+      children: [
+        // Main login button
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _getLoginHandler(),
+            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.black,
+              elevation: 4,
+              shadowColor: Colors.black87.withOpacity(0.4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    _getLoginButtonText(),
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+            ),
         ),
-        child: _isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : Text(
-                _isLoginMode ? 'Anmelden' : 'Registrieren',
+        
+
+             ],
+    );
+  }
+
+  Widget _buildQRCodeSection(bool isMobile) {
+    return Column(
+      children: [
+        // Divider with "ODER"
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 1,
+                color: Colors.grey.shade300,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'ODER',
                 style: TextStyle(
-                  fontSize: isMobile ? 16 : 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                  letterSpacing: 1.0,
                 ),
               ),
-      ),
+            ),
+            Expanded(
+              child: Container(
+                height: 1,
+                color: Colors.grey.shade300,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        // QR Code Login Button
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleQRCodeScan,
+            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: AppColors.primaryColor, width: 2),
+                foregroundColor: AppColors.primaryColor,
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            icon: const Icon(Icons.qr_code_scanner, size: 24),
+            label: Text(
+              'Mit QR-Code anmelden',
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 
@@ -479,7 +758,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     _rememberMe = value ?? false;
                   });
                 },
-                activeColor: Colors.black87,
+                activeColor: AppColors.primaryColor,
+                checkColor: Colors.black87,
+                fillColor: MaterialStateProperty.resolveWith<Color>(
+                  (Set<MaterialState> states) {
+                    if (states.contains(MaterialState.selected)) {
+                      return AppColors.primaryColor;
+                    }
+                    return AppColors.primaryColor;
+                  },
+                ),
+                side: BorderSide(
+                  color: AppColors.primaryColor,
+                  width: 1.5,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -498,47 +790,45 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ],
         
         // Mode toggle and Forgot Password side by side
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Mode toggle
-            Flexible(
-              child: TextButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoginMode = !_isLoginMode;
-                    // Clear form when switching modes
-                    _formKey.currentState?.reset();
-                    _emailController.clear();
-                    _passwordController.clear();
-                    _firstNameController.clear();
-                    _lastNameController.clear();
-                  });
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  backgroundColor: Colors.grey.shade100,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+        if (_isLoginMode && !_isOneTimeCodeMode)
+          Row(
+            children: [
+              // Mode toggle button
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoginMode = !_isLoginMode;
+                      // Clear form when switching modes
+                      _formKey.currentState?.reset();
+                      _emailController.clear();
+                      _passwordController.clear();
+                      _firstNameController.clear();
+                      _lastNameController.clear();
+                      _oneTimeCodeController.clear();
+                    });
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-                child: Text(
-                  _isLoginMode ? 'Registrieren' : 'Anmelden',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  child: Text(
+                    _isLoginMode ? 'Registrieren' : 'Anmelden',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-            
-            const SizedBox(width: 8),
-            
-            // Forgot Password (only for login mode)
-            if (_isLoginMode)
-              Flexible(
+              const SizedBox(width: 8),
+              // Forgot Password button
+              Expanded(
                 child: TextButton(
                   onPressed: _handleForgotPassword,
                   style: TextButton.styleFrom(
@@ -559,8 +849,72 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                 ),
               ),
-          ],
-        ),
+              const SizedBox(width: 8),
+              // One-time code button
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: _isLoading ? null : () {
+                    setState(() {
+                      _isOneTimeCodeMode = true;
+                      _formKey.currentState?.reset();
+                    });
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.pin, size: 16),
+                  label: const Text(
+                    'Einmalcode',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          )
+        else
+          // Back button for one-time code mode
+          TextButton(
+            onPressed: () {
+              setState(() {
+                if (_isOneTimeCodeMode) {
+                  _isOneTimeCodeMode = false;
+                } else {
+                  _isLoginMode = !_isLoginMode;
+                }
+                _formKey.currentState?.reset();
+                _emailController.clear();
+                _passwordController.clear();
+                _firstNameController.clear();
+                _lastNameController.clear();
+                _oneTimeCodeController.clear();
+              });
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black87,
+              backgroundColor: Colors.grey.shade100,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              _isOneTimeCodeMode ? 'Zurück' : (_isLoginMode ? 'Registrieren' : 'Anmelden'),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
       ],
     );
   }
@@ -873,60 +1227,434 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  // Handle one-time code login
+  Future<void> _handleOneTimeCodeLogin() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final user = await _authService.signInWithOneTimeCode(
+        _oneTimeCodeController.text.trim().toUpperCase(),
+      );
+
+      if (user != null) {
+        if (mounted) {
+          _showSuccessToast('Erfolgreich mit Einmalcode angemeldet');
+          
+          // Navigate to home screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Anmeldung fehlgeschlagen';
+        if (e.toString().contains('Ungültiger oder bereits verwendeter Code')) {
+          errorMessage = 'Ungültiger oder bereits verwendeter Code';
+        } else if (e.toString().contains('user-not-found')) {
+          errorMessage = 'Kein Account für diesen Code gefunden';
+        }
+        _showErrorToast(errorMessage);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Get the appropriate login handler based on current mode
+  VoidCallback _getLoginHandler() {
+    if (_isOneTimeCodeMode) {
+      return _handleOneTimeCodeLogin;
+    } else if (_isLoginMode) {
+      return _handleLoginWithOverlay;
+    } else {
+      return _handleRegister;
+    }
+  }
+
+  // Get the appropriate button text based on current mode
+  String _getLoginButtonText() {
+    if (_isOneTimeCodeMode) {
+      return 'Mit Code anmelden';
+    } else if (_isLoginMode) {
+      return 'Anmelden';
+    } else {
+      return 'Registrieren';
+    }
+  }
+
   Widget _buildGermanFlagStripes() {
-    return SizedBox(
-      height: 6,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      height: 8,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Black stripe - 30%
+            Expanded(
+              flex: 30,
+              child: Container(color: Colors.black),
+            ),
+            // White gap - 5%
+            Expanded(
+              flex: 5,
+              child: Container(color: Colors.white),
+            ),
+            // Red stripe - 30%
+            Expanded(
+              flex: 30,
+              child: Container(color: const Color(0xFFDD0000)), // German flag red
+            ),
+            // White gap - 5%
+            Expanded(
+              flex: 5,
+              child: Container(color: Colors.white),
+            ),
+            // Gold/Yellow stripe - 30%
+            Expanded(
+              flex: 30,
+              child: Container(color: const Color(0xFFffd763)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleQRCodeScan() async {
+    try {
+      // Show QR code scanner dialog
+      final result = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (context) => _QRCodeScannerDialog(),
+      );
+
+      if (result != null && result.containsKey('email') && result.containsKey('password')) {
+        // Auto-fill login fields with scanned data
+        _emailController.text = result['email']!;
+        _passwordController.text = result['password']!;
+        
+        // Show success toast
+        toastification.show(
+          context: context,
+          type: ToastificationType.success,
+          style: ToastificationStyle.fillColored,
+          title: const Text('QR-Code erfolgreich gescannt'),
+          description: const Text('Login-Daten wurden automatisch eingefügt'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+
+        // Automatically attempt login
+        await _handleLogin();
+      }
+    } catch (e) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('QR-Code Scan fehlgeschlagen'),
+        description: Text('Fehler: ${e.toString()}'),
+        autoCloseDuration: const Duration(seconds: 4),
+      );
+    }
+  }
+}
+
+// QR Code Scanner Dialog
+class _QRCodeScannerDialog extends StatefulWidget {
+  @override
+  State<_QRCodeScannerDialog> createState() => _QRCodeScannerDialogState();
+}
+
+class _QRCodeScannerDialogState extends State<_QRCodeScannerDialog> {
+  bool _hasPermission = false;
+  bool _isScanning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    // TODO: Check camera permission
+    setState(() {
+      _hasPermission = true; // Placeholder
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: 400,
+        height: 500,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColorLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.qr_code_scanner,
+                    color: AppColors.primaryColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'QR-Code scannen',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Scannen Sie den QR-Code vom Account',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: _hasPermission
+                    ? _buildScannerView()
+                    : _buildPermissionView(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Abbrechen'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isScanning ? null : _simulateQRScan,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.black87,
+                    ),
+                    child: _isScanning
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Test-Scan'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScannerView() {
+    return Stack(
+      children: [
+        // Camera preview placeholder
+        Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.qr_code_scanner,
+                size: 64,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Kamera wird gestartet...',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Halten Sie den QR-Code in den Rahmen',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        
+        // Scanning overlay
+        Center(
+          child: Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.primaryColor,
+                width: 3,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _isScanning
+                ? Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Scanne...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPermissionView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Black stripe - 30%
-          Flexible(
-            flex: 30,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black,
-              ),
-            ),
+          Icon(
+            Icons.camera_alt_outlined,
+            size: 64,
+            color: Colors.grey.shade400,
           ),
-          // White gap - 5%
-          Flexible(
-            flex: 5,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
+          const SizedBox(height: 16),
+          Text(
+            'Kamera-Berechtigung erforderlich',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
             ),
+            textAlign: TextAlign.center,
           ),
-          // Red stripe - 30%
-          Flexible(
-            flex: 30,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFDD0000), // German flag red
-              ),
+          const SizedBox(height: 8),
+          Text(
+            'Um QR-Codes zu scannen, benötigt die App Zugriff auf Ihre Kamera',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
             ),
+            textAlign: TextAlign.center,
           ),
-          // White gap - 5%
-          Flexible(
-            flex: 5,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _checkPermission,
+            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+              foregroundColor: Colors.black87,
             ),
-          ),
-          // Gold/Yellow stripe - 30%
-          Flexible(
-            flex: 30,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFFffd665), // Your brand yellow
-              ),
-            ),
+            icon: const Icon(Icons.camera_alt),
+            label: const Text('Berechtigung erteilen'),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _simulateQRScan() async {
+    setState(() {
+      _isScanning = true;
+    });
+
+    // Simulate scanning delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      setState(() {
+        _isScanning = false;
+      });
+
+      // Return simulated QR data
+      Navigator.of(context).pop({
+        'email': 'tablet-example-court1@gbo-system.de',
+        'password': 'ABC123XY',
+      });
+    }
+  }
 } 
+
+
+
+

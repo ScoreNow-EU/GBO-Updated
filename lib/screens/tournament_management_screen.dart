@@ -4,6 +4,7 @@ import '../services/tournament_service.dart';
 import '../services/team_service.dart';
 import '../utils/responsive_helper.dart';
 import 'tournament_edit_screen.dart';
+import 'tournament_creation_wizard.dart';
 import 'package:toastification/toastification.dart';
 
 class TournamentManagementScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   
   List<String> _selectedDivisions = [];
   Map<String, List<String>> _tournamentDivisions = {}; // tournamentId -> divisions
+  String _selectedSeason = '2026'; // Default to 2026 season
   
   // Collapsible sections state
   bool _isUpcomingExpanded = true;
@@ -106,15 +108,22 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                   );
                 }
 
-                // Filter tournaments by selected divisions
-                List<Tournament> filteredTournaments = snapshot.data!;
-                if (_selectedDivisions.isNotEmpty) {
-                  filteredTournaments = snapshot.data!.where((tournament) {
+                // Filter tournaments by season and divisions
+                List<Tournament> filteredTournaments = snapshot.data!.where((tournament) {
+                  // First filter by season
+                  if (tournament.season != _selectedSeason) {
+                    return false;
+                  }
+                  
+                  // Then filter by divisions if any are selected
+                  if (_selectedDivisions.isNotEmpty) {
                     final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
                     return _selectedDivisions.any((selectedDiv) => 
                         tournamentDivisions.contains(selectedDiv));
-                  }).toList();
-                }
+                  }
+                  
+                  return true;
+                }).toList();
 
                 return _buildTournamentDataTable(filteredTournaments, MediaQuery.of(context).size.width);
               },
@@ -129,6 +138,12 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Season Filter
+        Container(
+          constraints: const BoxConstraints(maxWidth: double.infinity),
+          child: _buildSeasonDropdown(),
+        ),
+        const SizedBox(height: 12),
         // Division Filter
         Container(
           constraints: const BoxConstraints(maxWidth: double.infinity),
@@ -152,10 +167,77 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
+  Future<void> _migrateToSeason2025() async {
+    if (!mounted) return;
+    
+    try {
+      final count = await _tournamentService.migrateToSeason2025();
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count Turniere zur Saison 2025 migriert'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fehler bei der Migration'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildSeasonDropdown() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedSeason,
+          items: const [
+            DropdownMenuItem(
+              value: '2025',
+              child: Text('Saison 2025'),
+            ),
+            DropdownMenuItem(
+              value: '2026',
+              child: Text('Saison 2026'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _selectedSeason = value;
+              });
+            }
+          },
+          icon: Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+          isExpanded: true,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDesktopHeader() {
     return Row(
       children: [
         const Spacer(),
+        // Season Filter Dropdown
+        Container(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: _buildSeasonDropdown(),
+        ),
+        const SizedBox(width: 16),
         // Division Filter Dropdown
         Container(
           constraints: const BoxConstraints(maxWidth: 280),
@@ -704,7 +786,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   void _createNewTournament() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TournamentEditScreen()),
+      MaterialPageRoute(builder: (context) => const TournamentCreationWizard()),
     );
   }
 

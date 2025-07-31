@@ -8,6 +8,7 @@ import '../services/face_id_service.dart';
 import '../services/referee_service.dart';
 import '../services/referee_invitation_monitoring_service.dart';
 import '../widgets/admin_face_id_overlay.dart';
+import '../widgets/mixed_font_title.dart';
 import '../screens/login_screen.dart';
 import '../screens/tournament_management_screen.dart';
 import '../screens/tournament_detail_screen.dart';
@@ -22,6 +23,14 @@ import '../screens/team_detail_screen.dart';
 import '../screens/custom_notification_screen.dart';
 import '../screens/user_role_management_screen.dart';
 import '../screens/referee_games_screen.dart';
+import '../screens/kanban_board_screen.dart';
+import '../screens/managed_account_screen.dart';
+import '../screens/profile_settings_screen.dart';
+import '../screens/scoring_tablet_screen.dart';
+import '../screens/season_management_screen.dart';
+import '../screens/rangliste_screen.dart';
+import '../services/managed_account_service.dart';
+import '../models/managed_account.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,7 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   final FaceIdService _faceIdService = FaceIdService();
   final RefereeService _refereeService = RefereeService();
+  final ManagedAccountService _managedAccountService = ManagedAccountService();
   app_user.User? _currentUser;
+  bool _isScoringTablet = false;
 
   @override
   void initState() {
@@ -62,11 +73,25 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedSection = 'turniere';
         });
       } else {
-        // User logged in, update current user
+        // User logged in, check if scoring tablet and update current user
+        bool isScoringTablet = false;
+        try {
+          final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
+          final managedAccount = allAccounts.firstWhere(
+            (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
+            orElse: () => throw Exception('Not a managed account'),
+          );
+          isScoringTablet = true;
+        } catch (e) {
+          // Not a scoring tablet
+          isScoringTablet = false;
+        }
+        
         setState(() {
           _currentUser = user;
+          _isScoringTablet = isScoringTablet;
           // Set default section based on user role
-          if (user.roles.contains(app_user.UserRole.referee)) {
+          if (!isScoringTablet && user.roles.contains(app_user.UserRole.referee)) {
             selectedSection = 'referee_dashboard';
           }
         });
@@ -94,10 +119,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final firebaseUser = _authService.currentFirebaseUser;
     if (firebaseUser != null) {
       final user = await _authService.getUserById(firebaseUser.uid);
+      
+      // Check if this is a scoring tablet user
+      bool isScoringTablet = false;
+      if (user != null) {
+        try {
+          final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
+          final managedAccount = allAccounts.firstWhere(
+            (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
+            orElse: () => throw Exception('Not a managed account'),
+          );
+          isScoringTablet = true;
+        } catch (e) {
+          // Not a scoring tablet
+          isScoringTablet = false;
+        }
+      }
+      
       setState(() {
         _currentUser = user;
+        _isScoringTablet = isScoringTablet;
         // Set default section based on user role
-        if (user?.roles.contains(app_user.UserRole.referee) == true) {
+        if (!isScoringTablet && user?.roles.contains(app_user.UserRole.referee) == true) {
           selectedSection = 'referee_dashboard';
         }
       });
@@ -116,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
         } catch (e) {
           print('❌ Error starting monitoring on startup: $e');
         }
-      }
+              }
     } else {
       // No user, ensure we're on the default section
       setState(() {
@@ -138,6 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'preset_management',
       'custom_notifications',
       'user_role_management',
+      'kanban_board',
     ];
     
     return adminSections.contains(section);
@@ -158,6 +202,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show specialized scoring tablet interface if user is a scoring tablet
+    if (_isScoringTablet && _currentUser != null) {
+      return ScoringTabletScreen(user: _currentUser!);
+    }
+    
     // Handle login screen specially to preserve its blue background
     if (selectedSection == 'login') {
       return LoginScreen(
@@ -250,7 +299,13 @@ class _HomeScreenState extends State<HomeScreen> {
         });
         
         // If navigating to a team section, ensure we show the overview by default
-        if (section.startsWith('team_') && !section.contains('_overview') && !section.contains('_tournaments') && !section.contains('_settings')) {
+        // But exclude admin management screens
+        if (section.startsWith('team_') && 
+            !section.contains('_overview') && 
+            !section.contains('_tournaments') && 
+            !section.contains('_settings') &&
+            section != 'team_management' &&
+            section != 'team_manager_management') {
           setState(() {
             selectedSection = '${section}_overview';
           });
@@ -267,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _getScreenTitle() {
+  dynamic _getScreenTitle() {
     // Handle referee tournament sections
     if (selectedSection.startsWith('referee_tournament_')) {
       final parts = selectedSection.split('_');
@@ -303,6 +358,12 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Kader Verwaltung';
       case 'custom_notifications':
         return 'Benachrichtigungen senden';
+      case 'user_role_management':
+        return 'Benutzer-Rollen-Verwaltung';
+      case 'kanban_board':
+        return 'Kanban Board';
+      case 'season_management':
+        return 'Saison Management';
       case 'referee_dashboard':
         return 'Schiedsrichter Dashboard';
       case 'referee_games':
@@ -312,47 +373,19 @@ class _HomeScreenState extends State<HomeScreen> {
         if (selectedSection.startsWith('team_')) {
           return 'Team Details';
         }
-        return 'German Beach Open';
+        return const MixedFontTitle();
     }
   }
 
   Widget _buildMainContent() {
-    // Handle team detail sections
-    if (selectedSection.startsWith('team_')) {
-      final parts = selectedSection.split('_');
-      if (parts.length >= 2) {
-        final teamId = parts[1];
-        final subSection = parts.length > 2 ? parts[2] : 'overview';
-        return TeamDetailContent(teamId: teamId, subSection: subSection);
-      }
-    }
-
-    // Handle referee tournament sections
-    if (selectedSection.startsWith('referee_tournament_')) {
-      final parts = selectedSection.split('_');
-      if (parts.length >= 3) {
-        final tournamentId = parts[2];
-        final subSection = parts.length > 3 ? parts[3] : 'overview';
-        if (subSection == 'games') {
-          return _currentUser?.refereeId != null
-              ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!, tournamentId: tournamentId)
-              : const Center(child: Text('Bitte melden Sie sich an.'));
-        }
-      }
-    }
-    
+    // Handle specific admin sections first (before generic team_ handling)
     switch (selectedSection) {
       case 'login':
         return const LoginScreen();
       case 'turniere':
         return const TournamentOverview();
       case 'rangliste':
-        return const Center(
-          child: Text(
-            'Rangliste (Rankings) - Coming Soon',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        );
+        return const RanglisteScreen();
       case 'preset_management':
         return const PresetManagementScreen();
       case 'tournament_management':
@@ -371,6 +404,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return const CustomNotificationScreen();
       case 'user_role_management':
         return const UserRoleManagementScreen();
+      case 'kanban_board':
+        return const KanbanBoardScreen();
+      case 'season_management':
+        return const SeasonManagementScreen();
+      case 'managed_accounts':
+        return const ManagedAccountScreen();
+      case 'profile_settings':
+        return const ProfileSettingsScreen();
       case 'referee_dashboard':
         return _currentUser != null 
             ? RefereeDashboardScreen(currentUser: _currentUser!)
@@ -379,8 +420,40 @@ class _HomeScreenState extends State<HomeScreen> {
         return _currentUser?.refereeId != null
             ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!)
             : const Center(child: Text('Bitte melden Sie sich an.'));
-      default:
-        return const TournamentOverview();
     }
+
+    // Handle team detail sections (after specific admin sections)
+    if (selectedSection.startsWith('team_') && 
+        !selectedSection.startsWith('team_management') && 
+        !selectedSection.startsWith('team_manager_management')) {
+      final parts = selectedSection.split('_');
+      print('🏠 HomeScreen - selectedSection: $selectedSection');
+      print('🏠 HomeScreen - parts: $parts');
+      if (parts.length >= 2) {
+        final teamId = parts[1];
+        final subSection = parts.length > 2 ? parts[2] : 'overview';
+        print('🏠 HomeScreen - teamId: $teamId, subSection: $subSection');
+        return TeamDetailContent(teamId: teamId, subSection: subSection);
+      }
+    }
+
+    // Handle referee tournament sections
+    if (selectedSection.startsWith('referee_tournament_')) {
+      final parts = selectedSection.split('_');
+      if (parts.length >= 3) {
+        final tournamentId = parts[2];
+        final subSection = parts.length > 3 ? parts[3] : 'overview';
+        if (subSection == 'games') {
+          return _currentUser?.refereeId != null
+              ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!, tournamentId: tournamentId)
+              : const Center(child: Text('Bitte melden Sie sich an.'));
+        }
+      }
+    }
+
+    // Default fallback
+    return const TournamentOverview();
   }
+
+
 } 

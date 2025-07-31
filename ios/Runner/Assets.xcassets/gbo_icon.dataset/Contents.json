@@ -1,0 +1,12 @@
+{
+  "data" : [
+    {
+      "filename" : "gbo_icon.icon",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

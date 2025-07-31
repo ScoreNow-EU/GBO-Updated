@@ -11,6 +11,34 @@ class TeamService {
   DateTime? _lastCacheTime;
   static const Duration _cacheTimeout = Duration(minutes: 5);
 
+  // Get all teams as Future (for one-time fetch)
+  Future<List<Team>> getAllTeams() async {
+    try {
+      final snapshot = await _firestore.collection(_collection).get();
+      List<Team> teams = snapshot.docs
+          .map((doc) => Team.fromFirestore(doc))
+          .toList();
+      
+      // Sort by total points (descending), then by name
+      teams.sort((a, b) {
+        final pointsComparison = b.totalPoints.compareTo(a.totalPoints);
+        if (pointsComparison != 0) {
+          return pointsComparison;
+        }
+        return a.name.compareTo(b.name);
+      });
+      
+      // Cache the results
+      _cachedTeams = teams;
+      _lastCacheTime = DateTime.now();
+      
+      return teams;
+    } catch (e) {
+      print('Error fetching all teams: $e');
+      rethrow;
+    }
+  }
+
   // Get all teams with caching
   Stream<List<Team>> getTeams() {
     // Return cached data immediately if available and fresh
@@ -93,6 +121,34 @@ class TeamService {
         teams.where((team) => team.division == division).toList());
   }
 
+  // Get teams by multiple divisions
+  Future<List<Team>> getTeamsByDivisions(List<String> divisions) async {
+    try {
+      // If no divisions are provided, return all teams
+      if (divisions.isEmpty) {
+        return await getAllTeams();
+      }
+
+      // Create a query to filter teams by multiple divisions
+      Query query = _firestore.collection(_collection)
+          .where('division', whereIn: divisions);
+
+      final snapshot = await query.get();
+
+      List<Team> teams = snapshot.docs
+          .map((doc) => Team.fromFirestore(doc))
+          .toList();
+
+      // Sort teams by name
+      teams.sort((a, b) => a.name.compareTo(b.name));
+
+      return teams;
+    } catch (e) {
+      print('Error fetching teams by divisions: $e');
+      return [];
+    }
+  }
+
   // Add a new team
   Future<void> addTeam(Team team) async {
     await _firestore.collection(_collection).add(team.toFirestore());
@@ -103,15 +159,24 @@ class TeamService {
   // Update team
   Future<bool> updateTeam(String teamId, Team team) async {
     try {
-    await _firestore
-        .collection(_collection)
+      print('🏐 TeamService: Updating team $teamId');
+      print('🏐 Team name: ${team.name}');
+      print('🏐 Roster player IDs: ${team.rosterPlayerIds}');
+      
+      final data = team.toFirestore();
+      print('🏐 Firestore data: $data');
+      
+      await _firestore
+          .collection(_collection)
           .doc(teamId)
-        .update(team.toFirestore());
-    // Invalidate cache
-    _invalidateCache();
+          .update(data);
+      
+      // Invalidate cache
+      _invalidateCache();
+      print('🏐 TeamService: Team updated successfully');
       return true;
     } catch (e) {
-      print('Error updating team: $e');
+      print('❌ TeamService: Error updating team: $e');
       return false;
     }
   }

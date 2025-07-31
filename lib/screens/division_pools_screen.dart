@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
+import '../models/court.dart';
 import '../services/team_service.dart';
 import '../services/tournament_service.dart';
 import '../widgets/custom_bracket_builder.dart';
 import 'dart:developer' as developer;
+import 'dart:async'; // Add Timer import
 
 class DivisionPoolsScreen extends StatefulWidget {
   final Tournament tournament;
@@ -22,67 +24,84 @@ class _DivisionPoolsScreenState extends State<DivisionPoolsScreen> {
   final TeamService _teamService = TeamService();
   final TournamentService _tournamentService = TournamentService();
   
-  // State variables
-  bool _isLoading = true;
-  String? _selectedDivision;
+  List<CustomBracketNode> _nodes = [];
   Map<String, List<Team>> _teamsByDivision = {};
-  
-  // Pool management
   Map<String, List<String>> _poolTeams = {};
   Map<String, Map<String, dynamic>> _poolMetadata = {};
-  List<CustomBracketNode> _nodes = [];
+  String? _selectedDivision;
+  bool _isLoading = true;
   
+  // Auto-save related variables
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  String? _autoSaveStatus;
+
   @override
   void initState() {
     super.initState();
-    _loadTeams();
+    _loadData();
   }
 
-  Future<void> _loadTeams() async {
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
     try {
-      setState(() => _isLoading = true);
+      final teams = await _teamService.getTeams().first;
+      final teamsByDivision = <String, List<Team>>{};
       
-      // Load all teams and filter for this tournament
-      final allTeams = await _teamService.getTeams().first;
-      final teams = allTeams.where((team) => widget.tournament.teamIds.contains(team.id)).toList();
-      
-      // Group teams by division
-      final Map<String, List<Team>> groupedTeams = {};
-      for (final team in teams) {
-        if (!groupedTeams.containsKey(team.division)) {
-          groupedTeams[team.division] = [];
+      for (var team in teams) {
+        if (!teamsByDivision.containsKey(team.division)) {
+          teamsByDivision[team.division] = [];
         }
-        groupedTeams[team.division]!.add(team);
+        teamsByDivision[team.division]!.add(team);
       }
       
       setState(() {
-        _teamsByDivision = groupedTeams;
+        _teamsByDivision = teamsByDivision;
+        _poolTeams = Map<String, List<String>>.from(widget.tournament.pools);
+        _poolMetadata = Map<String, Map<String, dynamic>>.from(widget.tournament.poolMetadata);
+        _selectedDivision = teamsByDivision.keys.isNotEmpty ? teamsByDivision.keys.first : null;
         _isLoading = false;
-        
-        // Auto-select first division if none selected
-        if (_selectedDivision == null && groupedTeams.isNotEmpty) {
-          _selectedDivision = groupedTeams.keys.first;
-        }
       });
+      
+      _loadNodesForDivision();
     } catch (e) {
-      developer.log('Error loading teams: $e');
+      developer.log('Error loading data: $e');
       setState(() => _isLoading = false);
     }
   }
 
-  void _onDivisionChanged(String? newDivision) {
-    if (newDivision != _selectedDivision) {
-      setState(() {
-        _selectedDivision = newDivision;
-        // Clear nodes when division changes
-        _nodes = [];
-      });
+  void _loadNodesForDivision() {
+    if (_selectedDivision == null) return;
+    
+    // Load existing nodes from pools or create empty nodes
+    final nodes = <CustomBracketNode>[];
+    final divisionPoolIds = _poolTeams.keys.where((key) => key.startsWith('${_selectedDivision}_')).toList();
+    
+    for (String poolId in divisionPoolIds) {
+      final poolName = poolId.replaceFirst('${_selectedDivision}_', '');
+      final teams = _poolTeams[poolId] ?? [];
+      nodes.add(CustomBracketNode(
+        id: poolId,
+        title: poolName,
+        nodeType: 'pool',
+        x: 100,
+        y: 100 + (nodes.length * 150),
+        properties: {'teams': teams},
+      ));
     }
+    
+    setState(() => _nodes = nodes);
   }
 
   void _onBracketChanged(List<CustomBracketNode> nodes) {
     setState(() => _nodes = nodes);
     _updatePoolTeams(nodes);
+    _triggerAutoSave(); // Use auto-save instead of immediate save
   }
 
   void _updatePoolTeams(List<CustomBracketNode> nodes) {
@@ -109,7 +128,64 @@ class _DivisionPoolsScreenState extends State<DivisionPoolsScreen> {
       _poolTeams = updatedPoolTeams;
       _poolMetadata = updatedPoolMetadata;
     });
-    _saveTournament();
+  }
+
+  // Auto-save functionality with debouncing
+  void _triggerAutoSave() {
+    // Cancel previous timer
+    _autoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save (debounce for 2 seconds)
+    _autoSaveTimer = Timer(const Duration(seconds: 2), () {
+      _performAutoSave();
+    });
+  }
+
+  Future<void> _performAutoSave() async {
+    setState(() {
+      _isAutoSaving = true;
+      _autoSaveStatus = 'Änderungen werden gespeichert...';
+    });
+
+    try {
+      // Create updated tournament with new pools and metadata
+      final updatedTournament = widget.tournament.copyWith(
+        pools: _poolTeams,
+        poolMetadata: _poolMetadata,
+      );
+
+      await _tournamentService.updateTournament(updatedTournament);
+      
+      setState(() {
+        _isAutoSaving = false;
+        _autoSaveStatus = 'Automatisch gespeichert';
+      });
+      
+      // Clear status after 3 seconds
+      Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+      
+    } catch (e) {
+      developer.log('Error auto-saving tournament: $e');
+      setState(() {
+        _isAutoSaving = false;
+        _autoSaveStatus = 'Fehler beim Speichern';
+      });
+      
+      // Clear error after 5 seconds
+      Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _saveTournament() async {
@@ -129,58 +205,92 @@ class _DivisionPoolsScreenState extends State<DivisionPoolsScreen> {
   }
 
   void _onTeamDrop(Team team, CustomBracketNode node) {
-    if (_selectedDivision == null) return;
-
-    // Get current teams in the node
-    final currentTeams = List<String>.from(node.properties['teams'] ?? []);
-    
-    // Add team if not already present
-    if (!currentTeams.contains(team.id)) {
-      currentTeams.add(team.id);
-      
-      // Update node properties
-      final updatedNode = node.copyWith(
-        properties: {
-          ...node.properties,
-          'teams': currentTeams,
-        },
-      );
-      
-      // Find and update the node in the list
-      final nodeIndex = _nodes.indexWhere((n) => n.id == node.id);
-      if (nodeIndex != -1) {
-        final updatedNodes = List<CustomBracketNode>.from(_nodes);
-        updatedNodes[nodeIndex] = updatedNode;
-        _onBracketChanged(updatedNodes);
+    // Handle team dropping logic
+    if (node.nodeType == 'pool') {
+      final teams = List<String>.from(node.properties['teams'] ?? []);
+      if (!teams.contains(team.id)) {
+        teams.add(team.id);
+        node.properties['teams'] = teams;
+        _onBracketChanged(_nodes);
       }
     }
+  }
+
+  void _onDivisionChanged(String? division) {
+    setState(() => _selectedDivision = division);
+    _loadNodesForDivision();
   }
 
   Widget _buildDivisionSelector() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          const Icon(Icons.category, color: Colors.purple),
+          const Text(
+            'Division:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
-            child: DropdownButtonFormField<String>(
+            child: DropdownButton<String>(
               value: _selectedDivision,
-              decoration: const InputDecoration(
-                labelText: 'Division auswählen',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
-              ),
+              isExpanded: true,
+              onChanged: _onDivisionChanged,
               items: _teamsByDivision.keys.map((division) {
                 return DropdownMenuItem(
                   value: division,
                   child: Text(division),
                 );
               }).toList(),
-              onChanged: _onDivisionChanged,
             ),
           ),
+          
+          // Auto-save status indicator
+          if (_autoSaveStatus != null) ...[
+            const SizedBox(width: 16),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isAutoSaving)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    ),
+                  )
+                else
+                  Icon(
+                    _autoSaveStatus!.contains('Fehler') ? Icons.error : Icons.check_circle,
+                    size: 16,
+                    color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  _autoSaveStatus!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

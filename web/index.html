@@ -54,28 +54,109 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #ffd665;
+    background: linear-gradient(135deg, #ffb3c8 0%, #ffafb4 25%, #fed1ba 75%, #ffcbbd 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Arial', sans-serif;
     z-index: 9999;
   ">
+    <!-- Spinning Logo -->
     <div style="
-      width: 60px;
-      height: 60px;
-      border: 4px solid #333;
-      border-top: 4px solid transparent;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
+      width: 200px;
+      height: 200px;
+      background-image: url('logo_ball.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      animation: spin 2s linear infinite;
+      margin-bottom: 24px;
     "></div>
-    <h2 style="color: #333; margin: 0;">German Beach Open</h2>
-    <p style="color: #666; margin: 5px 0 0 0;">Lade Tournament Management...</p>
+    
+    <!-- GBO Text -->
+    <h1 style="
+      color: #000;
+      margin: 0px 0px -20px 0;
+      font-size: 120px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      font-family: 'CasanovaScotia', 'Arial', sans-serif;
+    ">GBO</h1>
+    
+    <!-- German Beach Open Text -->
+    <h2 style="
+      color: #000;
+      margin: 0 0 16px 0;
+      font-size: 30px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      font-family: 'MyriadPro', 'Arial', sans-serif;
+    ">GERMAN BEACH OPEN</h2>
+    
+    <!-- German Flag Stripe - Full width at bottom -->
+    <div style="
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: linear-gradient(
+        to right,
+        #000000 0%,
+        #000000 30%,
+        transparent 30.01%,
+        transparent 35%,
+        #c10003 35.01%,
+        #c10003 65%,
+        transparent 65.01%,
+        transparent 70%,
+        #ffd765 70.01%,
+        #ffd765 100%
+      );
+    "></div>
   </div>
 
   <style>
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background-color: white;
+      border-radius: 50%;
+      animation: sparkle-animation 2s infinite;
+      opacity: 0;
+    }
+
+    @keyframes sparkle-animation {
+      0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1) rotate(180deg);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(0) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    @font-face {
+      font-family: 'CasanovaScotia';
+      src: url('Casanova Scotia.otf') format('opentype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    @font-face {
+      font-family: 'MyriadPro';
+      src: url('MYRIADPRO-BOLD.OTF') format('opentype');
+      font-weight: bold;
+      font-style: normal;
+    }
+    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -83,6 +164,34 @@
   </style>
 
   <script>
+    // Create sparkles
+    function createSparkles() {
+      const loading = document.getElementById('loading');
+      const numSparkles = 50;
+      
+      for (let i = 0; i < numSparkles; i++) {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        
+        // Random position
+        sparkle.style.left = Math.random() * 100 + '%';
+        sparkle.style.top = Math.random() * 100 + '%';
+        
+        // Random delay
+        sparkle.style.animationDelay = (Math.random() * 2) + 's';
+        
+        // Random size
+        const size = (Math.random() * 3 + 1) + 'px';
+        sparkle.style.width = size;
+        sparkle.style.height = size;
+        
+        loading.appendChild(sparkle);
+      }
+    }
+
+    // Create sparkles when page loads
+    window.addEventListener('load', createSparkles);
+
     // Hide loading indicator when Flutter app loads
     window.addEventListener('flutter-first-frame', function () {
       const loading = document.getElementById('loading');

@@ -9,7 +9,11 @@ class Team {
   final String bundesland;
   final String division; // Women's, Men's, U14, U16, U18, Seniors, FUN
   final String? clubId; // Reference to parent club
+  final String? coachName; // Coach name
+  final String? coachEmail; // Coach email for authentication requests
   final List<String> rosterPlayerIds; // List of player IDs in the roster
+  final int totalPoints; // Total EBT points accumulated
+  final List<Map<String, dynamic>> pointsHistory; // Array of tournaments with points earned
   final DateTime createdAt;
 
   Team({
@@ -21,7 +25,11 @@ class Team {
     required this.bundesland,
     required this.division,
     this.clubId,
+    this.coachName,
+    this.coachEmail,
     this.rosterPlayerIds = const [],
+    this.totalPoints = 0,
+    this.pointsHistory = const [],
     required this.createdAt,
   });
 
@@ -34,7 +42,11 @@ class Team {
       'bundesland': bundesland,
       'division': division,
       'clubId': clubId,
+      'coachName': coachName,
+      'coachEmail': coachEmail,
       'rosterPlayerIds': rosterPlayerIds,
+      'totalPoints': totalPoints,
+      'pointsHistory': pointsHistory,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -51,7 +63,11 @@ class Team {
       bundesland: data['bundesland'] ?? '',
       division: data['division'] ?? 'Men\'s Seniors',
       clubId: data['clubId'],
+      coachName: data['coachName'],
+      coachEmail: data['coachEmail'],
       rosterPlayerIds: List<String>.from(data['rosterPlayerIds'] ?? []),
+      totalPoints: data['totalPoints'] ?? 0,
+      pointsHistory: List<Map<String, dynamic>>.from(data['pointsHistory'] ?? []),
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
           : DateTime.now(),

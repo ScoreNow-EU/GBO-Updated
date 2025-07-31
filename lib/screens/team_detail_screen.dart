@@ -4,6 +4,7 @@ import '../models/tournament.dart';
 import '../services/team_service.dart';
 import '../services/tournament_service.dart';
 import '../widgets/responsive_layout.dart';
+import 'team_games_view.dart';
 
 class TeamDetailScreen extends StatefulWidget {
   final String teamId;
@@ -90,6 +91,8 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return 'Übersicht';
       case 'tournaments':
         return 'Turnier Anmeldung';
+      case 'games':
+        return 'Spiele & Kader';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -103,11 +106,17 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return _buildOverviewContent();
       case 'tournaments':
         return _buildTournamentRegistrationContent();
+      case 'games':
+        return _buildGamesContent();
       case 'settings':
         return _buildSettingsContent();
       default:
         return _buildOverviewContent();
     }
+  }
+
+  Widget _buildGamesContent() {
+    return TeamGamesView(team: _team!);
   }
 
   Widget _buildOverviewContent() {
@@ -656,16 +665,35 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
   }
 
   Widget _getContentForSection(String section) {
+    print('🎯 TeamDetailContent - Getting content for section: $section');
     switch (section) {
       case 'overview':
+        print('📊 Showing overview');
         return _buildOverviewContent();
       case 'tournaments':
+        print('🏆 Showing tournaments');
         return _buildTournamentRegistrationContent();
+      case 'games':
+        print('👥 Showing games content');
+        return _buildGamesContent();
+      case 'roster':
+        print('👥 Showing roster/games content');
+        return _buildGamesContent();
       case 'settings':
+        print('⚙️ Showing settings');
         return _buildSettingsContent();
       default:
+        print('❌ Unknown section: $section, defaulting to overview');
         return _buildOverviewContent();
     }
+  }
+
+  Widget _buildGamesContent() {
+    print('🎯 Building games content for team: ${_team?.name}');
+    if (_team == null) {
+      return const Center(child: Text('Team wird geladen...'));
+    }
+    return TeamGamesView(team: _team!);
   }
 
   Widget _buildOverviewContent() {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:async'; // Add Timer import
 import 'package:toastification/toastification.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../models/game.dart';
 import '../services/game_service.dart';
+import '../services/tournament_service.dart'; // Add tournament service
 import '../utils/bracket_id_helper.dart';
 import '../utils/bracket_templates.dart';
 import '../screens/preset_selection_screen.dart';
@@ -65,6 +67,12 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   final GlobalKey _canvasKey = GlobalKey();
   
   late final GameService _gameService;
+  late final TournamentService _tournamentService; // Add tournament service
+  
+  // Auto-save related variables
+  Timer? _autoSaveTimer;
+  bool _isAutoSaving = false;
+  String? _autoSaveStatus;
   
   // Node templates with clearer names
   final Map<String, Map<String, dynamic>> nodeTemplates = {
@@ -96,7 +104,14 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     super.initState();
     nodes = List.from(widget.initialNodes);
     _gameService = GameService();
+    _tournamentService = TournamentService(); // Initialize tournament service
     _preloadGames();
+  }
+
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel(); // Cancel auto-save timer
+    super.dispose();
   }
 
   void _preloadGames() async {
@@ -106,6 +121,80 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     } catch (e) {
       print('❌ Error preloading games in custom bracket: $e');
     }
+  }
+
+  // Auto-save functionality with debouncing
+  void _triggerAutoSave() {
+    // Cancel previous timer
+    _autoSaveTimer?.cancel();
+    
+    // Start new timer for auto-save (debounce for 1.5 seconds for bracket changes)
+    _autoSaveTimer = Timer(const Duration(milliseconds: 1500), () {
+      _performAutoSave();
+    });
+  }
+
+  Future<void> _performAutoSave() async {
+    setState(() {
+      _isAutoSaving = true;
+      _autoSaveStatus = 'Bracket wird gespeichert...';
+    });
+
+    try {
+      // Update the tournament's custom brackets
+      final updatedCustomBrackets = Map<String, CustomBracketStructure>.from(widget.tournament.customBrackets);
+      
+      if (widget.divisionName.isNotEmpty) {
+        updatedCustomBrackets[widget.divisionName] = CustomBracketStructure(
+          nodes: nodes,
+          divisionName: widget.divisionName,
+          createdAt: widget.tournament.customBrackets[widget.divisionName]?.createdAt ?? DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+
+      final updatedTournament = widget.tournament.copyWith(
+        customBrackets: updatedCustomBrackets,
+      );
+
+      await _tournamentService.updateTournament(updatedTournament);
+      
+      setState(() {
+        _isAutoSaving = false;
+        _autoSaveStatus = 'Automatisch gespeichert';
+      });
+      
+      // Clear status after 2 seconds
+      Timer(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+      
+    } catch (e) {
+      print('Error auto-saving bracket: $e');
+      setState(() {
+        _isAutoSaving = false;
+        _autoSaveStatus = 'Fehler beim Speichern';
+      });
+      
+      // Clear error after 4 seconds
+      Timer(const Duration(seconds: 4), () {
+        if (mounted) {
+          setState(() {
+            _autoSaveStatus = null;
+          });
+        }
+      });
+    }
+  }
+
+  // Updated method to trigger both callback and auto-save
+  void _notifyBracketChanged() {
+    widget.onBracketChanged(nodes);
+    _triggerAutoSave();
   }
 
   @override
@@ -164,6 +253,41 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           const Spacer(),
+          
+          // Auto-save status indicator
+          if (_autoSaveStatus != null) ...[
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isAutoSaving)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    ),
+                  )
+                else
+                  Icon(
+                    _autoSaveStatus!.contains('Fehler') ? Icons.error : Icons.check_circle,
+                    size: 14,
+                    color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                  ),
+                const SizedBox(width: 6),
+                Text(
+                  _autoSaveStatus!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _autoSaveStatus!.contains('Fehler') ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+          ],
+          
           if (connectingFromNode != null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2138,7 +2262,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             // Load preset team assignments and preserve them
             _loadPresetTeamAssignments(presetPoolTeams);
             
-            widget.onBracketChanged(nodes);
+            _notifyBracketChanged();
             
             toastification.show(
               context: context,
@@ -2224,10 +2348,11 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       selectedNode = null;
       connectingFromNode = null;
     });
+    _notifyBracketChanged();
   }
 
   void _saveBracket() {
-    widget.onBracketChanged(nodes);
+    _notifyBracketChanged();
     toastification.show(
       context: context,
       type: ToastificationType.success,
@@ -2283,6 +2408,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       setState(() {
         nodes.add(node);
       });
+      _notifyBracketChanged();
     }
   }
 
@@ -2378,6 +2504,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         nodes[index] = node.copyWith(title: newTitle, matchId: newMatchId);
       }
     });
+    _notifyBracketChanged();
   }
 
   void _deleteNode(CustomBracketNode node) {
@@ -2386,6 +2513,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       selectedNode = null;
       connectingFromNode = null;
     });
+    _notifyBracketChanged();
   }
 
   void _performDeleteConnectedNodes() {
@@ -2399,6 +2527,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         selectedNode = null;
         connectingFromNode = null;
       });
+      _notifyBracketChanged();
     }
   }
 
@@ -2839,6 +2968,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         );
       }
     });
+    _notifyBracketChanged();
   }
 
   Widget _buildPoolContent(CustomBracketNode node) {

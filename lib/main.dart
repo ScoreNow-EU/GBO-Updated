@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:toastification/toastification.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'services/preloader_service.dart';
 import 'services/referee_invitation_monitoring_service.dart';
+import 'utils/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,42 +69,52 @@ class GBOApp extends StatelessWidget {
       child: MaterialApp(
         title: 'German Beach Open',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('de'),
+          Locale('en'),
+        ],
+        locale: const Locale('de'),
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFFffd665), // Golden theme matching the new design
+            seedColor: AppColors.primaryColor, // Using gradient colors
             brightness: Brightness.light,
-            primary: const Color(0xFFffd665),
-            secondary: Colors.black87,
+            primary: AppColors.primaryColor,
+            secondary: AppColors.secondary,
             surface: Colors.white,
-            onPrimary: Colors.black87,
-            onSecondary: Colors.white,
+            onPrimary: AppColors.onPrimary,
+            onSecondary: AppColors.onSecondary,
             onSurface: Colors.black87,
           ),
           useMaterial3: true,
           fontFamily: 'Roboto',
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFFffd665),
-            foregroundColor: Colors.black87,
+          appBarTheme: AppBarTheme(
+            backgroundColor: AppColors.primaryColor,
+            foregroundColor: AppColors.onPrimary,
             elevation: 2,
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.secondary,
+              foregroundColor: AppColors.onSecondary,
               elevation: 4,
             ),
           ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
-              foregroundColor: Colors.black87,
+              foregroundColor: AppColors.primaryColor,
             ),
           ),
-          iconTheme: const IconThemeData(
-            color: Colors.black87,
+          iconTheme: IconThemeData(
+            color: AppColors.onPrimary,
           ),
           checkboxTheme: CheckboxThemeData(
-            fillColor: WidgetStateProperty.all(Colors.black87),
-            checkColor: WidgetStateProperty.all(Colors.white),
+            fillColor: WidgetStateProperty.all(AppColors.primaryColor),
+            checkColor: WidgetStateProperty.all(AppColors.onPrimary),
           ),
         ),
         home: const HomeScreen(),
