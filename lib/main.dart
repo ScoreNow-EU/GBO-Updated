@@ -3,25 +3,33 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart';
+
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'services/preloader_service.dart';
 import 'services/referee_invitation_monitoring_service.dart';
 import 'utils/app_colors.dart';
+import 'utils/version_helper.dart';
+import 'utils/web_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase on all platforms
-  try {
-    await Firebase.initializeApp(
-      options: FirebaseConfig.currentPlatform,
-    );
-    print('Firebase initialized successfully');
-  } catch (e) {
-    print('Firebase initialization error: $e');
-    // For now, continue without Firebase but show error
-    print('App will continue but Firebase features may not work');
+  // Initialize Firebase with platform check
+  if (FirebaseConfig.shouldInitializeFirebase) {
+    try {
+      await Firebase.initializeApp(
+        options: FirebaseConfig.currentPlatform,
+      );
+      print('Firebase initialized successfully');
+    } catch (e) {
+      print('Firebase initialization error: $e');
+      // For now, continue without Firebase but show error
+      print('App will continue but Firebase features may not work');
+    }
+  } else {
+    print('Firebase initialization skipped for this platform');
   }
   
   // Preload essential data for faster loading (only if Firebase is working)
@@ -37,6 +45,16 @@ void main() async {
     await RefereeInvitationMonitoringService.initialize();
   } catch (e) {
     print('Monitoring service initialization error: $e');
+  }
+  
+  // Update web version display (only on web platform)
+  if (kIsWeb) {
+    try {
+      final version = await VersionHelper.getAppVersion();
+      WebHelper.updateVersionDisplay(version);
+    } catch (e) {
+      print('Error updating web version display: $e');
+    }
   }
   
   runApp(const GBOApp());

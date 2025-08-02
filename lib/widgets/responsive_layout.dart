@@ -1,17 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
-import '../utils/responsive_helper.dart';
-import 'side_navigation.dart';
-import '../services/team_manager_service.dart';
-import '../services/tournament_service.dart';
-import '../services/auth_service.dart';
-import '../models/team.dart';
-import '../models/tournament.dart';
+
 import '../models/user.dart' as app_user;
-import '../models/referee.dart';
-import '../services/referee_service.dart';
+import 'side_navigation.dart';
 
 class ResponsiveLayout extends StatelessWidget {
   final String selectedSection;

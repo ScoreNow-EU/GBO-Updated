@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/kanban_board.dart';
 import '../models/kanban_task.dart';
-import '../models/user.dart' as app_user;
 
 class KanbanService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -56,11 +55,15 @@ class KanbanService {
     return _firestore
         .collection(_tasksCollection)
         .where('boardId', isEqualTo: _defaultBoardId)
-        .orderBy('position')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => KanbanTask.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final tasks = snapshot.docs
+              .map((doc) => KanbanTask.fromFirestore(doc))
+              .toList();
+          // Sort in memory to avoid compound index requirements
+          tasks.sort((a, b) => a.position.compareTo(b.position));
+          return tasks;
+        });
   }
 
   Future<List<KanbanTask>> getAllTasksOnce() async {
@@ -68,12 +71,15 @@ class KanbanService {
       final querySnapshot = await _firestore
           .collection(_tasksCollection)
           .where('boardId', isEqualTo: _defaultBoardId)
-          .orderBy('position')
           .get();
 
-      return querySnapshot.docs
+      final tasks = querySnapshot.docs
           .map((doc) => KanbanTask.fromFirestore(doc))
           .toList();
+      
+      // Sort in memory to avoid compound index requirements
+      tasks.sort((a, b) => a.position.compareTo(b.position));
+      return tasks;
     } catch (e) {
       print('Error getting tasks: $e');
       return [];
@@ -295,12 +301,15 @@ class KanbanService {
           .collection(_tasksCollection)
           .where('boardId', isEqualTo: _defaultBoardId)
           .where('status', isEqualTo: status.name)
-          .orderBy('position')
           .get();
 
-      return querySnapshot.docs
+      final tasks = querySnapshot.docs
           .map((doc) => KanbanTask.fromFirestore(doc))
           .toList();
+      
+      // Sort in memory to avoid compound index requirements
+      tasks.sort((a, b) => a.position.compareTo(b.position));
+      return tasks;
     } catch (e) {
       print('Error getting tasks by status: $e');
       return [];
@@ -313,12 +322,15 @@ class KanbanService {
           .collection(_tasksCollection)
           .where('boardId', isEqualTo: _defaultBoardId)
           .where('assigneeId', isEqualTo: assigneeId)
-          .orderBy('position')
           .get();
 
-      return querySnapshot.docs
+      final tasks = querySnapshot.docs
           .map((doc) => KanbanTask.fromFirestore(doc))
           .toList();
+      
+      // Sort in memory to avoid compound index requirements
+      tasks.sort((a, b) => a.position.compareTo(b.position));
+      return tasks;
     } catch (e) {
       print('Error getting tasks by assignee: $e');
       return [];

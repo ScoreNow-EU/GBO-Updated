@@ -26,7 +26,7 @@ class KanbanTaskCard extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -41,9 +41,9 @@ class KanbanTaskCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _getTypeColor().withOpacity(0.1),
+                    color: _getTypeColor().withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: _getTypeColor().withOpacity(0.3)),
+                                          border: Border.all(color: _getTypeColor().withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -105,9 +105,9 @@ class KanbanTaskCard extends StatelessWidget {
                 children: task.labels.take(3).map((label) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                          border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     label,
@@ -251,7 +251,6 @@ class KanbanTaskCard extends StatelessWidget {
       case TaskType.subtask:
         return Colors.blue;
       case TaskType.task:
-      default:
         return Colors.blue.shade700;
     }
   }
@@ -267,7 +266,6 @@ class KanbanTaskCard extends StatelessWidget {
       case TaskType.subtask:
         return Icons.subdirectory_arrow_right;
       case TaskType.task:
-      default:
         return Icons.task_alt;
     }
   }

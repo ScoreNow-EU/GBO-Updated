@@ -48,7 +48,7 @@ class ResponsiveDashboard extends StatelessWidget {
 
   Widget _buildItemGrid(double screenWidth) {
     final columns = ResponsiveHelper.getGridColumns(screenWidth);
-    final itemHeight = ResponsiveHelper.isMobile(screenWidth) ? 120.0 : 140.0;
+
     
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

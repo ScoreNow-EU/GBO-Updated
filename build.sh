@@ -131,6 +131,50 @@ case $platform_choice in
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}✅ Web build successful!${NC}"
             echo -e "${YELLOW}💡 Output: build/web/${NC}"
+            
+            # Ask if user wants to deploy to Firebase
+            echo ""
+            echo -e "${BLUE}🚀 Deploy to Firebase Hosting?${NC}"
+            echo "1) Yes, deploy now"
+            echo "2) No, just build"
+            
+            read -p "Enter choice (1-2): " deploy_choice
+            
+            case $deploy_choice in
+                1)
+                    echo -e "${BLUE}🔧 Checking Firebase CLI...${NC}"
+                    if ! command -v firebase &> /dev/null; then
+                        echo -e "${RED}❌ Firebase CLI not found. Please install it first:${NC}"
+                        echo -e "${YELLOW}   npm install -g firebase-tools${NC}"
+                        echo -e "${YELLOW}   or: curl -sL https://firebase.tools | bash${NC}"
+                        exit 1
+                    fi
+                    
+                    echo -e "${BLUE}🚀 Deploying to Firebase Hosting...${NC}"
+                    firebase deploy --only hosting
+                    
+                    if [ $? -eq 0 ]; then
+                        echo -e "${GREEN}✅ Deployment successful!${NC}"
+                        echo -e "${PURPLE}🌐 Your app is now live!${NC}"
+                        
+                        # Try to get the hosting URL from Firebase
+                        echo -e "${YELLOW}💡 Check your Firebase console for the live URL${NC}"
+                    else
+                        echo -e "${RED}❌ Deployment failed!${NC}"
+                        echo -e "${YELLOW}💡 You can deploy later using: firebase deploy --only hosting${NC}"
+                    fi
+                    ;;
+                2)
+                    echo -e "${YELLOW}⏭️ Skipping deployment...${NC}"
+                    echo -e "${YELLOW}💡 To deploy later, run: firebase deploy --only hosting${NC}"
+                    ;;
+                *)
+                    echo -e "${RED}❌ Invalid choice. Skipping deployment.${NC}"
+                    echo -e "${YELLOW}💡 To deploy later, run: firebase deploy --only hosting${NC}"
+                    ;;
+            esac
+        else
+            echo -e "${RED}❌ Web build failed!${NC}"
         fi
         ;;
     *)

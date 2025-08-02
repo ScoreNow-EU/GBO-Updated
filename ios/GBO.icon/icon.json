@@ -1,0 +1,78 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.97266,0.83789,0.38672,1.00000",
+      "display-p3:0.95703,0.71387,0.78418,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "extended-gray:1.00000,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Untitled-2.png",
+          "name" : "Untitled-2",
+          "position" : {
+            "scale" : 0.4,
+            "translation-in-points" : [
+              0,
+              270
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.19
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "logo_ball_half.png",
+          "name" : "logo_ball_half",
+          "position" : {
+            "scale" : 0.55,
+            "translation-in-points" : [
+              0,
+              -190
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.22
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

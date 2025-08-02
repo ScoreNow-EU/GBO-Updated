@@ -6,6 +6,7 @@ import '../services/team_service.dart';
 import '../services/player_service.dart';
 import '../services/team_manager_service.dart';
 import '../widgets/team_avatar.dart';
+import '../widgets/state_dropdown.dart';
 
 class TeamEditScreen extends StatefulWidget {
   final String teamId;
@@ -46,13 +47,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     'Women\'s U16',
     'Women\'s U18',
     'Women\'s Seniors',
-  ];
-  
-  final List<String> _bundeslaender = [
-    'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
-    'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen',
-    'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen',
-    'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen'
   ];
 
   @override
@@ -392,20 +386,19 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   const SizedBox(height: 16),
                   
                   // Bundesland
-                  DropdownButtonFormField<String>(
+                  StateDropdown(
                     value: _selectedBundesland,
-                    decoration: const InputDecoration(
-                      labelText: 'Bundesland *',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _bundeslaender.map((land) => DropdownMenuItem(
-                      value: land,
-                      child: Text(land),
-                    )).toList(),
+                    labelText: 'Bundesland *',
                     onChanged: (value) {
                       setState(() {
                         _selectedBundesland = value!;
                       });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Bitte wählen Sie ein Bundesland';
+                      }
+                      return null;
                     },
                   ),
                 ],

@@ -5,7 +5,9 @@ import '../models/club.dart';
 import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
-import '../data/german_cities.dart';
+import '../models/city.dart';
+import '../utils/firebase_cities_helper.dart';
+import '../widgets/state_dropdown.dart';
 import 'club_form_screen.dart';
 
 class ClubManagementScreen extends StatefulWidget {
@@ -30,37 +32,11 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
   String _filterBundesland = 'Alle';
   String _searchQuery = '';
   Club? _editingClub;
-  GermanCity? _selectedCity;
+  City? _selectedCity;
   
   Timer? _autoSaveTimer;
   bool _isAutoSaving = false;
   bool _hasUnsavedChanges = false;
-
-  // German Bundesländer and international regions
-  final List<String> _bundeslaender = [
-    'Baden-Württemberg',
-    'Bayern',
-    'Berlin',
-    'Brandenburg',
-    'Bremen',
-    'Hamburg',
-    'Hessen',
-    'Mecklenburg-Vorpommern',
-    'Niedersachsen',
-    'Nordrhein-Westfalen',
-    'Rheinland-Pfalz',
-    'Saarland',
-    'Sachsen',
-    'Sachsen-Anhalt',
-    'Schleswig-Holstein',
-    'Thüringen',
-    // International regions
-    'Dänemark',
-    'Norwegen',
-    'Niederlande',
-    'Serbien',
-    'Frankreich',
-  ];
 
   @override
   void initState() {
@@ -272,25 +248,14 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
               ),
               const SizedBox(width: 16),
               // Bundesland Filter
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: StateDropdown(
                     value: _filterBundesland,
-                    items: [
-                      const DropdownMenuItem(
-                        value: 'Alle',
-                        child: Text('Bundesland: Alle'),
-                      ),
-                      ..._bundeslaender.map((state) => DropdownMenuItem(
-                        value: state,
-                        child: Text('Bundesland: $state'),
-                      )),
-                    ],
+                    labelText: 'Bundesland',
+                    showAllOption: true,
+                    allOptionText: 'Alle',
                     onChanged: (value) {
                       setState(() {
                         _filterBundesland = value!;
@@ -581,23 +546,20 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: DropdownButtonFormField<String>(
+                              child: StateDropdown(
                                 value: _selectedBundesland,
-                                decoration: const InputDecoration(
-                                  labelText: 'Bundesland *',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.map),
-                                ),
-                                items: _bundeslaender.map((state) {
-                                  return DropdownMenuItem(
-                                    value: state,
-                                    child: Text(state),
-                                  );
-                                }).toList(),
+                                labelText: 'Bundesland *',
+                                prefixIcon: const Icon(Icons.map),
                                 onChanged: (value) {
                                   setState(() {
                                     _selectedBundesland = value!;
                                   });
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Bitte wählen Sie ein Bundesland';
+                                  }
+                                  return null;
                                 },
                               ),
                             ),
@@ -750,7 +712,7 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
     }
   }
 
-  void _editClub(Club club) {
+  Future<void> _editClub(Club club) async {
     // On iOS and mobile, navigate to dedicated form screen
     if (defaultTargetPlatform == TargetPlatform.iOS || ResponsiveHelper.isMobile(MediaQuery.of(context).size.width)) {
       Navigator.of(context).push(
@@ -760,25 +722,28 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
       );
     } else {
       // On desktop, use the existing form in the side panel
-      setState(() {
-        _editingClub = club;
-        _nameController.text = club.name;
-        _cityController.text = club.city;
-        _selectedBundesland = club.bundesland;
-        
-        // Find matching city from German cities data
-        _selectedCity = GermanCities.cities.firstWhere(
-          (city) => city.name == club.city && city.state == club.bundesland,
-          orElse: () => GermanCity(name: club.city, state: club.bundesland),
-        );
-        
-        _contactEmailController.text = club.contactEmail ?? '';
-        _contactPhoneController.text = club.contactPhone ?? '';
-        _websiteController.text = club.website ?? '';
-        _descriptionController.text = club.description ?? '';
-        _logoUrlController.text = club.logoUrl ?? '';
-        _hasUnsavedChanges = false;
-      });
+      // Find matching city from Firebase cities data first
+      final selectedCity = await FirebaseCitiesHelper.findCity(club.city, club.bundesland);
+      
+      if (mounted) {
+        setState(() {
+          _editingClub = club;
+          _nameController.text = club.name;
+          _cityController.text = club.city;
+          
+          // Use the club's bundesland directly (Firebase dropdown will handle validation)
+          _selectedBundesland = club.bundesland;
+          
+          _selectedCity = selectedCity;
+          
+          _contactEmailController.text = club.contactEmail ?? '';
+          _contactPhoneController.text = club.contactPhone ?? '';
+          _websiteController.text = club.website ?? '';
+          _descriptionController.text = club.description ?? '';
+          _logoUrlController.text = club.logoUrl ?? '';
+          _hasUnsavedChanges = false;
+        });
+      }
     }
   }
 
@@ -892,19 +857,16 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
   }
 
   Widget _buildCityAutocomplete() {
-    return Autocomplete<GermanCity>(
-      displayStringForOption: (GermanCity option) => option.name,
-      optionsBuilder: (TextEditingValue textEditingValue) {
+    return Autocomplete<City>(
+      displayStringForOption: (City option) => option.name,
+      optionsBuilder: (TextEditingValue textEditingValue) async {
         if (textEditingValue.text.isEmpty) {
-          return const Iterable<GermanCity>.empty();
+          return const Iterable<City>.empty();
         }
-        return GermanCities.cities.where((GermanCity city) {
-          return city.name.toLowerCase().contains(
-            textEditingValue.text.toLowerCase(),
-          );
-        }).take(10); // Limit to 10 results for performance
+        final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
+        return cities.take(10); // Limit to 10 results for performance
       },
-      onSelected: (GermanCity selection) {
+      onSelected: (City selection) {
         setState(() {
           _selectedCity = selection;
           _cityController.text = selection.name;
@@ -945,8 +907,8 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
       },
       optionsViewBuilder: (
         BuildContext context,
-        AutocompleteOnSelected<GermanCity> onSelected,
-        Iterable<GermanCity> options,
+        AutocompleteOnSelected<City> onSelected,
+        Iterable<City> options,
       ) {
         return Align(
           alignment: Alignment.topLeft,
@@ -961,11 +923,11 @@ class _ClubManagementScreenState extends State<ClubManagementScreen> {
                 shrinkWrap: true,
                 itemCount: options.length,
                 itemBuilder: (BuildContext context, int index) {
-                  final GermanCity option = options.elementAt(index);
+                  final City option = options.elementAt(index);
                   return ListTile(
                     dense: true,
                     title: Text(option.name),
-                    subtitle: Text(option.state),
+                    subtitle: Text('${option.state}, ${option.country}'),
                     onTap: () {
                       onSelected(option);
                     },

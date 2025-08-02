@@ -33,7 +33,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
   int _maxFieldsToUse = 10;
   bool _optimizeForMinimalFields = false;
   bool _preserveExistingSchedule = false;
-  double _minRestTimeMinutes = 30.0;
+
   bool _prioritizePoolGames = true;
   String _distributionStrategy = 'balanced'; // balanced, sequential, minimize_fields
   

@@ -616,7 +616,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
 
   Widget _buildStatusDropdown() {
     return DropdownButtonFormField<TaskStatus>(
-      value: _currentTask.status,
+                                    initialValue: _currentTask.status,
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
       ),
@@ -634,7 +634,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
 
   Widget _buildPriorityDropdown() {
     return DropdownButtonFormField<TaskPriority>(
-      value: _currentTask.priority,
+                                    initialValue: _currentTask.priority,
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
       ),
@@ -992,7 +992,6 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
       case TaskType.subtask:
         return Colors.blue;
       case TaskType.task:
-      default:
         return Colors.blue.shade700;
     }
   }
@@ -1008,7 +1007,6 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
       case TaskType.subtask:
         return Icons.subdirectory_arrow_right;
       case TaskType.task:
-      default:
         return Icons.task_alt;
     }
   }

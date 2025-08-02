@@ -144,7 +144,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<TaskType>(
-                              value: _selectedType,
+                              initialValue: _selectedType,
                               decoration: const InputDecoration(
                                 labelText: 'Typ',
                                 border: OutlineInputBorder(),
@@ -175,7 +175,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: DropdownButtonFormField<TaskPriority>(
-                              value: _selectedPriority,
+                              initialValue: _selectedPriority,
                               decoration: const InputDecoration(
                                 labelText: 'Priorität',
                                 border: OutlineInputBorder(),
@@ -208,7 +208,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<TaskStatus>(
-                              value: _selectedStatus,
+                              initialValue: _selectedStatus,
                               decoration: const InputDecoration(
                                 labelText: 'Status',
                                 border: OutlineInputBorder(),
@@ -442,7 +442,6 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
       case TaskType.subtask:
         return Colors.blue;
       case TaskType.task:
-      default:
         return Colors.blue.shade700;
     }
   }
@@ -458,7 +457,6 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
       case TaskType.subtask:
         return Icons.subdirectory_arrow_right;
       case TaskType.task:
-      default:
         return Icons.task_alt;
     }
   }
@@ -577,7 +575,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
       final taskId = await _kanbanService.createTask(task);
       
       if (taskId != null) {
-        final createdTask = task.copyWith();
+
         // Create a new task with the generated ID
         final taskWithId = KanbanTask(
           id: taskId,

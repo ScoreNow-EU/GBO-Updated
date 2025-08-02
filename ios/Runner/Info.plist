@@ -41,6 +41,10 @@
 	<string>Allow Flutter tools on your computer to connect and debug your application. This prompt will not appear on release builds.</string>
 	<key>NSUserNotificationAlertStyle</key>
 	<string>alert</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Diese App benötigt Zugriff auf die Kamera, um Dokumente zu scannen oder Fotos für den Datenimport aufzunehmen.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Diese App benötigt Zugriff auf die Fotobibliothek, um Dokumente und CSV-Dateien für den Datenimport auszuwählen. Ihre Fotos werden nicht gespeichert oder übertragen.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Diese App benötigt Benachrichtigungen, um Sie über neue Schiedsrichter-Einladungen und andere wichtige Updates zu informieren.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

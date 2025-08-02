@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../models/referee.dart';
@@ -19,17 +18,12 @@ import 'dart:math' as math;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
-import '../widgets/custom_bracket_builder.dart';
 import 'package:toastification/toastification.dart';
 import 'tournament_games_screen.dart';
 import '../services/game_scheduler.dart';
 import '../widgets/advanced_scheduling_dialog.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import '../utils/bracket_templates.dart';
-import '../utils/bracket_id_helper.dart';
 import '../utils/responsive_helper.dart';
-import '../widgets/responsive_layout.dart';
 import 'new_division_pools_screen.dart';
 
 // Add this class at the top of the file after imports
@@ -10307,8 +10301,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       }
     }
     
-    final teamAAbbrev = getAbbreviation(teamAName);
-    final teamBAbbrev = getAbbreviation(teamBName);
+
     
     return Column(
       mainAxisSize: MainAxisSize.min,

@@ -5,6 +5,7 @@ import '../models/team_manager.dart';
 import '../services/team_service.dart';
 import '../services/club_service.dart';
 import '../services/team_manager_service.dart';
+import '../widgets/state_dropdown.dart';
 
 class TeamFormScreen extends StatefulWidget {
   final Team? team;
@@ -42,25 +43,6 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
     'Women\'s U16',
     'Women\'s U18',
     'Women\'s Seniors',
-  ];
-
-  final List<String> _bundeslaender = [
-    'Baden-Württemberg',
-    'Bayern',
-    'Berlin',
-    'Brandenburg',
-    'Bremen',
-    'Hamburg',
-    'Hessen',
-    'Mecklenburg-Vorpommern',
-    'Niedersachsen',
-    'Nordrhein-Westfalen',
-    'Rheinland-Pfalz',
-    'Saarland',
-    'Sachsen',
-    'Sachsen-Anhalt',
-    'Schleswig-Holstein',
-    'Thüringen',
   ];
 
   @override
@@ -251,21 +233,20 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
+                      StateDropdown(
                         value: _selectedBundesland,
-                        decoration: const InputDecoration(
-                          labelText: 'Bundesland *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.map),
-                        ),
-                        items: _bundeslaender.map((state) => DropdownMenuItem(
-                          value: state,
-                          child: Text(state),
-                        )).toList(),
+                        labelText: 'Bundesland *',
+                        prefixIcon: const Icon(Icons.map),
                         onChanged: (value) {
                           setState(() {
                             _selectedBundesland = value!;
                           });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Bitte wählen Sie ein Bundesland';
+                          }
+                          return null;
                         },
                       ),
                     ],

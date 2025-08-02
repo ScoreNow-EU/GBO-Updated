@@ -11,6 +11,26 @@ class TeamService {
   DateTime? _lastCacheTime;
   static const Duration _cacheTimeout = Duration(minutes: 5);
 
+  // Calculate best 3 total points from points history
+  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
+    // Sort points history by points in descending order
+    final sortedPoints = List<Map<String, dynamic>>.from(pointsHistory);
+    sortedPoints.sort((a, b) {
+      final pointsA = a['points'] as int? ?? 0;
+      final pointsB = b['points'] as int? ?? 0;
+      return pointsB.compareTo(pointsA); // Descending order
+    });
+    
+    // Take only the best 3 results
+    final best3Results = sortedPoints.take(3).toList();
+    
+    // Sum up the points from the best 3 results
+    return best3Results.fold<int>(
+      0,
+      (sum, entry) => sum + (entry['points'] as int? ?? 0),
+    );
+  }
+
   // Get all teams as Future (for one-time fetch)
   Future<List<Team>> getAllTeams() async {
     try {
@@ -19,9 +39,11 @@ class TeamService {
           .map((doc) => Team.fromFirestore(doc))
           .toList();
       
-      // Sort by total points (descending), then by name
+      // Sort by best 3 total points (descending), then by name
       teams.sort((a, b) {
-        final pointsComparison = b.totalPoints.compareTo(a.totalPoints);
+        final best3PointsA = _calculateBest3TotalPoints(a.pointsHistory);
+        final best3PointsB = _calculateBest3TotalPoints(b.pointsHistory);
+        final pointsComparison = best3PointsB.compareTo(best3PointsA);
         if (pointsComparison != 0) {
           return pointsComparison;
         }

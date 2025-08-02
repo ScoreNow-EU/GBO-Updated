@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:toastification/toastification.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/game.dart';
 import '../models/tournament.dart';
 import '../models/court.dart';
@@ -14,11 +14,11 @@ import '../services/tournament_service.dart';
 import '../services/managed_account_service.dart';
 import '../services/auth_service.dart';
 import '../services/team_service.dart';
-import '../services/team_manager_service.dart';
+
 import '../models/managed_account.dart';
 import '../models/game_squad.dart';
 import '../services/game_squad_service.dart';
-import '../services/face_id_service.dart';
+
 import '../services/live_scoring_service.dart';
 import '../models/game_event.dart';
 import '../models/player.dart';
@@ -41,7 +41,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   final ManagedAccountService _managedAccountService = ManagedAccountService();
   final AuthService _authService = AuthService();
   final TeamService _teamService = TeamService();
-  final PlayerService _playerService = PlayerService(); // ✅ ADD: PlayerService
+
   final GameSquadService _gameSquadService = GameSquadService();
   final LiveScoringService _liveScoringService = LiveScoringService();
   
@@ -97,7 +97,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   
   // Shootout state
   bool _isInShootout = false;
-  bool _showShootoutSetupDialog = false;
+    bool _showShootoutSetupDialog = false;
   bool _teamAStartsShootout = true; // Track which team starts/is currently playing
   
   // Shootout player assignments
@@ -4494,7 +4494,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                                 ),
                               ),
                               Text(
-                                '${_assignedGoalkeeper!.firstName?.substring(0, 1)}. ${_assignedGoalkeeper!.lastName}',
+                                '${_assignedGoalkeeper!.firstName.substring(0, 1)}. ${_assignedGoalkeeper!.lastName}',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
@@ -6168,7 +6168,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                                 ),
                               ),
                               Text(
-                                '${_assignedShooter!.firstName?.substring(0, 1)}. ${_assignedShooter!.lastName}',
+                                '${_assignedShooter!.firstName.substring(0, 1)}. ${_assignedShooter!.lastName}',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
@@ -6272,7 +6272,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                                 ),
                               ),
                               Text(
-                                '${_assignedPlayer!.firstName?.substring(0, 1)}. ${_assignedPlayer!.lastName}',
+                                '${_assignedPlayer!.firstName.substring(0, 1)}. ${_assignedPlayer!.lastName}',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,

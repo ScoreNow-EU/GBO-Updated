@@ -33,7 +33,7 @@ class FirebaseConfig {
 
   /// Returns true if Firebase should be initialized for the current platform
   static bool get shouldInitializeFirebase {
-    return kIsWeb; // Only initialize Firebase on web platform
+    return true; // Initialize Firebase on all platforms
   }
 
   /// Returns the Firebase options for the current platform
@@ -53,7 +53,6 @@ class FirebaseConfig {
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-      default:
         return web; // Fallback to web config
     }
   }

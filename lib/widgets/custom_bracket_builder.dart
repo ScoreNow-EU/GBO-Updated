@@ -7,8 +7,7 @@ import '../models/team.dart';
 import '../models/game.dart';
 import '../services/game_service.dart';
 import '../services/tournament_service.dart'; // Add tournament service
-import '../utils/bracket_id_helper.dart';
-import '../utils/bracket_templates.dart';
+
 import '../screens/preset_selection_screen.dart';
 
 class CustomBracketBuilder extends StatefulWidget {
@@ -1503,7 +1502,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${_getOrdinalNumber(placementPosition)}',
+                              _getOrdinalNumber(placementPosition),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 8,
@@ -1760,7 +1759,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   Widget _buildPoolActionButton(CustomBracketNode node, List<String> assignedTeams) {
     final poolId = '${widget.divisionName}_${node.title}';
     final hasGames = _hasPoolGames(poolId);
-    final possibleGames = _calculatePossiblePoolGames(assignedTeams.length);
+
     final canGenerateGames = assignedTeams.length >= 2;
     
     return _buildCustomTooltip(
@@ -1799,7 +1798,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
 
   // Match action button with tooltip
   Widget _buildMatchActionButton(CustomBracketNode node, List<String> assignedTeams) {
-    final matchId = '${widget.divisionName}_${node.title}';
+
     final hasGame = _hasMatchGame(node);
     final connectedInputs = _getConnectedInputs(node);
     
@@ -2138,7 +2137,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       );
 
       _showSuccess(
-        'Pool "${poolName}" Spiele generiert:\n${games.join('\n')}\n\nInsgesamt: ${games.length} Spiele'
+        'Pool "$poolName" Spiele generiert:\n${games.join('\n')}\n\nInsgesamt: ${games.length} Spiele'
       );
       
       // Refresh the UI to update button states
@@ -2424,8 +2423,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         if (targetNode.id.isNotEmpty) {
           final startX = node.x + 60; // Center of source node
           final startY = node.y + 40;
-          final endX = targetNode.x + 60; // Center of target node
-          final endY = targetNode.y + 40;
+
 
           handles.add(
             Positioned(
@@ -2447,7 +2445,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   // Get the canvas container render box using the GlobalKey
                   final canvasRenderBox = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
                   if (canvasRenderBox != null) {
-                    final localPosition = canvasRenderBox.globalToLocal(details.offset);
+
                     
                     setState(() {
                       final fromIndex = nodes.indexWhere((n) => n.id == node.id);
@@ -2553,7 +2551,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       } else if (parts.length >= 3) {
         // Handle old format for backward compatibility
         final sourceNodeId = parts[0]; // target_node_id
-        final connectionType = parts[1]; // 'input' or 'output'
+
         final connectionIndex = int.tryParse(parts[2]) ?? 0; // input_index or output_index
         final sourceNode = nodes.firstWhere(
           (n) => n.id == sourceNodeId,
@@ -2597,8 +2595,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       final template = _getTemplateForNode(node);
       final width = template['width'] as double;
       final height = template['height'] as double;
-      final color = template['color'] as Color;
-      final icon = template['icon'] as IconData;
+
 
       return Positioned(
         left: localPosition.dx - width / 2,
@@ -2619,7 +2616,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             final canvasRenderBox = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
             if (canvasRenderBox != null) {
               final newLocalPosition = canvasRenderBox.globalToLocal(details.offset);
-              final globalPosition = _getGlobalPosition(_canvasKey.currentContext!, newLocalPosition);
+
 
               setState(() {
                 final index = nodes.indexWhere((n) => n.id == node.id);
@@ -3224,7 +3221,7 @@ class ConnectionPainter extends CustomPainter {
         } else if (parts.length >= 3) {
           // Handle old format for backward compatibility
           final targetNodeId = parts[0];
-          final connectionType = parts[1]; // 'input' or 'output'
+
           final connectionIndex = int.tryParse(parts[2]) ?? 0;
           
           final targetNode = nodes.firstWhere(

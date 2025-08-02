@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'dart:async';
 import '../models/device.dart';
-import '../models/user.dart' as app_user;
+
 
 class FaceIdService {
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -248,9 +248,9 @@ class FaceIdService {
         rethrow;
       }
       
-    } on PlatformException catch (e) {
+    } on PlatformException {
       return false;
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       return false;
     } catch (e) {
       return false;
@@ -268,8 +268,6 @@ class FaceIdService {
       
       final availableBiometrics = await getAvailableBiometrics();
       if (availableBiometrics.isEmpty) return false;
-      
-      final biometricName = getBiometricTypeName(availableBiometrics);
       
       final completer = Completer<bool>();
       
@@ -306,9 +304,9 @@ class FaceIdService {
       }
       
       return didAuthenticate;
-    } on PlatformException catch (e) {
+    } on PlatformException {
       return false;
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       return false;
     } catch (e) {
       return false;

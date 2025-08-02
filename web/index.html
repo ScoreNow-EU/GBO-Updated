@@ -94,6 +94,17 @@
       font-family: 'MyriadPro', 'Arial', sans-serif;
     ">GERMAN BEACH OPEN</h2>
     
+    <!-- Version Number -->
+    <div id="version-display" style="
+      color: #000;
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      font-weight: normal;
+      letter-spacing: 0.5px;
+      font-family: 'Arial', sans-serif;
+      opacity: 0.8;
+    ">Version loading...</div>
+    
     <!-- German Flag Stripe - Full width at bottom -->
     <div style="
       position: absolute;
@@ -199,6 +210,14 @@
         loading.style.display = 'none';
       }
     });
+
+    // Function to update version display
+    window.updateVersionDisplay = function(version) {
+      const versionElement = document.getElementById('version-display');
+      if (versionElement) {
+        versionElement.textContent = 'Version ' + version;
+      }
+    };
   </script>
 
   <script src="flutter_bootstrap.js" async></script>

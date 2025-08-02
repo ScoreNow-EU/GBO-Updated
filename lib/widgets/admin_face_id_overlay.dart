@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
+
 import '../services/face_id_service.dart';
 
 class AdminFaceIdOverlay extends StatefulWidget {

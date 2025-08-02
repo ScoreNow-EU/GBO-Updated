@@ -29,6 +29,7 @@ import '../screens/profile_settings_screen.dart';
 import '../screens/scoring_tablet_screen.dart';
 import '../screens/season_management_screen.dart';
 import '../screens/rangliste_screen.dart';
+import '../screens/city_migration_screen.dart';
 import '../services/managed_account_service.dart';
 import '../models/managed_account.dart';
 
@@ -182,6 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'custom_notifications',
       'user_role_management',
       'kanban_board',
+      'city_migration',
     ];
     
     return adminSections.contains(section);
@@ -364,6 +366,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Kanban Board';
       case 'season_management':
         return 'Saison Management';
+      case 'city_migration':
+        return 'Städte Migration';
       case 'referee_dashboard':
         return 'Schiedsrichter Dashboard';
       case 'referee_games':
@@ -408,6 +412,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const KanbanBoardScreen();
       case 'season_management':
         return const SeasonManagementScreen();
+      case 'city_migration':
+        return const CityMigrationScreen();
       case 'managed_accounts':
         return const ManagedAccountScreen();
       case 'profile_settings':

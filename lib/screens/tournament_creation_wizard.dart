@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../data/german_cities.dart';
+import '../models/city.dart';
+import '../utils/firebase_cities_helper.dart';
 import '../models/tournament.dart';
 import '../models/tournament_criteria.dart';
 import '../services/tournament_service.dart';
@@ -39,7 +40,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _cityController;
   late final TextEditingController _bundeslandController;
-  GermanCity? _selectedCity;
+  City? _selectedCity;
 
   @override
   void initState() {
@@ -347,15 +348,16 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // City Autocomplete
-                Autocomplete<GermanCity>(
-                  displayStringForOption: (GermanCity option) => option.name,
-                  optionsBuilder: (TextEditingValue textEditingValue) {
+                Autocomplete<City>(
+                  displayStringForOption: (City option) => option.name,
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
                     if (textEditingValue.text.isEmpty) {
-                      return const Iterable<GermanCity>.empty();
+                      return const Iterable<City>.empty();
                     }
-                    return GermanCities.searchCities(textEditingValue.text).take(10);
+                    final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
+                    return cities.take(10);
                   },
-                  onSelected: (GermanCity selection) {
+                  onSelected: (City selection) {
                     if (mounted) {
                       setState(() {
                         _selectedCity = selection;

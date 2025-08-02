@@ -98,14 +98,13 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         rankedTeams.clear();
       });
 
-      // Fetch teams for the tournament's divisions
-      List<Team> allTeams = await _teamService.getTeamsByDivisions(
-        widget.tournament.divisions.isNotEmpty 
-          ? widget.tournament.divisions 
-          : widget.tournament.teamIds.isNotEmpty
-            ? [widget.tournament.teamIds.first] 
-            : []
-      );
+      // Fetch ALL teams and filter to only those registered for this tournament
+      List<Team> allTeams = await _teamService.getAllTeams();
+      
+      // Filter to only teams that are registered for this tournament
+      List<Team> tournamentTeams = allTeams.where((team) => 
+        widget.tournament.teamIds.contains(team.id)
+      ).toList();
 
       // Check if widget is still mounted
       if (!mounted) return;
@@ -114,8 +113,8 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       setState(() {
         // Filter teams based on selected division
         availableTeams = selectedDivision.isEmpty
-            ? allTeams
-            : allTeams.where((team) => team.division == selectedDivision).toList();
+            ? tournamentTeams
+            : tournamentTeams.where((team) => team.division == selectedDivision).toList();
         
         // Check if there are saved results for this tournament and division
         final divisionKey = selectedDivision.isEmpty ? 'All' : selectedDivision;
@@ -191,89 +190,141 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         teamId: 'team1',
         teamName: 'Team Alpha',
         placement: 1,
-        points: _calculatePoints(1, widget.tournament.category),
+        points: _calculatePoints(1, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team2',
         teamName: 'Team Beta',
         placement: 2,
-        points: _calculatePoints(2, widget.tournament.category),
+        points: _calculatePoints(2, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team3',
         teamName: 'Team Gamma',
         placement: 3,
-        points: _calculatePoints(3, widget.tournament.category),
+        points: _calculatePoints(3, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team4',
         teamName: 'Team Delta',
         placement: 4,
-        points: _calculatePoints(4, widget.tournament.category),
+        points: _calculatePoints(4, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team5',
         teamName: 'Team Epsilon',
         placement: 5,
-        points: _calculatePoints(5, widget.tournament.category),
+        points: _calculatePoints(5, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team6',
         teamName: 'Team Zeta',
         placement: 6,
-        points: _calculatePoints(6, widget.tournament.category),
+        points: _calculatePoints(6, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team7',
         teamName: 'Team Eta',
         placement: 7,
-        points: _calculatePoints(7, widget.tournament.category),
+        points: _calculatePoints(7, widget.tournament.category, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team8',
         teamName: 'Team Theta',
         placement: 8,
-        points: _calculatePoints(8, widget.tournament.category),
+        points: _calculatePoints(8, widget.tournament.category, totalTeams: 8),
       ),
     ];
   }
 
-  int _calculatePoints(int placement, String category) {
+  int _calculatePoints(int placement, String category, {int? totalTeams}) {
     // Get max points for the tournament (using calculated points from criteria or manual setting)
     final maxPoints = _getCalculatedTournamentPoints(widget.tournament);
     
-    // Calculate points based on placement (EBT system)
-    double percentage;
-    switch (placement) {
-      case 1:
-        percentage = 1.0; // 100%
-        break;
-      case 2:
-        percentage = 0.9; // 90%
-        break;
-      case 3:
-        percentage = 0.8; // 80%
-        break;
-      case 4:
-        percentage = 0.7; // 70%
-        break;
-      case 5:
-        percentage = 0.6; // 60%
-        break;
-      case 6:
-        percentage = 0.5; // 50%
-        break;
-      case 7:
-        percentage = 0.4; // 40%
-        break;
-      case 8:
-        percentage = 0.3; // 30%
-        break;
-      default:
-        percentage = 0.0; // No points for placements > 8
-    }
+    // If totalTeams is not provided, use the current rankedTeams count
+    final teamCount = totalTeams ?? rankedTeams.length;
+    
+    // Calculate points based on placement and total number of teams (adjusted EBT system)
+    double percentage = _getPercentageForPlacement(placement, teamCount);
     
     return (maxPoints * percentage).round();
+  }
+
+  double _getPercentageForPlacement(int placement, int totalTeams) {
+    // Ensure we don't have invalid placements
+    if (placement <= 0 || placement > totalTeams) {
+      return 0.0;
+    }
+
+    // Define the percentage scale based on total teams
+    // Always start from the highest available percentage for the number of teams
+    switch (totalTeams) {
+      case 1:
+        return placement == 1 ? 0.3 : 0.0; // 30%
+      case 2:
+        switch (placement) {
+          case 1: return 0.4; // 40%
+          case 2: return 0.3; // 30%
+          default: return 0.0;
+        }
+      case 3:
+        switch (placement) {
+          case 1: return 0.5; // 50%
+          case 2: return 0.4; // 40%
+          case 3: return 0.3; // 30%
+          default: return 0.0;
+        }
+      case 4:
+        switch (placement) {
+          case 1: return 0.6; // 60%
+          case 2: return 0.5; // 50%
+          case 3: return 0.4; // 40%
+          case 4: return 0.3; // 30%
+          default: return 0.0;
+        }
+      case 5:
+        switch (placement) {
+          case 1: return 0.7; // 70%
+          case 2: return 0.6; // 60%
+          case 3: return 0.5; // 50%
+          case 4: return 0.4; // 40%
+          case 5: return 0.3; // 30%
+          default: return 0.0;
+        }
+      case 6:
+        switch (placement) {
+          case 1: return 0.8; // 80%
+          case 2: return 0.7; // 70%
+          case 3: return 0.6; // 60%
+          case 4: return 0.5; // 50%
+          case 5: return 0.4; // 40%
+          case 6: return 0.3; // 30%
+          default: return 0.0;
+        }
+      case 7:
+        switch (placement) {
+          case 1: return 0.9; // 90%
+          case 2: return 0.8; // 80%
+          case 3: return 0.7; // 70%
+          case 4: return 0.6; // 60%
+          case 5: return 0.5; // 50%
+          case 6: return 0.4; // 40%
+          case 7: return 0.3; // 30%
+          default: return 0.0;
+        }
+      default: // 8 or more teams
+        switch (placement) {
+          case 1: return 1.0; // 100%
+          case 2: return 0.9; // 90%
+          case 3: return 0.8; // 80%
+          case 4: return 0.7; // 70%
+          case 5: return 0.6; // 60%
+          case 6: return 0.5; // 50%
+          case 7: return 0.4; // 40%
+          case 8: return 0.3; // 30%
+          default: return 0.0; // No points for placements > 8
+        }
+    }
   }
 
   int _getMaxPoints(String category) {
@@ -1008,7 +1059,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                                       border: Border.all(color: Colors.green.shade300),
                                     ),
                                     child: Text(
-                                      '${_calculatePoints(placement, widget.tournament.category)} Pkt',
+                                      '${_calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length)} Pkt',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -1121,6 +1172,25 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
     }
   }
 
+  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
+    // Sort points history by points in descending order
+    final sortedPoints = List<Map<String, dynamic>>.from(pointsHistory);
+    sortedPoints.sort((a, b) {
+      final pointsA = a['points'] as int? ?? 0;
+      final pointsB = b['points'] as int? ?? 0;
+      return pointsB.compareTo(pointsA); // Descending order
+    });
+    
+    // Take only the best 3 results
+    final best3Results = sortedPoints.take(3).toList();
+    
+    // Sum up the points from the best 3 results
+    return best3Results.fold<int>(
+      0,
+      (sum, entry) => sum + (entry['points'] as int? ?? 0),
+    );
+  }
+
   Future<void> _generatePoints() async {
     if (rankedTeams.isEmpty) {
       _showErrorToast('Keine Teams in der Platzierung. Bitte Teams hinzufügen.');
@@ -1134,7 +1204,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       for (int i = 0; i < rankedTeams.length; i++) {
         final team = rankedTeams[i];
         final placement = i + 1;
-        final points = _calculatePoints(placement, widget.tournament.category);
+        final points = _calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length);
         
         // Create points history entry
         final pointsEntry = {
@@ -1155,11 +1225,8 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         // Add new entry
         updatedPointsHistory.add(pointsEntry);
         
-        // Calculate new total points
-        final newTotalPoints = updatedPointsHistory.fold<int>(
-          0, 
-          (sum, entry) => sum + (entry['points'] as int? ?? 0),
-        );
+        // Calculate new total points (only best 3 results count)
+        final newTotalPoints = _calculateBest3TotalPoints(updatedPointsHistory);
         
         // Create updated team object with null safety
         final updatedTeam = Team(
@@ -1211,7 +1278,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       for (int i = 0; i < rankedTeams.length; i++) {
         final team = rankedTeams[i];
         final placement = i + 1;
-        final points = _calculatePoints(placement, widget.tournament.category);
+        final points = _calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length);
         
         divisionResults.add({
           'teamId': team.id,

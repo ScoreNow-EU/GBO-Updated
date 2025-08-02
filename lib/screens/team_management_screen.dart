@@ -6,7 +6,7 @@ import '../services/team_service.dart';
 import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
 import '../widgets/team_avatar.dart';
-import '../data/german_cities.dart';
+
 import 'club_management_screen.dart';
 import 'team_club_migration_screen.dart';
 import 'team_form_screen.dart';

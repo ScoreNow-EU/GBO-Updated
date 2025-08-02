@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/tournament.dart';
+import '../models/team.dart';
 import '../services/tournament_service.dart';
+import '../services/team_service.dart';
 import '../utils/responsive_helper.dart';
+import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 import 'tournament_results_screen.dart';
 
@@ -668,8 +671,12 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   void _viewRankings(Tournament tournament) {
-    // TODO: Navigate to tournament rankings screen
-    _showSuccessToast('Rangliste für ${tournament.name} anzeigen');
+    // Navigate to tournament-specific rankings screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TournamentSpecificRankingsScreen(tournament: tournament),
+      ),
+    );
   }
 
   void _showPointsOverrideDialog(Tournament tournament) {
@@ -771,5 +778,401 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
     } catch (e) {
       _showErrorToast('Fehler beim Speichern der Punkte: $e');
     }
+  }
+}
+
+// Tournament-specific rankings screen that shows only teams from a specific tournament
+class TournamentSpecificRankingsScreen extends StatefulWidget {
+  final Tournament tournament;
+
+  const TournamentSpecificRankingsScreen({super.key, required this.tournament});
+
+  @override
+  State<TournamentSpecificRankingsScreen> createState() => _TournamentSpecificRankingsScreenState();
+}
+
+class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRankingsScreen> {
+  final TeamService _teamService = TeamService();
+  List<Team> tournamentTeams = [];
+  List<Team> filteredTeams = [];
+  String selectedDivision = 'Alle';
+  List<String> availableDivisions = ['Alle'];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTournamentTeams();
+  }
+
+  Future<void> _loadTournamentTeams() async {
+    setState(() => isLoading = true);
+    try {
+      // Get all teams
+      final allTeams = await _teamService.getAllTeams();
+      
+      // Filter teams that participated in this tournament
+      final participatingTeams = allTeams.where((team) => 
+        widget.tournament.teamIds.contains(team.id)
+      ).toList();
+      
+      // Get available divisions from the participating teams
+      final divisions = participatingTeams.map((team) => team.division).toSet().toList();
+      divisions.sort();
+      
+      setState(() {
+        tournamentTeams = participatingTeams;
+        availableDivisions = ['Alle', ...divisions];
+        isLoading = false;
+      });
+      
+      _filterTeams();
+    } catch (e) {
+      setState(() => isLoading = false);
+      _showErrorToast('Fehler beim Laden der Teams: $e');
+    }
+  }
+
+  void _filterTeams() {
+    if (selectedDivision == 'Alle') {
+      filteredTeams = List.from(tournamentTeams);
+    } else {
+      filteredTeams = tournamentTeams.where((team) => team.division == selectedDivision).toList();
+    }
+    
+    // Sort by best 3 total points (descending)
+    filteredTeams.sort((a, b) {
+      final best3PointsA = _calculateBest3TotalPoints(a.pointsHistory);
+      final best3PointsB = _calculateBest3TotalPoints(b.pointsHistory);
+      return best3PointsB.compareTo(best3PointsA);
+    });
+    
+    setState(() {});
+  }
+
+  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
+    // Sort points history by points in descending order
+    final sortedPoints = List<Map<String, dynamic>>.from(pointsHistory);
+    sortedPoints.sort((a, b) {
+      final pointsA = a['points'] as int? ?? 0;
+      final pointsB = b['points'] as int? ?? 0;
+      return pointsB.compareTo(pointsA); // Descending order
+    });
+    
+    // Take only the best 3 results
+    final best3Results = sortedPoints.take(3).toList();
+    
+    // Sum up the points from the best 3 results
+    return best3Results.fold<int>(
+      0,
+      (sum, entry) => sum + (entry['points'] as int? ?? 0),
+    );
+  }
+
+  void _onDivisionChanged(String division) {
+    setState(() {
+      selectedDivision = division;
+    });
+    _filterTeams();
+  }
+
+  Color _getDivisionColor(String division) {
+    if (division.contains('Women')) {
+      if (division.contains('FUN')) return Colors.pink;
+      if (division.contains('U14')) return Colors.purple;
+      if (division.contains('U16')) return Colors.deepPurple;
+      if (division.contains('U18')) return Colors.indigo;
+      return Colors.blue; // Women's Seniors
+    } else {
+      if (division.contains('FUN')) return Colors.orange;
+      if (division.contains('U14')) return Colors.green;
+      if (division.contains('U16')) return Colors.teal;
+      if (division.contains('U18')) return Colors.cyan;
+      return Colors.red; // Men's Seniors
+    }
+  }
+
+  void _showErrorToast(String message) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      style: ToastificationStyle.fillColored,
+      title: const Text('Fehler'),
+      description: Text(message),
+      autoCloseDuration: const Duration(seconds: 3),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = ResponsiveHelper.isTablet(screenWidth);
+    
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: Text(
+          'Rangliste - ${widget.tournament.name}',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: AppColors.primaryColor,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Column(
+        children: [
+          // Division Filter
+          _buildDivisionFilter(),
+          
+          // Rankings List
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : filteredTeams.isEmpty
+                    ? _buildEmptyState()
+                    : _buildRankingsList(isTablet),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivisionFilter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Division auswählen:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.emoji_events,
+                      size: 14,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Nur Turnier-Teams',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: availableDivisions.map((division) {
+              final isSelected = selectedDivision == division;
+              final divisionColor = division == 'Alle' ? AppColors.primaryColor : _getDivisionColor(division);
+              
+              return GestureDetector(
+                onTap: () => _onDivisionChanged(division),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? divisionColor : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? divisionColor : Colors.grey.shade300,
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    division,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.emoji_events_outlined,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Keine Teams gefunden',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            selectedDivision == 'Alle' 
+                ? 'Dieses Turnier hat noch keine Teilnehmer'
+                : 'Keine Teams in der Division "$selectedDivision"',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRankingsList(bool isTablet) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: filteredTeams.length,
+      itemBuilder: (context, index) {
+        final team = filteredTeams[index];
+        final placement = index + 1;
+        final divisionColor = _getDivisionColor(team.division);
+        final best3Points = _calculateBest3TotalPoints(team.pointsHistory);
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Placement
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: placement <= 3 ? Colors.amber : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$placement',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: placement <= 3 ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // Team Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        team.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        team.city,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: divisionColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: divisionColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          team.division,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: divisionColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Points
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$best3Points Pkt',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 } 

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../services/team_service.dart';
-import '../data/german_cities.dart';
+import '../models/city.dart';
+import '../utils/firebase_cities_helper.dart';
 import '../widgets/team_avatar.dart';
 
 class BulkAddTeamsScreen extends StatefulWidget {
@@ -36,30 +37,6 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     'Men\'s U18',
     'Men\'s Seniors',
     'Men\'s FUN',
-  ];
-
-  // German Bundesländer and international regions
-  final List<String> _bundeslaender = [
-    'Baden-Württemberg',
-    'Bayern',
-    'Berlin',
-    'Brandenburg',
-    'Bremen',
-    'Hamburg',
-    'Hessen',
-    'Mecklenburg-Vorpommern',
-    'Niedersachsen',
-    'Nordrhein-Westfalen',
-    'Rheinland-Pfalz',
-    'Saarland',
-    'Sachsen',
-    'Sachsen-Anhalt',
-    'Schleswig-Holstein',
-    'Thüringen',
-    // International regions
-    'Dänemark',
-    'Norwegen',
-    'Niederlande',
   ];
 
   @override
@@ -288,13 +265,17 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               // City Autocomplete
               Expanded(
                 flex: 3,
-                child: Autocomplete<GermanCity>(
+                child: Autocomplete<City>(
                   key: Key('autocomplete_$index'), // Add key for proper widget identification
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    return GermanCities.searchCities(textEditingValue.text).take(10);
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<City>.empty();
+                    }
+                    final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
+                    return cities.take(10);
                   },
-                  displayStringForOption: (GermanCity option) => option.displayName,
-                  onSelected: (GermanCity selection) {
+                  displayStringForOption: (City option) => option.displayName,
+                  onSelected: (City selection) {
                     // Defensive check to prevent using disposed controllers
                     if (index < _teams.length && !_teams[index]._disposed) {
                       setState(() {
@@ -400,7 +381,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     }
   }
 
-  void _previewTeams() {
+  Future<void> _previewTeams() async {
     if (!_formKey.currentState!.validate()) return;
 
     // Get only teams with names (exclude the last empty one)
@@ -432,7 +413,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
         } else if (teamData.cityController?.text.isNotEmpty == true) {
           String cityText = teamData.cityController!.text.trim();
           // Try to parse from text if no selection was made
-          GermanCity? foundCity = GermanCities.findByDisplayName(cityText);
+          City? foundCity = await FirebaseCitiesHelper.findByDisplayName(cityText);
           if (foundCity != null) {
             city = foundCity.name;
             state = foundCity.state;
@@ -534,7 +515,7 @@ class TeamFormData {
   final TextEditingController teamManager = TextEditingController();
   final TextEditingController logoUrl = TextEditingController();
   TextEditingController? cityController;
-  GermanCity? selectedCity;
+  City? selectedCity;
   bool _disposed = false;
 
   void dispose() {

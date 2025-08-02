@@ -64,10 +64,33 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       filteredTeams = allTeams.where((team) => team.division == selectedDivision).toList();
     }
     
-    // Sort by total points (descending)
-    filteredTeams.sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+    // Sort by best 3 total points (descending)
+    filteredTeams.sort((a, b) {
+      final best3PointsA = _calculateBest3TotalPoints(a.pointsHistory);
+      final best3PointsB = _calculateBest3TotalPoints(b.pointsHistory);
+      return best3PointsB.compareTo(best3PointsA);
+    });
     
     setState(() {});
+  }
+
+  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
+    // Sort points history by points in descending order
+    final sortedPoints = List<Map<String, dynamic>>.from(pointsHistory);
+    sortedPoints.sort((a, b) {
+      final pointsA = a['points'] as int? ?? 0;
+      final pointsB = b['points'] as int? ?? 0;
+      return pointsB.compareTo(pointsA); // Descending order
+    });
+    
+    // Take only the best 3 results
+    final best3Results = sortedPoints.take(3).toList();
+    
+    // Sum up the points from the best 3 results
+    return best3Results.fold<int>(
+      0,
+      (sum, entry) => sum + (entry['points'] as int? ?? 0),
+    );
   }
 
   void _onDivisionChanged(String division) {
@@ -177,13 +200,45 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Division auswählen:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Division auswählen:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: Colors.blue.shade700,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Beste 3 Ergebnisse',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -374,7 +429,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${team.totalPoints} Pkt',
+                                            '${_calculateBest3TotalPoints(team.pointsHistory)} Pkt',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

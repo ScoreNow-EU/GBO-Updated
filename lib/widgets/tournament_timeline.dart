@@ -783,7 +783,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
   Widget _buildGeneratedImage(Tournament tournament, {double width = 80, double height = 60}) {
     // Generate colors based on tournament name hash
     int nameHash = tournament.name.hashCode;
-    int categoryHash = tournament.categories.join().hashCode;
+
     
     // Create color palette based on category
     List<Color> colors = [];

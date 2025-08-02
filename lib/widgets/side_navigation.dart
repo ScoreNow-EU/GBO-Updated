@@ -13,6 +13,7 @@ import '../models/referee.dart';
 import '../services/referee_service.dart';
 
 import '../utils/app_colors.dart';
+import '../utils/version_helper.dart';
 
 class SideNavigation extends StatefulWidget {
   final String selectedSection;
@@ -45,11 +46,13 @@ class _SideNavigationState extends State<SideNavigation> {
   Referee? _refereeProfile;
   StreamSubscription<User?>? _authSubscription;
   bool _isAdminExpanded = false;
+  String _appVersion = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _currentUser = FirebaseAuth.instance.currentUser;
+    _loadAppVersion();
     
     // Listen to auth state changes
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
@@ -82,7 +85,7 @@ class _SideNavigationState extends State<SideNavigation> {
         }
         await _loadRefereeProfile();
       } catch (e) {
-        print('Error loading app user: $e');
+        // Error loading app user: $e
         if (mounted) {
           setState(() {
             _currentAppUser = null;
@@ -103,10 +106,28 @@ class _SideNavigationState extends State<SideNavigation> {
     await _loadTeamManagerData();
   }
 
+  Future<void> _loadAppVersion() async {
+    try {
+      final version = await VersionHelper.getAppVersion();
+      if (mounted) {
+        setState(() {
+          _appVersion = version;
+        });
+      }
+    } catch (e) {
+              // Error loading app version: $e
+      if (mounted) {
+        setState(() {
+          _appVersion = '0.1.0';
+        });
+      }
+    }
+  }
+
   Future<void> _loadRefereeProfile() async {
     // Check if currentAppUser is available
     if (_currentAppUser == null) {
-      print('⏳ Nav: currentAppUser is null, waiting...');
+              // ⏳ Nav: currentAppUser is null, waiting...
       if (mounted) {
         setState(() {
           _refereeProfile = null;
@@ -119,13 +140,13 @@ class _SideNavigationState extends State<SideNavigation> {
     if (_currentAppUser!.roles.contains(app_user.UserRole.referee)) {
       if (_currentAppUser!.refereeId != null) {
         try {
-          print('📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}');
+          // 📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}
           _refereeProfile = await _refereeService.getRefereeById(_currentAppUser!.refereeId!);
           if (_refereeProfile != null) {
-            print('✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}');
+            // ✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}
             await _loadRefereeTournaments();
           } else {
-            print('❌ Nav: Referee profile not found');
+            // ❌ Nav: Referee profile not found
             if (mounted) {
               setState(() {
                 _refereeProfile = null;
@@ -134,7 +155,7 @@ class _SideNavigationState extends State<SideNavigation> {
             }
           }
         } catch (e) {
-          print('❌ Nav: Error loading referee profile: $e');
+          // ❌ Nav: Error loading referee profile: $e
           if (mounted) {
             setState(() {
               _refereeProfile = null;
@@ -458,6 +479,26 @@ class _SideNavigationState extends State<SideNavigation> {
               ],
             ),
           ),
+          
+          // Version Number at the very bottom
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade300, width: 1),
+              ),
+            ),
+            child: Text(
+              'Version $_appVersion',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -749,6 +790,12 @@ class _SideNavigationState extends State<SideNavigation> {
               title: 'Kanban Board',
               key: 'kanban_board',
               isSelected: widget.selectedSection == 'kanban_board',
+            ),
+            _buildAdminItem(
+              icon: Icons.location_city,
+              title: 'Städte Migration',
+              key: 'city_migration',
+              isSelected: widget.selectedSection == 'city_migration',
             ),
           ],
         ],

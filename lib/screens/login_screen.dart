@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
-import 'dart:io' show Platform;
+
 import 'dart:math';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
@@ -417,6 +417,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return AutofillGroup(
       child: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.disabled,
         child: Column(
           children: [
             // One-Time Code Field (only for one-time code mode)
@@ -424,10 +425,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextFormField(
                 controller: _oneTimeCodeController,
                 keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 6,
                 autocorrect: false,
                 enableSuggestions: false,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                onFieldSubmitted: (_) => _handleOneTimeCodeLogin(),
                 decoration: InputDecoration(
                   labelText: 'Einmaliger Code',
                   hintText: 'ABCD12',
@@ -472,6 +476,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextFormField(
                 controller: _firstNameController,
                 keyboardType: TextInputType.name,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                autocorrect: false,
                 autofillHints: const [AutofillHints.givenName],
                 decoration: InputDecoration(
                   labelText: 'Vorname',
@@ -508,6 +515,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextFormField(
                 controller: _lastNameController,
                 keyboardType: TextInputType.name,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                autocorrect: false,
                 autofillHints: const [AutofillHints.familyName],
                 decoration: InputDecoration(
                   labelText: 'Nachname',
@@ -546,9 +556,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
               autocorrect: false,
               enableSuggestions: false,
-              autofillHints: const [AutofillHints.email],
+              autofillHints: _isLoginMode 
+                ? const [AutofillHints.email] 
+                : const [AutofillHints.email],
               decoration: InputDecoration(
                 labelText: 'E-Mail-Adresse',
                 hintText: 'max.mustermann@example.com',
@@ -587,9 +600,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               obscureText: _obscurePassword,
               enableSuggestions: false,
               autocorrect: false,
+              textInputAction: TextInputAction.done,
               autofillHints: _isLoginMode 
                 ? const [AutofillHints.password]
                 : const [AutofillHints.newPassword],
+              onFieldSubmitted: (_) => _isLoginMode ? _handleLoginWithOverlay() : _handleRegister(),
               decoration: InputDecoration(
                 labelText: 'Passwort',
                 hintText: _isLoginMode ? 'Ihr Passwort eingeben' : 'Mindestens 6 Zeichen',
@@ -680,69 +695,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildQRCodeSection(bool isMobile) {
-    return Column(
-      children: [
-        // Divider with "ODER"
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 1,
-                color: Colors.grey.shade300,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'ODER',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Container(
-                height: 1,
-                color: Colors.grey.shade300,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        
-        // QR Code Login Button
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: OutlinedButton.icon(
-            onPressed: _isLoading ? null : _handleQRCodeScan,
-            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: AppColors.primaryColor, width: 2),
-                foregroundColor: AppColors.primaryColor,
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: const Icon(Icons.qr_code_scanner, size: 24),
-            label: Text(
-              'Mit QR-Code anmelden',
-              style: TextStyle(
-                fontSize: isMobile ? 16 : 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
+
 
   Widget _buildRememberMeAndForgotPassword() {
     return Column(
