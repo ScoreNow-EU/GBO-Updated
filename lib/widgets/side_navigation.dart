@@ -525,86 +525,86 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
           ),
           
-          // Donation Section - Pinned at bottom before version
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.pink.shade400, Colors.red.shade400],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.pink.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => widget.onSectionChanged('donation'),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Unterstützen',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Werbefrei halten',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          '💝',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Donation Section - DISABLED for Apple App Store submission
+          // Container(
+          //   margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          //   decoration: BoxDecoration(
+          //     gradient: LinearGradient(
+          //       colors: [Colors.pink.shade400, Colors.red.shade400],
+          //       begin: Alignment.topLeft,
+          //       end: Alignment.bottomRight,
+          //     ),
+          //     borderRadius: BorderRadius.circular(12),
+          //     boxShadow: [
+          //       BoxShadow(
+          //         color: Colors.pink.withOpacity(0.3),
+          //         blurRadius: 8,
+          //         offset: const Offset(0, 4),
+          //       ),
+          //     ],
+          //   ),
+          //   child: Material(
+          //     color: Colors.transparent,
+          //     child: InkWell(
+          //       borderRadius: BorderRadius.circular(12),
+          //       onTap: () => widget.onSectionChanged('donation'),
+          //       child: Container(
+          //         padding: const EdgeInsets.all(16),
+          //         child: Row(
+          //           children: [
+          //             Container(
+          //               padding: const EdgeInsets.all(8),
+          //               decoration: BoxDecoration(
+          //                 color: Colors.white.withOpacity(0.2),
+          //                 borderRadius: BorderRadius.circular(8),
+          //               ),
+          //               child: const Icon(
+          //                 Icons.favorite,
+          //                 color: Colors.white,
+          //                 size: 20,
+          //               ),
+          //             ),
+          //             const SizedBox(width: 12),
+          //             Expanded(
+          //               child: Column(
+          //                 crossAxisAlignment: CrossAxisAlignment.start,
+          //                 children: [
+          //                   const Text(
+          //                     'Unterstützen',
+          //                     style: TextStyle(
+          //                       color: Colors.white,
+          //                       fontSize: 14,
+          //                       fontWeight: FontWeight.w600,
+          //                     ),
+          //                   ),
+          //                   Text(
+          //                     'Werbefrei halten',
+          //                     style: TextStyle(
+          //                       color: Colors.white.withOpacity(0.9),
+          //                       fontSize: 11,
+          //                       fontWeight: FontWeight.w500,
+          //                     ),
+          //                   ),
+          //                 ],
+          //               ),
+          //             ),
+          //             Container(
+          //               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          //               decoration: BoxDecoration(
+          //                 color: Colors.white.withOpacity(0.2),
+          //                 borderRadius: BorderRadius.circular(12),
+          //               ),
+          //               child: const Text(
+          //                 '💝',
+          //                 style: TextStyle(fontSize: 16),
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
           
           // Version Number at the very bottom
           Container(
@@ -875,12 +875,13 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'managed_accounts',
             isSelected: widget.selectedSection == 'managed_accounts',
           ),
-          _buildAdminItem(
-            icon: Icons.volunteer_activism,
-            title: 'Spenden verwalten',
-            key: 'admin_donation_management',
-            isSelected: widget.selectedSection == 'admin_donation_management',
-          ),
+          // Donation management disabled for Apple App Store submission
+          // _buildAdminItem(
+          //   icon: Icons.volunteer_activism,
+          //   title: 'Spenden verwalten',
+          //   key: 'admin_donation_management',
+          //   isSelected: widget.selectedSection == 'admin_donation_management',
+          // ),
           _buildAdminItem(
             icon: Icons.key,
             title: 'Einmalone Codes erstellen',

@@ -464,10 +464,11 @@ class _HomeScreenState extends State<HomeScreen> {
             : const Center(child: Text('Bitte melden Sie sich an.'));
       case 'new_tournament':
         return const TournamentCreationWizard();
-      case 'donation':
-        return const DonationScreen();
-      case 'admin_donation_management':
-        return const AdminDonationManagementScreen();
+      // Donation routes disabled for Apple App Store submission
+      // case 'donation':
+      //   return const DonationScreen();
+      // case 'admin_donation_management':
+      //   return const AdminDonationManagementScreen();
       case 'generate_sign_in_codes':
         return const GenerateSignInCodesScreen();
       case 'app_store_splash':
