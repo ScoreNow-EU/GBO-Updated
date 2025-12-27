@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/tournament.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
+import '../models/tournament_link.dart';
 import '../services/game_service.dart';
 import '../services/live_scoring_service.dart';
 import '../widgets/responsive_layout.dart';
@@ -13,6 +15,10 @@ import '../utils/responsive_helper.dart';
 import '../widgets/gbo_loader.dart';
 import '../utils/app_colors.dart';
 import 'package:timeline_tile/timeline_tile.dart';
+import '../models/user.dart';
+import 'tournament_edit_screen.dart';
+import 'tournament_link_editor_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TournamentDetailScreen extends StatefulWidget {
   final Tournament tournament;
@@ -26,14 +32,153 @@ class TournamentDetailScreen extends StatefulWidget {
   State<TournamentDetailScreen> createState() => _TournamentDetailScreenState();
 }
 
-class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
+class _TournamentDetailScreenState extends State<TournamentDetailScreen>
+    with TickerProviderStateMixin {
   final GameService _gameService = GameService();
   final LiveScoringService _liveScoringService = LiveScoringService();
   String selectedCategory = 'Alle';
   String selectedRound = 'Alle';
   String selectedTeams = 'Alle';
-  String selectedResultTab = 'U16-Weiblich';
+  late String selectedResultTab;
   String selectedSection = 'turniere'; // Current section
+  
+  // State for expandable sections
+  final Map<String, bool> _expandedSections = {
+    'Teams / Ranking': false,
+    'Gruppenphase': false,
+    'Final & Platzierungsrunde': false,
+    'Spielerstatistiken': false,
+    'Grundlegende Regeln (MUST)': false,
+    'Schiedsrichter': false,
+    'Offizielle & Delegate': false,
+    'Infrastruktur & Services': false,
+    'criteria_must': false,
+    'criteria_referees': false,
+    'criteria_officials': false,
+    'criteria_infrastructure': false,
+  };
+  
+  // Animation controllers for each expandable section
+  final Map<String, AnimationController> _animationControllers = {};
+  final Map<String, Animation<double>> _animations = {};
+  
+  // Cached data
+  DocumentSnapshot? _cachedOrganizerData;
+  List<Map<String, dynamic>>? _cachedResultsData;
+  List<Game>? _cachedGames;
+  bool _isPreloading = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Set initial selected result tab to first category if available
+    selectedResultTab = widget.tournament.categories.isNotEmpty 
+        ? widget.tournament.categories.first 
+        : 'Alle';
+    
+    // Initialize animation controllers for all expandable sections
+    for (final sectionKey in _expandedSections.keys) {
+      _animationControllers[sectionKey] = AnimationController(
+        duration: const Duration(milliseconds: 300),
+        vsync: this,
+      );
+      _animations[sectionKey] = Tween<double>(begin: 0, end: 1).animate(
+        CurvedAnimation(parent: _animationControllers[sectionKey]!, curve: Curves.easeInOut),
+      );
+    }
+    
+    // Preload all tournament data
+    _preloadTournamentData();
+  }
+  
+  @override
+  void dispose() {
+    // Dispose all animation controllers
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+  
+  Future<void> _preloadTournamentData() async {
+    try {
+      // Preload organizer data if available
+      if (widget.tournament.tournamentOrganizerId != null) {
+        _cachedOrganizerData = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.tournament.tournamentOrganizerId!)
+            .get();
+      }
+      
+      // Preload results data if available
+      if (widget.tournament.results != null && widget.tournament.results!.isNotEmpty) {
+        _cachedResultsData = [];
+        for (final division in widget.tournament.results!.entries) {
+          _cachedResultsData!.addAll(List<Map<String, dynamic>>.from(division.value));
+        }
+      }
+      
+      // Preload games data
+      try {
+        final gamesSnapshot = await FirebaseFirestore.instance
+            .collection('games')
+            .where('tournamentId', isEqualTo: widget.tournament.id)
+            .get();
+        
+        _cachedGames = gamesSnapshot.docs
+            .map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return Game.fromJson(data);
+            })
+            .toList();
+      } catch (e) {
+        print('Error preloading games: $e');
+        _cachedGames = [];
+      }
+      
+      if (mounted) {
+        setState(() {
+          _isPreloading = false;
+        });
+      }
+    } catch (e) {
+      print('Error preloading tournament data: $e');
+      if (mounted) {
+        setState(() {
+          _isPreloading = false;
+        });
+      }
+    }
+  }
+
+  Future<bool> _checkIfAdmin() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+      
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (!userDoc.exists) return false;
+      
+      final roles = userDoc.get('roles') as List<dynamic>? ?? [];
+      return roles.contains('admin');
+    } catch (e) {
+      print('Error checking admin status: $e');
+      return false;
+    }
+  }
+
+  void _navigateToEdit() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TournamentEditScreen(tournament: widget.tournament),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +246,35 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Edit Button (Admin Only)
+        FutureBuilder<bool>(
+          future: _checkIfAdmin(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data == true) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToEdit,
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Turnier bearbeiten'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+        
         // Tournament Logo
         Center(
           child: Container(
@@ -216,102 +390,254 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
         ),
         const SizedBox(height: 16),
         
-        // Download AGB
-        GestureDetector(
-          onTap: _downloadAGBs,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-                                              color: AppColors.primaryColorLight,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primaryColor),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.download, size: 18, color: Colors.black87),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Ausschreibung/AGBs herunterladen',
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        
-        // Social Media
-        const Text(
-          'Social Media',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildSocialButton('Facebook', Colors.blue[600]!, Icons.facebook),
-            _buildSocialButton('Instagram', Colors.purple[400]!, Icons.camera_alt),
-            _buildSocialButton('Homepage', Colors.blue[400]!, Icons.language),
-          ],
-        ),
+        // Links Section (Ausschreibung/AGBs and Social Media)
+        _buildLinksSection(),
       ],
     );
   }
 
-  Widget _buildDesktopHeader() {
-    return Row(
+  Widget _buildLinksSection() {
+    // Separate links by type
+    final agbLinks = widget.tournament.links.where((link) => link.type == 'agb').toList();
+    final socialLinks = widget.tournament.links.where((link) => link.type == 'social').toList();
+    
+    print('Detail screen: Tournament has ${widget.tournament.links.length} total links, ${agbLinks.length} AGBs, ${socialLinks.length} social');
+    
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Tournament Logo
-        Container(
-          width: 180,
-          height: 120,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+        // Ausschreibung/AGBs Section
+        if (agbLinks.isNotEmpty) ...[
+          Text(
+            'Ausschreibung / AGBs',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: widget.tournament.imageUrl != null && widget.tournament.imageUrl!.isNotEmpty
-                ? Image.network(
-                    widget.tournament.imageUrl!,
-                    width: 180,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: agbLinks
+                .map((link) => _buildLinkButton(link))
+                .toList(),
+          ),
+          const SizedBox(height: 24),
+        ],
+        
+        // Social Media Section
+        if (socialLinks.isNotEmpty) ...[
+          Text(
+            'Social Media',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: socialLinks
+                .map((link) => _buildLinkButton(link))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLinkButton(TournamentLink link) {
+    // Get icon from icon name
+    IconData icon = _getIconFromName(link.iconName);
+    Color color = Color(link.colorValue);
+    
+    return GestureDetector(
+      onTap: () => _launchLink(link.url),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              link.label,
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'facebook':
+        return Icons.facebook;
+      case 'instagram':
+        return Icons.camera_alt;
+      case 'twitter':
+        return Icons.share;
+      case 'linkedin':
+        return Icons.business;
+      case 'youtube':
+        return Icons.play_circle;
+      case 'web':
+      case 'language':
+        return Icons.language;
+      case 'download':
+        return Icons.download;
+      case 'document':
+      case 'description':
+        return Icons.description;
+      case 'link':
+        return Icons.link;
+      case 'email':
+        return Icons.email;
+      case 'phone':
+        return Icons.phone;
+      case 'location':
+        return Icons.location_on;
+      default:
+        return Icons.link;
+    }
+  }
+
+  Future<void> _launchLink(String url) async {
+    if (!url.contains('://')) {
+      url = 'https://$url';
+    }
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $url')),
+        );
+      }
+    }
+  }
+
+  void _downloadAGBs() {
+    // Show dialog with AGB links
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final agbLinks = widget.tournament.links
+            .where((link) => link.type == 'agb')
+            .toList();
+        
+        return AlertDialog(
+          title: const Text('Ausschreibung / AGBs'),
+          content: agbLinks.isEmpty
+              ? const Text('Keine Links verfügbar')
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: agbLinks.map((link) {
+                    return ListTile(
+                      title: Text(link.label),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _launchLink(link.url);
+                      },
+                    );
+                  }).toList(),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Schließen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Edit Button (Admin Only)
+        FutureBuilder<bool>(
+          future: _checkIfAdmin(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data == true) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: ElevatedButton.icon(
+                  onPressed: _navigateToEdit,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Turnier bearbeiten'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+        
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tournament Logo
+            Container(
+              width: 180,
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200, width: 1),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: widget.tournament.imageUrl != null && widget.tournament.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        widget.tournament.imageUrl!,
                         width: 180,
                         height: 120,
-                        color: Colors.grey.shade100,
-                        child: Center(
-                          child: SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / 
-                                    loadingProgress.expectedTotalBytes!
-                                  : null,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            width: 180,
+                            height: 120,
+                            color: Colors.grey.shade100,
+                            child: Center(
+                              child: SizedBox(
+                                width: 30,
+                                height: 30,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / 
+                                        loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 180,
+                            height: 120,
+                            color: Colors.grey.shade200,
+                            child: Icon(
+                              Icons.sports_volleyball,
+                              color: Colors.grey.shade400,
+                              size: 40,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
                         width: 180,
                         height: 120,
                         color: Colors.grey.shade200,
@@ -320,54 +646,42 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
                           color: Colors.grey.shade400,
                           size: 40,
                         ),
-                      );
-                    },
-                  )
-                : Container(
-                    width: 180,
-                    height: 120,
-                    color: Colors.grey.shade200,
-                    child: Icon(
-                      Icons.sports_volleyball,
-                      color: Colors.grey.shade400,
-                      size: 40,
+                      ),
+              ),
+            ),
+            const SizedBox(width: 24),
+            
+            // Tournament Details (middle section)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.tournament.dateString,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
-          ),
-        ),
-        const SizedBox(width: 24),
-        
-        // Tournament Details (middle section)
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.tournament.dateString,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _downloadAGBs,
-                child: Row(
-                  children: [
-                    const Icon(Icons.download, size: 16, color: Colors.black87),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Ausschreibung/AGBs',
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Colors.black87,
-                      ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _downloadAGBs,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.download, size: 16, color: Colors.black87),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Ausschreibung/AGBs',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -422,11 +736,15 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            _buildSocialButton('Facebook', Colors.blue[600]!, Icons.facebook),
-            const SizedBox(height: 8),
-            _buildSocialButton('Instagram', Colors.purple[400]!, Icons.camera_alt),
-            const SizedBox(height: 8),
-            _buildSocialButton('Homepage', Colors.blue[400]!, Icons.language),
+            ...(widget.tournament.links
+                .where((link) => link.type == 'social')
+                .toList()
+                .map((link) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildLinkButton(link),
+                    ))),
+          ],
+        ),
           ],
         ),
       ],
@@ -436,59 +754,6 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
   String? _getTournamentImage(String tournamentName) {
     // Return null to use placeholder/icon instead of hardcoded images
     return null;
-  }
-
-  Widget _buildSocialButton(String label, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _downloadAGBs() {
-    // Show download dialog or trigger download
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Download Ausschreibung/AGBs'),
-          content: Text('Download für ${widget.tournament.name} wird gestartet...'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Schließen'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Implement actual download functionality
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Download gestartet...'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: const Text('Download'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Widget _buildMatchesSection() {
@@ -520,164 +785,135 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
           ),
           SizedBox(height: isMobile ? 16 : 20),
           
-          // Games Display
-          StreamBuilder<List<Game>>(
-            stream: _gameService.getGamesForTournament(widget.tournament.id),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: CircularProgressIndicator(),
+          // Games Display - Use cached games with optional live updates
+          if (_cachedGames == null)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_cachedGames!.isEmpty)
+            Container(
+              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Noch keine Spiele für dieses Turnier erstellt.',
+                      style: TextStyle(fontSize: isMobile ? 13 : 14),
+                    ),
                   ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return Container(
-                  padding: EdgeInsets.all(isMobile ? 12 : 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error, color: Colors.red[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Fehler beim Laden der Spiele: ${snapshot.error}',
-                          style: TextStyle(fontSize: isMobile ? 13 : 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              final allGames = snapshot.data ?? [];
-              
-              if (allGames.isEmpty) {
-                return Container(
-                  padding: EdgeInsets.all(isMobile ? 12 : 16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info, color: Colors.orange[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Noch keine Spiele für dieses Turnier erstellt.',
-                          style: TextStyle(fontSize: isMobile ? 13 : 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              // Categorize games
-              final now = DateTime.now();
-              
-              // Current games: live games or games within 2 hours of start
-              final currentGames = allGames.where((game) {
-                if (game.status == GameStatus.inProgress) return true;
-                if (game.scheduledTime == null) return false;
-                
-                final timeDiff = game.scheduledTime!.difference(now).inMinutes;
-                return timeDiff >= -30 && timeDiff <= 120; // Started up to 30min ago or starting within 2 hours
-              }).toList();
-
-              // Upcoming games: future games not in current list
-              final upcomingGames = allGames.where((game) {
-                if (currentGames.contains(game)) return false;
-                if (game.status == GameStatus.completed) return false;
-                if (game.scheduledTime == null) return true; // Unscheduled games
-                
-                return game.scheduledTime!.isAfter(now);
-              }).toList();
-
-              // Sort games
-              currentGames.sort((a, b) {
-                if (a.status == GameStatus.inProgress && b.status != GameStatus.inProgress) return -1;
-                if (b.status == GameStatus.inProgress && a.status != GameStatus.inProgress) return 1;
-                return (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100));
-              });
-              
-              upcomingGames.sort((a, b) => (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100)));
-
-              return FutureBuilder<List<Game>>(
-                future: _getGamesWithActiveScoringTablets(allGames),
-                builder: (context, activeScoringGamesSnapshot) {
-                  final gamesWithActiveScoring = activeScoringGamesSnapshot.data ?? [];
-                  
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Live Scoring Games (Top Priority)
-                      if (gamesWithActiveScoring.isNotEmpty) ...[
-                        _buildLiveScoringSection(
-                          games: gamesWithActiveScoring,
-                          isMobile: isMobile,
-                        ),
-                        SizedBox(height: isMobile ? 16 : 20),
-                      ],
-                      
-                      // Current/Live Games
-                      if (currentGames.isNotEmpty) ...[
-                        _buildGamesSubsection(
-                          title: 'Aktuelle Spiele',
-                          icon: Icons.play_circle_filled,
-                          iconColor: Colors.green,
-                          games: currentGames.where((game) => !gamesWithActiveScoring.contains(game)).toList(),
-                          isMobile: isMobile,
-                        ),
-                        SizedBox(height: isMobile ? 16 : 20),
-                      ],
-                      
-                      // Upcoming Games
-                      if (upcomingGames.isNotEmpty) ...[
-                        _buildGamesSubsection(
-                          title: 'Kommende Spiele',
-                          icon: Icons.schedule,
-                          iconColor: Colors.blue,
-                          games: upcomingGames.take(6).toList(), // Limit to first 6
-                          isMobile: isMobile,
-                        ),
-                      ],
-                      
-                      // Show "View All Games" button if there are more games
-                      if (allGames.length > (currentGames.length + 6)) ...[
-                        const SizedBox(height: 16),
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              // TODO: Navigate to detailed games view
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Detaillierte Spieleansicht wird implementiert')),
-                              );
-                            },
-                            icon: const Icon(Icons.list),
-                            label: Text('Alle ${allGames.length} Spiele anzeigen'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              );
-            },
-          ),
+                ],
+              ),
+            )
+          else
+            _buildGamesContent(_cachedGames!, isMobile),
         ],
       ),
+    );
+  }
+
+  Widget _buildGamesContent(List<Game> allGames, bool isMobile) {
+    // Categorize games
+    final now = DateTime.now();
+    
+    // Current games: live games or games within 2 hours of start
+    final currentGames = allGames.where((game) {
+      if (game.status == GameStatus.inProgress) return true;
+      if (game.scheduledTime == null) return false;
+      
+      final timeDiff = game.scheduledTime!.difference(now).inMinutes;
+      return timeDiff >= -30 && timeDiff <= 120; // Started up to 30min ago or starting within 2 hours
+    }).toList();
+
+    // Upcoming games: future games not in current list
+    final upcomingGames = allGames.where((game) {
+      if (currentGames.contains(game)) return false;
+      if (game.status == GameStatus.completed) return false;
+      if (game.scheduledTime == null) return true; // Unscheduled games
+      
+      return game.scheduledTime!.isAfter(now);
+    }).toList();
+
+    // Sort games
+    currentGames.sort((a, b) {
+      if (a.status == GameStatus.inProgress && b.status != GameStatus.inProgress) return -1;
+      if (b.status == GameStatus.inProgress && a.status != GameStatus.inProgress) return 1;
+      return (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100));
+    });
+    
+    upcomingGames.sort((a, b) => (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100)));
+
+    return FutureBuilder<List<Game>>(
+      future: _getGamesWithActiveScoringTablets(allGames),
+      builder: (context, activeScoringGamesSnapshot) {
+        final gamesWithActiveScoring = activeScoringGamesSnapshot.data ?? [];
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Live Scoring Games (Top Priority)
+            if (gamesWithActiveScoring.isNotEmpty) ...[
+              _buildLiveScoringSection(
+                games: gamesWithActiveScoring,
+                isMobile: isMobile,
+              ),
+              SizedBox(height: isMobile ? 16 : 20),
+            ],
+            
+            // Current/Live Games
+            if (currentGames.isNotEmpty) ...[
+              _buildGamesSubsection(
+                title: 'Aktuelle Spiele',
+                icon: Icons.play_circle_filled,
+                iconColor: Colors.green,
+                games: currentGames.where((game) => !gamesWithActiveScoring.contains(game)).toList(),
+                isMobile: isMobile,
+              ),
+              SizedBox(height: isMobile ? 16 : 20),
+            ],
+            
+            // Upcoming Games
+            if (upcomingGames.isNotEmpty) ...[
+              _buildGamesSubsection(
+                title: 'Kommende Spiele',
+                icon: Icons.schedule,
+                iconColor: Colors.blue,
+                games: upcomingGames.take(6).toList(), // Limit to first 6
+                isMobile: isMobile,
+              ),
+              SizedBox(height: isMobile ? 16 : 20),
+            ],
+            
+            // Show View All Games button if there are more games
+            if (allGames.length > (currentGames.length + 6)) ...[
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    // TODO: Navigate to detailed games view
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Detaillierte Spieleansicht wird implementiert')),
+                    );
+                  },
+                  icon: const Icon(Icons.list),
+                  label: Text('Alle ${allGames.length} Spiele anzeigen'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -1482,87 +1718,211 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
           ),
           SizedBox(height: isMobile ? 16 : 20),
           
-          // Tabs - Mobile: Use scrollable row, Desktop: Normal row
-          if (isMobile)
+          // Dynamic category tabs from tournament.categories
+          if (widget.tournament.categories.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Keine Kategorien definiert',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ),
+            )
+          else if (isMobile)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  _buildResultTab('U16-Weiblich', true),
-                  const SizedBox(width: 12),
-                  _buildResultTab('U16-Männlich', false),
-                  const SizedBox(width: 12),
-                  _buildResultTab('U18-Weiblich', false),
-                  const SizedBox(width: 12),
-                  _buildResultTab('U18-Männlich', false),
-                ],
+                children: widget.tournament.categories.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final category = entry.value;
+                  final isSelected = selectedResultTab == category;
+                  return Row(
+                    children: [
+                      _buildResultTab(category, isSelected, () {
+                        setState(() => selectedResultTab = category);
+                      }),
+                      if (index < widget.tournament.categories.length - 1) 
+                        const SizedBox(width: 12),
+                    ],
+                  );
+                }).toList(),
               ),
             )
           else
             Wrap(
               spacing: 20,
               runSpacing: 8,
-              children: [
-                _buildResultTab('U16-Weiblich', true),
-                _buildResultTab('U16-Männlich', false),
-                _buildResultTab('U18-Weiblich', false),
-                _buildResultTab('U18-Männlich', false),
-              ],
+              children: widget.tournament.categories.map((category) {
+                final isSelected = selectedResultTab == category;
+                return _buildResultTab(category, isSelected, () {
+                  setState(() => selectedResultTab = category);
+                });
+              }).toList(),
             ),
           
           SizedBox(height: isMobile ? 16 : 20),
           
           // Expandable sections
-          _buildExpandableSection('Teams / Ranking', Icons.keyboard_arrow_down),
+          _buildExpandableSection('Teams / Ranking', Icons.keyboard_arrow_down, 'Teams / Ranking'),
           SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Gruppenphase', Icons.keyboard_arrow_down),
+          _buildExpandableSection('Gruppenphase', Icons.keyboard_arrow_down, 'Gruppenphase'),
           SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Final & Platzierungsrunde', Icons.keyboard_arrow_down),
+          _buildExpandableSection('Final & Platzierungsrunde', Icons.keyboard_arrow_down, 'Final & Platzierungsrunde'),
           SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Spielerstatistiken', Icons.keyboard_arrow_down),
+          _buildExpandableSection('Spielerstatistiken', Icons.keyboard_arrow_down, 'Spielerstatistiken'),
         ],
       ),
     );
   }
 
-  Widget _buildResultTab(String label, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.blue[600] : Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: isSelected ? Colors.blue[600]! : Colors.grey[300]!,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : Colors.black,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpandableSection(String title, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[200]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+  Widget _buildResultTab(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue[600] : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: isSelected ? Colors.blue[600]! : Colors.grey[300]!,
           ),
-          Icon(icon, color: Colors.grey[600], size: 20),
-        ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontSize: 14,
+          ),
+        ),
       ),
     );
+  }
+
+  Widget _buildExpandableSection(String title, IconData icon, String sectionKey) {
+    final isExpanded = _expandedSections[sectionKey] ?? false;
+    final animationController = _animationControllers[sectionKey];
+    final animation = _animations[sectionKey];
+    
+    if (animationController != null) {
+      if (isExpanded) {
+        animationController.forward();
+      } else {
+        animationController.reverse();
+      }
+    }
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _expandedSections[sectionKey] = !isExpanded;
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[200]!),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  AnimatedBuilder(
+                    animation: animation ?? AlwaysStoppedAnimation(0.0),
+                    builder: (context, child) {
+                      return Transform.rotate(
+                        angle: (animation?.value ?? 0) * 3.14159,
+                        child: Icon(icon, color: Colors.grey[600], size: 20),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Animated expand/collapse with SizeTransition
+            SizeTransition(
+              sizeFactor: animation ?? AlwaysStoppedAnimation(0.0),
+              axisAlignment: -1.0,
+              child: _buildSectionContent(sectionKey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildSectionContent(String title) {
+    switch (title) {
+      case 'Teams / Ranking':
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+          ),
+          child: Text(
+            'Team-Rankings für $selectedResultTab werden geladen...',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+        );
+      case 'Gruppenphase':
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+          ),
+          child: Text(
+            'Gruppenphase-Ergebnisse für $selectedResultTab werden geladen...',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+        );
+      case 'Final & Platzierungsrunde':
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+          ),
+          child: Text(
+            'Finales und Platzierungsspiele für $selectedResultTab werden geladen...',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+        );
+      case 'Spielerstatistiken':
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey[200]!)),
+          ),
+          child: Text(
+            'Spielerstatistiken für $selectedResultTab werden geladen...',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+        );
+      case 'criteria_must':
+      case 'criteria_referees':
+      case 'criteria_officials':
+      case 'criteria_infrastructure':
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: _buildCriteriaContentByCategory(title),
+        );
+      default:
+        return const SizedBox();
+    }
   }
 
   Widget _buildCriteriaSection() {
@@ -1585,23 +1945,196 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Kriterien allgemein',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Turnier-Kriterien',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (widget.tournament.criteria != null) ...[  
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${widget.tournament.criteria!.totalPoints} Punkte',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           SizedBox(height: isMobile ? 16 : 20),
-          _buildExpandableSection('Kriterien allgemein', Icons.keyboard_arrow_down),
-          SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Kriterium Referee', Icons.keyboard_arrow_down),
-          SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Kriterium Delegate', Icons.keyboard_arrow_down),
-          SizedBox(height: isMobile ? 6 : 8),
-          _buildExpandableSection('Kriterium Scouter', Icons.keyboard_arrow_down),
+          
+          if (widget.tournament.criteria == null) ...[  
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Keine Kriterien für dieses Turnier definiert',
+                      style: TextStyle(fontSize: 13, color: Colors.orange.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[  
+            _buildExpandableSection('Grundlegende Regeln (MUST)', Icons.keyboard_arrow_down, 'criteria_must'),
+            SizedBox(height: isMobile ? 6 : 8),
+            _buildExpandableSection('Schiedsrichter', Icons.keyboard_arrow_down, 'criteria_referees'),
+            SizedBox(height: isMobile ? 6 : 8),
+            _buildExpandableSection('Offizielle & Delegate', Icons.keyboard_arrow_down, 'criteria_officials'),
+            SizedBox(height: isMobile ? 6 : 8),
+            _buildExpandableSection('Infrastruktur & Services', Icons.keyboard_arrow_down, 'criteria_infrastructure'),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildCriteriaContentByCategory(String category) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveHelper.isMobile(screenWidth);
+    final criteria = widget.tournament.criteria!;
+    
+    List<({String name, int? points, bool isActive})> criteriaList = [];
+    
+    switch (category) {
+      case 'criteria_must':
+        criteriaList = [
+          (name: 'Offizielle Beachhandball-Regeln', points: 30, isActive: criteria.officialBeachhandballRules),
+          (name: 'Zwei Schiedsrichter pro Spiel', points: 30, isActive: criteria.twoRefereesPerGame),
+          (name: 'Clean Zone', points: 30, isActive: criteria.cleanZone),
+          (name: 'Ausspielen Platz 1-8', points: 30, isActive: criteria.ausspielenPlatz1To8),
+        ];
+        break;
+      case 'criteria_referees':
+        criteriaList = [
+          (name: 'EHF Kader Schiedsrichter', points: 25, isActive: criteria.ehfKaderReferees > 0),
+          (name: 'DHB Elite Kader', points: 20, isActive: criteria.dhbEliteKaderReferees > 0),
+          (name: 'DHB Stammkader', points: 15, isActive: criteria.dhbStammKaderReferees > 0),
+          (name: 'Perspektiv Kader', points: 10, isActive: criteria.perspektivKaderReferees > 0),
+          (name: 'Basis Lizenz Schiedsrichter', points: 5, isActive: criteria.basisLizenzReferees > 0),
+        ];
+        break;
+      case 'criteria_officials':
+        criteriaList = [
+          (name: 'EBT Delegate', points: 100, isActive: criteria.ebtDelegate),
+          (name: 'DHB National Delegate', points: 80, isActive: criteria.dhbNationalDelegate),
+        ];
+        break;
+      case 'criteria_infrastructure':
+        criteriaList = [
+          (name: 'Technisches Treffen', points: 20, isActive: criteria.technicalMeeting),
+          (name: 'Fangnetzausstattung & Zäune', points: 30, isActive: criteria.fangneatzeZaeune),
+          (name: 'Sanitäterdienst', points: 20, isActive: criteria.sanitaeterdienst),
+          (name: 'Sitztribüne', points: 60, isActive: criteria.sitztribuene),
+          (name: 'Spielfeldumrandung', points: 30, isActive: criteria.spielfeldumrandung),
+          (name: 'Alle Beachplätze offizielle Maße', points: 20, isActive: criteria.alleBeachplaetzeOffiziellesMasse),
+          (name: 'GBO Online Schedule', points: 100, isActive: criteria.gboOnlineSchedule),
+          (name: 'GBO Scoring System', points: 50, isActive: criteria.gboScoringSystem),
+          (name: 'Elektronische Anzeigetafeln', points: 40, isActive: criteria.elektronischeAnzeigetafeln),
+          (name: 'Zeitnehmer gestellt', points: 20, isActive: criteria.zeitnehmerGestellt),
+          (name: 'GBO Juniors Cup', points: 30, isActive: criteria.gboJuniorsCup),
+          (name: 'Wasser für Spieler', points: 20, isActive: criteria.waterForPlayers),
+          (name: 'Arena-Kommentator', points: 20, isActive: criteria.arenaCommentator),
+          (name: 'Turnierauszeichnungen', points: 20, isActive: criteria.tournierauszeichnungen),
+          (name: 'Turnier im Stadtzentrum', points: 250, isActive: criteria.tournamentInTownCenter),
+        ];
+        break;
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: criteriaList.map((item) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 10),
+          child: Container(
+            padding: EdgeInsets.all(isMobile ? 12 : 14),
+            decoration: BoxDecoration(
+              color: item.isActive 
+                ? Colors.green.withValues(alpha: 0.08)
+                : Colors.grey.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: item.isActive 
+                  ? Colors.green.withValues(alpha: 0.3)
+                  : Colors.grey.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: item.isActive ? Colors.green : Colors.grey.shade300,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    item.isActive ? Icons.check : Icons.close,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 12 : 14),
+                Expanded(
+                  child: Text(
+                    item.name,
+                    style: TextStyle(
+                      fontSize: isMobile ? 13 : 14,
+                      fontWeight: FontWeight.w500,
+                      color: item.isActive 
+                        ? Colors.green.shade700
+                        : Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: item.isActive 
+                      ? Colors.green.withValues(alpha: 0.15)
+                      : Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${item.points}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: item.isActive 
+                        ? Colors.green.shade700
+                        : Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1609,81 +2142,373 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveHelper.isMobile(screenWidth);
     
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: isMobile ? 36 : 40,
-                height: isMobile ? 36 : 40,
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.circular(isMobile ? 18 : 20),
-                ),
-                child: Center(
-                  child: Text(
-                    '01',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isMobile ? 14 : 16,
+    // Get current user
+    final currentUser = FirebaseAuth.instance.currentUser;
+    
+    // If tournament has an assigned organizer, show that instead
+    if (widget.tournament.tournamentOrganizerId != null) {
+      return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.tournament.tournamentOrganizerId)
+            .get(),
+        builder: (context, snapshot) {
+          final innerScreenWidth = MediaQuery.of(context).size.width;
+          final innerIsMobile = ResponsiveHelper.isMobile(innerScreenWidth);
+          String organizerName = 'Organisator';
+          String organizerEmail = '';
+          
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            final firstName = userData['firstName'] ?? '';
+            final lastName = userData['lastName'] ?? '';
+            organizerName = '$firstName $lastName'.trim();
+            organizerEmail = userData['email'] ?? '';
+          }
+          
+          return Container(
+            padding: EdgeInsets.all(innerIsMobile ? 16 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(innerIsMobile ? 12 : 16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: innerIsMobile ? 36 : 40,
+                            height: innerIsMobile ? 36 : 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(innerIsMobile ? 18 : 20),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.person, color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Turnierorganisation',
+                                  style: TextStyle(
+                                    fontSize: innerIsMobile ? 12 : 13,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  organizerName,
+                                  style: TextStyle(
+                                    fontSize: innerIsMobile ? 14 : 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+                if (organizerEmail.isNotEmpty) ...[
+                  SizedBox(height: innerIsMobile ? 16 : 20),
+                  Row(
+                    children: [
+                      Icon(Icons.email, size: innerIsMobile ? 18 : 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          organizerEmail,
+                          style: TextStyle(fontSize: innerIsMobile ? 13 : 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      );
+    }
+    
+    if (currentUser == null) {
+      return Container(
+        padding: EdgeInsets.all(isMobile ? 16 : 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: isMobile ? 36 : 40,
+                  height: isMobile ? 36 : 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(isMobile ? 18 : 20),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.person, color: Colors.grey),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Team. Orga.',
-                style: TextStyle(
-                  fontSize: isMobile ? 14 : 16,
-                  fontWeight: FontWeight.w500,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Turnierorganisation',
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 13,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Nicht angemeldet',
+                        style: TextStyle(
+                          fontSize: isMobile ? 14 : 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Fetch current user's data from Firestore
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: EdgeInsets.all(isMobile ? 16 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Container(
+            padding: EdgeInsets.all(isMobile ? 16 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: isMobile ? 36 : 40,
+                      height: isMobile ? 36 : 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(isMobile ? 18 : 20),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.person, color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Turnierorganisation',
+                            style: TextStyle(
+                              fontSize: isMobile ? 12 : 13,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentUser.email ?? 'Benutzer',
+                            style: TextStyle(
+                              fontSize: isMobile ? 14 : 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+        
+        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+        final firstName = userData?['firstName'] ?? '';
+        final lastName = userData?['lastName'] ?? '';
+        final displayName = firstName.isNotEmpty || lastName.isNotEmpty 
+            ? '$firstName $lastName'.trim() 
+            : (userData?['displayName'] ?? currentUser.email ?? 'Benutzer');
+        final profilePicture = userData?['profilePicture'];
+        final email = userData?['email'] ?? currentUser.email ?? '';
+        
+        return Container(
+          padding: EdgeInsets.all(isMobile ? 16 : 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          SizedBox(height: isMobile ? 16 : 20),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.emoji_events, size: isMobile ? 18 : 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Turnierorganisator GBO',
-                  style: TextStyle(fontSize: isMobile ? 13 : 14),
-                ),
+              Row(
+                children: [
+                  // Profile Picture
+                  Container(
+                    width: isMobile ? 36 : 40,
+                    height: isMobile ? 36 : 40,
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(isMobile ? 18 : 20),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(isMobile ? 18 : 20),
+                      child: profilePicture != null && profilePicture.isNotEmpty
+                          ? Image.network(
+                              profilePicture,
+                              width: isMobile ? 36 : 40,
+                              height: isMobile ? 36 : 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Text(
+                                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isMobile ? 14 : 16,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Center(
+                              child: Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isMobile ? 14 : 16,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Turnierorganisation',
+                          style: TextStyle(
+                            fontSize: isMobile ? 12 : 13,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: isMobile ? 14 : 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: isMobile ? 16 : 20),
+              Row(
+                children: [
+                  Icon(Icons.email, size: isMobile ? 18 : 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: TextStyle(fontSize: isMobile ? 13 : 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          SizedBox(height: isMobile ? 10 : 12),
-          Row(
-            children: [
-              Icon(Icons.email, size: isMobile ? 18 : 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'beachcup-herrenhausen@online.de',
-                  style: TextStyle(fontSize: isMobile ? 13 : 14),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -639,6 +639,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return Colors.red.shade100;
+      case app_user.UserRole.user:
+        return Colors.grey.shade100;
       case app_user.UserRole.referee:
         return Colors.orange.shade100;
       case app_user.UserRole.teamManager:
@@ -653,6 +655,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.indigo.shade100;
       case app_user.UserRole.spieler:
         return Colors.amber.shade100;
+      case app_user.UserRole.tournamentOrganizer:
+        return Colors.deepPurple.shade100;
     }
   }
   
@@ -660,6 +664,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return Colors.red.shade700;
+      case app_user.UserRole.user:
+        return Colors.grey.shade700;
       case app_user.UserRole.referee:
         return Colors.orange.shade700;
       case app_user.UserRole.teamManager:
@@ -674,6 +680,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.indigo.shade700;
       case app_user.UserRole.spieler:
         return Colors.amber.shade700;
+      case app_user.UserRole.tournamentOrganizer:
+        return Colors.deepPurple.shade700;
     }
   }
   
@@ -681,6 +689,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return 'ADMIN';
+      case app_user.UserRole.user:
+        return 'USER';
       case app_user.UserRole.referee:
         return 'REFEREE';
       case app_user.UserRole.teamManager:
@@ -695,6 +705,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return 'SERIES ORGANIZER';
       case app_user.UserRole.spieler:
         return 'SPIELER';
+      case app_user.UserRole.tournamentOrganizer:
+        return 'TOURNAMENT ORGANIZER';
     }
   }
   

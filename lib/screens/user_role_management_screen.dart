@@ -458,6 +458,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return Colors.red;
+      case app_user.UserRole.user:
+        return Colors.grey;
       case app_user.UserRole.referee:
         return Colors.orange;
       case app_user.UserRole.teamManager:
@@ -472,6 +474,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Colors.indigo;
       case app_user.UserRole.spieler:
         return Colors.amber;
+      case app_user.UserRole.tournamentOrganizer:
+        return Colors.deepPurple;
     }
   }
 
@@ -479,6 +483,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return Icons.admin_panel_settings;
+      case app_user.UserRole.user:
+        return Icons.account_circle;
       case app_user.UserRole.referee:
         return Icons.sports_volleyball;
       case app_user.UserRole.teamManager:
@@ -493,6 +499,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Icons.event_note;
       case app_user.UserRole.spieler:
         return Icons.person;
+      case app_user.UserRole.tournamentOrganizer:
+        return Icons.event;
     }
   }
 
@@ -620,6 +628,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.red;
         icon = Icons.admin_panel_settings;
         break;
+      case app_user.UserRole.user:
+        color = Colors.grey;
+        icon = Icons.account_circle;
+        break;
       case app_user.UserRole.referee:
         color = Colors.orange;
         icon = Icons.sports_volleyball;
@@ -647,6 +659,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.spieler:
         color = Colors.amber;
         icon = Icons.person;
+        break;
+      case app_user.UserRole.tournamentOrganizer:
+        color = Colors.deepPurple;
+        icon = Icons.event;
         break;
     }
     
@@ -735,6 +751,26 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             ),
           ),
         ],
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: () => _showResetPasswordDialog(user),
+          icon: const Icon(Icons.lock_reset, size: 16),
+          label: const Text('Passwort zurücksetzen'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.orange,
+            side: const BorderSide(color: Colors.orange),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: () => _showDeleteAccountDialog(user),
+          icon: const Icon(Icons.delete, size: 16),
+          label: const Text('Konto löschen'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red),
+          ),
+        ),
       ],
     );
   }
@@ -747,6 +783,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.admin:
         color = Colors.red;
         icon = Icons.admin_panel_settings;
+        break;
+      case app_user.UserRole.user:
+        color = Colors.grey;
+        icon = Icons.account_circle;
         break;
       case app_user.UserRole.referee:
         color = Colors.orange;
@@ -776,6 +816,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.amber;
         icon = Icons.person;
         break;
+      case app_user.UserRole.tournamentOrganizer:
+        color = Colors.deepPurple;
+        icon = Icons.event;
+        break;
     }
     
     return OutlinedButton.icon(
@@ -803,6 +847,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     switch (role) {
       case app_user.UserRole.admin:
         return 'Admin';
+      case app_user.UserRole.user:
+        return 'User';
       case app_user.UserRole.referee:
         return 'Referee';
       case app_user.UserRole.teamManager:
@@ -817,6 +863,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return 'Series Organizer';
       case app_user.UserRole.spieler:
         return 'Spieler';
+      case app_user.UserRole.tournamentOrganizer:
+        return 'Tournament Organizer';
     }
   }
 
@@ -885,11 +933,13 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         await _showTeamManagerCreationDialog(user);
         break;
       case app_user.UserRole.admin:
+      case app_user.UserRole.user:
       case app_user.UserRole.delegate:
       case app_user.UserRole.scoringTablet:
       case app_user.UserRole.sanitater:
       case app_user.UserRole.seriesOrganizer:
       case app_user.UserRole.spieler:
+      case app_user.UserRole.tournamentOrganizer:
         await _assignSimpleRole(user, role);
         break;
     }
@@ -1088,6 +1138,150 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
           description: Text('Fehler beim Entfernen der Rolle: $e'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    }
+  }
+
+  void _showResetPasswordDialog(app_user.User user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Passwort zurücksetzen'),
+        content: Text(
+          'Möchten Sie wirklich eine Passwort-Zurücksetzen-E-Mail an ${user.email} senden?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resetPassword(user);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+            ),
+            child: const Text('Passwort zurücksetzen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetPassword(app_user.User user) async {
+    try {
+      await _authService.sendPasswordResetEmail(user.email);
+      
+      if (mounted) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.success,
+          style: ToastificationStyle.fillColored,
+          title: const Text('E-Mail versendet'),
+          description: Text('Passwort-Zurücksetzen-E-Mail wurde an ${user.email} versendet.'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Fehler'),
+          description: Text('Fehler beim Versenden der E-Mail: $e'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    }
+  }
+
+  void _showDeleteAccountDialog(app_user.User user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konto löschen'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Möchten Sie wirklich das Konto von ${user.fullName} (${user.email}) dauerhaft löschen?',
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Diese Aktion kann nicht rückgängig gemacht werden!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteAccount(user);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Konto löschen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(app_user.User user) async {
+    try {
+      await _authService.deleteUserAccount(user.id);
+      await _loadData();
+      
+      if (mounted) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.success,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Konto gelöscht'),
+          description: Text('Das Konto von ${user.fullName} wurde erfolgreich gelöscht.'),
+          autoCloseDuration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Fehler'),
+          description: Text('Fehler beim Löschen des Kontos: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }

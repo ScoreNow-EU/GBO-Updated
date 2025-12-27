@@ -7,14 +7,21 @@ import 'package:flutter/foundation.dart';
 
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
+import 'screens/obs_graphics_screen.dart';
 import 'services/preloader_service.dart';
 import 'services/referee_invitation_monitoring_service.dart';
 import 'utils/app_colors.dart';
 import 'utils/version_helper.dart';
 import 'utils/web_helper.dart';
+import 'utils/debug_filter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize debug filter to silence unwanted messages
+  DebugFilter.initialize();
+  
+  // Note: Can't override print directly in Dart, relying on DebugFilter and JavaScript filter instead
   
   // Initialize Firebase with platform check
   if (FirebaseConfig.shouldInitializeFirebase) {
@@ -135,9 +142,27 @@ class GBOApp extends StatelessWidget {
             checkColor: WidgetStateProperty.all(AppColors.onPrimary),
           ),
         ),
-        home: const HomeScreen(),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const HomeScreen(),
+          '/obs-graphics': (context) => _buildOBSGraphicsScreen(context),
+        },
         navigatorObservers: observer != null ? <NavigatorObserver>[observer!] : <NavigatorObserver>[],
       ),
+    );
+  }
+
+  static Widget _buildOBSGraphicsScreen(BuildContext context) {
+    // Parse URL parameters for OBS graphics configuration
+    final uri = Uri.base;
+    final tournamentId = uri.queryParameters['tournamentId'];
+    final gameId = uri.queryParameters['gameId'];
+    final overlayType = uri.queryParameters['overlayType'];
+
+    return OBSGraphicsScreen(
+      tournamentId: tournamentId,
+      gameId: gameId,
+      overlayType: overlayType,
     );
   }
 }

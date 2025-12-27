@@ -38,10 +38,32 @@ class _LoginFaceIdOverlayState extends State<LoginFaceIdOverlay> {
 
   Future<void> _checkFaceIdStatus() async {
     try {
+      debugPrint('[LoginFaceID] Checking Face ID status');
       final isEnabled = await _faceIdService.isFaceIdEnabled();
+      debugPrint('[LoginFaceID] Face ID enabled: $isEnabled');
+      
       final isDeviceSupported = await _faceIdService.isDeviceSupported();
+      debugPrint('[LoginFaceID] Device supported: $isDeviceSupported');
+      
+      final isBiometricAvailable = await _faceIdService.isBiometricAvailable();
+      debugPrint('[LoginFaceID] Biometric available: $isBiometricAvailable');
+      
       final availableBiometrics = await _faceIdService.getAvailableBiometrics();
+      debugPrint('[LoginFaceID] Available biometrics: $availableBiometrics');
+      
       final biometricName = _faceIdService.getBiometricTypeName(availableBiometrics);
+      debugPrint('[LoginFaceID] Biometric name: $biometricName');
+      
+      // If device doesn't support biometrics or no actual biometrics available, close the overlay and proceed with manual login
+      if (!isDeviceSupported || !isBiometricAvailable || availableBiometrics.isEmpty) {
+        debugPrint('[LoginFaceID] Device does not support biometrics (empty list or not available), closing overlay and proceeding with manual login');
+        if (mounted) {
+          // Close the overlay and proceed with manual login
+          Navigator.of(context).pop();
+          widget.onManualLogin();
+        }
+        return;
+      }
       
       // For now, we'll assume password is saved if Face ID is enabled
       // In a real app, you might want to check keychain/secure storage
@@ -54,8 +76,10 @@ class _LoginFaceIdOverlayState extends State<LoginFaceIdOverlay> {
           _biometricTypeName = biometricName;
           _isLoading = false;
         });
+        debugPrint('[LoginFaceID] UI state updated');
       }
     } catch (e) {
+      debugPrint('[LoginFaceID] Error checking Face ID status: $e');
       if (mounted) {
         setState(() {
           _isFaceIdEnabled = false;

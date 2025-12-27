@@ -353,6 +353,23 @@ class RefereeService {
     }
   }
 
+  // Delete referee by user ID
+  Future<void> deleteRefereeByUserId(String userId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      print('Error deleting referee by user ID: $e');
+      rethrow;
+    }
+  }
+
   // Legacy methods for backward compatibility (deprecated)
   @Deprecated('Use addPendingInvitation instead')
   Future<void> incrementPendingInvitations(String refereeId) async {

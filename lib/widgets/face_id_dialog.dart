@@ -15,6 +15,7 @@ class _FaceIdDialogState extends State<FaceIdDialog> {
   String _biometricTypeName = 'Biometric';
   bool _isLoading = true;
   bool _isAuthenticating = false;
+  bool _biometricAvailable = false;
 
   @override
   void initState() {
@@ -33,12 +34,34 @@ class _FaceIdDialogState extends State<FaceIdDialog> {
         return;
       }
       
+      // Check if device supports biometrics
+      final isBiometricAvailable = await _faceIdService.isBiometricAvailable();
+      
+      if (!isBiometricAvailable) {
+        if (mounted) {
+          _showErrorToast('Dieses Gerät unterstützt keine Biometrie');
+          Navigator.of(context).pop(false);
+        }
+        return;
+      }
+      
       final availableBiometrics = await _faceIdService.getAvailableBiometrics();
+      
+      // Also check if the list is empty (device claims to support but has none)
+      if (availableBiometrics.isEmpty) {
+        if (mounted) {
+          _showErrorToast('Keine biometrischen Daten auf diesem Gerät verfügbar');
+          Navigator.of(context).pop(false);
+        }
+        return;
+      }
+      
       final biometricName = _faceIdService.getBiometricTypeName(availableBiometrics);
       
       if (mounted) {
         setState(() {
           _biometricTypeName = biometricName;
+          _biometricAvailable = true;
           _isLoading = false;
         });
       }
@@ -46,6 +69,7 @@ class _FaceIdDialogState extends State<FaceIdDialog> {
       if (mounted) {
         setState(() {
           _biometricTypeName = 'Biometric';
+          _biometricAvailable = false;
           _isLoading = false;
         });
       }

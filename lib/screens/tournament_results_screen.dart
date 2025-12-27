@@ -424,6 +424,17 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   Widget _buildHeader(bool isMobile) {
     return Row(
       children: [
+        // Back button
+        IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Zurück',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.grey.shade100,
+            padding: const EdgeInsets.all(12),
+          ),
+        ),
+        const SizedBox(width: 12),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

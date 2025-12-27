@@ -1092,7 +1092,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                         searchQuery = value.toLowerCase();
                         filteredPlayers = availablePlayers.where((player) =>
                           player.fullName.toLowerCase().contains(searchQuery) ||
-                          player.email.toLowerCase().contains(searchQuery) ||
+                          (player.email?.toLowerCase().contains(searchQuery) ?? false) ||
                           (player.position?.toLowerCase().contains(searchQuery) ?? false)
                         ).toList();
                       });
@@ -1120,7 +1120,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(player.email.contains('@placeholder.com') ? 'Keine E-Mail' : player.email),
+                                Text((player.email?.contains('@placeholder.com') ?? false) ? 'Keine E-Mail' : (player.email ?? 'Keine E-Mail')),
                                 Text('${player.position ?? 'Keine Position'} • ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
                               ],
                             ),
@@ -1158,7 +1158,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final firstNameController = TextEditingController(text: player.firstName);
     final lastNameController = TextEditingController(text: player.lastName);
     final emailController = TextEditingController(
-      text: player.email.contains('@placeholder.com') ? '' : player.email
+      text: (player.email?.contains('@placeholder.com') ?? false) ? '' : (player.email ?? '')
     );
     final phoneController = TextEditingController(text: player.phone ?? '');
     final jerseyController = TextEditingController(text: player.jerseyNumber ?? '');
@@ -1453,8 +1453,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       String finalEmail;
       if (email.trim().isEmpty) {
         // If original email was already a placeholder, keep it; otherwise create new placeholder
-        if (originalPlayer.email.contains('@placeholder.com')) {
-          finalEmail = originalPlayer.email;
+        if (originalPlayer.email?.contains('@placeholder.com') ?? false) {
+          finalEmail = originalPlayer.email ?? '';
         } else {
           finalEmail = 'no-email-${DateTime.now().millisecondsSinceEpoch}@placeholder.com';
         }

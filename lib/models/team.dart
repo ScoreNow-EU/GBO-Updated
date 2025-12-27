@@ -73,4 +73,36 @@ class Team {
           : DateTime.now(),
     );
   }
+
+  Team copyWith({
+    String? name,
+    String? teamManager,
+    String? logoUrl,
+    String? city,
+    String? bundesland,
+    String? division,
+    String? clubId,
+    String? coachName,
+    String? coachEmail,
+    List<String>? rosterPlayerIds,
+    int? totalPoints,
+    List<Map<String, dynamic>>? pointsHistory,
+  }) {
+    return Team(
+      id: id,
+      name: name ?? this.name,
+      teamManager: teamManager ?? this.teamManager,
+      logoUrl: logoUrl ?? this.logoUrl,
+      city: city ?? this.city,
+      bundesland: bundesland ?? this.bundesland,
+      division: division ?? this.division,
+      clubId: clubId ?? this.clubId,
+      coachName: coachName ?? this.coachName,
+      coachEmail: coachEmail ?? this.coachEmail,
+      rosterPlayerIds: rosterPlayerIds ?? this.rosterPlayerIds,
+      totalPoints: totalPoints ?? this.totalPoints,
+      pointsHistory: pointsHistory ?? this.pointsHistory,
+      createdAt: createdAt,
+    );
+  }
 } 

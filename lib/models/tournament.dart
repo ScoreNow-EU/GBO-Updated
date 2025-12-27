@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'tournament_criteria.dart';
 import 'court.dart';
+import 'tournament_link.dart';
 
 class RefereeInvitation {
   final String refereeId;
@@ -337,6 +338,8 @@ class Tournament {
   final Map<String, Map<String, dynamic>> poolMetadata; // Store additional pool data
   // Tournament results by division
   final Map<String, List<Map<String, dynamic>>>? results; // division -> list of team results
+  final String? tournamentOrganizerId; // ID of the tournament organizer
+  final List<TournamentLink> links; // Custom links for Ausschreibungen/AGBs and social media
 
   // Static method to determine season
   static String determineSeason(DateTime startDate) {
@@ -375,6 +378,8 @@ class Tournament {
     Map<String, List<String>>? pools,
     Map<String, Map<String, dynamic>>? poolMetadata,
     this.results,
+    this.tournamentOrganizerId,
+    this.links = const [],
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -548,6 +553,8 @@ class Tournament {
       'pools': pools,
       'poolMetadata': poolMetadata,
       'results': results,
+      'tournamentOrganizerId': tournamentOrganizerId,
+      'links': links.map((link) => link.toFirestore()).toList(),
     };
   }
 
@@ -654,11 +661,17 @@ class Tournament {
       results: map['results'] != null
         ? _parseResults(map['results'])
         : null,
+      tournamentOrganizerId: map['tournamentOrganizerId'],
+      links: map['links'] != null
+        ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
+        : [],
     );
   }
 
   // Helper method to parse results from Firestore
-  static Map<String, List<Map<String, dynamic>>> _parseResults(dynamic resultsData) {
+  static Map<String, List<Map<String, dynamic>>>? _parseResults(dynamic resultsData) {
+    if (resultsData == null) return null;
+    
     final Map<String, List<Map<String, dynamic>>> results = {};
     
     if (resultsData is Map) {
@@ -712,6 +725,8 @@ class Tournament {
     Map<String, List<String>>? pools,
     Map<String, Map<String, dynamic>>? poolMetadata,
     Map<String, List<Map<String, dynamic>>>? results,
+    String? tournamentOrganizerId,
+    List<TournamentLink>? links,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -742,7 +757,9 @@ class Tournament {
       registrationDeadline: registrationDeadline ?? this.registrationDeadline,
       pools: pools ?? Map.from(this.pools),
       poolMetadata: poolMetadata ?? Map.from(this.poolMetadata),
-      results: results ?? (this.results != null ? Map.from(this.results!) : null),
+      results: results ?? this.results,
+      tournamentOrganizerId: tournamentOrganizerId ?? this.tournamentOrganizerId,
+      links: links ?? List.from(this.links),
     );
   }
 } 

@@ -4,7 +4,9 @@ import '../models/city.dart';
 import '../utils/firebase_cities_helper.dart';
 import '../models/tournament.dart';
 import '../models/tournament_criteria.dart';
+import '../models/user.dart' as app_user;
 import '../services/tournament_service.dart';
+import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 
 // Helper widget for section titles
@@ -32,6 +34,7 @@ class TournamentCreationWizard extends StatefulWidget {
 class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
   final PageController _pageController = PageController();
   final _formKey = GlobalKey<FormState>();
+  final AuthService _authService = AuthService();
   int _currentPage = 0;
   bool _isLoading = false;
 
@@ -1630,6 +1633,15 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
       print('Registration Deadline: $_registrationDeadline');
       print('===========================');
       
+      // Get current user to check if they are a Tournament Organizer
+      final currentUser = await _authService.currentUser.first;
+      String? tournamentOrganizerId;
+      
+      if (currentUser != null && currentUser.roles.contains(app_user.UserRole.tournamentOrganizer)) {
+        tournamentOrganizerId = currentUser.id;
+        print('🎯 Tournament Organizer creating tournament: ${currentUser.fullName} (${currentUser.id})');
+      }
+
       final tournament = Tournament(
         id: '',
         name: _nameController.text.trim(),
@@ -1645,6 +1657,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
         registrationDeadline: _registrationDeadline,
         points: 0,
         status: 'upcoming',
+        tournamentOrganizerId: tournamentOrganizerId,
       );
 
       await TournamentService().addTournament(tournament);

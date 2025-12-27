@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tournament.dart';
+import '../models/tournament_link.dart';
 import '../models/team.dart';
 import '../models/referee.dart';
 import '../models/delegate.dart';
+import '../models/player.dart';
 import '../models/tournament_criteria.dart';
 import '../models/court.dart';
 import '../models/game.dart';
+import '../models/user.dart' as app_user;
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
 import '../services/referee_service.dart';
 import '../services/delegate_service.dart';
 import '../services/court_service.dart';
 import '../services/game_service.dart';
+import '../services/auth_service.dart';
+import '../services/player_service.dart';
 import '../data/german_cities.dart';
 import 'dart:math' as math;
 import 'package:flutter_map/flutter_map.dart';
@@ -25,6 +30,7 @@ import '../widgets/advanced_scheduling_dialog.dart';
 import 'dart:async';
 import '../utils/responsive_helper.dart';
 import 'new_division_pools_screen.dart';
+import 'tournament_link_editor_screen.dart';
 
 // Add this class at the top of the file after imports
 class GamePosition {
@@ -62,6 +68,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   final DelegateService _delegateService = DelegateService();
   final CourtService _courtService = CourtService();
   final GameService _gameService = GameService();
+  final AuthService _authService = AuthService();
+  final PlayerService _playerService = PlayerService();
   final _formKey = GlobalKey<FormState>();
   
   // Form controllers
@@ -125,6 +133,15 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   
   // Tournament Criteria
   TournamentCriteria _criteria = TournamentCriteria();
+
+  // Tournament Links (Ausschreibungen/AGBs and Social Media)
+  List<TournamentLink> _links = [];
+
+  // Tournament Organizer assignment
+  List<app_user.User> _allUsers = [];
+  String? _selectedTournamentOrganizerId;
+  String _userSearchQuery = '';
+  final _userSearchController = TextEditingController();
 
   // Team management
   List<Team> _allTeams = [];
@@ -338,6 +355,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _divisionMaxTeams = Map<String, int>.from(tournament.divisionMaxTeams);
       _isRegistrationOpen = tournament.isRegistrationOpen;
       _registrationDeadline = tournament.registrationDeadline;
+      
+      // Load Tournament Organizer assignment
+      _selectedTournamentOrganizerId = tournament.tournamentOrganizerId;
+      
+      // Load tournament links
+      _links = List<TournamentLink>.from(tournament.links);
+      print('Loaded ${_links.length} links from tournament');
+      print('Links: ${_links.map((l) => '${l.label} (${l.type})').join(', ')}');
     } else {
       // Default values for new tournament
       _pointsController.text = '20';
@@ -429,6 +454,46 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       });
     } catch (e) {
       print('Error loading delegates: $e');
+    }
+  }
+
+  Future<List<app_user.User>> _loadUsers() async {
+    try {
+      // Get all users from the auth service
+      print('Loading users...');
+      
+      // Create a fresh AuthService instance
+      final authService = AuthService();
+      final users = await authService.getAllUsers();
+      print('Loaded ${users.length} users');
+      return users;
+    } catch (e) {
+      print('Error loading users: $e');
+      print('Error type: ${e.runtimeType}');
+      print('Error details: $e');
+      return [];
+    }
+  }
+
+  Future<String?> _getOrganizerName(String organizerId) async {
+    try {
+      final authService = AuthService();
+      final users = await authService.getAllUsers();
+      final organizer = users.firstWhere(
+        (user) => user.id == organizerId,
+        orElse: () => app_user.User(
+          id: organizerId,
+          email: '',
+          firstName: 'Unknown',
+          lastName: 'Organizer',
+          roles: [],
+          createdAt: DateTime.now(),
+        ),
+      );
+      return organizer.fullName;
+    } catch (e) {
+      print('Error getting organizer name: $e');
+      return null;
     }
   }
 
@@ -670,6 +735,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   _buildDrawerNavItem('divisions', 'Divisionen', Icons.category, screenWidth),
                   _buildDrawerNavItem('pools', 'Pools', Icons.workspaces, screenWidth),
                   _buildDrawerNavItem('criteria', 'Turnier Kriterien', Icons.rule, screenWidth),
+                  _buildDrawerNavItem('links', 'Links & Social Media', Icons.link, screenWidth),
                   _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
                   _buildDrawerNavItem('courts', 'Plätze', Icons.place, screenWidth),
                   _buildDrawerNavItem('referees', 'Schiedsrichter', Icons.sports_hockey, screenWidth),
@@ -784,6 +850,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 _buildNavItem('divisions', 'Divisionen', Icons.category),
                 _buildNavItem('pools', 'Pools', Icons.workspaces),
                 _buildNavItem('criteria', 'Turnier Kriterien', Icons.rule),
+                _buildNavItem('links', 'Links & Social Media', Icons.link),
                 _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
                 _buildNavItem('courts', 'Plätze', Icons.place),
                 _buildNavItem('referees', 'Schiedsrichter', Icons.sports_hockey),
@@ -848,6 +915,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return '';
       case 'criteria':
         return 'Turnier Kriterien';
+      case 'links':
+        return 'Links & Social Media';
       case 'scheduling':
         return 'Spielplanung';
       case 'courts':
@@ -875,6 +944,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return NewDivisionPoolsScreen(tournament: widget.tournament!);
       case 'criteria':
         return _buildCriteriaTab();
+      case 'links':
+        return _buildLinksTab();
       case 'games':
         return _buildGamesTab();
       case 'scheduling':
@@ -1294,6 +1365,170 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               ),
                             ),
                         ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Tournament Organizer Assignment
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Turnier Organisator',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Search field
+                              TextFormField(
+                                controller: _userSearchController,
+                                decoration: InputDecoration(
+                                  labelText: 'Benutzer suchen',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.search),
+                                  hintText: 'Name oder E-Mail eingeben...',
+                                ),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _userSearchQuery = value;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              
+                              // User list
+                              Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade200),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: FutureBuilder<List<app_user.User>>(
+                                  future: _loadUsers(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return Center(child: CircularProgressIndicator());
+                                    }
+                                    
+                                    if (snapshot.hasError) {
+                                      return Center(
+                                        child: Text(
+                                          'Fehler beim Laden der Benutzer: ${snapshot.error}',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      );
+                                    }
+                                    
+                                    final users = snapshot.data ?? [];
+                                    final filteredUsers = users.where((user) {
+                                      if (_userSearchQuery.isEmpty) return true;
+                                      return user.fullName.toLowerCase().contains(_userSearchQuery.toLowerCase()) ||
+                                             user.email.toLowerCase().contains(_userSearchQuery.toLowerCase());
+                                    }).toList();
+                                    
+                                    if (filteredUsers.isEmpty) {
+                                      return Center(
+                                        child: Text(
+                                          'Keine Benutzer gefunden',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      );
+                                    }
+                                    
+                                    return ListView.builder(
+                                      itemCount: filteredUsers.length,
+                                      itemBuilder: (context, index) {
+                                        final user = filteredUsers[index];
+                                        final isSelected = _selectedTournamentOrganizerId == user.id;
+                                        
+                                        return ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor: isSelected ? Colors.blue : Colors.grey.shade300,
+                                            child: Text(
+                                              user.fullName.substring(0, 1).toUpperCase(),
+                                              style: TextStyle(
+                                                color: isSelected ? Colors.white : Colors.black87,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          title: Text(
+                                            user.fullName,
+                                            style: TextStyle(
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                          subtitle: Text(user.email),
+                                          trailing: isSelected 
+                                            ? Icon(Icons.check_circle, color: Colors.blue)
+                                            : null,
+                                          onTap: () {
+                                            setState(() {
+                                              _selectedTournamentOrganizerId = user.id;
+                                            });
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                              
+                              if (_selectedTournamentOrganizerId != null) ...[
+                                const SizedBox(height: 8),
+                                FutureBuilder<String?>(
+                                  future: _getOrganizerName(_selectedTournamentOrganizerId!),
+                                  builder: (context, snapshot) {
+                                    final organizerName = snapshot.data ?? 'Organisator';
+                                    return Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.blue.shade200),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.check_circle, color: Colors.blue, size: 16),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '$organizerName als Turnier Organisator zugewiesen',
+                                              style: TextStyle(
+                                                color: Colors.blue.shade700,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedTournamentOrganizerId = null;
+                                              });
+                                            },
+                                            child: Text('Entfernen'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -1981,6 +2216,20 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                   ),
                   const Spacer(),
+                  // Demo Team Button
+                  ElevatedButton.icon(
+                    onPressed: _createDemoTeams,
+                    icon: Icon(Icons.auto_awesome, color: Colors.white),
+                    label: Text('Demo Teams erstellen', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
                   Text(
                     '${_selectedTeamIds.length} Teams ausgewählt',
                     style: TextStyle(
@@ -3973,6 +4222,15 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         customBrackets: customBrackets,
         criteria: _selectedCategories.contains('GBO Seniors Cup') ? _criteria : widget.tournament!.criteria,
         courts: _tournamentCourts,
+        divisions: widget.tournament!.divisions,
+        divisionTeams: widget.tournament!.divisionTeams,
+        divisionMaxTeams: widget.tournament!.divisionMaxTeams,
+        isRegistrationOpen: _isRegistrationOpen,
+        registrationDeadline: _registrationDeadline,
+        tournamentOrganizerId: _selectedTournamentOrganizerId,
+        results: widget.tournament!.results,
+        pools: widget.tournament!.pools,
+        poolMetadata: widget.tournament!.poolMetadata,
       );
       
       // Update existing tournament
@@ -4162,9 +4420,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         divisionMaxTeams: _divisionMaxTeams,
         isRegistrationOpen: _isRegistrationOpen,
         registrationDeadline: _registrationDeadline,
+        tournamentOrganizerId: _selectedTournamentOrganizerId,
+        links: _links,
       );
       
-      print('Tournament object created');
+      print('Tournament object created with ${tournament.links.length} links');
+      print('Links: ${tournament.links.map((l) => '${l.label} (${l.type})').join(', ')}');
       
       // Save using tournament service
       if (widget.tournament == null) {
@@ -8732,6 +8993,222 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
+  Widget _buildLinksTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Ausschreibung/AGBs Section
+          Text(
+            'Ausschreibung / AGBs',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          _buildLinksList('agb'),
+          const SizedBox(height: 32),
+
+          // Social Media Section
+          Text(
+            'Social Media',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          _buildLinksList('social'),
+          const SizedBox(height: 32),
+
+          // Save Button
+          ElevatedButton.icon(
+            onPressed: _saveTournament,
+            icon: const Icon(Icons.save),
+            label: const Text('Änderungen speichern'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinksList(String linkType) {
+    final links = _links.where((link) => link.type == linkType).toList();
+    print('Building links list for type $linkType: found ${links.length} links');
+    
+    return Column(
+      children: [
+        if (links.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade50,
+            ),
+            child: Center(
+              child: Text(
+                'Keine ${linkType == 'agb' ? 'Ausschreibungen/AGBs' : 'Social Media Links'} hinzugefügt',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: links.length,
+            itemBuilder: (context, index) {
+              final link = links[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Color(link.colorValue),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      _getIconFromName(link.iconName),
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(link.label),
+                  subtitle: Text(
+                    link.url,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: SizedBox(
+                    width: 100,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 18),
+                          onPressed: () => _editLink(link),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                          onPressed: () => _deleteLink(link),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: () => _addLink(linkType),
+          icon: const Icon(Icons.add),
+          label: Text(linkType == 'agb' ? 'Ausschreibung hinzufügen' : 'Social Media Link hinzufügen'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addLink(String linkType) async {
+    final newLink = await Navigator.of(context).push<TournamentLink>(
+      MaterialPageRoute(
+        builder: (context) => TournamentLinkEditorScreen(
+          linkType: linkType,
+        ),
+      ),
+    );
+
+    if (newLink != null) {
+      setState(() {
+        _links.add(newLink);
+      });
+    }
+  }
+
+  Future<void> _editLink(TournamentLink link) async {
+    final updatedLink = await Navigator.of(context).push<TournamentLink>(
+      MaterialPageRoute(
+        builder: (context) => TournamentLinkEditorScreen(
+          link: link,
+          linkType: link.type,
+        ),
+      ),
+    );
+
+    if (updatedLink != null) {
+      setState(() {
+        final index = _links.indexWhere((l) => l.id == link.id);
+        if (index >= 0) {
+          _links[index] = updatedLink;
+        }
+      });
+    }
+  }
+
+  void _deleteLink(TournamentLink link) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Link löschen?'),
+        content: Text('Möchten Sie "${link.label}" wirklich löschen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _links.removeWhere((l) => l.id == link.id);
+              });
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getIconFromName(String iconName) {
+    switch (iconName) {
+      case 'facebook':
+        return Icons.facebook;
+      case 'instagram':
+        return Icons.camera_alt;
+      case 'twitter':
+        return Icons.share;
+      case 'linkedin':
+        return Icons.business;
+      case 'youtube':
+        return Icons.play_circle;
+      case 'web':
+      case 'language':
+        return Icons.language;
+      case 'download':
+        return Icons.download;
+      case 'document':
+      case 'description':
+        return Icons.description;
+      case 'link':
+        return Icons.link;
+      case 'email':
+        return Icons.email;
+      case 'phone':
+        return Icons.phone;
+      case 'location':
+        return Icons.location_on;
+      default:
+        return Icons.link;
+    }
+  }
+
   Widget _buildGamesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -12423,6 +12900,174 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         ? _tournamentCourts.firstWhere((c) => c.id == courtId)
         : null;
     return court?.name;
+  }
+
+  /// Create demo teams with demo players for testing the tournament
+  Future<void> _createDemoTeams() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.auto_awesome, color: Colors.orange),
+              SizedBox(width: 12),
+              Text('Demo Teams erstellen'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.orange),
+              SizedBox(height: 16),
+              Text('Erstelle Demo Teams mit Spielern...'),
+            ],
+          ),
+        ),
+      );
+
+      // Create demo players first
+      List<String> createdPlayerIds = [];
+      
+      // Define demo players for different divisions
+      final demoPlayersData = [
+        // Women's Team Players
+        {'firstName': 'Anna', 'lastName': 'Schmidt', 'email': 'anna.schmidt.demo@example.com', 'position': 'Defender', 'gender': 'female', 'jerseyNumber': '1'},
+        {'firstName': 'Maria', 'lastName': 'Weber', 'email': 'maria.weber.demo@example.com', 'position': 'Blocker', 'gender': 'female', 'jerseyNumber': '2'},
+        {'firstName': 'Lisa', 'lastName': 'Mueller', 'email': 'lisa.mueller.demo@example.com', 'position': 'Libero', 'gender': 'female', 'jerseyNumber': '3'},
+        {'firstName': 'Sarah', 'lastName': 'Bauer', 'email': 'sarah.bauer.demo@example.com', 'position': 'Setter', 'gender': 'female', 'jerseyNumber': '4'},
+        
+        // Men's Team Players
+        {'firstName': 'Max', 'lastName': 'Mustermann', 'email': 'max.mustermann.demo@example.com', 'position': 'Blocker', 'gender': 'male', 'jerseyNumber': '5'},
+        {'firstName': 'Thomas', 'lastName': 'Wagner', 'email': 'thomas.wagner.demo@example.com', 'position': 'Defender', 'gender': 'male', 'jerseyNumber': '6'},
+        {'firstName': 'Michael', 'lastName': 'Fischer', 'email': 'michael.fischer.demo@example.com', 'position': 'Setter', 'gender': 'male', 'jerseyNumber': '7'},
+        {'firstName': 'Andreas', 'lastName': 'Schneider', 'email': 'andreas.schneider.demo@example.com', 'position': 'Libero', 'gender': 'male', 'jerseyNumber': '8'},
+        
+        // Mixed Team Players
+        {'firstName': 'Julia', 'lastName': 'Hoffmann', 'email': 'julia.hoffmann.demo@example.com', 'position': 'Blocker', 'gender': 'female', 'jerseyNumber': '9'},
+        {'firstName': 'Daniel', 'lastName': 'Klein', 'email': 'daniel.klein.demo@example.com', 'position': 'Defender', 'gender': 'male', 'jerseyNumber': '10'},
+        {'firstName': 'Sandra', 'lastName': 'Wolf', 'email': 'sandra.wolf.demo@example.com', 'position': 'Setter', 'gender': 'female', 'jerseyNumber': '11'},
+        {'firstName': 'Sebastian', 'lastName': 'Richter', 'email': 'sebastian.richter.demo@example.com', 'position': 'Libero', 'gender': 'male', 'jerseyNumber': '12'},
+      ];
+
+      // Create demo players
+      for (final playerData in demoPlayersData) {
+        final player = Player(
+          id: '',
+          firstName: playerData['firstName'] as String,
+          lastName: playerData['lastName'] as String,
+          email: playerData['email'] as String,
+          phone: '+49 123 456789',
+          position: playerData['position'] as String,
+          jerseyNumber: playerData['jerseyNumber'] as String,
+          gender: playerData['gender'] as String,
+          isActive: true,
+          createdAt: DateTime.now(),
+        );
+
+        final playerId = await _playerService.addPlayer(player);
+        if (playerId != null) {
+          createdPlayerIds.add(playerId);
+        }
+      }
+
+      // Create demo teams with players
+      final demoTeams = [
+        {
+          'name': 'Beach Queens Demo',
+          'division': 'Women\'s Seniors',
+          'city': 'Berlin',
+          'playerIds': createdPlayerIds.take(4).toList(),
+          'teamManager': 'demo.manager1@example.com',
+        },
+        {
+          'name': 'Sand Warriors Demo',
+          'division': 'Men\'s Seniors',
+          'city': 'München',
+          'playerIds': createdPlayerIds.skip(4).take(4).toList(),
+          'teamManager': 'demo.manager2@example.com',
+        },
+        {
+          'name': 'Mixed Beach Stars Demo',
+          'division': 'Women\'s FUN',
+          'city': 'Hamburg',
+          'playerIds': createdPlayerIds.skip(8).take(4).toList(),
+          'teamManager': 'demo.manager3@example.com',
+        },
+      ];
+
+      List<String> createdTeamIds = [];
+
+      // Create teams
+      for (final teamData in demoTeams) {
+        final team = Team(
+          id: '',
+          name: teamData['name'] as String,
+          division: teamData['division'] as String,
+          city: teamData['city'] as String,
+          bundesland: 'Demo State',
+          teamManager: teamData['teamManager'] as String,
+          rosterPlayerIds: teamData['playerIds'] as List<String>,
+          createdAt: DateTime.now(),
+        );
+
+        await _teamService.addTeam(team);
+        
+        // Get the created team to get its ID
+        final allTeams = await _teamService.getAllTeams();
+        final createdTeam = allTeams.firstWhere(
+          (t) => t.name == team.name && t.city == team.city,
+          orElse: () => team,
+        );
+        
+        if (createdTeam.id.isNotEmpty) {
+          createdTeamIds.add(createdTeam.id);
+        }
+      }
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Refresh teams list
+      _loadTeams();
+
+      // Automatically select the created demo teams
+      setState(() {
+        _selectedTeamIds.addAll(createdTeamIds);
+      });
+
+      // Show success message
+      toastification.show(
+        context: context,
+        type: ToastificationType.success,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Demo Teams erstellt'),
+        description: Text('${demoTeams.length} Demo Teams mit ${demoPlayersData.length} Spielern erfolgreich erstellt und ausgewählt!'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 5),
+        showProgressBar: false,
+      );
+
+    } catch (e) {
+      // Close loading dialog if open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      toastification.show(
+        context: context,
+        type: ToastificationType.error,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Fehler'),
+        description: Text('Fehler beim Erstellen der Demo Teams: $e'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 5),
+        showProgressBar: false,
+      );
+    }
   }
 
   }    

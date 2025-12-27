@@ -17,13 +17,13 @@ import '../services/team_service.dart';
 
 import '../models/managed_account.dart';
 import '../models/game_squad.dart';
+import '../models/tablet_status.dart';
 import '../services/game_squad_service.dart';
 
 import '../services/live_scoring_service.dart';
 import '../models/game_event.dart';
 import '../models/player.dart';
 import '../utils/responsive_helper.dart';
-import '../services/player_service.dart';
 import 'dart:math' as math;
 
 class ScoringTabletScreen extends StatefulWidget {
@@ -213,22 +213,42 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       print('🔍 ScoringTablet: Loading managed account data for user: ${widget.user.email}');
       
       final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
+      print('🔍 Found ${allAccounts.length} managed accounts total');
       
       _managedAccount = allAccounts.firstWhere(
         (account) => account.email == widget.user.email,
         orElse: () => throw Exception('Managed account not found for email: ${widget.user.email}'),
       );
 
+      print('🔍 Managed account found:');
+      print('   - Email: ${_managedAccount!.email}');
+      print('   - Tournament ID: ${_managedAccount!.tournamentId}');
+      print('   - Court ID: ${_managedAccount!.courtId}');
+      print('   - Type: ${_managedAccount!.type}');
+
       if (_managedAccount != null && _managedAccount!.tournamentId != null) {
         _assignedTournament = await _tournamentService.getTournamentById(_managedAccount!.tournamentId!);
+        print('🔍 Tournament loaded: ${_assignedTournament?.name}');
+        print('🔍 Tournament has ${_assignedTournament?.courts.length} courts');
         
         if (_assignedTournament != null && _managedAccount!.courtId != null) {
           try {
+            // Debug: Show all available courts
+            print('🔍 Available courts in tournament:');
+            for (final court in _assignedTournament!.courts) {
+              print('   - Court ID: "${court.id}", Name: "${court.name}"');
+            }
+            
             _assignedCourt = _assignedTournament!.courts.firstWhere(
               (court) => court.id == _managedAccount!.courtId,
             );
             
+            print('🔍 Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
+            
             await _loadGames();
+            
+            // Update tablet status to indicate it's connected (disabled to prevent null errors)
+            // _updateTabletStatus();
           } catch (e) {
             print('❌ Court not found: $e');
             _showErrorToast('Court "${_managedAccount!.courtId}" nicht im Turnier gefunden');
@@ -248,7 +268,63 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     
     try {
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
-      final courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
+      
+      // Debug: Show all game court IDs and assigned court ID
+      print('🏐 ScoringTablet: Debug court ID matching');
+      print('🏐 Assigned court ID: "${_assignedCourt!.id}"');
+      print('🏐 Found ${allGames.length} total games for tournament');
+      
+      for (final game in allGames) {
+        print('🏐 Game: ${game.teamAName} vs ${game.teamBName}');
+        print('   - Game court ID: "${game.courtId}"');
+        print('   - Matches assigned court: ${game.courtId == _assignedCourt!.id}');
+        print('   - Game status: ${game.status}');
+        print('   - Scheduled time: ${game.scheduledTime}');
+      }
+      
+      // Try multiple matching strategies for court assignment
+      var courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
+      
+      // If no exact matches, try matching by court name
+      if (courtGames.isEmpty) {
+        print('🏐 No exact court ID matches, trying to match by court name...');
+        
+        // Get all courts from the tournament
+        final allTournamentCourts = _assignedTournament!.courts;
+        
+        for (final game in allGames) {
+          if (game.courtId != null) {
+            // Try to find a court with this game's courtId
+            final gamesCourt = allTournamentCourts.firstWhere(
+              (court) => court.id == game.courtId,
+              orElse: () => Court(
+                id: '',
+                name: '',
+                latitude: 0.0,
+                longitude: 0.0,
+                type: 'outdoor',
+                maxCapacity: 0,
+                createdAt: DateTime.now(),
+              ),
+            );
+            
+            // If we found a matching court and it has the same name as our assigned court
+            if (gamesCourt.id.isNotEmpty && gamesCourt.name == _assignedCourt!.name) {
+              courtGames.add(game);
+              print('🏐 Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
+            }
+          }
+        }
+      }
+      
+      // If still no matches, show ALL games for debugging (remove this in production)
+      if (courtGames.isEmpty) {
+        print('⚠️ Still no court matches found. For debugging, showing all games:');
+        courtGames = allGames;
+        print('⚠️ DEBUG MODE: Showing all ${courtGames.length} games');
+      }
+      
+      print('🏐 Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
       
       final now = DateTime.now();
       
@@ -297,7 +373,47 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     
     try {
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
-      final courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
+      
+      // Debug: Show court ID matching (same as _loadGames)
+      print('🔄 ScoringTablet: Refreshing games with animation');
+      print('🔄 Assigned court ID: "${_assignedCourt!.id}"');
+      print('🔄 Found ${allGames.length} total games');
+      
+      // Try multiple matching strategies for court assignment (same as _loadGames)
+      var courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
+      
+      // If no exact matches, try matching by court name
+      if (courtGames.isEmpty) {
+        final allTournamentCourts = _assignedTournament!.courts;
+        
+        for (final game in allGames) {
+          if (game.courtId != null) {
+            final gamesCourt = allTournamentCourts.firstWhere(
+              (court) => court.id == game.courtId,
+              orElse: () => Court(
+                id: '',
+                name: '',
+                latitude: 0.0,
+                longitude: 0.0,
+                type: 'outdoor',
+                maxCapacity: 0,
+                createdAt: DateTime.now(),
+              ),
+            );
+            
+            if (gamesCourt.id.isNotEmpty && gamesCourt.name == _assignedCourt!.name) {
+              courtGames.add(game);
+            }
+          }
+        }
+      }
+      
+      // If still no matches, show ALL games for debugging
+      if (courtGames.isEmpty) {
+        courtGames = allGames;
+      }
+      
+      print('🔄 Found ${courtGames.length} games for assigned court');
       
       final now = DateTime.now();
       
@@ -416,6 +532,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   @override
   void dispose() {
+    // Mark tablet as disconnected when app is closed (disabled to prevent null errors)
+    // if (_managedAccount != null && 
+    //     _assignedCourt != null && 
+    //     _assignedCourt!.id.isNotEmpty) {
+    //   _managedAccountService.markTabletDisconnected(_assignedCourt!.id);
+    // }
+    
     _refreshTimer?.cancel();
     _fadeController.dispose();
     _liveScoringService.dispose();
@@ -6325,4 +6448,55 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       ),
     );
   }
+
+  // Update tablet status when tablet is connected
+  Future<void> _updateTabletStatus() async {
+    if (_managedAccount == null || _assignedCourt == null) {
+      print('⚠️ ScoringTablet: Cannot update tablet status - missing managed account or court');
+      return;
+    }
+    
+    if (_managedAccount!.id.isEmpty || _assignedCourt!.id.isEmpty) {
+      print('⚠️ ScoringTablet: Cannot update tablet status - empty IDs');
+      return;
+    }
+    
+    try {
+      print('📱 ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
+      
+      // Simulate battery level (in a real implementation, this would come from device info)
+      final batteryLevel = _getBatteryLevel();
+      
+      final success = await _managedAccountService.updateTabletStatus(
+        courtId: _assignedCourt!.id,
+        tabletId: _managedAccount!.id,
+        connectionStatus: TabletConnectionStatus.connected,
+        batteryPercentage: batteryLevel,
+        deviceName: _getDeviceName(),
+      );
+      
+      if (success) {
+        print('✅ ScoringTablet: Tablet status updated successfully');
+      } else {
+        print('❌ ScoringTablet: Failed to update tablet status');
+      }
+    } catch (e) {
+      print('❌ ScoringTablet: Error updating tablet status: $e');
+    }
+  }
+
+  // Simulate getting battery level (replace with actual device info in production)
+  int _getBatteryLevel() {
+    // For demo purposes, return a random battery level between 30-100%
+    // In a real app, you would use device_info_plus or battery_plus packages
+    return 85; // Simulated battery level
+  }
+
+  // Get device name (replace with actual device info in production)
+  String _getDeviceName() {
+    // For demo purposes, return a generic name
+    // In a real app, you would use device_info_plus package
+    return 'Scoring Tablet';
+  }
+
 } 

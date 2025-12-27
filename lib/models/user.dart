@@ -3,6 +3,7 @@ import 'device.dart';
 
 enum UserRole {
   admin,
+  user,
   teamManager,
   referee,
   delegate,
@@ -10,6 +11,7 @@ enum UserRole {
   sanitater,
   seriesOrganizer,
   spieler,
+  tournamentOrganizer,
 }
 
 class User {
@@ -27,6 +29,9 @@ class User {
   final Map<String, Device> devices; // Device-specific settings
   final String? defaultTournamentFilter; // Default tournament category filter
   final String? defaultSeason; // Default season filter
+  final String? tournamentOrganizerId; // Link to tournament organizer document if role is tournamentOrganizer
+  final double totalDonations; // Total amount donated by this user
+  final DateTime? lastDonationDate; // Date of last donation
 
   User({
     required this.id,
@@ -43,6 +48,9 @@ class User {
     this.devices = const {},
     this.defaultTournamentFilter,
     this.defaultSeason,
+    this.tournamentOrganizerId,
+    this.totalDonations = 0.0,
+    this.lastDonationDate,
   });
 
   String get fullName => '$firstName $lastName';
@@ -62,6 +70,9 @@ class User {
       'devices': devices.map((key, device) => MapEntry(key, device.toFirestore())),
       'defaultTournamentFilter': defaultTournamentFilter,
       'defaultSeason': defaultSeason,
+      'tournamentOrganizerId': tournamentOrganizerId,
+      'totalDonations': totalDonations,
+      'lastDonationDate': lastDonationDate != null ? Timestamp.fromDate(lastDonationDate!) : null,
     };
   }
 
@@ -119,6 +130,11 @@ class User {
       devices: devices,
       defaultTournamentFilter: data['defaultTournamentFilter'],
       defaultSeason: data['defaultSeason'],
+      tournamentOrganizerId: data['tournamentOrganizerId'],
+      totalDonations: (data['totalDonations'] ?? 0.0).toDouble(),
+      lastDonationDate: data['lastDonationDate'] != null 
+          ? (data['lastDonationDate'] as Timestamp).toDate() 
+          : null,
     );
   }
 
@@ -135,6 +151,7 @@ class User {
     Map<String, Device>? devices,
     String? defaultTournamentFilter,
     String? defaultSeason,
+    String? tournamentOrganizerId,
   }) {
     return User(
       id: id,
@@ -151,6 +168,7 @@ class User {
       devices: devices ?? this.devices,
       defaultTournamentFilter: defaultTournamentFilter ?? this.defaultTournamentFilter,
       defaultSeason: defaultSeason ?? this.defaultSeason,
+      tournamentOrganizerId: tournamentOrganizerId ?? this.tournamentOrganizerId,
     );
   }
 } 

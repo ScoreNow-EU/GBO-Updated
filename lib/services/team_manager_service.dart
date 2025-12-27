@@ -231,6 +231,22 @@ class TeamManagerService {
     }
   }
 
+  // Delete team manager by user ID
+  Future<void> deleteTeamManagerByUserId(String userId) async {
+    try {
+      final querySnapshot = await _teamManagersCollection
+          .where('userId', isEqualTo: userId)
+          .get();
+      
+      for (var doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      print('Error deleting team manager by user ID: $e');
+      rethrow;
+    }
+  }
+
   // Update last login time
   Future<void> updateLastLogin(String userId) async {
     try {

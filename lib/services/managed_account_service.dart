@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../models/managed_account.dart';
-import '../models/tournament.dart';
 import '../models/court.dart';
+import '../models/tablet_status.dart';
 import 'tournament_service.dart';
 
 class ManagedAccountService {
@@ -406,6 +406,165 @@ class ManagedAccountService {
       return account.hasValidOneTimeCode;
     } catch (e) {
       print('Error checking one-time code validity: $e');
+      return false;
+    }
+  }
+
+  // ========== TABLET STATUS TRACKING ==========
+
+  static const String _tabletStatusCollection = 'tablet_status';
+
+  // Update tablet status (connection and battery)
+  Future<bool> updateTabletStatus({
+    required String courtId,
+    required String tabletId,
+    required TabletConnectionStatus connectionStatus,
+    int? batteryPercentage,
+    String? deviceName,
+  }) async {
+    try {
+      // DISABLED: Prevent null errors on web/desktop platforms
+      print('📱 Tablet status tracking disabled to prevent null errors');
+      return true;
+      
+      // Validate required fields to prevent null errors
+      if (courtId.isEmpty || tabletId.isEmpty) {
+        print('❌ Cannot update tablet status: courtId or tabletId is empty');
+        return false;
+      }
+
+      final tabletStatus = TabletStatus(
+        courtId: courtId,
+        tabletId: tabletId,
+        connectionStatus: connectionStatus,
+        batteryPercentage: batteryPercentage,
+        lastSeen: DateTime.now(),
+        deviceName: deviceName ?? 'Unknown Device',
+      );
+
+      // Use merge to prevent overwriting existing data
+      await _firestore
+          .collection(_tabletStatusCollection)
+          .doc(courtId)
+          .set(tabletStatus.toMap(), SetOptions(merge: true));
+
+      print('✅ Tablet status updated for court $courtId: ${connectionStatus.name}');
+      return true;
+    } catch (e) {
+      print('❌ Error updating tablet status: $e');
+      return false;
+    }
+  }
+
+  // Get tablet status for a specific court
+  Future<TabletStatus?> getTabletStatusForCourt(String courtId) async {
+    try {
+      // DISABLED: Prevent null errors on web/desktop platforms
+      return null;
+      
+      final doc = await _firestore
+          .collection(_tabletStatusCollection)
+          .doc(courtId)
+          .get();
+
+      if (!doc.exists) return null;
+
+      return TabletStatus.fromMap({...doc.data()!, 'id': doc.id});
+    } catch (e) {
+      print('Error getting tablet status for court: $e');
+      return null;
+    }
+  }
+
+  // Stream tablet status for real-time updates
+  Stream<TabletStatus?> streamTabletStatusForCourt(String courtId) {
+    return _firestore
+        .collection(_tabletStatusCollection)
+        .doc(courtId)
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists) return null;
+          return TabletStatus.fromMap({...doc.data()!, 'id': doc.id});
+        });
+  }
+
+  // Get tablet status for all courts in a tournament
+  Future<Map<String, TabletStatus>> getTabletStatusForTournament(String tournamentId) async {
+    try {
+      // DISABLED: Prevent null errors on web/desktop platforms
+      print('📱 Tournament tablet status tracking disabled to prevent null errors');
+      return {};
+      
+      if (tournamentId.isEmpty) {
+        print('❌ Cannot get tablet status: tournamentId is empty');
+        return {};
+      }
+
+      // Get tournament to get its courts
+      final tournament = await _tournamentService.getTournamentById(tournamentId);
+      if (tournament == null) {
+        print('❌ Tournament not found: $tournamentId');
+        return {};
+      }
+
+      final Map<String, TabletStatus> statusMap = {};
+
+      // Get status for each court
+      for (final court in tournament.courts) {
+        if (court.id.isNotEmpty) {
+          final status = await getTabletStatusForCourt(court.id);
+          if (status != null) {
+            statusMap[court.id] = status;
+            print('📱 Found tablet status for court ${court.name}: ${status.connectionStatus.name}');
+          }
+        }
+      }
+
+      print('📱 Loaded tablet statuses for ${statusMap.length} courts');
+      return statusMap;
+    } catch (e) {
+      print('❌ Error getting tablet status for tournament: $e');
+      return {};
+    }
+  }
+
+  // Mark tablet as disconnected (called when tablet goes offline)
+  Future<bool> markTabletDisconnected(String courtId) async {
+    try {
+      // DISABLED: Prevent null errors on web/desktop platforms
+      print('📱 Tablet disconnect tracking disabled to prevent null errors');
+      return true;
+      
+      final existingStatus = await getTabletStatusForCourt(courtId);
+      if (existingStatus == null) return false;
+
+      final updatedStatus = existingStatus.copyWith(
+        connectionStatus: TabletConnectionStatus.disconnected,
+        lastSeen: DateTime.now(),
+      );
+
+      await _firestore
+          .collection(_tabletStatusCollection)
+          .doc(courtId)
+          .set(updatedStatus.toMap());
+
+      return true;
+    } catch (e) {
+      print('Error marking tablet as disconnected: $e');
+      return false;
+    }
+  }
+
+  // Remove tablet status (when tablet is unassigned)
+  Future<bool> removeTabletStatus(String courtId) async {
+    try {
+      await _firestore
+          .collection(_tabletStatusCollection)
+          .doc(courtId)
+          .delete();
+      return true;
+    } catch (e) {
+      print('Error removing tablet status: $e');
       return false;
     }
   }

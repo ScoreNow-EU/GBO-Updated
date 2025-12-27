@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
 import '../models/player.dart';
+import '../models/team.dart';
 import '../services/player_service.dart';
+import '../services/team_service.dart';
 import '../widgets/responsive_layout.dart';
 import 'bulk_add_players_screen.dart';
+import 'csv_player_processing_screen.dart';
 
 class PlayerManagementScreen extends StatefulWidget {
   const PlayerManagementScreen({super.key});
@@ -14,6 +19,7 @@ class PlayerManagementScreen extends StatefulWidget {
 
 class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   final PlayerService _playerService = PlayerService();
+  final TeamService _teamService = TeamService();
   final TextEditingController _searchController = TextEditingController();
   
   // Form controllers for add/edit dialog
@@ -63,11 +69,55 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ),
                   const Spacer(),
                   ElevatedButton.icon(
+                    onPressed: () => _showDeleteAllPlayersDialog(),
+                    icon: const Icon(Icons.delete_forever),
+                    label: const Text('Alle löschen'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => _showCSVUploadDialog(),
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('CSV Upload'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
                     onPressed: () => _showAddPlayerDialog(),
                     icon: const Icon(Icons.person_add),
                     label: const Text('Spieler hinzufügen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2D5016),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => _showBulkAddDialog(),
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('Bulk Import'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => _fixTeamRosters(),
+                    icon: const Icon(Icons.build),
+                    label: const Text('Team Roster Fix'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade600,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
@@ -143,6 +193,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                         Expanded(flex: 2, child: Text('E-Mail', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Nummer', style: TextStyle(fontWeight: FontWeight.bold))),
+                        Expanded(child: Text('Team', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
                         SizedBox(width: 100, child: Text('Aktionen', style: TextStyle(fontWeight: FontWeight.bold))),
                       ],
@@ -168,6 +219,24 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                                 Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
                                 const SizedBox(height: 16),
                                 const Text('Fehler beim Laden der Spieler'),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${snapshot.error}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      // Force rebuild to retry
+                                    });
+                                  },
+                                  child: const Text('Erneut versuchen'),
+                                ),
                               ],
                             ),
                           );
@@ -259,7 +328,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              player.email,
+              player.email ?? '-',
               style: TextStyle(color: Colors.grey[700]),
             ),
           ),
@@ -277,6 +346,36 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             child: Text(
               player.jerseyNumber ?? '-',
               style: TextStyle(color: Colors.grey[700]),
+            ),
+          ),
+          
+          // Team
+          Expanded(
+            child: FutureBuilder<Team?>(
+              future: _teamService.getTeamById(player.clubId ?? ''),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                }
+                
+                final team = snapshot.data;
+                if (team != null) {
+                  return Text(
+                    team.name,
+                    style: TextStyle(color: Colors.grey[700]),
+                    overflow: TextOverflow.ellipsis,
+                  );
+                } else {
+                  return Text(
+                    'Kein Team',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  );
+                }
+              },
             ),
           ),
           
@@ -322,6 +421,120 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     );
   }
 
+  void _showCSVUploadDialog() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+
+      if (result != null) {
+        final file = result.files.first;
+        final bytes = file.bytes;
+        
+        if (bytes != null) {
+          final csvString = utf8.decode(bytes);
+          final lines = csvString.split('\n');
+          
+          if (lines.isEmpty) {
+            _showError('Die CSV-Datei ist leer.');
+            return;
+          }
+
+          // Parse CSV header - handle both comma and semicolon delimiters
+          final headerLine = lines[0].trim();
+          List<String> headers;
+          
+          // Check if semicolon is used as delimiter
+          if (headerLine.contains(';')) {
+            headers = headerLine.split(';').map((h) => h.trim()).toList();
+            print('🔍 Detected semicolon delimiter');
+          } else {
+            headers = headerLine.split(',').map((h) => h.trim()).toList();
+            print('🔍 Detected comma delimiter');
+          }
+          
+          // Log CSV column analysis
+          print('\n📋 CSV COLUMN ANALYSIS:');
+          print('📥 Found columns: ${headers.join(', ')}');
+          print('📊 Total columns found: ${headers.length}');
+          
+          // Validate required headers
+          final requiredHeaders = ['Firstname', 'Lastname', 'Jersey Number', 'Position', 'Club Name', 'Division'];
+          final missingHeaders = requiredHeaders.where((h) => !headers.contains(h)).toList();
+          final foundHeaders = requiredHeaders.where((h) => headers.contains(h)).toList();
+          
+          print('\n✅ EXPECTED columns: ${requiredHeaders.join(', ')}');
+          print('✅ FOUND expected columns: ${foundHeaders.join(', ')}');
+          
+          if (missingHeaders.isNotEmpty) {
+            print('❌ MISSING expected columns: ${missingHeaders.join(', ')}');
+            print('\n💡 SUGGESTIONS:');
+            print('   - Check if column names match exactly (case-sensitive)');
+            print('   - Common variations:');
+            print('     * "Firstname" vs "First Name" vs "FirstName"');
+            print('     * "Lastname" vs "Last Name" vs "LastName"');
+            print('     * "Jersey Number" vs "JerseyNumber" vs "Number"');
+            print('     * "Club Name" vs "ClubName" vs "Team"');
+            print('     * "Division" vs "Category" vs "Class"');
+            
+            _showError('Fehlende Spalten: ${missingHeaders.join(', ')}\n\nGefundene Spalten: ${headers.join(', ')}');
+            return;
+          } else {
+            print('✅ All required columns found!');
+          }
+
+          // Parse CSV data - use same delimiter as header
+          final List<Map<String, dynamic>> csvData = [];
+          final delimiter = headerLine.contains(';') ? ';' : ',';
+          
+          for (int i = 1; i < lines.length; i++) {
+            final line = lines[i].trim();
+            if (line.isNotEmpty) {
+              final values = line.split(delimiter).map((v) => v.trim()).toList();
+              
+              if (values.length >= headers.length) {
+                final row = <String, dynamic>{};
+                for (int j = 0; j < headers.length; j++) {
+                  row[headers[j]] = values[j];
+                }
+                csvData.add(row);
+              }
+            }
+          }
+
+          if (csvData.isEmpty) {
+            _showError('Keine gültigen Daten in der CSV-Datei gefunden.');
+            return;
+          }
+          
+          // Log sample data for debugging
+          print('\n📊 SAMPLE DATA (first 3 rows):');
+          for (int i = 0; i < csvData.length && i < 3; i++) {
+            final row = csvData[i];
+            print('Row ${i + 1}: ${row.toString()}');
+          }
+          if (csvData.length > 3) {
+            print('... and ${csvData.length - 3} more rows');
+          }
+
+          // Navigate to processing screen
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CSVPlayerProcessingScreen(csvData: csvData),
+              ),
+            );
+          }
+        } else {
+          _showError('Fehler beim Lesen der Datei.');
+        }
+      }
+    } catch (e) {
+      _showError('Fehler beim Upload: $e');
+    }
+  }
+
   void _showAddPlayerDialog() {
     _clearFormControllers();
     _showPlayerDialog(isEdit: false);
@@ -330,7 +543,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   void _showEditPlayerDialog(Player player) {
     _firstNameController.text = player.firstName;
     _lastNameController.text = player.lastName;
-    _emailController.text = player.email;
+    _emailController.text = player.email ?? '';
     _phoneController.text = player.phone ?? '';
     _positionController.text = player.position ?? '';
     _jerseyNumberController.text = player.jerseyNumber ?? '';
@@ -555,6 +768,136 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     }
   }
 
+  void _showDeleteAllPlayersDialog() async {
+    // First, get the current count of players
+    final players = await _playerService.getAllPlayers().first;
+    
+    if (players.isEmpty) {
+      _showError('Keine Spieler zum Löschen vorhanden.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alle Spieler löschen'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Möchten Sie wirklich alle ${players.length} Spieler löschen?'),
+            const SizedBox(height: 8),
+            const Text(
+              '⚠️ Diese Aktion kann nicht rückgängig gemacht werden!',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Alle Spielerdaten werden permanent gelöscht.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Alle löschen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteAllPlayers();
+    }
+  }
+
+  Future<void> _deleteAllPlayers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get all players
+      final players = await _playerService.getAllPlayers().first;
+      
+      if (players.isEmpty) {
+        _showError('Keine Spieler zum Löschen vorhanden.');
+        return;
+      }
+
+      // Delete all players
+      int successCount = 0;
+      int errorCount = 0;
+
+      for (final player in players) {
+        final success = await _playerService.deletePlayer(player.id);
+        if (success) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      }
+
+      if (mounted) {
+        if (errorCount == 0) {
+          toastification.show(
+            context: context,
+            type: ToastificationType.success,
+            style: ToastificationStyle.fillColored,
+            title: Text('Alle $successCount Spieler erfolgreich gelöscht.'),
+            autoCloseDuration: const Duration(seconds: 4),
+          );
+        } else {
+          toastification.show(
+            context: context,
+            type: ToastificationType.warning,
+            style: ToastificationStyle.fillColored,
+            title: Text('$successCount Spieler gelöscht, $errorCount Fehler aufgetreten.'),
+            autoCloseDuration: const Duration(seconds: 4),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: Text('Fehler beim Löschen: $e'),
+          autoCloseDuration: const Duration(seconds: 4),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showError(String message) {
+    toastification.show(
+      context: context,
+      type: ToastificationType.error,
+      style: ToastificationStyle.fillColored,
+      title: Text(message),
+      autoCloseDuration: const Duration(seconds: 4),
+    );
+  }
+
   void _showBulkAddDialog() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -570,5 +913,103 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     _phoneController.clear();
     _positionController.clear();
     _jerseyNumberController.clear();
+  }
+
+  Future<void> _fixTeamRosters() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Team Roster Fix'),
+        content: const Text(
+          'Diese Aktion fügt alle Spieler mit einem ClubId zu ihrem Team hinzu, falls sie noch nicht dort sind.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Team Roster Fix'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _isLoading = true;
+      });
+      
+      try {
+        final players = await _playerService.getAllPlayers().first;
+        final teams = await _teamService.getAllTeams();
+        int successCount = 0;
+        int errorCount = 0;
+
+        for (final player in players) {
+          if (player.clubId != null && player.clubId!.isNotEmpty) {
+            final team = teams.firstWhere(
+              (t) => t.id == player.clubId,
+              orElse: () => throw Exception('Team not found'),
+            );
+            
+            if (!team.rosterPlayerIds.contains(player.id)) {
+              final updatedRosterIds = List<String>.from(team.rosterPlayerIds)..add(player.id);
+              final updatedTeam = team.copyWith(rosterPlayerIds: updatedRosterIds);
+              
+              final success = await _teamService.updateTeam(team.id, updatedTeam);
+              if (success) {
+                successCount++;
+                print('✅ Added player ${player.fullName} to team ${team.name}');
+              } else {
+                errorCount++;
+                print('❌ Failed to add player ${player.fullName} to team ${team.name}');
+              }
+            }
+          }
+        }
+
+        if (mounted) {
+          if (errorCount == 0) {
+            toastification.show(
+              context: context,
+              type: ToastificationType.success,
+              style: ToastificationStyle.fillColored,
+              title: Text('Alle $successCount Spieler erfolgreich zum Team hinzugefügt.'),
+              autoCloseDuration: const Duration(seconds: 4),
+            );
+          } else {
+            toastification.show(
+              context: context,
+              type: ToastificationType.warning,
+              style: ToastificationStyle.fillColored,
+              title: Text('$successCount Spieler hinzugefügt, $errorCount Fehler aufgetreten.'),
+              autoCloseDuration: const Duration(seconds: 4),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          toastification.show(
+            context: context,
+            type: ToastificationType.error,
+            style: ToastificationStyle.fillColored,
+            title: Text('Fehler beim Team Roster Fix: $e'),
+            autoCloseDuration: const Duration(seconds: 4),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user.dart' as app_user;
 import 'side_navigation.dart';
 
-class ResponsiveLayout extends StatelessWidget {
+class ResponsiveLayout extends StatefulWidget {
   final String selectedSection;
   final Function(String) onSectionChanged;
   final dynamic title;  // Can be String or Widget
@@ -12,6 +12,7 @@ class ResponsiveLayout extends StatelessWidget {
   final VoidCallback? onUserUpdated;
   final bool showBackButton;
   final VoidCallback? onBackPressed;
+  final bool hideAppBar; // New parameter to hide AppBar when body has its own
 
   const ResponsiveLayout({
     super.key,
@@ -23,7 +24,15 @@ class ResponsiveLayout extends StatelessWidget {
     this.onUserUpdated,
     this.showBackButton = false,
     this.onBackPressed,
+    this.hideAppBar = false,
   });
+
+  @override
+  State<ResponsiveLayout> createState() => _ResponsiveLayoutState();
+}
+
+class _ResponsiveLayoutState extends State<ResponsiveLayout> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +40,9 @@ class ResponsiveLayout extends StatelessWidget {
     final isMobile = screenWidth < 768;
 
     Widget titleWidget;
-    if (title is String) {
+    if (widget.title is String) {
       titleWidget = Text(
-        title as String,
+        widget.title as String,
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
@@ -41,57 +50,59 @@ class ResponsiveLayout extends StatelessWidget {
         ),
       );
     } else {
-      titleWidget = title as Widget;
+      titleWidget = widget.title as Widget;
     }
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.grey.shade100,
-      appBar: isMobile ? AppBar(
+      appBar: (isMobile && !widget.hideAppBar) ? AppBar(
         title: titleWidget,
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: showBackButton
+        leading: widget.showBackButton
           ? IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+              onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
             )
           : IconButton(
               icon: const Icon(Icons.menu),
               onPressed: () {
-                Scaffold.of(context).openDrawer();
+                _scaffoldKey.currentState?.openDrawer();
               },
             ),
-        actions: showBackButton
+        actions: widget.showBackButton
           ? [
               IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () {
-                  Scaffold.of(context).openDrawer();
+                  _scaffoldKey.currentState?.openDrawer();
                 },
               ),
             ]
           : null,
       ) : null,
       drawer: isMobile ? SideNavigation(
-        selectedSection: selectedSection,
+        selectedSection: widget.selectedSection,
         onSectionChanged: (section) {
           Navigator.pop(context); // Close drawer
-          onSectionChanged(section);
+          widget.onSectionChanged(section);
         },
-        onUserUpdated: onUserUpdated,
+        onUserUpdated: widget.onUserUpdated,
       ) : null,
+
       body: Row(
         children: [
           if (!isMobile)
             SideNavigation(
-              selectedSection: selectedSection,
-              onSectionChanged: onSectionChanged,
-              onUserUpdated: onUserUpdated,
+              selectedSection: widget.selectedSection,
+              onSectionChanged: widget.onSectionChanged,
+              onUserUpdated: widget.onUserUpdated,
             ),
           Expanded(
             child: Column(
               children: [
-                if (!isMobile && showBackButton)
+                if (!isMobile && widget.showBackButton)
                   Container(
                     height: 60,
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -105,7 +116,7 @@ class ResponsiveLayout extends StatelessWidget {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back, color: Colors.black),
-                          onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                          onPressed: widget.onBackPressed ?? () => Navigator.of(context).pop(),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -115,7 +126,7 @@ class ResponsiveLayout extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: body,
+                  child: widget.body,
                 ),
               ],
             ),

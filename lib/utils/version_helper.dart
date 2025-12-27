@@ -1,35 +1,27 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 class VersionHelper {
   static String? _cachedVersion;
   
-  /// Get the app version from pubspec.yaml
+  // Hardcoded version - update this with each release
+  static const String APP_VERSION = '1.0.7';
+  static const String FULL_APP_VERSION = '1.0.7+1';
+  
+  /// Get the app version from hardcoded constant
+  /// Previously tried to load from pubspec.yaml, but that's not accessible as an asset
   static Future<String> getAppVersion() async {
     if (_cachedVersion != null) {
       return _cachedVersion!;
     }
     
     try {
-      // Try to read from pubspec.yaml
-      final pubspecString = await rootBundle.loadString('pubspec.yaml');
-      final lines = pubspecString.split('\n');
-      
-      for (String line in lines) {
-        if (line.trim().startsWith('version:')) {
-          final versionLine = line.trim();
-          // Extract version part (remove 'version:' and any build number after '+')
-          final version = versionLine
-              .replaceFirst('version:', '')
-              .trim()
-              .split('+')[0]; // Remove build number
-          
-          _cachedVersion = version;
-          return version;
-        }
-      }
+      debugPrint('[VersionHelper] Using hardcoded app version: $APP_VERSION');
+      _cachedVersion = APP_VERSION;
+      return APP_VERSION;
     } catch (e) {
-      print('Error reading version from pubspec.yaml: $e');
+      debugPrint('[VersionHelper] Error getting version: $e');
     }
     
     // Fallback version
@@ -40,18 +32,10 @@ class VersionHelper {
   /// Get the full version including build number
   static Future<String> getFullAppVersion() async {
     try {
-      final pubspecString = await rootBundle.loadString('pubspec.yaml');
-      final lines = pubspecString.split('\n');
-      
-      for (String line in lines) {
-        if (line.trim().startsWith('version:')) {
-          final versionLine = line.trim();
-          final version = versionLine.replaceFirst('version:', '').trim();
-          return version;
-        }
-      }
+      debugPrint('[VersionHelper] Using hardcoded full app version: $FULL_APP_VERSION');
+      return FULL_APP_VERSION;
     } catch (e) {
-      print('Error reading full version from pubspec.yaml: $e');
+      debugPrint('[VersionHelper] Error getting full version: $e');
     }
     
     return '0.1.0+1';

@@ -42,8 +42,11 @@ class FaceIdService {
   /// Check if device supports biometric authentication
   Future<bool> isDeviceSupported() async {
     try {
-      return await _localAuth.isDeviceSupported().timeout(_operationTimeout);
+      final result = await _localAuth.isDeviceSupported().timeout(_operationTimeout);
+      debugPrint('[FaceID] isDeviceSupported: $result');
+      return result;
     } catch (e) {
+      debugPrint('[FaceID] Error checking isDeviceSupported: $e');
       return false;
     }
   }
@@ -51,8 +54,11 @@ class FaceIdService {
   /// Check if biometric authentication is available
   Future<bool> isBiometricAvailable() async {
     try {
-      return await _localAuth.canCheckBiometrics.timeout(_operationTimeout);
+      final result = await _localAuth.canCheckBiometrics.timeout(_operationTimeout);
+      debugPrint('[FaceID] isBiometricAvailable: $result');
+      return result;
     } catch (e) {
+      debugPrint('[FaceID] Error checking isBiometricAvailable: $e');
       return false;
     }
   }
@@ -60,8 +66,11 @@ class FaceIdService {
   /// Get available biometric types
   Future<List<BiometricType>> getAvailableBiometrics() async {
     try {
-      return await _localAuth.getAvailableBiometrics().timeout(_operationTimeout);
+      final result = await _localAuth.getAvailableBiometrics().timeout(_operationTimeout);
+      debugPrint('[FaceID] getAvailableBiometrics: $result');
+      return result;
     } catch (e) {
+      debugPrint('[FaceID] Error getting availableBiometrics: $e');
       return [];
     }
   }
@@ -223,15 +232,34 @@ class FaceIdService {
   /// Authenticate with biometrics for login process (doesn't require user to be logged in yet)
   Future<bool> authenticateForLogin() async {
     try {
-      if (!await isDeviceSupported()) return false;
-      if (!await isBiometricAvailable()) return false;
+      debugPrint('[FaceID] Starting authenticateForLogin');
+      
+      final deviceSupported = await isDeviceSupported();
+      debugPrint('[FaceID] Device supported: $deviceSupported');
+      if (!deviceSupported) {
+        debugPrint('[FaceID] Device not supported, returning false');
+        return false;
+      }
+      
+      final biometricAvailable = await isBiometricAvailable();
+      debugPrint('[FaceID] Biometric available: $biometricAvailable');
+      if (!biometricAvailable) {
+        debugPrint('[FaceID] Biometric not available, returning false');
+        return false;
+      }
       
       final availableBiometrics = await getAvailableBiometrics();
-      if (availableBiometrics.isEmpty) return false;
+      debugPrint('[FaceID] Available biometrics: $availableBiometrics');
+      if (availableBiometrics.isEmpty) {
+        debugPrint('[FaceID] No biometrics actually available (empty list), returning false');
+        return false;
+      }
       
       final biometricName = getBiometricTypeName(availableBiometrics);
+      debugPrint('[FaceID] Biometric name: $biometricName');
       
       try {
+        debugPrint('[FaceID] Calling _localAuth.authenticate for login');
         final bool didAuthenticate = await _localAuth.authenticate(
           localizedReason: 'Anmeldung mit $biometricName',
           options: const AuthenticationOptions(
@@ -240,19 +268,27 @@ class FaceIdService {
           ),
         ).timeout(
           const Duration(seconds: 30),
-          onTimeout: () => false,
+          onTimeout: () {
+            debugPrint('[FaceID] Authentication timeout after 30 seconds');
+            return false;
+          },
         );
         
+        debugPrint('[FaceID] Authentication result: $didAuthenticate');
         return didAuthenticate;
       } catch (authError) {
+        debugPrint('[FaceID] Authentication error: $authError');
         rethrow;
       }
       
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      debugPrint('[FaceID] PlatformException in authenticateForLogin: ${e.code} - ${e.message}');
       return false;
-    } on TimeoutException {
+    } on TimeoutException catch (e) {
+      debugPrint('[FaceID] TimeoutException in authenticateForLogin: $e');
       return false;
     } catch (e) {
+      debugPrint('[FaceID] Unknown exception in authenticateForLogin: $e');
       return false;
     }
   }
@@ -260,17 +296,39 @@ class FaceIdService {
   /// Authenticate with biometrics
   Future<bool> authenticate() async {
     try {
-      final userId = _getCurrentUserId();
-      if (userId == null) return false;
+      debugPrint('[FaceID] Starting authenticate for admin');
       
-      if (!await isDeviceSupported()) return false;
-      if (!await isBiometricAvailable()) return false;
+      final userId = _getCurrentUserId();
+      debugPrint('[FaceID] Current user ID: $userId');
+      if (userId == null) {
+        debugPrint('[FaceID] No user logged in, returning false');
+        return false;
+      }
+      
+      final deviceSupported = await isDeviceSupported();
+      debugPrint('[FaceID] Device supported: $deviceSupported');
+      if (!deviceSupported) {
+        debugPrint('[FaceID] Device not supported, returning false');
+        return false;
+      }
+      
+      final biometricAvailable = await isBiometricAvailable();
+      debugPrint('[FaceID] Biometric available: $biometricAvailable');
+      if (!biometricAvailable) {
+        debugPrint('[FaceID] Biometric not available, returning false');
+        return false;
+      }
       
       final availableBiometrics = await getAvailableBiometrics();
-      if (availableBiometrics.isEmpty) return false;
+      debugPrint('[FaceID] Available biometrics: $availableBiometrics');
+      if (availableBiometrics.isEmpty) {
+        debugPrint('[FaceID] No biometrics actually available (empty list), returning false');
+        return false;
+      }
       
       final completer = Completer<bool>();
       
+      debugPrint('[FaceID] Calling _localAuth.authenticate for admin');
       _localAuth.authenticate(
         localizedReason: 'Authentifizierung für Admin-Bereiche',
         options: const AuthenticationOptions(
@@ -278,10 +336,12 @@ class FaceIdService {
           stickyAuth: false,
         ),
       ).then((result) {
+        debugPrint('[FaceID] Authentication succeeded: $result');
         if (!completer.isCompleted) {
           completer.complete(result);
         }
       }).catchError((error) {
+        debugPrint('[FaceID] Authentication error caught: $error');
         if (!completer.isCompleted) {
           completer.completeError(error);
         }
@@ -289,26 +349,37 @@ class FaceIdService {
       
       final didAuthenticate = await completer.future.timeout(
         const Duration(seconds: 30),
-        onTimeout: () => false,
+        onTimeout: () {
+          debugPrint('[FaceID] Authentication timeout after 30 seconds');
+          return false;
+        },
       );
+      
+      debugPrint('[FaceID] Final authentication result: $didAuthenticate');
       
       if (didAuthenticate) {
         try {
+          debugPrint('[FaceID] Updating device lastUsed timestamp');
           final device = await _getCurrentDevice();
           if (device != null) {
             await _updateCurrentDevice(device.copyWith(lastUsed: DateTime.now()));
+            debugPrint('[FaceID] Device timestamp updated successfully');
           }
         } catch (e) {
+          debugPrint('[FaceID] Error updating device timestamp (non-fatal): $e');
           // Don't fail authentication if we can't update the timestamp
         }
       }
       
       return didAuthenticate;
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      debugPrint('[FaceID] PlatformException in authenticate: ${e.code} - ${e.message}');
       return false;
-    } on TimeoutException {
+    } on TimeoutException catch (e) {
+      debugPrint('[FaceID] TimeoutException in authenticate: $e');
       return false;
     } catch (e) {
+      debugPrint('[FaceID] Unknown exception in authenticate: $e');
       return false;
     }
   }
@@ -316,13 +387,37 @@ class FaceIdService {
   /// Check if Face ID should be prompted (device supported, not asked before)
   Future<bool> shouldPromptForFaceId() async {
     try {
-      if (!await isDeviceSupported()) return false;
-      if (!await isBiometricAvailable()) return false;
-      if (await hasBeenAskedAboutFaceId()) return false;
+      debugPrint('[FaceID] Checking shouldPromptForFaceId');
+      
+      final deviceSupported = await isDeviceSupported();
+      debugPrint('[FaceID] Device supported: $deviceSupported');
+      if (!deviceSupported) {
+        debugPrint('[FaceID] Device not supported, shouldNotPrompt');
+        return false;
+      }
+      
+      final biometricAvailable = await isBiometricAvailable();
+      debugPrint('[FaceID] Biometric available: $biometricAvailable');
+      if (!biometricAvailable) {
+        debugPrint('[FaceID] Biometric not available, shouldNotPrompt');
+        return false;
+      }
+      
+      final hasBeenAsked = await hasBeenAskedAboutFaceId();
+      debugPrint('[FaceID] Has been asked before: $hasBeenAsked');
+      if (hasBeenAsked) {
+        debugPrint('[FaceID] Already asked, shouldNotPrompt');
+        return false;
+      }
       
       final availableBiometrics = await getAvailableBiometrics();
-      return availableBiometrics.isNotEmpty;
+      debugPrint('[FaceID] Available biometrics: $availableBiometrics');
+      
+      final shouldPrompt = availableBiometrics.isNotEmpty;
+      debugPrint('[FaceID] Should prompt for Face ID: $shouldPrompt');
+      return shouldPrompt;
     } catch (e) {
+      debugPrint('[FaceID] Error in shouldPromptForFaceId: $e');
       return false;
     }
   }

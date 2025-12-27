@@ -187,7 +187,7 @@ class AuthService {
         // Check if this email belongs to a team manager
         final teamManager = await _checkIfTeamManagerEmail(email);
         
-        app_user.UserRole role = app_user.UserRole.admin; // Default role for unassigned users
+        app_user.UserRole role = app_user.UserRole.user; // Default role for unassigned users
         String? refereeId;
         String? teamManagerId;
 
@@ -532,68 +532,266 @@ class AuthService {
   // Sign in with one-time code for managed accounts
   Future<app_user.User?> signInWithOneTimeCode(String code) async {
     try {
-      // Use ManagedAccountService to validate the code
-      final ManagedAccountService managedAccountService = ManagedAccountService();
-      final managedAccount = await managedAccountService.validateAndUseOneTimeCode(code);
+      // Validate the one-time code
+      final codeData = await validateOneTimeCode(code);
       
-      if (managedAccount == null) {
+      if (codeData == null) {
         throw Exception('Ungültiger oder bereits verwendeter Code');
       }
 
-      // Sign in with the managed account credentials
-      final credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: managedAccount.email,
-        password: managedAccount.password,
-      );
+      final email = codeData['preEnteredEmail'] as String;
+      final teamName = codeData['teamName'] as String;
+      final rolesList = codeData['roles'] as List<dynamic>? ?? ['user'];
 
-      if (credential.user != null) {
-        // Create or get user profile for managed account
-        app_user.User? user = await getUserById(credential.user!.uid);
+      // Convert role strings to UserRole enums
+      final roles = rolesList
+          .map((r) => app_user.UserRole.values.firstWhere(
+              (e) => e.name == r,
+              orElse: () => app_user.UserRole.user))
+          .toList();
+
+      // Check if user already exists
+      var existingUser = await getUserByEmail(email);
+      
+      if (existingUser != null) {
+        // User exists - add roles if not already present
+        for (var role in roles) {
+          if (!existingUser.roles.contains(role)) {
+            existingUser.roles.add(role);
+          }
+        }
+        // Update user with new roles
+        await _firestore.collection(_usersCollection).doc(existingUser.id).update({
+          'roles': existingUser.roles.map((r) => r.name).toList(),
+        });
+      } else {
+        // Create new user with one-time code
+        // Generate a temporary password
+        final tempPassword = _generateTemporaryPassword();
         
-        if (user == null) {
-          // Create a managed user profile
-          user = await _createManagedUser(credential.user!, managedAccount);
-        }
+        // Create Firebase Auth account
+        final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+          email: email,
+          password: tempPassword,
+        );
 
-        // Update last login
-        if (user != null) {
-          await _updateLastLogin(user.id);
-          
-          // Initialize and start notification monitoring
-          await NotificationMonitoringService.initialize();
-          await NotificationMonitoringService.startMonitoring(user.email);
-        }
+        if (credential.user != null) {
+          // Create user profile with assigned roles
+          final newUser = app_user.User(
+            id: credential.user!.uid,
+            email: email,
+            firstName: '',
+            lastName: '',
+            roles: roles.isEmpty ? [app_user.UserRole.user] : roles,
+            isActive: true,
+            createdAt: DateTime.now(),
+            lastLoginAt: DateTime.now(),
+          );
 
-        return user;
+          await _firestore.collection(_usersCollection).doc(newUser.id).set(newUser.toFirestore());
+          existingUser = newUser;
+        }
       }
+
+      // Mark code as used
+      await _firestore.collection('oneTimeCodes').doc(code).update({
+        'isUsed': true,
+        'usedByUserId': existingUser?.id ?? '',
+        'usedAt': DateTime.now(),
+      });
+
+      if (existingUser != null) {
+        // Update last login
+        await _updateLastLogin(existingUser.id);
+        
+        // Initialize and start notification monitoring
+        await NotificationMonitoringService.initialize();
+        await NotificationMonitoringService.startMonitoring(existingUser.email);
+      }
+
+      return existingUser;
     } catch (e) {
       print('Error signing in with one-time code: $e');
       rethrow;
     }
-    return null;
   }
 
-  // Create user profile for managed account
-  Future<app_user.User?> _createManagedUser(firebase_auth.User firebaseUser, ManagedAccount managedAccount) async {
-    try {
-      final user = app_user.User(
-        id: firebaseUser.uid,
-        email: managedAccount.email,
-        firstName: managedAccount.name.split(' ').first,
-        lastName: managedAccount.name.split(' ').length > 1 
-            ? managedAccount.name.split(' ').sublist(1).join(' ')
-            : '',
-        roles: [app_user.UserRole.admin], // Managed accounts get admin access
-        isActive: true,
-        createdAt: DateTime.now(),
-        lastLoginAt: DateTime.now(),
-      );
+  // Generate temporary password for one-time code users
+  String _generateTemporaryPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%';
+    final random = DateTime.now().microsecond;
+    String password = '';
+    for (int i = 0; i < 12; i++) {
+      password += chars[(random + i) % chars.length];
+    }
+    return password;
+  }
 
-      await _firestore.collection(_usersCollection).doc(user.id).set(user.toFirestore());
-      return user;
+  // Delete user account
+  Future<void> deleteAccount() async {
+    try {
+      final currentUser = _firebaseAuth.currentUser;
+      if (currentUser == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Delete user document from Firestore
+      await _firestore.collection(_usersCollection).doc(currentUser.uid).delete();
+
+      // Delete Firebase Auth user
+      await currentUser.delete();
+
+      print('User account deleted successfully');
     } catch (e) {
-      print('Error creating managed user: $e');
-      return null;
+      print('Error deleting account: $e');
+      rethrow;
+    }
+  }
+
+  // Generate one-time sign-in code
+  Future<String> generateOneTimeCode({
+    required String teamName,
+    required String preEnteredEmail,
+    required int validityDays,
+    required List<app_user.UserRole> roles,
+  }) async {
+    try {
+      final currentUser = _firebaseAuth.currentUser;
+      if (currentUser == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Generate a random 8-character code
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      final random = DateTime.now().microsecond;
+      String code = '';
+      for (int i = 0; i < 8; i++) {
+        code += chars[(random + i) % chars.length];
+      }
+
+      // Create one-time code document
+      final oneTimeCode = {
+        'code': code,
+        'teamName': teamName,
+        'preEnteredEmail': preEnteredEmail,
+        'expiryDate': DateTime.now().add(Duration(days: validityDays)),
+        'isUsed': false,
+        'createdByAdminId': currentUser.uid,
+        'createdAt': DateTime.now(),
+        'usedByUserId': null,
+        'usedAt': null,
+        'roles': roles.map((r) => r.name).toList(),
+      };
+
+      await _firestore.collection('oneTimeCodes').doc(code).set(oneTimeCode);
+      return code;
+    } catch (e) {
+      print('Error generating one-time code: $e');
+      rethrow;
+    }
+  }
+
+  // Validate and retrieve one-time code
+  Future<Map<String, dynamic>?> validateOneTimeCode(String code) async {
+    try {
+      final doc = await _firestore.collection('oneTimeCodes').doc(code).get();
+      
+      if (!doc.exists) {
+        throw Exception('Code not found');
+      }
+
+      final data = doc.data()!;
+      final expiryDate = (data['expiryDate'] as Timestamp).toDate();
+      final isUsed = data['isUsed'] as bool;
+
+      // Check if code is still valid
+      if (isUsed) {
+        throw Exception('Code has already been used');
+      }
+
+      if (DateTime.now().isAfter(expiryDate)) {
+        throw Exception('Code has expired');
+      }
+
+      return {
+        'code': code,
+        'teamName': data['teamName'],
+        'preEnteredEmail': data['preEnteredEmail'],
+        'roles': data['roles'] ?? ['user'],
+      };
+    } catch (e) {
+      print('Error validating one-time code: $e');
+      rethrow;
+    }
+  }
+
+  // Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      print('Error sending password reset email: $e');
+      rethrow;
+    }
+  }
+
+  // Delete user account by admin
+  Future<void> deleteUserAccount(String userId) async {
+    try {
+      // Get user data before deletion for cleanup
+      final userDoc = await _firestore.collection(_usersCollection).doc(userId).get();
+      
+      if (!userDoc.exists) {
+        throw Exception('User not found');
+      }
+
+      // Delete associated documents based on user roles
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final roles = userData['roles'] as List<dynamic>? ?? [];
+
+      // Delete referee data if user is a referee
+      if (roles.contains('referee')) {
+        await _refereeService.deleteRefereeByUserId(userId);
+      }
+
+      // Delete team manager data if user is a team manager
+      if (roles.contains('team_manager')) {
+        await _teamManagerService.deleteTeamManagerByUserId(userId);
+      }
+
+      // Delete managed accounts if user has any
+      await _firestore
+          .collection('managed_accounts')
+          .where('userId', isEqualTo: userId)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.delete();
+            }
+          });
+
+      // Delete user document from Firestore
+      await _firestore.collection(_usersCollection).doc(userId).delete();
+
+      // Delete Firebase Auth user
+      try {
+        final firebaseUser = _firebaseAuth.currentUser;
+        if (firebaseUser != null && firebaseUser.uid == userId) {
+          await firebaseUser.delete();
+        } else {
+          // If trying to delete another user's account, we can't directly delete their auth account
+          // This should only be done if admin has special permissions
+          print('Warning: Could not delete Firebase Auth account for user $userId. User may need to be deleted by Firebase console.');
+        }
+      } catch (e) {
+        print('Warning: Could not delete Firebase Auth account: $e');
+        // Continue with Firestore deletion even if Auth deletion fails
+      }
+
+      print('User account $userId deleted successfully');
+    } catch (e) {
+      print('Error deleting user account: $e');
+      rethrow;
     }
   }
 

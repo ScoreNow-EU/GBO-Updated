@@ -17,6 +17,7 @@ class SeasonManagementScreen extends StatefulWidget {
 
 class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   final TournamentService _tournamentService = TournamentService();
+  final TeamService _teamService = TeamService();
   String selectedSeason = '2026';
   String selectedCategory = 'Alle'; // Filter for Seniors/Juniors
   List<Tournament> tournaments = [];
@@ -82,6 +83,58 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
       description: Text(message),
       autoCloseDuration: const Duration(seconds: 3),
     );
+  }
+
+  // Check if points have been distributed for a tournament
+  bool _arePointsDistributed(Tournament tournament) {
+    // Check if the tournament has results and if any teams have points
+    if (tournament.results == null || tournament.results!.isEmpty) {
+      return false;
+    }
+    
+    // Check if any division has results with points
+    if (tournament.results == null) return false;
+    
+    for (final divisionResults in tournament.results!.values) {
+      for (final teamResult in divisionResults) {
+        // Check if the team has points from this tournament
+        final points = teamResult['points'];
+        if (points != null) {
+          final pointsValue = points is int ? points : (int.tryParse(points.toString()) ?? 0);
+          if (pointsValue > 0) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // More comprehensive check that also looks at team points history
+  Future<bool> _arePointsDistributedComprehensive(Tournament tournament) async {
+    try {
+      // First check tournament results
+      if (_arePointsDistributed(tournament)) {
+        return true;
+      }
+      
+      // If no results in tournament, check if any teams have points from this tournament
+      final allTeams = await _teamService.getAllTeams();
+      for (final team in allTeams) {
+        final hasPointsFromThisTournament = team.pointsHistory.any((entry) => 
+          entry['tournamentId'] == tournament.id
+        );
+        if (hasPointsFromThisTournament) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      print('Error checking points distribution: $e');
+      return false;
+    }
   }
 
   @override
@@ -320,20 +373,55 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(tournament.status),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _getStatusText(tournament.status),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(tournament.status),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _getStatusText(tournament.status),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
+                  if (_arePointsDistributed(tournament)) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 14,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Punkte Verteilt',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

@@ -10,6 +10,7 @@
       "blur-material" : null,
       "layers" : [
         {
+          "blend-mode" : "normal",
           "fill-specializations" : [
             {
               "value" : "automatic"
@@ -21,6 +22,7 @@
               }
             }
           ],
+          "glass" : true,
           "image-name" : "Untitled-2.png",
           "name" : "Untitled-2",
           "position" : {
@@ -32,6 +34,7 @@
           }
         }
       ],
+      "lighting" : "individual",
       "shadow" : {
         "kind" : "layer-color",
         "opacity" : 0.5

@@ -12,7 +12,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Gbo Updated</string>
+	<string>German Beach Open</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,7 +20,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>gbo_updated</string>
+	<string>German Beach Open</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,22 +29,24 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_dartVmService._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Diese App benötigt Zugriff auf die Kamera, um Dokumente zu scannen oder Fotos für den Datenimport aufzunehmen.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Diese App verwendet Face ID für sichere Authentifizierung bei Admin-Bereichen</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Allow Flutter tools on your computer to connect and debug your application. This prompt will not appear on release builds.</string>
-	<key>NSUserNotificationAlertStyle</key>
-	<string>alert</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Diese App benötigt Zugriff auf die Kamera, um Dokumente zu scannen oder Fotos für den Datenimport aufzunehmen.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Diese App benötigt Zugriff auf die Fotobibliothek, um Dokumente und CSV-Dateien für den Datenimport auszuwählen. Ihre Fotos werden nicht gespeichert oder übertragen.</string>
+	<key>NSUserNotificationAlertStyle</key>
+	<string>alert</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Diese App benötigt Benachrichtigungen, um Sie über neue Schiedsrichter-Einladungen und andere wichtige Updates zu informieren.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -66,5 +68,11 @@
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
+	<key>com.apple.developer.in-app-payments</key>
+	<array>
+		<string>merchant.com.scorenow.germanbeachopen</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

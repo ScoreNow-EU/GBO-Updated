@@ -4,7 +4,7 @@ class Player {
   final String id;
   final String firstName;
   final String lastName;
-  final String email;
+  final String? email; // Made optional
   final String? phone;
   final DateTime? birthDate;
   final String? position; // Optional position like 'Blocker', 'Defender', etc.
@@ -18,7 +18,7 @@ class Player {
     required this.id,
     required this.firstName,
     required this.lastName,
-    required this.email,
+    this.email, // Made optional
     this.phone,
     this.birthDate,
     this.position,
@@ -48,26 +48,32 @@ class Player {
   }
 
   static Player fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    
-    return Player(
-      id: doc.id,
-      firstName: data['firstName'] ?? '',
-      lastName: data['lastName'] ?? '',
-      email: data['email'] ?? '',
-      phone: data['phone'],
-      birthDate: data['birthDate'] != null 
-          ? (data['birthDate'] as Timestamp).toDate() 
-          : null,
-      position: data['position'],
-      jerseyNumber: data['jerseyNumber'],
-      clubId: data['clubId'],
-      gender: data['gender'] ?? 'male', // Default to male for backwards compatibility
-      isActive: data['isActive'] ?? true,
-      createdAt: data['createdAt'] != null 
-          ? (data['createdAt'] as Timestamp).toDate() 
-          : DateTime.now(),
-    );
+    try {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      
+      return Player(
+        id: doc.id,
+        firstName: data['firstName'] ?? '',
+        lastName: data['lastName'] ?? '',
+        email: data['email'] ?? null, // Allow null email
+        phone: data['phone'],
+        birthDate: data['birthDate'] != null 
+            ? (data['birthDate'] as Timestamp).toDate() 
+            : null,
+        position: data['position'],
+        jerseyNumber: data['jerseyNumber'],
+        clubId: data['clubId'],
+        gender: data['gender'] ?? 'male', // Default to male for backwards compatibility
+        isActive: data['isActive'] ?? true,
+        createdAt: data['createdAt'] != null 
+            ? (data['createdAt'] as Timestamp).toDate() 
+            : DateTime.now(),
+      );
+    } catch (e) {
+      print('Error parsing player document ${doc.id}: $e');
+      print('Document data: ${doc.data()}');
+      rethrow;
+    }
   }
 
   Player copyWith({

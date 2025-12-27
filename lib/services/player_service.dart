@@ -8,21 +8,23 @@ class PlayerService {
   // Create a new player
   Future<String?> addPlayer(Player player) async {
     try {
-      // Check if email already exists
-      QuerySnapshot existingEmail = await _firestore
-          .collection(_collection)
-          .where('email', isEqualTo: player.email.toLowerCase())
-          .get();
+      // Only check email if it's provided
+      if (player.email != null && player.email!.isNotEmpty) {
+        QuerySnapshot existingEmail = await _firestore
+            .collection(_collection)
+            .where('email', isEqualTo: player.email!.toLowerCase())
+            .get();
 
-      if (existingEmail.docs.isNotEmpty) {
-        throw Exception('Ein Spieler mit dieser E-Mail existiert bereits');
+        if (existingEmail.docs.isNotEmpty) {
+          throw Exception('Ein Spieler mit dieser E-Mail existiert bereits');
+        }
       }
 
-      // Create player with lowercase email for consistency
+      // Create player with optional email
       DocumentReference docRef = await _firestore.collection(_collection).add({
         'firstName': player.firstName,
         'lastName': player.lastName,
-        'email': player.email.toLowerCase(),
+        'email': player.email?.toLowerCase() ?? '',
         'phone': player.phone,
         'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
         'position': player.position,
@@ -42,23 +44,25 @@ class PlayerService {
   // Update an existing player
   Future<bool> updatePlayer(Player updatedPlayer) async {
     try {
-      // Check if email already exists for other players
-      QuerySnapshot existingEmail = await _firestore
-          .collection(_collection)
-          .where('email', isEqualTo: updatedPlayer.email.toLowerCase())
-          .get();
+      // Only check email if it's provided
+      if (updatedPlayer.email != null && updatedPlayer.email!.isNotEmpty) {
+        QuerySnapshot existingEmail = await _firestore
+            .collection(_collection)
+            .where('email', isEqualTo: updatedPlayer.email!.toLowerCase())
+            .get();
 
-      for (var doc in existingEmail.docs) {
-        if (doc.id != updatedPlayer.id) {
-          throw Exception('Ein anderer Spieler mit dieser E-Mail existiert bereits');
+        for (var doc in existingEmail.docs) {
+          if (doc.id != updatedPlayer.id) {
+            throw Exception('Ein anderer Spieler mit dieser E-Mail existiert bereits');
+          }
         }
       }
 
-      // Update with lowercase email and updated timestamp
+      // Update with optional email
       await _firestore.collection(_collection).doc(updatedPlayer.id).update({
         'firstName': updatedPlayer.firstName,
         'lastName': updatedPlayer.lastName,
-        'email': updatedPlayer.email.toLowerCase(),
+        'email': updatedPlayer.email?.toLowerCase() ?? '',
         'phone': updatedPlayer.phone,
         'birthDate': updatedPlayer.birthDate != null ? Timestamp.fromDate(updatedPlayer.birthDate!) : null,
         'position': updatedPlayer.position,
@@ -103,10 +107,26 @@ class PlayerService {
   Stream<List<Player>> getAllPlayers() {
     return _firestore
         .collection(_collection)
-        .orderBy('lastName')
-        .orderBy('firstName')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => Player.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          try {
+            final players = snapshot.docs.map((doc) => Player.fromFirestore(doc)).toList();
+            // Sort in memory instead of using Firestore ordering
+            players.sort((a, b) {
+              final lastNameComparison = a.lastName.compareTo(b.lastName);
+              if (lastNameComparison != 0) return lastNameComparison;
+              return a.firstName.compareTo(b.firstName);
+            });
+            return players;
+          } catch (e) {
+            print('Error mapping players from snapshot: $e');
+            throw e;
+          }
+        })
+        .handleError((error) {
+          print('Error in getAllPlayers stream: $error');
+          throw error;
+        });
   }
 
   // Search players
@@ -116,7 +136,7 @@ class PlayerService {
       return players.where((p) =>
           p.firstName.toLowerCase().contains(term) ||
           p.lastName.toLowerCase().contains(term) ||
-          p.email.toLowerCase().contains(term) ||
+          (p.email?.toLowerCase().contains(term) ?? false) ||
           (p.position?.toLowerCase().contains(term) ?? false) ||
           (p.jerseyNumber?.toLowerCase().contains(term) ?? false)
       ).toList();
@@ -156,22 +176,24 @@ class PlayerService {
     
     for (Player player in players) {
       try {
-        // Check if email already exists
-        QuerySnapshot existingEmail = await _firestore
-            .collection(_collection)
-            .where('email', isEqualTo: player.email.toLowerCase())
-            .get();
+        // Only check email if it's provided
+        if (player.email != null && player.email!.isNotEmpty) {
+          QuerySnapshot existingEmail = await _firestore
+              .collection(_collection)
+              .where('email', isEqualTo: player.email!.toLowerCase())
+              .get();
 
-        if (existingEmail.docs.isNotEmpty) {
-          results.add('FEHLER: Spieler ${player.fullName} - E-Mail bereits vorhanden');
-          continue;
+          if (existingEmail.docs.isNotEmpty) {
+            results.add('FEHLER: Spieler ${player.fullName} - E-Mail bereits vorhanden');
+            continue;
+          }
         }
 
         // Create player
         DocumentReference docRef = await _firestore.collection(_collection).add({
           'firstName': player.firstName,
           'lastName': player.lastName,
-          'email': player.email.toLowerCase(),
+          'email': player.email?.toLowerCase() ?? '',
           'phone': player.phone,
           'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
           'position': player.position,

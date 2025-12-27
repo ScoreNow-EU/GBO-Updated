@@ -10,8 +10,10 @@ import '../utils/app_colors.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
+import '../services/recent_accounts_service.dart';
 import '../models/user.dart' as app_user;
 import '../widgets/login_face_id_overlay.dart';
+import '../widgets/recent_accounts_widget.dart';
 import 'home_screen.dart';
 
 class Sparkle {
@@ -154,12 +156,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final TeamManagerService _teamManagerService = TeamManagerService();
   final AuthService _authService = AuthService();
   final FaceIdService _faceIdService = FaceIdService();
+  final RecentAccountsService _recentAccountsService = RecentAccountsService();
   
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoginMode = true; // Toggle between login and registration
   bool _isOneTimeCodeMode = false; // Toggle for one-time code login
+  bool _isSigningInFromRecentAccount = false; // Track if login is from recent account selection
   
   final _oneTimeCodeController = TextEditingController();
   
@@ -284,74 +288,209 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
               ),
               // Main content
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.all(isMobile ? 16 : 24),
-                  child: AnimatedBuilder(
-                    animation: _fadeAnimation,
-                    builder: (context, child) {
-                      return FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: isMobile ? double.infinity : 450,
-                              maxHeight: screenHeight * 0.9,
-                            ),
-                            child: Card(
-                              elevation: 24,
-                              shadowColor: Colors.black.withOpacity(0.3),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Stack(
-                                children: [
-                                  // Main content area
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      left: isMobile ? 24 : 32,
-                                      right: isMobile ? 24 : 32,
-                                      top: isMobile ? 24 : 32,
-                                      bottom: (isMobile ? 24 : 32) + 8, // Extra padding for flag stripes
-                                    ),
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _buildHeader(isMobile),
-                                          SizedBox(height: isMobile ? 24 : 32),
-                                          _buildLoginForm(isMobile),
-                                          SizedBox(height: isMobile ? 20 : 24),
-                                          _buildLoginButton(isMobile),
-                                          SizedBox(height: isMobile ? 12 : 16),
-                                          _buildRememberMeAndForgotPassword(),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  // German flag stripes at the bottom edge
-                                  Positioned(
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    child: _buildGermanFlagStripes(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
+              _buildMainContent(screenWidth, screenHeight, isMobile),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildMainContent(double screenWidth, double screenHeight, bool isMobile) {
+    final isWideScreen = screenWidth >= ResponsiveHelper.desktopBreakpoint; // 1200px or wider
+    
+    return Stack(
+      children: [
+        // Main login card - always centered
+        Center(
+          child: Padding(
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
+            child: AnimatedBuilder(
+              animation: _fadeAnimation,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isMobile ? double.infinity : 450,
+                        maxHeight: screenHeight * 0.9,
+                      ),
+                      child: _buildLoginCard(isMobile),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        
+        // Recent accounts card - only on wide screens, positioned on left
+        if (isWideScreen)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: AnimatedBuilder(
+                animation: _fadeAnimation,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(-0.3, 0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: _slideController,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: SizedBox(
+                        width: 320,
+                        child: _buildRecentAccountsCard(screenHeight),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLoginCard(bool isMobile) {
+    return Card(
+      elevation: 24,
+      shadowColor: Colors.black.withOpacity(0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Stack(
+        children: [
+          // Main content area
+          Padding(
+            padding: EdgeInsets.only(
+              left: isMobile ? 24 : 32,
+              right: isMobile ? 24 : 32,
+              top: isMobile ? 24 : 32,
+              bottom: (isMobile ? 24 : 32) + 8, // Extra padding for flag stripes
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildHeader(isMobile),
+                  SizedBox(height: isMobile ? 24 : 32),
+                  _buildLoginForm(isMobile),
+                  SizedBox(height: isMobile ? 20 : 24),
+                  _buildLoginButton(isMobile),
+                  SizedBox(height: isMobile ? 12 : 16),
+                  _buildRememberMeAndForgotPassword(),
+                ],
+              ),
+            ),
+          ),
+          // German flag stripes at the bottom edge
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildGermanFlagStripes(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentAccountsCard(double screenHeight) {
+    return FutureBuilder<int>(
+      future: _getRecentAccountsCount(),
+      builder: (context, snapshot) {
+        final accountCount = snapshot.data ?? 0;
+        
+        // Calculate dynamic height based on content
+        double dynamicHeight;
+        if (accountCount == 0) {
+          // Empty state: header + icon + text + padding
+          dynamicHeight = 300; // Slightly more compact empty state
+        } else {
+          // Calculate based on account count with extra buffer
+          // Header (18px) + spacing (16px) + accounts + padding + buffer
+          const headerHeight = 18.0;
+          const spacing = 16.0;
+          const accountCardHeight = 88.0; // Increased from 80 to account for actual size
+          const accountSpacing = 12.0; // Space between account cards
+          const totalPadding = 64.0; // 32px on each side
+          const buffer = 20.0; // Extra buffer to prevent overflow
+          
+          dynamicHeight = totalPadding + headerHeight + spacing + 
+                         (accountCount * accountCardHeight) + 
+                         ((accountCount - 1) * accountSpacing) + buffer;
+        }
+        
+        // Ensure minimum height and respect maximum
+        dynamicHeight = dynamicHeight.clamp(200.0, screenHeight * 0.85);
+        
+        return Card(
+          elevation: 24,
+          shadowColor: Colors.black.withOpacity(0.3),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(24),
+              bottomRight: Radius.circular(24),
+              topLeft: Radius.zero,
+              bottomLeft: Radius.zero,
+            ),
+          ),
+          margin: EdgeInsets.zero,
+          child: Container(
+            height: dynamicHeight,
+            width: 320,
+            padding: const EdgeInsets.all(32),
+            child: RecentAccountsWidget(
+              onAccountSelected: _onRecentAccountSelected,
+              onAccountDeleted: () {
+                // Trigger rebuild to recalculate size
+                setState(() {});
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<int> _getRecentAccountsCount() async {
+    try {
+      final accounts = await _recentAccountsService.getRecentAccounts();
+      return accounts.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<void> _onRecentAccountSelected(String email) async {
+    // Fill the email field with the selected account
+    _emailController.text = email;
+    
+    // Try to get stored password and auto-login
+    final storedPassword = await _recentAccountsService.getStoredPassword(email);
+    if (storedPassword != null && storedPassword.isNotEmpty) {
+      // Set flag to indicate this is a recent account login
+      _isSigningInFromRecentAccount = true;
+      
+      // Auto-fill password and attempt login
+      _passwordController.text = storedPassword;
+      await _handleLogin();
+      
+      // Reset flag after login attempt
+      _isSigningInFromRecentAccount = false;
+    } else {
+      // No stored password, focus on password field for user to enter password
+      FocusScope.of(context).requestFocus(FocusNode());
+    }
   }
 
   Widget _buildHeader(bool isMobile) {
@@ -425,16 +564,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               TextFormField(
                 controller: _oneTimeCodeController,
                 keyboardType: TextInputType.text,
-                textInputAction: TextInputAction.done,
+                textInputAction: TextInputAction.next,
                 textCapitalization: TextCapitalization.characters,
-                maxLength: 6,
+                maxLength: 8,
                 autocorrect: false,
                 enableSuggestions: false,
                 autofillHints: const [AutofillHints.oneTimeCode],
-                onFieldSubmitted: (_) => _handleOneTimeCodeLogin(),
                 decoration: InputDecoration(
                   labelText: 'Einmaliger Code',
-                  hintText: 'ABCD12',
+                  hintText: 'ABC12345',
                   prefixIcon: Icon(
                     Icons.pin,
                     color: Colors.black54,
@@ -456,16 +594,57 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   if (value == null || value.trim().isEmpty) {
                     return 'Bitte geben Sie den einmaligen Code ein';
                   }
-                  if (value.trim().length != 6) {
-                    return 'Der Code muss genau 6 Zeichen lang sein';
+                  if (value.trim().length != 8) {
+                    return 'Der Code muss genau 8 Zeichen lang sein';
                   }
                   return null;
                 },
-                onChanged: (value) {
-                  // Auto-submit when 6 characters are entered
-                  if (value.length == 6) {
-                    _handleOneTimeCodeLogin();
+              ),
+              const SizedBox(height: 20),
+              
+              // Password field for one-time code login
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                keyboardType: TextInputType.visiblePassword,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _handleOneTimeCodeLogin(),
+                decoration: InputDecoration(
+                  labelText: 'Passwort',
+                  hintText: 'Ihr Passwort',
+                  prefixIcon: const Icon(
+                    Icons.lock,
+                    color: Colors.black54,
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.black54,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Bitte geben Sie Ihr Passwort ein';
                   }
+                  if (value.length < 6) {
+                    return 'Das Passwort muss mindestens 6 Zeichen lang sein';
+                  }
+                  return null;
                 },
               ),
               const SizedBox(height: 20),
@@ -906,6 +1085,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           successMessage += ' Willkommen als Schiedsrichter!';
         }
         
+        // Save to recent accounts
+        await _recentAccountsService.addRecentAccount(user, password: _passwordController.text.trim());
+        
         // Trigger iOS password save prompt
         TextInput.finishAutofillContext(shouldSave: true);
         
@@ -964,8 +1146,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     // Check if device supports Face ID
     final isDeviceSupported = await _faceIdService.isDeviceSupported();
+    final isBiometricAvailable = await _faceIdService.isBiometricAvailable();
+    final availableBiometrics = await _faceIdService.getAvailableBiometrics();
     
-    if (isDeviceSupported) {
+    debugPrint('[LoginScreen] Device supported: $isDeviceSupported, Biometric available: $isBiometricAvailable, Available biometrics count: ${availableBiometrics.length}');
+    
+    if (isDeviceSupported && isBiometricAvailable && availableBiometrics.isNotEmpty) {
       // Check if Face ID is already enabled for this email
       final isFaceIdEnabled = await _faceIdService.isFaceIdEnabledForEmail(_emailController.text.trim());
       
@@ -986,6 +1172,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             );
 
             if (user != null) {
+              // Save to recent accounts
+              await _recentAccountsService.addRecentAccount(user, password: _passwordController.text.trim());
+              
               // Trigger iOS password save prompt
               TextInput.finishAutofillContext(shouldSave: true);
               
@@ -1021,11 +1210,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           context,
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          onLoginComplete: (success, message) {
+          onLoginComplete: (success, message) async {
             if (mounted) {
               Navigator.of(context).pop(); // Close the overlay
               
               if (success) {
+                // Get user to save to recent accounts
+                final user = await _authService.getCurrentUser();
+                if (user != null) {
+                  await _recentAccountsService.addRecentAccount(user, password: _passwordController.text.trim());
+                }
+                
                 // Trigger iOS password save prompt
                 TextInput.finishAutofillContext(shouldSave: true);
                 
@@ -1073,6 +1268,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (user != null) {
+        // Only save to recent accounts if this is NOT a recent account login
+        if (!_isSigningInFromRecentAccount) {
+          await _recentAccountsService.addRecentAccount(user, password: _passwordController.text.trim());
+        }
+        
         // Trigger iOS password save prompt
         TextInput.finishAutofillContext(shouldSave: true);
         
@@ -1197,6 +1397,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
 
       if (user != null) {
+        // Save to recent accounts
+        await _recentAccountsService.addRecentAccount(user);
+        
         if (mounted) {
           _showSuccessToast('Erfolgreich mit Einmalcode angemeldet');
           
@@ -1209,7 +1412,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Anmeldung fehlgeschlagen';
-        if (e.toString().contains('Ungültiger oder bereits verwendeter Code')) {
+        if (e.toString().contains('Code')) {
           errorMessage = 'Ungültiger oder bereits verwendeter Code';
         } else if (e.toString().contains('user-not-found')) {
           errorMessage = 'Kein Account für diesen Code gefunden';

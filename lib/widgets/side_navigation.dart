@@ -11,6 +11,7 @@ import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
 import '../services/referee_service.dart';
+import '../screens/app_store_splash_screen.dart';
 
 import '../utils/app_colors.dart';
 import '../utils/version_helper.dart';
@@ -42,7 +43,9 @@ class _SideNavigationState extends State<SideNavigation> {
   bool _isTeamManager = false;
   bool _isLoadingTeams = false;
   List<Tournament> _refereeTournaments = [];
+  List<Tournament> _organizerTournaments = [];
   bool _isLoadingTournaments = false;
+  bool _isLoadingOrganizerTournaments = false;
   Referee? _refereeProfile;
   StreamSubscription<User?>? _authSubscription;
   bool _isAdminExpanded = false;
@@ -84,6 +87,7 @@ class _SideNavigationState extends State<SideNavigation> {
           });
         }
         await _loadRefereeProfile();
+        await _loadOrganizerTournaments();
       } catch (e) {
         // Error loading app user: $e
         if (mounted) {
@@ -245,6 +249,40 @@ class _SideNavigationState extends State<SideNavigation> {
         setState(() {
           _refereeTournaments = [];
           _isLoadingTournaments = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadOrganizerTournaments() async {
+    if (_currentAppUser?.id == null) return;
+
+    if (mounted) {
+      setState(() {
+        _isLoadingOrganizerTournaments = true;
+      });
+    }
+
+    try {
+      print('🔄 Nav: Loading tournaments for organizer: ${_currentAppUser!.fullName}');
+      final allTournaments = await _tournamentService.getTournaments().first;
+      final organizerTournaments = allTournaments.where((tournament) => 
+        tournament.tournamentOrganizerId == _currentAppUser!.id
+      ).toList();
+      
+      print('✅ Nav: Loaded ${organizerTournaments.length} organizer tournaments');
+      if (mounted) {
+        setState(() {
+          _organizerTournaments = organizerTournaments;
+          _isLoadingOrganizerTournaments = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Nav: Error loading organizer tournaments: $e');
+      if (mounted) {
+        setState(() {
+          _organizerTournaments = [];
+          _isLoadingOrganizerTournaments = false;
         });
       }
     }
@@ -473,10 +511,98 @@ class _SideNavigationState extends State<SideNavigation> {
                 if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   const SizedBox(height: 16),
                 
+                // Tournament Organizer Section - Only show if user has tournament organizer role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
+                  _buildTournamentOrganizerSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
+                  const SizedBox(height: 16),
+                
                 // Admin Section - Only show if user has admin role
                 if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true)
                   _buildAdminSection(),
               ],
+            ),
+          ),
+          
+          // Donation Section - Pinned at bottom before version
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.pink.shade400, Colors.red.shade400],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pink.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => widget.onSectionChanged('donation'),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Unterstützen',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Werbefrei halten',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '💝',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           
@@ -749,6 +875,18 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'managed_accounts',
             isSelected: widget.selectedSection == 'managed_accounts',
           ),
+          _buildAdminItem(
+            icon: Icons.volunteer_activism,
+            title: 'Spenden verwalten',
+            key: 'admin_donation_management',
+            isSelected: widget.selectedSection == 'admin_donation_management',
+          ),
+          _buildAdminItem(
+            icon: Icons.key,
+            title: 'Einmalone Codes erstellen',
+            key: 'generate_sign_in_codes',
+            isSelected: widget.selectedSection == 'generate_sign_in_codes',
+          ),
           
           // "Mehr" entry after regular items
           _buildAdminItem(
@@ -796,6 +934,12 @@ class _SideNavigationState extends State<SideNavigation> {
               title: 'Städte Migration',
               key: 'city_migration',
               isSelected: widget.selectedSection == 'city_migration',
+            ),
+            _buildAdminItem(
+              icon: Icons.image,
+              title: 'App Store Splash',
+              key: 'app_store_splash',
+              isSelected: widget.selectedSection == 'app_store_splash',
             ),
           ],
         ],
@@ -916,6 +1060,313 @@ class _SideNavigationState extends State<SideNavigation> {
               ]).expand((x) => x).toList(),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTournamentOrganizerSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D3748),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Tournament Organizer Section Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.event,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'TURNIER ORGANISATOR',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Neues Turnier
+          _buildTournamentOrganizerItem(
+            icon: Icons.add_circle,
+            title: 'Neues Turnier',
+            key: 'new_tournament',
+            isSelected: widget.selectedSection == 'new_tournament',
+          ),
+          
+          // Assigned Tournaments Section
+          if (_organizerTournaments.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Text(
+                'Zugewiesene Turniere',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          
+          // Tournament Items
+          if (_isLoadingOrganizerTournaments)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: const Row(
+                children: [
+                  Spacer(),
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  Spacer(),
+                ],
+              ),
+            )
+          else if (_organizerTournaments.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Keine zugewiesenen Turniere',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: _organizerTournaments.map((tournament) => [
+                _buildOrganizerTournamentItem(
+                  title: '${tournament.name} - ${tournament.location}',
+                  key: 'organizer_tournament_${tournament.id}',
+                  isSelected: widget.selectedSection.startsWith('organizer_tournament_${tournament.id}'),
+                  tournament: tournament,
+                ),
+                // Sub-items for each tournament (always visible)
+                _buildOrganizerTournamentSubItem(
+                  title: 'Bearbeiten',
+                  key: 'organizer_tournament_${tournament.id}_edit',
+                  icon: Icons.edit,
+                  isSelected: widget.selectedSection == 'organizer_tournament_${tournament.id}_edit',
+                ),
+                // Debug: Print tournament info
+                Builder(builder: (context) {
+                  print('Creating TO Software button for tournament: ${tournament.id}');
+                  return _buildOrganizerTournamentSubItem(
+                    title: 'TO Software',
+                    key: 'organizer_tournament_${tournament.id}_to_software',
+                    icon: Icons.computer,
+                    isSelected: widget.selectedSection == 'organizer_tournament_${tournament.id}_to_software',
+                  );
+                }),
+              ]).expand((x) => x).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTournamentOrganizerItem({
+    required IconData icon,
+    required String title,
+    required String key,
+    required bool isSelected,
+    bool isComingSoon = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF1A202C) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.white : Colors.white70,
+          size: 20,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            if (isComingSoon)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Coming Soon',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        onTap: isComingSoon ? null : () {
+          widget.onSectionChanged(key);
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  Widget _buildOrganizerTournamentItem({
+    required String title,
+    required String key,
+    required bool isSelected,
+    required Tournament tournament,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF1A202C) : const Color(0xFF2D3748),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.sports_volleyball,
+            color: const Color(0xFF2D3748),
+            size: 14,
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tournament.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              tournament.location,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        onTap: null, // Tournament items are not clickable
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      ),
+    );
+  }
+
+  Widget _buildOrganizerTournamentSubItem({
+    required String title,
+    required String key,
+    required IconData icon,
+    required bool isSelected,
+    bool isComingSoon = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 1),
+      decoration: isSelected 
+        ? AppColors.selectedItemDecoration.copyWith(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.primaryColorAlt, width: 0.5),
+          )
+        : BoxDecoration(
+            color: const Color(0xFF2D3748),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: AppColors.primaryColorAlt, width: 0.5),
+          ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? AppColors.onPrimary : Colors.white70,
+          size: 14,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected ? AppColors.onPrimary : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            if (isComingSoon)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Coming Soon',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        onTap: isComingSoon ? null : () {
+          print('TO Software clicked with key: $key');
+          widget.onSectionChanged(key);
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
     );
   }

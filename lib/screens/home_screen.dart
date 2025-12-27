@@ -7,11 +7,11 @@ import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
 import '../services/referee_service.dart';
 import '../services/referee_invitation_monitoring_service.dart';
+import '../services/tournament_service.dart';
 import '../widgets/admin_face_id_overlay.dart';
 import '../widgets/mixed_font_title.dart';
 import '../screens/login_screen.dart';
 import '../screens/tournament_management_screen.dart';
-import '../screens/tournament_detail_screen.dart';
 import '../screens/team_management_screen.dart';
 import '../screens/referee_management_screen.dart';
 import '../screens/referee_dashboard_screen.dart';
@@ -30,6 +30,13 @@ import '../screens/scoring_tablet_screen.dart';
 import '../screens/season_management_screen.dart';
 import '../screens/rangliste_screen.dart';
 import '../screens/city_migration_screen.dart';
+import '../screens/tournament_creation_wizard.dart';
+import '../screens/tournament_edit_screen.dart';
+import '../screens/to_software_screen.dart';
+import '../screens/donation_screen.dart';
+import '../screens/admin_donation_management_screen.dart';
+import '../screens/app_store_splash_screen.dart';
+import '../screens/generate_sign_in_codes_screen.dart';
 import '../services/managed_account_service.dart';
 import '../models/managed_account.dart';
 
@@ -45,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   final FaceIdService _faceIdService = FaceIdService();
   final RefereeService _refereeService = RefereeService();
+  final TournamentService _tournamentService = TournamentService();
   final ManagedAccountService _managedAccountService = ManagedAccountService();
   app_user.User? _currentUser;
   bool _isScoringTablet = false;
@@ -184,6 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'user_role_management',
       'kanban_board',
       'city_migration',
+      'generate_sign_in_codes',
     ];
     
     return adminSections.contains(section);
@@ -256,6 +265,28 @@ class _HomeScreenState extends State<HomeScreen> {
           final faceIdEnabled = await _faceIdService.isFaceIdEnabled();
           
           if (faceIdEnabled) {
+            // Check if device has biometrics available before showing overlay
+            final biometricAvailable = await _faceIdService.isBiometricAvailable();
+            final availableBiometrics = await _faceIdService.getAvailableBiometrics();
+            
+            debugPrint('[HomeScreen] Face ID enabled, biometric available: $biometricAvailable, available biometrics count: ${availableBiometrics.length}');
+            
+            if (!biometricAvailable || availableBiometrics.isEmpty) {
+              debugPrint('[HomeScreen] Device does not have available biometrics, skipping Face ID and navigating directly to section');
+              // Device doesn't have biometrics, skip Face ID and go directly to section
+              setState(() {
+                selectedSection = section;
+              });
+              
+              // If navigating to a team section, ensure we show the overview by default
+              if (section.startsWith('team_') && !section.contains('_overview') && !section.contains('_tournaments') && !section.contains('_settings')) {
+                setState(() {
+                  selectedSection = '${section}_overview';
+                });
+              }
+              return;
+            }
+            
             // Show Face ID authentication overlay
             await showAdminFaceIdOverlay(
               context,
@@ -321,6 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
         print('🔄 User updated, refreshing current user...');
         _loadCurrentUser();
       },
+      hideAppBar: selectedSection == 'rangliste', // Hide AppBar for rangliste since it has its own
     );
   }
 
@@ -372,6 +404,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Schiedsrichter Dashboard';
       case 'referee_games':
         return 'Meine Spiele';
+      case 'new_tournament':
+        return 'Neues Turnier';
+      case 'generate_sign_in_codes':
+        return 'Einmalige Anmeldecodes erstellen';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -426,6 +462,20 @@ class _HomeScreenState extends State<HomeScreen> {
         return _currentUser?.refereeId != null
             ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!)
             : const Center(child: Text('Bitte melden Sie sich an.'));
+      case 'new_tournament':
+        return const TournamentCreationWizard();
+      case 'donation':
+        return const DonationScreen();
+      case 'admin_donation_management':
+        return const AdminDonationManagementScreen();
+      case 'generate_sign_in_codes':
+        return const GenerateSignInCodesScreen();
+      case 'app_store_splash':
+        return AppStoreSplashScreen(
+          onComplete: () {
+            Navigator.of(context).pop();
+          },
+        );
     }
 
     // Handle team detail sections (after specific admin sections)
@@ -457,8 +507,121 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
+    // Handle organizer tournament sections
+    if (selectedSection.startsWith('organizer_tournament_')) {
+      print('Handling organizer tournament section: $selectedSection');
+      
+      // More robust parsing that handles special characters in tournament ID
+      final prefix = 'organizer_tournament_';
+      final suffix = selectedSection.substring(prefix.length);
+      
+      // Check for specific subsections to avoid issues with underscores in tournament ID
+      String? tournamentId;
+      String? subSection;
+      
+      if (suffix.endsWith('_to_software')) {
+        tournamentId = suffix.substring(0, suffix.length - '_to_software'.length);
+        subSection = 'to_software';
+      } else if (suffix.endsWith('_edit')) {
+        tournamentId = suffix.substring(0, suffix.length - '_edit'.length);
+        subSection = 'edit';
+      }
+      
+      if (tournamentId != null && subSection != null) {
+        
+        print('Tournament ID: $tournamentId, SubSection: $subSection');
+        
+        if (subSection == 'edit') {
+          // Navigate to tournament edit screen as full screen
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigateToTournamentEdit(tournamentId!);
+          });
+          // Return a placeholder while navigation happens
+          return const Center(
+            child: Text('Weiterleitung zum Turnier Editor...'),
+          );
+        } else if (subSection == 'to_software') {
+          print('Navigating to TO Software for tournament: $tournamentId');
+          // Navigate to TO Software screen as full screen
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigateToTOSoftware(tournamentId!);
+          });
+          // Return a placeholder while navigation happens
+          return const Center(
+            child: Text('Weiterleitung zur TO Software...'),
+          );
+        }
+      }
+    }
+
     // Default fallback
     return const TournamentOverview();
+  }
+
+  void _navigateToTournamentEdit(String tournamentId) async {
+    try {
+      final tournament = await _tournamentService.getTournamentById(tournamentId);
+      if (tournament != null && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => TournamentEditScreen(tournament: tournament),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Turnier nicht gefunden'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Laden des Turniers: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _navigateToTOSoftware(String tournamentId) async {
+    print('_navigateToTOSoftware called with tournamentId: $tournamentId');
+    try {
+      final tournament = await _tournamentService.getTournamentById(tournamentId);
+      print('Tournament found: ${tournament?.name}');
+      if (tournament != null && mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => TOSoftwareScreen(tournament: tournament),
+          ),
+        );
+      } else {
+        print('Tournament not found for ID: $tournamentId');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Turnier nicht gefunden'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error in _navigateToTOSoftware: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fehler beim Laden des Turniers: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
 
