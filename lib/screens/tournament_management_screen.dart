@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/tournament.dart';
+import '../models/user.dart' as app_user;
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
 import '../utils/responsive_helper.dart';
@@ -8,7 +9,9 @@ import 'tournament_creation_wizard.dart';
 import 'package:toastification/toastification.dart';
 
 class TournamentManagementScreen extends StatefulWidget {
-  const TournamentManagementScreen({super.key});
+  final app_user.User? currentUser;
+  
+  const TournamentManagementScreen({super.key, this.currentUser});
 
   @override
   State<TournamentManagementScreen> createState() => _TournamentManagementScreenState();
@@ -108,8 +111,18 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                   );
                 }
 
+                // Check if user is admin or series organizer
+                final isAdminOrOrganizer = widget.currentUser != null && 
+                    (widget.currentUser!.roles.contains(app_user.UserRole.admin) ||
+                     widget.currentUser!.roles.contains(app_user.UserRole.seriesOrganizer));
+                
                 // Filter tournaments by season and divisions
                 List<Tournament> filteredTournaments = snapshot.data!.where((tournament) {
+                  // Filter out pending/rejected tournaments for non-admins
+                  if (!isAdminOrOrganizer && tournament.approvalStatus != 'approved') {
+                    return false;
+                  }
+                  
                   // First filter by season
                   if (tournament.season != _selectedSeason) {
                     return false;
@@ -456,6 +469,55 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                       runSpacing: 4,
                       children: [
                         _buildProminentStatusBadge(tournament.status),
+                        // Show approval status badge for admins
+                        if (tournament.approvalStatus == 'pending_approval')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.orange.shade300, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.pending, size: 14, color: Colors.orange.shade700),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Entwurf',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (tournament.approvalStatus == 'rejected')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade300, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.cancel, size: 14, color: Colors.red.shade700),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Abgelehnt',
+                                  style: TextStyle(
+                                    color: Colors.red.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(

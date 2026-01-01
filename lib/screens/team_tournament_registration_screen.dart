@@ -554,8 +554,9 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
       default:
         return _tournamentService.getTournamentsWithCache().map((tournaments) => 
             tournaments.where((tournament) => 
-                tournament.divisions.contains(widget.team.division) ||
-                tournament.isTeamRegistered(widget.team.id)
+                tournament.approvalStatus == 'approved' &&
+                (tournament.divisions.contains(widget.team.division) ||
+                tournament.isTeamRegistered(widget.team.id))
             ).toList());
     }
   }

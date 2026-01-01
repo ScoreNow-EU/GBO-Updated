@@ -834,6 +834,12 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'tournament_management',
           ),
           _buildAdminItem(
+            icon: Icons.check_circle,
+            title: 'Turnier-Freigaben',
+            key: 'tournament_approval',
+            isSelected: widget.selectedSection == 'tournament_approval',
+          ),
+          _buildAdminItem(
             icon: Icons.group,
             title: 'Team Management',
             key: 'team_management',
@@ -941,6 +947,12 @@ class _SideNavigationState extends State<SideNavigation> {
               title: 'App Store Splash',
               key: 'app_store_splash',
               isSelected: widget.selectedSection == 'app_store_splash',
+            ),
+            _buildAdminItem(
+              icon: Icons.data_array,
+              title: 'Demo Daten Erstellen',
+              key: 'demo_data',
+              isSelected: widget.selectedSection == 'demo_data',
             ),
           ],
         ],

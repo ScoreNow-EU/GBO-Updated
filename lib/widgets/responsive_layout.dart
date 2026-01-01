@@ -13,6 +13,7 @@ class ResponsiveLayout extends StatefulWidget {
   final bool showBackButton;
   final VoidCallback? onBackPressed;
   final bool hideAppBar; // New parameter to hide AppBar when body has its own
+  final Widget? ticker; // Optional ticker widget to show at top (desktop only)
 
   const ResponsiveLayout({
     super.key,
@@ -25,6 +26,7 @@ class ResponsiveLayout extends StatefulWidget {
     this.showBackButton = false,
     this.onBackPressed,
     this.hideAppBar = false,
+    this.ticker,
   });
 
   @override
@@ -102,6 +104,8 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
           Expanded(
             child: Column(
               children: [
+                if (!isMobile && widget.ticker != null)
+                  widget.ticker!,
                 if (!isMobile && widget.showBackButton)
                   Container(
                     height: 60,

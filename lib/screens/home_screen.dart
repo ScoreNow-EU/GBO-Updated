@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/tournament_overview.dart';
+import '../widgets/live_games_ticker.dart';
 import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
@@ -32,6 +33,8 @@ import '../screens/rangliste_screen.dart';
 import '../screens/city_migration_screen.dart';
 import '../screens/tournament_creation_wizard.dart';
 import '../screens/tournament_edit_screen.dart';
+import '../screens/tournament_approval_screen.dart';
+import '../screens/demo_data_screen.dart';
 import '../screens/to_software_screen.dart';
 import '../screens/donation_screen.dart';
 import '../screens/admin_donation_management_screen.dart';
@@ -346,6 +349,9 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       title: _getScreenTitle(),
       body: _buildMainContent(),
+      ticker: (selectedSection == 'turniere' || selectedSection == 'rangliste') 
+          ? const LiveGamesTicker() 
+          : null,
       currentUser: _currentUser,
       onUserUpdated: () {
         // Refresh current user after auto-linking
@@ -380,6 +386,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Preset Verwaltung';
       case 'tournament_management':
         return 'Tournament Management';
+      case 'tournament_approval':
+        return 'Turnier-Freigaben';
       case 'team_management':
         return 'Team Management';
       case 'referee_management':
@@ -408,6 +416,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Neues Turnier';
       case 'generate_sign_in_codes':
         return 'Einmalige Anmeldecodes erstellen';
+      case 'demo_data':
+        return 'Demo Daten Erstellen';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -429,7 +439,11 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'preset_management':
         return const PresetManagementScreen();
       case 'tournament_management':
-        return const TournamentManagementScreen();
+        return TournamentManagementScreen(currentUser: _currentUser);
+      case 'tournament_approval':
+        return _currentUser != null
+            ? TournamentApprovalScreen(currentUser: _currentUser!)
+            : const Center(child: Text('Bitte melden Sie sich an.'));
       case 'team_management':
         return const TeamManagementScreen();
       case 'referee_management':
@@ -477,6 +491,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Navigator.of(context).pop();
           },
         );
+      case 'demo_data':
+        return const DemoDataScreen();
     }
 
     // Handle team detail sections (after specific admin sections)

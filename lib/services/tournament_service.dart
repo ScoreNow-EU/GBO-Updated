@@ -800,6 +800,7 @@ class TournamentService {
   Stream<List<Tournament>> getTournamentsForTeamRegistration(String teamDivision) {
     return getTournamentsWithCache().map((tournaments) => 
         tournaments.where((tournament) => 
+            tournament.approvalStatus == 'approved' &&
             tournament.isRegistrationOpen && 
             tournament.divisions.contains(teamDivision) &&
             tournament.status == 'upcoming' &&

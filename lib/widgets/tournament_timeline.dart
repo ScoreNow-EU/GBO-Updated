@@ -63,6 +63,11 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
         String seasonFilter = widget.selectedSeason ?? '2025';
         List<Tournament> filteredTournaments = snapshot.data!
             .where((tournament) {
+              // Filter out non-approved tournaments from public view
+              if (tournament.approvalStatus != 'approved') {
+                return false;
+              }
+              
               // Filter by category and season
               bool matchesCategory = categoryFilter == 'Alle' || tournament.hasCategory(categoryFilter);
               bool matchesSeason = tournament.season == seasonFilter;

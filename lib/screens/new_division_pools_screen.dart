@@ -311,17 +311,31 @@ class _NewDivisionPoolsScreenState extends State<NewDivisionPoolsScreen> {
     try {
       setState(() => _isLoading = true);
       
-      // Load all teams and filter for this tournament
+      // Load all teams
       final allTeams = await _teamService.getTeams().first;
-      final teams = allTeams.where((team) => widget.tournament.teamIds.contains(team.id)).toList();
       
-      // Group teams by division
+      // Group teams by division using the tournament's divisionTeams map
       final Map<String, List<Team>> groupedTeams = {};
-      for (final team in teams) {
-        if (!groupedTeams.containsKey(team.division)) {
-          groupedTeams[team.division] = [];
+      
+      // Use divisionTeams if available, otherwise fall back to teamIds with division grouping
+      if (widget.tournament.divisionTeams.isNotEmpty) {
+        // Use the proper divisionTeams mapping
+        for (final division in widget.tournament.divisionTeams.keys) {
+          final teamIdsInDivision = widget.tournament.divisionTeams[division] ?? [];
+          final teamsInDivision = allTeams.where((team) => teamIdsInDivision.contains(team.id)).toList();
+          if (teamsInDivision.isNotEmpty) {
+            groupedTeams[division] = teamsInDivision;
+          }
         }
-        groupedTeams[team.division]!.add(team);
+      } else {
+        // Fallback: group by team's own division field
+        final teams = allTeams.where((team) => widget.tournament.teamIds.contains(team.id)).toList();
+        for (final team in teams) {
+          if (!groupedTeams.containsKey(team.division)) {
+            groupedTeams[team.division] = [];
+          }
+          groupedTeams[team.division]!.add(team);
+        }
       }
       
       // Load saved state if exists

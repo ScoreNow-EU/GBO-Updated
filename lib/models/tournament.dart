@@ -340,6 +340,11 @@ class Tournament {
   final Map<String, List<Map<String, dynamic>>>? results; // division -> list of team results
   final String? tournamentOrganizerId; // ID of the tournament organizer
   final List<TournamentLink> links; // Custom links for Ausschreibungen/AGBs and social media
+  // Approval workflow fields
+  final String approvalStatus; // 'pending_approval', 'approved', 'rejected'
+  final String? approvedBy; // User ID who approved/rejected
+  final DateTime? approvedAt; // When it was approved/rejected
+  final String? rejectionReason; // Reason for rejection if rejected
 
   // Static method to determine season
   static String determineSeason(DateTime startDate) {
@@ -380,6 +385,10 @@ class Tournament {
     this.results,
     this.tournamentOrganizerId,
     this.links = const [],
+    this.approvalStatus = 'pending_approval',
+    this.approvedBy,
+    this.approvedAt,
+    this.rejectionReason,
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -399,6 +408,11 @@ class Tournament {
   bool get isJuniors => categories.contains('GBO Juniors Cup');
   
   bool get isSeniors => categories.contains('GBO Seniors Cup');
+  
+  // Approval status helpers
+  bool get isPendingApproval => approvalStatus == 'pending_approval';
+  bool get isApproved => approvalStatus == 'approved';
+  bool get isRejected => approvalStatus == 'rejected';
 
   // Get start date for specific category or fallback to main startDate
   DateTime getStartDateForCategory(String category) {
@@ -555,6 +569,10 @@ class Tournament {
       'results': results,
       'tournamentOrganizerId': tournamentOrganizerId,
       'links': links.map((link) => link.toFirestore()).toList(),
+      'approvalStatus': approvalStatus,
+      'approvedBy': approvedBy,
+      'approvedAt': approvedAt?.millisecondsSinceEpoch,
+      'rejectionReason': rejectionReason,
     };
   }
 
@@ -648,6 +666,12 @@ class Tournament {
       divisionMaxTeams: map['divisionMaxTeams'] != null
         ? Map<String, int>.from(map['divisionMaxTeams'])
         : {},
+      approvalStatus: map['approvalStatus'] ?? 'pending_approval',
+      approvedBy: map['approvedBy'],
+      approvedAt: map['approvedAt'] != null
+        ? DateTime.fromMillisecondsSinceEpoch(map['approvedAt'])
+        : null,
+      rejectionReason: map['rejectionReason'],
       isRegistrationOpen: map['isRegistrationOpen'] ?? true,
       registrationDeadline: map['registrationDeadline'] != null
         ? _convertToDateTime(map['registrationDeadline'])
@@ -727,6 +751,10 @@ class Tournament {
     Map<String, List<Map<String, dynamic>>>? results,
     String? tournamentOrganizerId,
     List<TournamentLink>? links,
+    String? approvalStatus,
+    String? approvedBy,
+    DateTime? approvedAt,
+    String? rejectionReason,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -760,6 +788,10 @@ class Tournament {
       results: results ?? this.results,
       tournamentOrganizerId: tournamentOrganizerId ?? this.tournamentOrganizerId,
       links: links ?? List.from(this.links),
+      approvalStatus: approvalStatus ?? this.approvalStatus,
+      approvedBy: approvedBy ?? this.approvedBy,
+      approvedAt: approvedAt ?? this.approvedAt,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 } 

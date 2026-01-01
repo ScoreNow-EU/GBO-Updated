@@ -8,6 +8,7 @@ import '../models/user.dart' as app_user;
 import '../services/tournament_service.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
+import 'tournament_creation_success_screen.dart';
 
 // Helper widget for section titles
 Widget _buildSectionTitle(String title) {
@@ -51,7 +52,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
     _cityController = TextEditingController();
-    _bundeslandController = TextEditingController(text: 'Baden-Württemberg');
+    _bundeslandController = TextEditingController();
   }
 
 
@@ -360,6 +361,54 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                     final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
                     return cities.take(10);
                   },
+                  optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<City> onSelected, Iterable<City> options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final City option = options.elementAt(index);
+                              return InkWell(
+                                onTap: () {
+                                  onSelected(option);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.location_city, size: 20, color: Colors.grey),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              option.name,
+                                              style: const TextStyle(fontWeight: FontWeight.w500),
+                                            ),
+                                            Text(
+                                              option.state,
+                                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                   onSelected: (City selection) {
                     if (mounted) {
                       setState(() {
@@ -400,11 +449,11 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                         return null;
                       },
                       onChanged: (value) {
-                        _cityController.text = value;
+                        // Only clear the selected city and bundesland if the text no longer matches
                         if (_selectedCity != null && value != _selectedCity!.name) {
                           setState(() {
                             _selectedCity = null;
-                            _bundeslandController.text = '';
+                            _bundeslandController.clear();
                           });
                         }
                       },
@@ -1499,6 +1548,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     if (date != null) {
       setState(() {
         _startDate = date;
+        // Update the text controller to show the selected date
+        _startDateController.text = '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
       });
     }
   }
@@ -1536,6 +1587,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     if (date != null) {
       setState(() {
         _endDate = date;
+        // Update the text controller to show the selected date
+        _endDateController.text = '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
       });
     }
   }
@@ -1658,16 +1711,18 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
         points: 0,
         status: 'upcoming',
         tournamentOrganizerId: tournamentOrganizerId,
+        approvalStatus: 'pending_approval', // Set to pending approval
       );
 
-      await TournamentService().addTournament(tournament);
+      final createdTournament = await TournamentService().createTournament(tournament);
 
       if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Turnier erfolgreich erstellt'),
-            backgroundColor: Colors.green,
+        // Navigate to success screen, replacing the wizard in the stack
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => TournamentCreationSuccessScreen(
+              tournament: createdTournament,
+            ),
           ),
         );
       }

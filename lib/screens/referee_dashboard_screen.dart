@@ -5,9 +5,7 @@ import '../models/referee.dart';
 import '../models/tournament.dart';
 import '../services/referee_service.dart';
 import '../services/tournament_service.dart';
-import '../services/referee_invitation_monitoring_service.dart';
 import '../widgets/referee_invitation_bottom_overlay.dart';
-import '../widgets/notification_status_widget.dart';
 
 class RefereeDashboardScreen extends StatefulWidget {
   final app_user.User currentUser;
@@ -39,7 +37,6 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Pending invitations will be checked after referee profile is loaded
-    print('🏁 Referee dashboard loaded, waiting for profile to load...');
   }
 
   @override
@@ -51,24 +48,15 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
   Future<void> _loadRefereeProfile() async {
     if (widget.currentUser.refereeId != null) {
       try {
-        print('📝 Loading referee profile for ID: ${widget.currentUser.refereeId}');
         _refereeProfile = await _refereeService.getRefereeById(widget.currentUser.refereeId!);
         if (_refereeProfile != null) {
-          print('✅ Referee profile loaded: ${_refereeProfile!.fullName}');
-          print('   - Initial pending invitations array: ${_refereeProfile!.invitationsPending}');
-          print('   - Initial pending count: ${_refereeProfile!.pendingInvitationsCount}');
-          
           // Note: Monitoring is now handled globally in HomeScreen
           // Check for pending invitations after profile is loaded
           _checkForPendingInvitations();
-        } else {
-          print('❌ Referee profile not found');
         }
       } catch (e) {
-        print('❌ Error loading referee profile: $e');
+        // Error loading referee profile
       }
-    } else {
-      print('❌ No referee ID found for user: ${widget.currentUser.fullName}');
     }
     setState(() {
       _isLoading = false;
@@ -77,40 +65,19 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
 
   Future<void> _checkForPendingInvitations() async {
     if (_refereeProfile == null) {
-      print('❌ Cannot check pending invitations - referee profile is null');
       return;
     }
 
-    print('🔍 Checking pending invitations for referee: ${_refereeProfile!.fullName} (ID: ${_refereeProfile!.id})');
-
     try {
       // First, ensure the referee's pending invitations are synced
-      print('🔄 Syncing referee pending invitations...');
       await _tournamentService.syncAllRefereesPendingInvitationsCount();
       
       // Reload referee profile to get updated pending invitations
-      print('🔄 Reloading referee profile...');
       _refereeProfile = await _refereeService.getRefereeById(_refereeProfile!.id);
       
       // Get pending tournaments from tournament service
-      print('🔄 Getting pending tournaments...');
       final pendingStream = _tournamentService.getPendingInvitationsForReferee(_refereeProfile!.id);
       final pendingTournaments = await pendingStream.first;
-
-      print('📊 RESULTS:');
-      print('   - Referee: ${_refereeProfile!.fullName}');
-      print('   - Pending tournaments count: ${pendingTournaments.length}');
-      print('   - Referee pending array: ${_refereeProfile!.invitationsPending}');
-      
-      if (pendingTournaments.isNotEmpty) {
-        print('   - Tournament details:');
-        for (int i = 0; i < pendingTournaments.length; i++) {
-          final tournament = pendingTournaments[i];
-          print('     ${i + 1}. ${tournament.name} (ID: ${tournament.id})');
-        }
-      } else {
-        print('   ✅ No pending invitations found');
-      }
 
       // Store pending tournaments for dashboard display
       setState(() {
@@ -118,7 +85,6 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
       });
       
       if (pendingTournaments.isNotEmpty && mounted && !_showPendingCard) {
-        print('🔔 Showing bottom overlay for ${pendingTournaments.length} pending invitations');
         // Show the bottom overlay only if card is not already shown
         showGeneralDialog(
           context: context,
@@ -129,12 +95,10 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
               pendingTournaments: pendingTournaments,
               refereeId: _refereeProfile!.id,
               onCompleted: () {
-                print('✅ Referee responded to invitation, refreshing profile...');
                 // Refresh the dashboard data after responding to invitations
                 _loadRefereeProfile();
               },
               onPending: () {
-                print('⏳ Referee chose "Später entscheiden", showing card...');
                 // Show the card and close the bottom sheet
                 setState(() {
                   _showPendingCard = true;
@@ -144,13 +108,12 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
           },
         );
       } else if (pendingTournaments.isEmpty) {
-        print('✅ No pending invitations found');
         setState(() {
           _showPendingCard = false;
         });
       }
     } catch (e) {
-      print('❌ Error checking for pending invitations: $e');
+      // Error checking for pending invitations
     }
   }
 
@@ -166,12 +129,10 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
           pendingTournaments: _pendingTournaments,
           refereeId: _refereeProfile!.id,
           onCompleted: () {
-            print('✅ Referee responded to invitation, refreshing profile...');
             // Refresh the dashboard data after responding to invitations
             _loadRefereeProfile();
           },
           onPending: () {
-            print('⏳ Referee chose "Später entscheiden" from card, keeping card visible...');
             // Keep the card visible since they clicked from the card
             setState(() {
               _showPendingCard = true;
@@ -373,11 +334,6 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
               ),
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // Notification Status (Debug Widget)
-          if (_refereeProfile != null) const NotificationStatusWidget(),
 
           const SizedBox(height: 24),
 
