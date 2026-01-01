@@ -1,9 +1,0 @@
----
-description: Do NOT do the following commands. Just tell me with a attention attraction emoji, that I should do that myself only if really, really necessary. flutter run, flutter clean, pod install.
-globs:
-alwaysApply: true
----
-Do NOT do the following commands. Just tell me with a attention attraction emoji, that I should do that myself only if really, really necessary. 
-flutter run, 
-flutter clean, 
-pod install.

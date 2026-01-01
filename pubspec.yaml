@@ -68,13 +68,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - logo.png
-    - logo_ball.png
-    - logo_ball_half.png
     - assets/icon.png
-    - assets/palm_left.png
-    - assets/palm_right.png
-    - assets/sparkles.png
+    - assets/palm_left.avif
+    - assets/palm_right.avif
+    - assets/sparkles.png.avif
 
   fonts:
     - family: CasanovaScotia
