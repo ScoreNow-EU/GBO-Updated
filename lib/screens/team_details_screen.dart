@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/player.dart';
-import '../models/club.dart';
 import '../services/player_service.dart';
-import '../services/club_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
@@ -22,9 +20,7 @@ class TeamDetailsScreen extends StatefulWidget {
 
 class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
   final PlayerService _playerService = PlayerService();
-  final ClubService _clubService = ClubService();
   
-  Club? teamClub;
   List<Player> rosterPlayers = [];
   bool isLoading = true;
 
@@ -38,11 +34,6 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
     setState(() => isLoading = true);
     
     try {
-      // Load club details if team has a club
-      if (widget.team.clubId != null) {
-        teamClub = await _clubService.getClub(widget.team.clubId!);
-      }
-      
       // Load roster players
       if (widget.team.rosterPlayerIds.isNotEmpty) {
         for (String playerId in widget.team.rosterPlayerIds) {
@@ -71,37 +62,8 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
     );
   }
 
-  Color _getDivisionColor(String division) {
-    switch (division.toLowerCase()) {
-      case 'men\'s seniors':
-      case 'mens seniors':
-        return Colors.blue;
-      case 'women\'s seniors':
-      case 'womens seniors':
-        return Colors.pink;
-      case 'men\'s u18':
-      case 'mens u18':
-        return Colors.green;
-      case 'women\'s u18':
-      case 'womens u18':
-        return Colors.purple;
-      case 'men\'s u16':
-      case 'mens u16':
-        return Colors.orange;
-      case 'women\'s u16':
-      case 'womens u16':
-        return Colors.teal;
-      case 'men\'s u14':
-      case 'mens u14':
-        return Colors.red;
-      case 'women\'s u14':
-      case 'womens u14':
-        return Colors.indigo;
-      case 'fun':
-        return Colors.amber;
-      default:
-        return Colors.grey;
-    }
+  Color _getCategoryColor(String category) {
+    return Colors.blue; // Single league (RHBL)
   }
 
   @override
@@ -142,12 +104,6 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                   _buildTeamInformation(),
                   const SizedBox(height: 24),
                   
-                  // Club Information
-                  if (teamClub != null) ...[
-                    _buildClubInformation(),
-                    const SizedBox(height: 24),
-                  ],
-                  
                   // Roster
                   if (rosterPlayers.isNotEmpty) ...[
                     _buildRosterSection(),
@@ -163,7 +119,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
   }
 
   Widget _buildTeamHeader() {
-    final divisionColor = _getDivisionColor(widget.team.division);
+    final categoryColor = _getCategoryColor(widget.team.bundesland);
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -226,16 +182,16 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: divisionColor.withOpacity(0.1),
+                    color: categoryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: divisionColor.withOpacity(0.3)),
+                    border: Border.all(color: categoryColor.withOpacity(0.3)),
                   ),
                   child: Text(
-                    widget.team.division,
+                    widget.team.city,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: divisionColor,
+                      color: categoryColor,
                     ),
                   ),
                 ),
@@ -333,44 +289,6 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
     );
   }
 
-  Widget _buildClubInformation() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Verein',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          _buildInfoRow('Name', teamClub!.name),
-          _buildInfoRow('Standort', '${teamClub!.city}, ${teamClub!.bundesland}'),
-          if (teamClub!.contactEmail != null) _buildInfoRow('E-Mail', teamClub!.contactEmail!),
-          if (teamClub!.contactPhone != null) _buildInfoRow('Telefon', teamClub!.contactPhone!),
-          if (teamClub!.website != null) _buildInfoRow('Website', teamClub!.website!),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRosterSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -451,9 +369,9 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (player.position != null) ...[
+                if (player.classification != null) ...[
                   Text(
-                    'Position: ${player.position}',
+                    'Klassifikation: ${player.classification}',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade600,
@@ -546,7 +464,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                       color: Colors.grey.shade300,
                       child: const Center(
                         child: Text(
-                          'Nur die besten 3 Ergebnisse zählen zur Rangliste',
+                          'Nur die besten 3 Ergebnisse zÃ¤hlen zur Rangliste',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
@@ -694,7 +612,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
 
   Widget _buildDefaultTeamIcon() {
     return const Icon(
-      Icons.sports_volleyball,
+      Icons.sports_handball,
       color: AppColors.primaryColor,
       size: 40,
     );

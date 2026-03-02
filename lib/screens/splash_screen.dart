@@ -102,7 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ],
                         ),
                         child: Icon(
-                          Icons.sports_volleyball,
+                          Icons.sports_handball,
                           size: isTablet ? 80 : 60,
                           color: Colors.white,
                         ),
@@ -111,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                       // Title
                       Text(
-                        'German Beach Open',
+                        'Rollstuhlhandball Bundesliga',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           color: Colors.white,

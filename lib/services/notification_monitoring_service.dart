@@ -11,7 +11,7 @@ import '../services/auth_service.dart';
 class NotificationMonitoringService {
   static const String _prefKeyLastCheck = 'lastNotificationCheck';
   static const String _prefKeyCurrentUserEmail = 'currentUserEmail';
-  static const String _channelId = 'gbo_notifications';
+  static const String _channelId = 'rhbl_notifications';
   
   static final FlutterLocalNotificationsPlugin _localNotifications = 
       FlutterLocalNotificationsPlugin();
@@ -209,8 +209,8 @@ class NotificationMonitoringService {
       final notificationDetails = NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
-          'GBO Benachrichtigungen',
-          channelDescription: 'Benachrichtigungen von der GBO App',
+          'RHBL Benachrichtigungen',
+          channelDescription: 'Benachrichtigungen von der RHBL App',
           importance: isTimeSensitive ? Importance.max : Importance.high,
           priority: isTimeSensitive ? Priority.max : Priority.high,
           showWhen: true,

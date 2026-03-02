@@ -60,7 +60,7 @@ class WallpaperScreen extends StatelessWidget {
                   
                   // Title
                   Text(
-                    'German Beach Open',
+                    'Rollstuhlhandball Bundesliga',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: Colors.white,
@@ -164,7 +164,7 @@ class WallpaperScreen extends StatelessWidget {
                       
                       // Title
                       Text(
-                        'German Beach Open',
+                        'Rollstuhlhandball Bundesliga',
                         style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -236,7 +236,7 @@ class WallpaperScreen extends StatelessWidget {
       ),
       child: Center(
         child: Icon(
-          Icons.sports_volleyball,
+          Icons.sports_handball,
           size: 60,
           color: Colors.white,
         ),

@@ -19,21 +19,11 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
   String selectedSeason = '2026';
-  String selectedCategory = 'Alle'; // Filter for Seniors/Juniors
   List<Tournament> tournaments = [];
   bool isLoading = true;
 
   // Available seasons
   final List<String> availableSeasons = ['2025', '2026', '2027'];
-  
-  // Available categories for filtering
-  final List<String> availableCategories = [
-    'Alle', 
-    'GBO Seniors Cup', 
-    'GBO Juniors Cup', 
-    'Seniors Kombination', 
-    'Juniors Kombination'
-  ];
 
   @override
   void initState() {
@@ -48,12 +38,6 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
       setState(() {
         tournaments = allTournaments
             .where((tournament) => tournament.season == selectedSeason)
-            .where((tournament) => 
-                selectedCategory == 'Alle' || 
-                tournament.categories.contains(selectedCategory) ||
-                (selectedCategory == 'Seniors Kombination' && tournament.categories.length > 1 && tournament.isSeniors) ||
-                (selectedCategory == 'Juniors Kombination' && tournament.categories.length > 1 && tournament.isJuniors)
-            )
             .toList();
         isLoading = false;
       });
@@ -92,11 +76,11 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
       return false;
     }
     
-    // Check if any division has results with points
+    // Check if any category has results with points
     if (tournament.results == null) return false;
     
-    for (final divisionResults in tournament.results!.values) {
-      for (final teamResult in divisionResults) {
+    for (final categoryResults in tournament.results!.values) {
+      for (final teamResult in categoryResults) {
         // Check if the team has points from this tournament
         final points = teamResult['points'];
         if (points != null) {
@@ -151,8 +135,8 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
           _buildHeader(isMobile),
           const SizedBox(height: 24),
 
-          // Season and Category Navigation Bar
-          _buildSeasonAndCategoryNavigationBar(),
+          // Season Navigation Bar
+          _buildSeasonNavigationBar(),
           const SizedBox(height: 24),
 
           // Content
@@ -208,7 +192,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
     );
   }
 
-  Widget _buildSeasonAndCategoryNavigationBar() {
+  Widget _buildSeasonNavigationBar() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -251,46 +235,6 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
               );
             }).toList(),
           ),
-          
-          const SizedBox(height: 12),
-          
-          // Category Selection
-          Row(
-            children: availableCategories.map((category) {
-              final isSelected = category == selectedCategory;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        selectedCategory = category;
-                      });
-                      _loadTournaments();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.green : Colors.white,
-                      foregroundColor: isSelected ? Colors.white : Colors.green,
-                      side: BorderSide(
-                        color: isSelected ? Colors.green : Colors.grey.shade300,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: Text(
-                      category == 'Alle' ? 'Alle' : 
-                      category == 'GBO Seniors Cup' ? 'Seniors' : 
-                      category == 'GBO Juniors Cup' ? 'Juniors' : 
-                      category == 'Seniors Kombination' ? 'Seniors Kombination' : 
-                      'Juniors Kombination',
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
         ],
       ),
     );
@@ -303,13 +247,13 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.sports_volleyball,
+              Icons.sports_handball,
               size: 64,
               color: Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
             Text(
-              'Keine Turniere für Saison $selectedSeason gefunden',
+              'Keine Turniere fÃ¼r Saison $selectedSeason gefunden',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -364,7 +308,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${tournament.location} • ${tournament.startDate.toString().split(' ')[0]}',
+                      '${tournament.location} â€¢ ${tournament.startDate.toString().split(' ')[0]}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -433,13 +377,6 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
             children: [
               Expanded(
                 child: _buildDetailItem(
-                  icon: Icons.category,
-                  label: 'Kategorie',
-                  value: tournament.category,
-                ),
-              ),
-              Expanded(
-                child: _buildDetailItem(
                   icon: Icons.people,
                   label: 'Teams',
                   value: '${tournament.teamIds.length}',
@@ -482,7 +419,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _overridePoints(tournament),
                   icon: const Icon(Icons.tune, size: 16),
-                  label: const Text('Punkte überschreiben'),
+                  label: const Text('Punkte Ã¼berschreiben'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.orange,
                     side: const BorderSide(color: Colors.orange),
@@ -567,42 +504,17 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
     }
   }
 
-  int _getMaxPoints(String category) {
-    // For now, return a reasonable default based on category
-    // In a real implementation, this should be calculated based on tournament criteria
-    switch (category) {
-      case 'GBO Supercup':
-        return 1600; // Supercup points - can be much higher based on criteria
-      case 'GBO Beachcup':
-        return 800; // Beachcup points - can be higher based on criteria
-      case 'GBO 4Fun-Cup':
-        return 400; // 4Fun-Cup points - can be higher based on criteria
-      default:
-        return 800; // Default Beachcup points
-    }
+  int _getMaxPoints(int teamCount) {
+    // RHBL: dynamic placement points â€” 1st place = teamCount pts, 2nd = teamCount-1, etc.
+    return teamCount;
   }
 
   int _getCalculatedTournamentPoints(Tournament tournament) {
-    // If tournament has manually set points, use those
-    if (tournament.points > 0) {
-      return tournament.points;
-    }
-    
-    // Calculate points based on tournament criteria
-    if (tournament.criteria != null) {
-      return tournament.criteria!.totalPoints;
-    }
-    
-    // Fallback to category-based points if no criteria
-    return _getMaxPoints(tournament.category);
+    return 0;
   }
 
   bool _hasManualPoints(Tournament tournament) {
-    // Check if points have been manually set (different from criteria-based calculation)
-    if (tournament.criteria != null) {
-      return tournament.points != tournament.criteria!.totalPoints;
-    }
-    return tournament.points != _getMaxPoints(tournament.category);
+    return false;
   }
 
   Widget _buildCriteriaAndTeamsInfo(Tournament tournament) {
@@ -635,30 +547,13 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
             children: [
               Expanded(
                 child: _buildCriteriaItem(
-                  icon: Icons.assessment,
-                  label: 'Kriterien Punkte',
-                  value: _getCriteriaPoints(tournament).toString(),
-                ),
-              ),
-              Expanded(
-                child: _buildCriteriaItem(
                   icon: Icons.check_circle,
-                  label: 'Ausgewählte Teams',
+                  label: 'AusgewÃ¤hlte Teams',
                   value: _getSelectedTeamsCount(tournament).toString(),
                 ),
               ),
             ],
           ),
-          if (tournament.criteria != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Kriterien: ${_getCriteriaDescription(tournament)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.blue.shade700,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -694,10 +589,6 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   int _getCriteriaPoints(Tournament tournament) {
-    // Calculate points based on tournament criteria
-    if (tournament.criteria != null) {
-      return tournament.criteria!.totalPoints;
-    }
     return 0;
   }
 
@@ -707,42 +598,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   String _getCriteriaDescription(Tournament tournament) {
-    if (tournament.criteria == null) return 'Keine Kriterien definiert';
-    
-    List<String> fulfilledCriteria = [];
-    
-    // MUST Criteria
-    if (tournament.criteria!.officialBeachhandballRules) fulfilledCriteria.add('Offizielle Regeln');
-    if (tournament.criteria!.twoRefereesPerGame) fulfilledCriteria.add('2 Schiedsrichter');
-    if (tournament.criteria!.cleanZone) fulfilledCriteria.add('Clean Zone');
-    if (tournament.criteria!.ausspielenPlatz1To8) fulfilledCriteria.add('Platz 1-8');
-    
-    // CAN Criteria - Referees
-    if (tournament.criteria!.ehfKaderReferees > 0) fulfilledCriteria.add('EHF Kader');
-    if (tournament.criteria!.dhbEliteKaderReferees > 0) fulfilledCriteria.add('DHB Elite');
-    if (tournament.criteria!.dhbStammKaderReferees > 0) fulfilledCriteria.add('DHB Stamm');
-    
-    // CAN Criteria - Officials
-    if (tournament.criteria!.ebtDelegate) fulfilledCriteria.add('EBT Delegate');
-    if (tournament.criteria!.dhbNationalDelegate) fulfilledCriteria.add('DHB Delegate');
-    
-    // CAN Criteria - Other
-    if (tournament.criteria!.technicalMeeting) fulfilledCriteria.add('Techn. Meeting');
-    if (tournament.criteria!.gboOnlineSchedule) fulfilledCriteria.add('GBO Schedule');
-    if (tournament.criteria!.gboScoringSystem) fulfilledCriteria.add('GBO Scoring');
-    if (tournament.criteria!.sanitaeterdienst) fulfilledCriteria.add('Sanitäter');
-    if (tournament.criteria!.sitztribuene) fulfilledCriteria.add('Sitztribüne');
-    if (tournament.criteria!.spielfeldumrandung) fulfilledCriteria.add('Umrandung');
-    if (tournament.criteria!.alleBeachplaetzeOffiziellesMasse) fulfilledCriteria.add('Offizielle Maße');
-    if (tournament.criteria!.elektronischeAnzeigetafeln) fulfilledCriteria.add('E-Anzeigen');
-    if (tournament.criteria!.zeitnehmerGestellt) fulfilledCriteria.add('Zeitnehmer');
-    if (tournament.criteria!.waterForPlayers) fulfilledCriteria.add('Wasser');
-    if (tournament.criteria!.arenaCommentator) fulfilledCriteria.add('Kommentator');
-    if (tournament.criteria!.tournierauszeichnungen) fulfilledCriteria.add('Auszeichnungen');
-    if (tournament.criteria!.tournamentInTownCenter) fulfilledCriteria.add('Stadtzentrum');
-    if (tournament.criteria!.tournamentDays > 1) fulfilledCriteria.add('Mehrere Tage');
-    
-    return fulfilledCriteria.isEmpty ? 'Keine Kriterien erfüllt' : fulfilledCriteria.join(', ');
+    return 'Keine Kriterien definiert';
   }
 
   void _manageResults(Tournament tournament) {
@@ -769,26 +625,18 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
 
   void _showPointsOverrideDialog(Tournament tournament) {
     final TextEditingController pointsController = TextEditingController(
-      text: tournament.points.toString(),
+      text: '0',
     );
     
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Punkte überschreiben - ${tournament.name}'),
+          title: Text('Punkte Ã¼berschreiben - ${tournament.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Aktuelle Punkte: ${tournament.points}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 8),
               Text(
                 'Berechnete Punkte: ${_getCalculatedTournamentPoints(tournament)}',
                 style: TextStyle(
@@ -815,7 +663,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                   border: Border.all(color: Colors.orange.shade200),
                 ),
                 child: Text(
-                  'Hinweis: Diese Änderung überschreibt die automatisch berechneten Punkte.',
+                  'Hinweis: Diese Ã„nderung Ã¼berschreibt die automatisch berechneten Punkte.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.orange.shade700,
@@ -836,7 +684,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                   _savePointsOverride(tournament, newPoints);
                   Navigator.of(context).pop();
                 } else {
-                  _showErrorToast('Bitte geben Sie eine gültige Zahl ein');
+                  _showErrorToast('Bitte geben Sie eine gÃ¼ltige Zahl ein');
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -855,7 +703,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
     try {
       // TODO: Save the points override to the database
       // For now, just show a success message
-      _showSuccessToast('Punkte für ${tournament.name} auf $newPoints gesetzt');
+      _showSuccessToast('Punkte fÃ¼r ${tournament.name} auf $newPoints gesetzt');
       
       // Update the local tournament data
       setState(() {
@@ -883,8 +731,6 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
   final TeamService _teamService = TeamService();
   List<Team> tournamentTeams = [];
   List<Team> filteredTeams = [];
-  String selectedDivision = 'Alle';
-  List<String> availableDivisions = ['Alle'];
   bool isLoading = true;
 
   @override
@@ -904,38 +750,22 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
         widget.tournament.teamIds.contains(team.id)
       ).toList();
       
-      // Get available divisions from the participating teams
-      final divisions = participatingTeams.map((team) => team.division).toSet().toList();
-      divisions.sort();
+      // Sort by best 3 total points (descending)
+      participatingTeams.sort((a, b) {
+        final best3PointsA = _calculateBest3TotalPoints(a.pointsHistory);
+        final best3PointsB = _calculateBest3TotalPoints(b.pointsHistory);
+        return best3PointsB.compareTo(best3PointsA);
+      });
       
       setState(() {
         tournamentTeams = participatingTeams;
-        availableDivisions = ['Alle', ...divisions];
+        filteredTeams = participatingTeams;
         isLoading = false;
       });
-      
-      _filterTeams();
     } catch (e) {
       setState(() => isLoading = false);
       _showErrorToast('Fehler beim Laden der Teams: $e');
     }
-  }
-
-  void _filterTeams() {
-    if (selectedDivision == 'Alle') {
-      filteredTeams = List.from(tournamentTeams);
-    } else {
-      filteredTeams = tournamentTeams.where((team) => team.division == selectedDivision).toList();
-    }
-    
-    // Sort by best 3 total points (descending)
-    filteredTeams.sort((a, b) {
-      final best3PointsA = _calculateBest3TotalPoints(a.pointsHistory);
-      final best3PointsB = _calculateBest3TotalPoints(b.pointsHistory);
-      return best3PointsB.compareTo(best3PointsA);
-    });
-    
-    setState(() {});
   }
 
   int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
@@ -955,29 +785,6 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
       0,
       (sum, entry) => sum + (entry['points'] as int? ?? 0),
     );
-  }
-
-  void _onDivisionChanged(String division) {
-    setState(() {
-      selectedDivision = division;
-    });
-    _filterTeams();
-  }
-
-  Color _getDivisionColor(String division) {
-    if (division.contains('Women')) {
-      if (division.contains('FUN')) return Colors.pink;
-      if (division.contains('U14')) return Colors.purple;
-      if (division.contains('U16')) return Colors.deepPurple;
-      if (division.contains('U18')) return Colors.indigo;
-      return Colors.blue; // Women's Seniors
-    } else {
-      if (division.contains('FUN')) return Colors.orange;
-      if (division.contains('U14')) return Colors.green;
-      if (division.contains('U16')) return Colors.teal;
-      if (division.contains('U18')) return Colors.cyan;
-      return Colors.red; // Men's Seniors
-    }
   }
 
   void _showErrorToast(String message) {
@@ -1012,9 +819,6 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
       ),
       body: Column(
         children: [
-          // Division Filter
-          _buildDivisionFilter(),
-          
           // Rankings List
           Expanded(
             child: isLoading
@@ -1024,100 +828,6 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
                 : filteredTeams.isEmpty
                     ? _buildEmptyState()
                     : _buildRankingsList(isTablet),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDivisionFilter() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Division auswählen:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.shade200),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.emoji_events,
-                      size: 14,
-                      color: Colors.green.shade700,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Nur Turnier-Teams',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: availableDivisions.map((division) {
-              final isSelected = selectedDivision == division;
-              final divisionColor = division == 'Alle' ? AppColors.primaryColor : _getDivisionColor(division);
-              
-              return GestureDetector(
-                onTap: () => _onDivisionChanged(division),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? divisionColor : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? divisionColor : Colors.grey.shade300,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    division,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
           ),
         ],
       ),
@@ -1145,9 +855,7 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
           ),
           const SizedBox(height: 8),
           Text(
-            selectedDivision == 'Alle' 
-                ? 'Dieses Turnier hat noch keine Teilnehmer'
-                : 'Keine Teams in der Division "$selectedDivision"',
+            'Dieses Turnier hat noch keine Teilnehmer',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -1166,7 +874,6 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
       itemBuilder: (context, index) {
         final team = filteredTeams[index];
         final placement = index + 1;
-        final divisionColor = _getDivisionColor(team.division);
         final best3Points = _calculateBest3TotalPoints(team.pointsHistory);
         
         return Card(
@@ -1219,23 +926,7 @@ class _TournamentSpecificRankingsScreenState extends State<TournamentSpecificRan
                           color: Colors.grey.shade600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: divisionColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: divisionColor.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          team.division,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: divisionColor,
-                          ),
-                        ),
-                      ),
+
                     ],
                   ),
                 ),

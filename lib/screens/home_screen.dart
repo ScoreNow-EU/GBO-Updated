@@ -7,7 +7,6 @@ import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
 import '../services/referee_service.dart';
-import '../services/referee_invitation_monitoring_service.dart';
 import '../services/tournament_service.dart';
 import '../widgets/admin_face_id_overlay.dart';
 import '../widgets/mixed_font_title.dart';
@@ -15,7 +14,7 @@ import '../screens/login_screen.dart';
 import '../screens/tournament_management_screen.dart';
 import '../screens/team_management_screen.dart';
 import '../screens/referee_management_screen.dart';
-import '../screens/referee_dashboard_screen.dart';
+import '../screens/kampfgericht_management_screen.dart';
 import '../screens/delegate_management_screen.dart';
 import '../screens/team_manager_management_screen.dart';
 import '../screens/player_management_screen.dart';
@@ -23,8 +22,6 @@ import '../screens/preset_management_screen.dart';
 import '../screens/team_detail_screen.dart';
 import '../screens/custom_notification_screen.dart';
 import '../screens/user_role_management_screen.dart';
-import '../screens/referee_games_screen.dart';
-import '../screens/kanban_board_screen.dart';
 import '../screens/managed_account_screen.dart';
 import '../screens/profile_settings_screen.dart';
 import '../screens/scoring_tablet_screen.dart';
@@ -40,6 +37,7 @@ import '../screens/donation_screen.dart';
 import '../screens/admin_donation_management_screen.dart';
 import '../screens/app_store_splash_screen.dart';
 import '../screens/generate_sign_in_codes_screen.dart';
+import '../screens/admin_data_management_screen.dart';
 import '../services/managed_account_service.dart';
 import '../models/managed_account.dart';
 
@@ -69,17 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    // Stop monitoring when app is closed
-    RefereeInvitationMonitoringService.stopMonitoring();
     super.dispose();
   }
 
   void _listenToAuthChanges() {
     _authService.currentUser.listen((user) async {
       if (user == null) {
-        // User logged out, stop monitoring and reset to default section
-        print('🔴 User logged out, stopping monitoring');
-        await RefereeInvitationMonitoringService.stopMonitoring();
+        // User logged out, reset to default section
         setState(() {
           _currentUser = null;
           selectedSection = 'turniere';
@@ -102,27 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentUser = user;
           _isScoringTablet = isScoringTablet;
-          // Set default section based on user role
-          if (!isScoringTablet && user.roles.contains(app_user.UserRole.referee)) {
-            selectedSection = 'referee_dashboard';
-          }
         });
-        
-        // Start monitoring if user is a referee
-        if (user.roles.contains(app_user.UserRole.referee) && user.refereeId != null) {
-          try {
-            print('🟢 Referee logged in, starting monitoring');
-            final referee = await _refereeService.getRefereeById(user.refereeId!);
-            if (referee != null) {
-              await RefereeInvitationMonitoringService.startMonitoring(referee.id);
-              print('🔔 Monitoring started for referee: ${referee.fullName}');
-            } else {
-              print('❌ Could not find referee profile for ID: ${user.refereeId}');
-            }
-          } catch (e) {
-            print('❌ Error starting monitoring: $e');
-          }
-        }
       }
     });
   }
@@ -151,27 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentUser = user;
         _isScoringTablet = isScoringTablet;
-        // Set default section based on user role
-        if (!isScoringTablet && user?.roles.contains(app_user.UserRole.referee) == true) {
-          selectedSection = 'referee_dashboard';
-        }
       });
-      
-      // Start monitoring if user is a referee and app is starting up
-      if (user?.roles.contains(app_user.UserRole.referee) == true && user?.refereeId != null) {
-        try {
-          print('🟢 App startup: Referee found, starting monitoring');
-          final referee = await _refereeService.getRefereeById(user!.refereeId!);
-          if (referee != null) {
-            await RefereeInvitationMonitoringService.startMonitoring(referee.id);
-            print('🔔 Monitoring started for referee: ${referee.fullName}');
-          } else {
-            print('❌ Could not find referee profile for ID: ${user.refereeId}');
-          }
-        } catch (e) {
-          print('❌ Error starting monitoring on startup: $e');
-        }
-              }
     } else {
       // No user, ensure we're on the default section
       setState(() {
@@ -193,9 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
       'preset_management',
       'custom_notifications',
       'user_role_management',
-      'kanban_board',
       'city_migration',
       'generate_sign_in_codes',
+      'admin_data_management',
     ];
     
     return adminSections.contains(section);
@@ -237,14 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return ResponsiveLayout(
       selectedSection: selectedSection,
       onSectionChanged: (section) async {
-        // Prevent unauthorized access to referee dashboard
-        if (section == 'referee_dashboard') {
-          if (_currentUser == null || !_currentUser!.roles.contains(app_user.UserRole.referee)) {
-            // Redirect to login or home if not authorized
-            section = _currentUser == null ? 'login' : 'turniere';
-          }
-        }
-        
         // Check if this is an admin section that requires Face ID
         if (_isAdminSection(section)) {
           // Ensure user is logged in before checking Face ID
@@ -392,6 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Team Management';
       case 'referee_management':
         return 'Schiedsrichter Verwaltung';
+      case 'kampfgericht_management':
+        return 'Kampfgericht Verwaltung';
       case 'delegate_management':
         return 'Delegierte Verwaltung';
       case 'team_manager_management':
@@ -402,16 +350,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Benachrichtigungen senden';
       case 'user_role_management':
         return 'Benutzer-Rollen-Verwaltung';
-      case 'kanban_board':
-        return 'Kanban Board';
       case 'season_management':
         return 'Saison Management';
       case 'city_migration':
         return 'Städte Migration';
-      case 'referee_dashboard':
-        return 'Schiedsrichter Dashboard';
-      case 'referee_games':
-        return 'Meine Spiele';
       case 'new_tournament':
         return 'Neues Turnier';
       case 'generate_sign_in_codes':
@@ -448,6 +390,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const TeamManagementScreen();
       case 'referee_management':
         return const RefereeManagementScreen();
+      case 'kampfgericht_management':
+        return const KampfgerichtManagementScreen();
       case 'delegate_management':
         return const DelegateManagementScreen();
       case 'team_manager_management':
@@ -458,8 +402,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const CustomNotificationScreen();
       case 'user_role_management':
         return const UserRoleManagementScreen();
-      case 'kanban_board':
-        return const KanbanBoardScreen();
       case 'season_management':
         return const SeasonManagementScreen();
       case 'city_migration':
@@ -468,14 +410,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const ManagedAccountScreen();
       case 'profile_settings':
         return const ProfileSettingsScreen();
-      case 'referee_dashboard':
-        return _currentUser != null 
-            ? RefereeDashboardScreen(currentUser: _currentUser!)
-            : const Center(child: Text('Bitte melden Sie sich an.'));
-      case 'referee_games':
-        return _currentUser?.refereeId != null
-            ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!)
-            : const Center(child: Text('Bitte melden Sie sich an.'));
       case 'new_tournament':
         return const TournamentCreationWizard();
       // Donation routes disabled for Apple App Store submission
@@ -485,6 +419,8 @@ class _HomeScreenState extends State<HomeScreen> {
       //   return const AdminDonationManagementScreen();
       case 'generate_sign_in_codes':
         return const GenerateSignInCodesScreen();
+      case 'admin_data_management':
+        return const AdminDataManagementScreen();
       case 'app_store_splash':
         return AppStoreSplashScreen(
           onComplete: () {
@@ -507,20 +443,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final subSection = parts.length > 2 ? parts[2] : 'overview';
         print('🏠 HomeScreen - teamId: $teamId, subSection: $subSection');
         return TeamDetailContent(teamId: teamId, subSection: subSection);
-      }
-    }
-
-    // Handle referee tournament sections
-    if (selectedSection.startsWith('referee_tournament_')) {
-      final parts = selectedSection.split('_');
-      if (parts.length >= 3) {
-        final tournamentId = parts[2];
-        final subSection = parts.length > 3 ? parts[3] : 'overview';
-        if (subSection == 'games') {
-          return _currentUser?.refereeId != null
-              ? RefereeGamesScreen(refereeId: _currentUser!.refereeId!, tournamentId: tournamentId)
-              : const Center(child: Text('Bitte melden Sie sich an.'));
-        }
       }
     }
 
@@ -582,6 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => TournamentEditScreen(tournament: tournament),
+            settings: const RouteSettings(name: 'TournamentEditScreen'),
           ),
         );
       } else {
@@ -615,6 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => TOSoftwareScreen(tournament: tournament),
+            settings: const RouteSettings(name: 'TOSoftwareScreen'),
           ),
         );
       } else {

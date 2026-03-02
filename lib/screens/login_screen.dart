@@ -235,37 +235,16 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         child: SafeArea(
           child: Stack(
             children: [
-              // Left palm image - spanning from bottom to top (wider)
-              Positioned(
-                left: 0,
-                bottom: 0,
-                top: 0,
-                child: SizedBox(
-                  width: 540,  // Tripled from 180 to 540
+              // Fullscreen grid pattern
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.8,
                   child: Image.asset(
-                    'assets/palm_left.png',
+                    'assets/grid.png',
                     fit: BoxFit.cover,
-                    alignment: Alignment.centerLeft,
+                    repeat: ImageRepeat.repeat,
                   ),
                 ),
-              ),
-              // Right palm image - positioned on the bottom right, moved left
-              Positioned(
-                right: 50,
-                bottom: 0,
-                child: SizedBox(
-                  width: 325,  // Added 25px to width
-                  height: 600, // 1.5x from 400 to 600
-                  child: Image.asset(
-                    'assets/palm_right.png',
-                    fit: BoxFit.cover,
-                    alignment: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-              // Sparkle overlay
-              const Positioned.fill(
-                child: SparkleOverlay(),
               ),
               // Back button
               Positioned(
@@ -1804,7 +1783,7 @@ class _QRCodeScannerDialogState extends State<_QRCodeScannerDialog> {
 
       // Return simulated QR data
       Navigator.of(context).pop({
-        'email': 'tablet-example-court1@gbo-system.de',
+        'email': 'tablet-example-court1@rollstuhlhandball.de',
         'password': 'ABC123XY',
       });
     }

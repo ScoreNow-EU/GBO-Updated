@@ -95,16 +95,18 @@ class SquadPlayer {
   final String firstName;
   final String lastName;
   final String? jerseyNumber;
-  final String? position;
+  final String? classification; // 'Gruppe A', 'Gruppe B', 'Gruppe C'
+  final String? gender;
   final bool isStarter; // Starting lineup vs substitute
-  final int? lineupPosition; // 1-6 for starting positions
+  final int? lineupPosition; // Position in lineup
 
   SquadPlayer({
     required this.playerId,
     required this.firstName,
     required this.lastName,
     this.jerseyNumber,
-    this.position,
+    this.classification,
+    this.gender,
     this.isStarter = false,
     this.lineupPosition,
   });
@@ -120,7 +122,8 @@ class SquadPlayer {
       'firstName': firstName,
       'lastName': lastName,
       'jerseyNumber': jerseyNumber,
-      'position': position,
+      'classification': classification,
+      'gender': gender,
       'isStarter': isStarter,
       'lineupPosition': lineupPosition,
     };
@@ -132,7 +135,8 @@ class SquadPlayer {
       firstName: data['firstName'] ?? '',
       lastName: data['lastName'] ?? '',
       jerseyNumber: data['jerseyNumber'],
-      position: data['position'],
+      classification: data['classification'] ?? data['position'],
+      gender: data['gender'],
       isStarter: data['isStarter'] ?? false,
       lineupPosition: data['lineupPosition'],
     );
@@ -143,7 +147,8 @@ class SquadPlayer {
     String? firstName,
     String? lastName,
     String? jerseyNumber,
-    String? position,
+    String? classification,
+    String? gender,
     bool? isStarter,
     int? lineupPosition,
   }) {
@@ -152,7 +157,8 @@ class SquadPlayer {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
-      position: position ?? this.position,
+      classification: classification ?? this.classification,
+      gender: gender ?? this.gender,
       isStarter: isStarter ?? this.isStarter,
       lineupPosition: lineupPosition ?? this.lineupPosition,
     );

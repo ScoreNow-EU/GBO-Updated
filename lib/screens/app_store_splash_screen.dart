@@ -116,7 +116,7 @@ class _AppStoreSplashScreenState extends State<AppStoreSplashScreen>
                     ),
                   ),
 
-                  // Middle section - GBO text
+                  // Middle section - RHBL text
                   Expanded(
                     flex: 1,
                     child: SlideTransition(
@@ -128,7 +128,7 @@ class _AppStoreSplashScreenState extends State<AppStoreSplashScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'German Beach Open',
+                                'Rollstuhlhandball Bundesliga',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context)
                                     .textTheme
@@ -172,7 +172,7 @@ class _AppStoreSplashScreenState extends State<AppStoreSplashScreen>
                     ),
                   ),
 
-                  // Bottom section - GBO logo
+                  // Bottom section - RHBL logo
                   Expanded(
                     flex: 3,
                     child: FadeTransition(
@@ -209,70 +209,14 @@ class _AppStoreSplashScreenState extends State<AppStoreSplashScreen>
   Widget _buildBackgroundAssets(BuildContext context) {
     return Stack(
       children: [
-        // Custom paint background
-        CustomPaint(
-          painter: _SplashBackgroundPainter(),
-        ),
-
-        // Top-right palm decoration
-        Positioned(
-          top: -40,
-          right: -30,
+        // Fullscreen grid pattern
+        Positioned.fill(
           child: Opacity(
-            opacity: 0.15,
+            opacity: 0.8,
             child: Image.asset(
-              'assets/palm_right.png',
-              width: 250,
-              height: 250,
+              'assets/grid.png',
               fit: BoxFit.cover,
-            ),
-          ),
-        ),
-
-        // Bottom-left palm decoration
-        Positioned(
-          bottom: -100,
-          left: -100,
-          child: Opacity(
-            opacity: 0.12,
-            child: Transform.flip(
-              flipX: true,
-              child: Image.asset(
-                'assets/palm_left.png',
-                width: 350,
-                height: 350,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ),
-
-        // Sparkles - top right
-        Positioned(
-          top: 80,
-          right: 30,
-          child: Opacity(
-            opacity: 0.3,
-            child: Image.asset(
-              'assets/sparkles.png',
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-
-        // Sparkles - bottom left
-        Positioned(
-          bottom: 150,
-          left: 20,
-          child: Opacity(
-            opacity: 0.25,
-            child: Image.asset(
-              'assets/sparkles.png',
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
+              repeat: ImageRepeat.repeat,
             ),
           ),
         ),

@@ -4,8 +4,12 @@ class BracketIdHelper {
   static const String WOMENS = 'D'; // Damen
   
   // Cup type codes
-  static const String SENIORS_CUP = 'A'; // A Cup (Seniors)
-  static const String FUN_CUP = 'B'; // B Cup (Fun)
+  static const String CUP_A = 'A'; // A Cup (RHBL)
+  static const String CUP_B = 'B'; // B Cup
+  
+  // Legacy aliases
+  static const String SENIORS_CUP = CUP_A;
+  static const String FUN_CUP = CUP_B;
   
   // Round/Pool codes
   static const String POOL_A = 'A';
@@ -79,8 +83,8 @@ class BracketIdHelper {
   /// Get human-readable cup name
   static String getCupName(String code) {
     switch (code.toUpperCase()) {
-      case SENIORS_CUP: return 'Seniors Cup';
-      case FUN_CUP: return 'Fun Cup';
+      case CUP_A: return 'RHBL Cup';
+      case CUP_B: return 'B Cup';
       default: return 'Unknown Cup';
     }
   }
@@ -101,29 +105,19 @@ class BracketIdHelper {
     }
   }
   
-  /// Get division code from division name
-  static String getDivisionCode(String divisionName) {
-    if (divisionName.toLowerCase().contains('men') && !divisionName.toLowerCase().contains('women')) {
-      return MENS;
-    } else if (divisionName.toLowerCase().contains('women')) {
-      return WOMENS;
-    }
-    return MENS; // Default fallback
+  /// Get category code from category name
+  static String getCategoryCode(String divisionName) {
+    return MENS; // Single league (RHBL) - default code
   }
   
-  /// Get cup code from division name
+  /// Get cup code from category name
   static String getCupCode(String divisionName) {
-    if (divisionName.toLowerCase().contains('fun')) {
-      return FUN_CUP;
-    } else if (divisionName.toLowerCase().contains('senior')) {
-      return SENIORS_CUP;
-    }
-    return SENIORS_CUP; // Default fallback
+    return CUP_A; // Single league (RHBL) - default cup
   }
   
-  /// Generate suggested match IDs for a division
+  /// Generate suggested match IDs for a category
   static Map<String, List<String>> generateSuggestedIds(String divisionName) {
-    final gender = getDivisionCode(divisionName);
+    final gender = getCategoryCode(divisionName);
     final cup = getCupCode(divisionName);
     
     return {

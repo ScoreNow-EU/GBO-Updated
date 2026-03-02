@@ -180,7 +180,7 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
       final searchLower = _searchQuery.toLowerCase();
       return player.fullName.toLowerCase().contains(searchLower) ||
              (player.jerseyNumber?.contains(_searchQuery) ?? false) ||
-             (player.position?.toLowerCase().contains(searchLower) ?? false);
+             (player.classification?.toLowerCase().contains(searchLower) ?? false);
     }).toList();
   }
 
@@ -458,8 +458,8 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            subtitle: player.position != null 
-              ? Text(player.position!)
+            subtitle: player.classification != null 
+              ? Text(player.classification!)
               : null,
             trailing: isSelected
               ? const Icon(Icons.check_circle, color: Colors.green)

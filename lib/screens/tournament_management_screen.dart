@@ -21,22 +21,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
   
-  // Available divisions for filtering
-  final List<String> _availableDivisions = [
-    'Women\'s U14',
-    'Women\'s U16', 
-    'Women\'s U18',
-    'Women\'s Seniors',
-    'Women\'s FUN',
-    'Men\'s U14',
-    'Men\'s U16',
-    'Men\'s U18', 
-    'Men\'s Seniors',
-    'Men\'s FUN',
-  ];
-  
-  List<String> _selectedDivisions = [];
-  Map<String, List<String>> _tournamentDivisions = {}; // tournamentId -> divisions
   String _selectedSeason = '2026'; // Default to 2026 season
   
   // Collapsible sections state
@@ -47,18 +31,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
   @override
   void initState() {
     super.initState();
-    _loadTournamentDivisions();
     _updateTournamentStatuses();
-    _syncRefereeInvitations();
-  }
-
-  // Sync referee pending invitations count
-  Future<void> _syncRefereeInvitations() async {
-    try {
-      await _tournamentService.syncAllRefereesPendingInvitationsCount();
-    } catch (e) {
-      print('Error syncing referee invitations: $e');
-    }
   }
   
   // Update tournament statuses based on current date
@@ -116,23 +89,16 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                     (widget.currentUser!.roles.contains(app_user.UserRole.admin) ||
                      widget.currentUser!.roles.contains(app_user.UserRole.seriesOrganizer));
                 
-                // Filter tournaments by season and divisions
+                // Filter tournaments by season
                 List<Tournament> filteredTournaments = snapshot.data!.where((tournament) {
                   // Filter out pending/rejected tournaments for non-admins
                   if (!isAdminOrOrganizer && tournament.approvalStatus != 'approved') {
                     return false;
                   }
                   
-                  // First filter by season
+                  // Filter by season
                   if (tournament.season != _selectedSeason) {
                     return false;
-                  }
-                  
-                  // Then filter by divisions if any are selected
-                  if (_selectedDivisions.isNotEmpty) {
-                    final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
-                    return _selectedDivisions.any((selectedDiv) => 
-                        tournamentDivisions.contains(selectedDiv));
                   }
                   
                   return true;
@@ -155,12 +121,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         Container(
           constraints: const BoxConstraints(maxWidth: double.infinity),
           child: _buildSeasonDropdown(),
-        ),
-        const SizedBox(height: 12),
-        // Division Filter
-        Container(
-          constraints: const BoxConstraints(maxWidth: double.infinity),
-          child: _buildDivisionFilterDropdown(),
         ),
         const SizedBox(height: 12),
         // New Tournament Button
@@ -249,12 +209,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         Container(
           constraints: const BoxConstraints(maxWidth: 200),
           child: _buildSeasonDropdown(),
-        ),
-        const SizedBox(width: 16),
-        // Division Filter Dropdown
-        Container(
-          constraints: const BoxConstraints(maxWidth: 280),
-          child: _buildDivisionFilterDropdown(),
         ),
         const SizedBox(width: 16),
         ElevatedButton.icon(
@@ -373,10 +327,9 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             ),
           ),
           children: tournaments.map((tournament) {
-            final tournamentDivisions = _tournamentDivisions[tournament.id] ?? [];
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _buildTournamentManagementCard(tournament, tournamentDivisions, isMobile),
+              child: _buildTournamentManagementCard(tournament, isMobile),
             );
           }).toList(),
         ),
@@ -385,7 +338,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
     );
   }
 
-  Widget _buildTournamentManagementCard(Tournament tournament, List<String> divisions, bool isMobile) {
+  Widget _buildTournamentManagementCard(Tournament tournament, bool isMobile) {
     // Get status colors for the card border
     Color borderColor;
     switch (tournament.status) {
@@ -518,21 +471,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                               ],
                             ),
                           ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${tournament.points} Punkte',
-                            style: TextStyle(
-                              color: Colors.orange.shade800,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
+
                       ],
                     ),
                   ],
@@ -612,13 +551,13 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           const SizedBox(height: 16),
           
           // Tournament details in responsive layout
-          isMobile ? _buildMobileDetails(tournament, divisions) : _buildDesktopDetails(tournament, divisions),
+          isMobile ? _buildMobileDetails(tournament) : _buildDesktopDetails(tournament),
         ],
       ),
     );
   }
 
-  Widget _buildMobileDetails(Tournament tournament, List<String> divisions) {
+  Widget _buildMobileDetails(Tournament tournament) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -648,16 +587,11 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Divisions
-        if (divisions.isNotEmpty) ...[
-          _buildDivisionChips(divisions),
-        ],
       ],
     );
   }
 
-  Widget _buildDesktopDetails(Tournament tournament, List<String> divisions) {
+  Widget _buildDesktopDetails(Tournament tournament) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -695,14 +629,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
             ],
           ),
         ),
-        
-        // Divisions column
-        Expanded(
-          flex: 3,
-          child: divisions.isNotEmpty
-              ? _buildDivisionChips(divisions)
-              : Container(),
-        ),
       ],
     );
   }
@@ -737,45 +663,6 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDivisionChips(List<String> divisions) {
-    if (divisions.isEmpty) {
-      return Text(
-        'Keine Teams',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-          fontStyle: FontStyle.italic,
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: divisions.map((division) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: _getDivisionColor(division).withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _getDivisionColor(division).withValues(alpha: 0.5),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            division,
-            style: TextStyle(
-              color: _getDivisionColor(division).shade700,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 
@@ -888,8 +775,7 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                     autoCloseDuration: const Duration(seconds: 3),
                     showProgressBar: false,
                   );
-                  // Reload divisions after deletion
-                  _loadTournamentDivisions();
+                  // Reload after deletion
                 } catch (e) {
                   Navigator.of(context).pop();
                   toastification.show(
@@ -911,167 +797,5 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
         );
       },
     );
-  }
-
-  void _loadTournamentDivisions() async {
-    try {
-      final teams = await _teamService.getTeams().first;
-      final tournaments = await _tournamentService.getTournaments().first;
-      
-      Map<String, List<String>> tournamentDivs = {};
-      
-      for (Tournament tournament in tournaments) {
-        Set<String> divisions = {};
-        
-        // Get divisions from teams in this tournament
-        for (String teamId in tournament.teamIds) {
-          try {
-            final team = teams.firstWhere((t) => t.id == teamId);
-            divisions.add(team.division);
-          } catch (e) {
-            // Team not found, skip it
-            continue;
-          }
-        }
-        
-        tournamentDivs[tournament.id] = divisions.toList();
-      }
-      
-      setState(() {
-        _tournamentDivisions = tournamentDivs;
-      });
-    } catch (e) {
-      print('Error loading tournament divisions: $e');
-    }
-  }
-
-  Widget _buildDivisionFilterDropdown() {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          hint: Row(
-            children: [
-              Icon(Icons.filter_list, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 8),
-              Text(
-                _selectedDivisions.isEmpty 
-                    ? 'Alle Divisionen'
-                    : '${_selectedDivisions.length} ausgewählt',
-                style: TextStyle(
-                  color: _selectedDivisions.isEmpty ? Colors.grey.shade600 : Colors.blue.shade700,
-                  fontSize: 14,
-                  fontWeight: _selectedDivisions.isEmpty ? FontWeight.normal : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          items: [
-            // "Alle auswählen" option
-            DropdownMenuItem<String>(
-              value: '__select_all__',
-              child: Row(
-                children: [
-                  Icon(
-                    _selectedDivisions.length == _availableDivisions.length 
-                        ? Icons.check_box 
-                        : Icons.check_box_outline_blank,
-                    size: 16,
-                    color: Colors.blue.shade600,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('Alle auswählen', style: TextStyle(fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            // "Alle abwählen" option
-            if (_selectedDivisions.isNotEmpty)
-              DropdownMenuItem<String>(
-                value: '__clear_all__',
-                child: Row(
-                  children: [
-                    Icon(Icons.clear, size: 16, color: Colors.red.shade600),
-                    const SizedBox(width: 8),
-                    const Text('Alle abwählen', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            // Divider
-            const DropdownMenuItem<String>(
-              value: '__divider__',
-              enabled: false,
-              child: Divider(height: 1),
-            ),
-            // Division options
-            ..._availableDivisions.map((division) {
-              final isSelected = _selectedDivisions.contains(division);
-              return DropdownMenuItem<String>(
-                value: division,
-                child: Row(
-                  children: [
-                    Icon(
-                      isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                      size: 16,
-                      color: isSelected ? _getDivisionColor(division).shade600 : Colors.grey.shade400,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      division,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isSelected ? _getDivisionColor(division).shade700 : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: (String? value) {
-            if (value == null || value == '__divider__') return;
-            
-            setState(() {
-              if (value == '__select_all__') {
-                _selectedDivisions = List.from(_availableDivisions);
-              } else if (value == '__clear_all__') {
-                _selectedDivisions.clear();
-              } else {
-                if (_selectedDivisions.contains(value)) {
-                  _selectedDivisions.remove(value);
-                } else {
-                  _selectedDivisions.add(value);
-                }
-              }
-            });
-          },
-          icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
-          iconSize: 20,
-          isExpanded: true,
-        ),
-      ),
-    );
-  }
-
-  MaterialColor _getDivisionColor(String division) {
-    if (division.contains('Women')) {
-      if (division.contains('FUN')) return Colors.pink;
-      if (division.contains('U14')) return Colors.purple;
-      if (division.contains('U16')) return Colors.deepPurple;
-      if (division.contains('U18')) return Colors.indigo;
-      return Colors.blue; // Women's Seniors
-    } else {
-      if (division.contains('FUN')) return Colors.orange;
-      if (division.contains('U14')) return Colors.green;
-      if (division.contains('U16')) return Colors.teal;
-      if (division.contains('U18')) return Colors.cyan;
-      return Colors.red; // Men's Seniors
-    }
   }
 } 

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../models/city.dart';
 import '../utils/firebase_cities_helper.dart';
 import '../models/tournament.dart';
-import '../models/tournament_criteria.dart';
 import '../models/user.dart' as app_user;
 import '../services/tournament_service.dart';
 import '../services/auth_service.dart';
@@ -45,6 +44,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
   late final TextEditingController _cityController;
   late final TextEditingController _bundeslandController;
   City? _selectedCity;
+  bool _citiesLoading = false;
 
   @override
   void initState() {
@@ -91,19 +91,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     }
     return null;
   }
-  // Categories and Divisions
-  final List<String> _availableCategories = [
-    'GBO Juniors Cup',
-    'GBO Seniors Cup',
-  ];
-  List<String> _selectedCategories = [];
-  List<String> _selectedDivisions = [];
-  Map<String, int> _divisionMaxTeams = {};
-  
-  // Criteria
-  TournamentCriteria _criteria = TournamentCriteria();
-  bool _skipCriteria = false;
-  
   // Teams page state
   bool _isRegistrationOpen = true;
   DateTime? _registrationDeadline;
@@ -180,13 +167,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                       children: [
                         _buildBasicInfoPage(),
                         _buildDatesPage(),
-                        _buildCategoriesPage(),
-                        if (!_skipCriteria) ...[
-                          _buildCriteriaPage1(),
-                          _buildCriteriaPage2(),
-                          _buildCriteriaPage3(),
-                          _buildCriteriaPage4(),
-                        ],
                         _buildTeamsPage(),
                         _buildSummaryPage(),
                       ],
@@ -215,7 +195,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
-                        _skipCriteria ? 4 : 9,
+                        4,
                         (index) => Container(
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           width: 8,
@@ -259,7 +239,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : ElevatedButton.icon(
                           onPressed: () {
-                            if (_currentPage == (_skipCriteria ? 3 : 8)) {
+                            if (_currentPage == 3) {
                               _saveTournament();
                             } else {
                               _pageController.nextPage(
@@ -269,13 +249,13 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                             }
                           },
                           icon: Icon(
-                            _currentPage == (_skipCriteria ? 3 : 8) ? Icons.check_circle :
-                            _currentPage == (_skipCriteria ? 2 : 7) ? Icons.preview :
+                            _currentPage == 3 ? Icons.check_circle :
+                            _currentPage == 2 ? Icons.preview :
                             Icons.arrow_forward
                           ),
                           label: Text(
-                            _currentPage == (_skipCriteria ? 3 : 8) ? 'Erstellen' :
-                            _currentPage == (_skipCriteria ? 2 : 7) ? 'Überprüfen' :
+                            _currentPage == 3 ? 'Erstellen' :
+                            _currentPage == 2 ? 'Überprüfen' :
                             'Weiter'
                           ),
                           style: ElevatedButton.styleFrom(
@@ -356,10 +336,16 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                   displayStringForOption: (City option) => option.name,
                   optionsBuilder: (TextEditingValue textEditingValue) async {
                     if (textEditingValue.text.isEmpty) {
+                      if (mounted) setState(() => _citiesLoading = false);
                       return const Iterable<City>.empty();
                     }
-                    final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
-                    return cities.take(10);
+                    if (mounted) setState(() => _citiesLoading = true);
+                    try {
+                      final cities = await FirebaseCitiesHelper.searchCities(textEditingValue.text);
+                      return cities.take(10);
+                    } finally {
+                      if (mounted) setState(() => _citiesLoading = false);
+                    }
                   },
                   optionsViewBuilder: (BuildContext context, AutocompleteOnSelected<City> onSelected, Iterable<City> options) {
                     return Align(
@@ -436,11 +422,27 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                     return TextFormField(
                       controller: textEditingController,
                       focusNode: focusNode,
-                      decoration: const InputDecoration(
+                      enabled: !_citiesLoading || textEditingController.text.isNotEmpty,
+                      decoration: InputDecoration(
                         labelText: 'Stadt *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_city),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.location_city),
                         hintText: 'Stadt eingeben...',
+                        suffixIcon: _citiesLoading
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFe63946),
+                                  ),
+                                ),
+                              )
+                            : null,
+                        helperText: _citiesLoading ? 'Städte werden geladen...' : null,
+                        helperStyle: const TextStyle(color: Color(0xFFe63946), fontSize: 12),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -582,640 +584,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     );
   }
 
-  Widget _buildCategoriesPage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Kategorien & Divisionen',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Categories
-          const Text(
-            'Wählen Sie die Kategorien:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _availableCategories.map((category) {
-              final isSelected = _selectedCategories.contains(category);
-              return FilterChip(
-                label: Text(category),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedCategories.add(category);
-                    } else {
-                      _selectedCategories.remove(category);
-                    }
-                  });
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          // Divisions (only show if categories are selected)
-          if (_selectedCategories.isNotEmpty) ...[
-            const Text(
-              'Wählen Sie die Divisionen:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ..._selectedCategories.map((category) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    category == 'GBO Juniors Cup' ? 'Jugend Divisionen:' : 'Senioren Divisionen:',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _getAvailableDivisionsForCategory(category).map((division) {
-                      final isSelected = _selectedDivisions.contains(division);
-                      return FilterChip(
-                        label: Text(division),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedDivisions.add(division);
-                              _divisionMaxTeams[division] = 32; // Default max teams
-                            } else {
-                              _selectedDivisions.remove(division);
-                              _divisionMaxTeams.remove(division);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              );
-            }).toList(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  List<String> _getAvailableDivisionsForCategory(String category) {
-    if (category == 'GBO Juniors Cup') {
-      return [
-        'Women\'s U14',
-        'Women\'s U16',
-        'Women\'s U18',
-        'Men\'s U14',
-        'Men\'s U16',
-        'Men\'s U18',
-      ];
-    } else {
-      return [
-        'Women\'s Seniors',
-        'Women\'s FUN',
-        'Men\'s Seniors',
-        'Men\'s FUN',
-      ];
-    }
-  }
-
-  // Basic Rules & Requirements
-  Widget _buildCriteriaPage1() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Grundlegende Regeln & Anforderungen',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Diese Kriterien sind grundlegend für die Turnierqualität',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // MUST Criteria Section
-          _buildSectionTitle('MUST Kriterien (je 30 Punkte)'),
-          CheckboxListTile(
-            title: const Text('Offizielle Beachhandball-Regeln'),
-            subtitle: const Text('Spiele werden nach offiziellen Regeln durchgeführt'),
-            value: _criteria.officialBeachhandballRules,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(officialBeachhandballRules: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Zwei Schiedsrichter pro Spiel'),
-            subtitle: const Text('Jedes Spiel wird von zwei Schiedsrichtern geleitet'),
-            value: _criteria.twoRefereesPerGame,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(twoRefereesPerGame: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Clean Zone'),
-            subtitle: const Text('Spielfeld und Umgebung sind sauber und professionell'),
-            value: _criteria.cleanZone,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(cleanZone: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Ausspielen Platz 1-8'),
-            subtitle: const Text('Platzierungsspiele für die Top 8 Teams'),
-            value: _criteria.ausspielenPlatz1To8,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(ausspielenPlatz1To8: value);
-              });
-            },
-          ),
-
-          const SizedBox(height: 24),
-          // Basic Setup Section
-          _buildSectionTitle('Grundlegende Einrichtung'),
-          CheckboxListTile(
-            title: const Text('Technisches Meeting (20 Punkte)'),
-            subtitle: const Text('Verpflichtend für Supercup'),
-            value: _criteria.technicalMeeting,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(technicalMeeting: value);
-              });
-            },
-          ),
-          ListTile(
-            title: const Text('Turniertage'),
-            subtitle: const Text('Mehrtägige Turniere erhalten 20 Zusatzpunkte'),
-            trailing: DropdownButton<int>(
-              value: _criteria.tournamentDays,
-              items: List.generate(5, (index) => index + 1).map((days) {
-                return DropdownMenuItem(
-                  value: days,
-                  child: Text('$days ${days == 1 ? 'Tag' : 'Tage'}'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(tournamentDays: value);
-                  });
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Placeholder widgets for remaining criteria pages
-  // Referees & Officials
-  Widget _buildCriteriaPage2() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Schiedsrichter & Offizielle',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Maximale Punktzahl: 250 für Schiedsrichter, 180 für Offizielle',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Referees Section
-          _buildSectionTitle('Schiedsrichter (max. 250 Punkte)'),
-          ListTile(
-            title: const Text('EHF Kader (25 Punkte pro Person)'),
-            trailing: DropdownButton<int>(
-              value: _criteria.ehfKaderReferees,
-              items: List.generate(11, (index) => index).map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text(count.toString()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(ehfKaderReferees: value);
-                  });
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('DHB Elite Kader (20 Punkte pro Person)'),
-            trailing: DropdownButton<int>(
-              value: _criteria.dhbEliteKaderReferees,
-              items: List.generate(11, (index) => index).map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text(count.toString()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(dhbEliteKaderReferees: value);
-                  });
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('DHB Stamm Kader (15 Punkte pro Person)'),
-            trailing: DropdownButton<int>(
-              value: _criteria.dhbStammKaderReferees,
-              items: List.generate(11, (index) => index).map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text(count.toString()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(dhbStammKaderReferees: value);
-                  });
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('Perspektiv Kader (10 Punkte pro Person)'),
-            trailing: DropdownButton<int>(
-              value: _criteria.perspektivKaderReferees,
-              items: List.generate(11, (index) => index).map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text(count.toString()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(perspektivKaderReferees: value);
-                  });
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('Basis Lizenz (5 Punkte pro Person, max. 50 Punkte)'),
-            trailing: DropdownButton<int>(
-              value: _criteria.basisLizenzReferees,
-              items: List.generate(11, (index) => index).map((count) {
-                return DropdownMenuItem(
-                  value: count,
-                  child: Text(count.toString()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(basisLizenzReferees: value);
-                  });
-                }
-              },
-            ),
-          ),
-
-          const SizedBox(height: 24),
-          // Officials Section
-          _buildSectionTitle('Offizielle (max. 180 Punkte)'),
-          CheckboxListTile(
-            title: const Text('EBT Delegierter (100 Punkte)'),
-            value: _criteria.ebtDelegate,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(ebtDelegate: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('DHB National Delegierter (80 Punkte)'),
-            value: _criteria.dhbNationalDelegate,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(dhbNationalDelegate: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Zeitnehmer gestellt (20 Punkte)'),
-            value: _criteria.zeitnehmerGestellt,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(zeitnehmerGestellt: value);
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  // Infrastructure & Equipment
-  Widget _buildCriteriaPage3() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Infrastruktur & Ausstattung',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Technische Ausstattung und Spielfeldeinrichtung',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Court & Equipment Section
-          _buildSectionTitle('Spielfeld & Ausstattung'),
-          CheckboxListTile(
-            title: const Text('Fangnetze/Zäune (30 Punkte)'),
-            value: _criteria.fangneatzeZaeune,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(fangneatzeZaeune: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Sitztribüne (60 Punkte)'),
-            value: _criteria.sitztribuene,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(sitztribuene: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Spielfeldumrandung (30 Punkte)'),
-            value: _criteria.spielfeldumrandung,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(spielfeldumrandung: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Offizielle Maße für alle Beachplätze (20 Punkte)'),
-            value: _criteria.alleBeachplaetzeOffiziellesMasse,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(alleBeachplaetzeOffiziellesMasse: value);
-              });
-            },
-          ),
-
-          const SizedBox(height: 24),
-          // Technical Equipment Section
-          _buildSectionTitle('Technische Ausstattung'),
-          CheckboxListTile(
-            title: const Text('GBO Online Spielplan (100 Punkte)'),
-            value: _criteria.gboOnlineSchedule,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(gboOnlineSchedule: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('GBO Scoring System (50 Punkte)'),
-            value: _criteria.gboScoringSystem,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(gboScoringSystem: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Elektronische Anzeigetafeln (40 Punkte)'),
-            value: _criteria.elektronischeAnzeigetafeln,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(elektronischeAnzeigetafeln: value);
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  // Additional Services & Features
-  Widget _buildCriteriaPage4() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Zusätzliche Services & Features',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Zusatzleistungen und besondere Merkmale',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Location & Services Section
-          _buildSectionTitle('Standort & Services'),
-          CheckboxListTile(
-            title: const Text('Turnier im Stadtzentrum (250 Punkte)'),
-            value: _criteria.tournamentInTownCenter,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(tournamentInTownCenter: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Sanitäterdienst (20 Punkte)'),
-            value: _criteria.sanitaeterdienst,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(sanitaeterdienst: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Wasser für Spieler (20 Punkte)'),
-            value: _criteria.waterForPlayers,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(waterForPlayers: value);
-              });
-            },
-          ),
-
-          const SizedBox(height: 24),
-          // Media & Entertainment Section
-          _buildSectionTitle('Medien & Unterhaltung'),
-          ListTile(
-            title: const Text('Livestream Option'),
-            subtitle: const Text('Verschiedene Optionen mit unterschiedlichen Punktzahlen'),
-            trailing: DropdownButton<String>(
-              value: _criteria.livestreamOption,
-              items: const [
-                DropdownMenuItem(value: 'none', child: Text('Keine')),
-                DropdownMenuItem(value: 'swtv_crew', child: Text('SWTV Crew (250 P.)')),
-                DropdownMenuItem(value: 'swtv_remote', child: Text('SWTV Remote (250 P.)')),
-                DropdownMenuItem(value: 'swtv_twitch', child: Text('SWTV Twitch (150 P.)')),
-                DropdownMenuItem(value: 'own_stream', child: Text('Eigener Stream (50 P.)')),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(livestreamOption: value);
-                  });
-                }
-              },
-            ),
-          ),
-          ListTile(
-            title: const Text('EBT Status'),
-            subtitle: const Text('Punktzahl basierend auf EBT-Ranking'),
-            trailing: DropdownButton<int>(
-              value: _criteria.ebtStatus,
-              items: const [
-                DropdownMenuItem(value: 0, child: Text('Kein EBT')),
-                DropdownMenuItem(value: 1, child: Text('1-99 (20 P.)')),
-                DropdownMenuItem(value: 100, child: Text('100-149 (40 P.)')),
-                DropdownMenuItem(value: 150, child: Text('150-199 (60 P.)')),
-                DropdownMenuItem(value: 200, child: Text('200-249 (80 P.)')),
-                DropdownMenuItem(value: 250, child: Text('250-299 (100 P.)')),
-                DropdownMenuItem(value: 300, child: Text('300+ (150 P.)')),
-              ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _criteria = _criteria.copyWith(ebtStatus: value);
-                  });
-                }
-              },
-            ),
-          ),
-          CheckboxListTile(
-            title: const Text('Arena Kommentator (20 Punkte)'),
-            value: _criteria.arenaCommentator,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(arenaCommentator: value);
-              });
-            },
-          ),
-          CheckboxListTile(
-            title: const Text('Turnierauszeichnungen (20 Punkte)'),
-            value: _criteria.tournierauszeichnungen,
-            onChanged: (value) {
-              setState(() {
-                _criteria = _criteria.copyWith(tournierauszeichnungen: value);
-              });
-            },
-          ),
-
-          const SizedBox(height: 24),
-          // Points Summary
-          _buildSectionTitle('Punkteübersicht'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gesamtpunkte: ${_criteria.totalPoints}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (_criteria.checkSupercupEligibility()) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      '✨ Supercup Bonus: +150 Punkte',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSummaryPage() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1242,39 +610,12 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                   ),
                   const Divider(),
                   _buildSummarySection(
-                    'Kategorien & Divisionen',
-                    Icons.sports_volleyball,
-                    [
-                      'Ausgewählte Kategorien:',
-                      ..._selectedCategories.map((cat) => '• $cat'),
-                      '',
-                      'Ausgewählte Divisionen:',
-                      ..._selectedDivisions.map((div) => '• $div'),
-                    ],
-                  ),
-                  if (!_skipCriteria) ...[
-                    const Divider(),
-                    _buildSummarySection(
-                      'Turnier-Kriterien',
-                      Icons.rule,
-                      [
-                        'Kriterien wurden angepasst',
-                      ],
-                    ),
-                  ],
-                  const Divider(),
-                  _buildSummarySection(
                     'Teams',
                     Icons.group,
                     [
                       'Registrierung: ${_isRegistrationOpen ? 'Offen' : 'Geschlossen'}',
                       if (_registrationDeadline != null)
                         'Anmeldefrist: ${_registrationDeadline!.day}.${_registrationDeadline!.month}.${_registrationDeadline!.year}',
-                      '',
-                      'Maximale Teams pro Division:',
-                      ..._selectedDivisions.map((div) => 
-                        '• $div: ${_divisionMaxTeams[div] ?? 32} Teams'
-                      ),
                     ],
                   ),
                 ],
@@ -1344,7 +685,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Konfigurieren Sie die Team-Anmeldungen für jede Division',
+            'Konfigurieren Sie die Team-Anmeldungen für das Turnier',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -1414,112 +755,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Division Settings
-          _buildSectionTitle('Divisions & Maximale Teams'),
-          if (_selectedDivisions.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange.shade800),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Wählen Sie zuerst Divisions in der Kategorien-Seite aus',
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _selectedDivisions.length,
-              itemBuilder: (context, index) {
-                final division = _selectedDivisions[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          division,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Maximale Teams',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 100,
-                              child: TextFormField(
-                                initialValue: (_divisionMaxTeams[division] ?? 32).toString(),
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                decoration: InputDecoration(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                  border: const OutlineInputBorder(),
-                                  suffixText: 'Teams',
-                                  suffixStyle: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(3),
-                                ],
-                                onChanged: (value) {
-                                  final number = int.tryParse(value);
-                                  if (number != null && number > 0) {
-                                    setState(() {
-                                      _divisionMaxTeams[division] = number;
-                                    });
-                                  }
-                                },
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Erforderlich';
-                                  }
-                                  final number = int.tryParse(value);
-                                  if (number == null || number <= 0) {
-                                    return 'Ungültig';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
         ],
       ),
     );
@@ -1605,8 +840,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     print('Bundesland: "${_bundeslandController.text.trim()}"');
     print('Start Date: $_startDate');
     print('End Date: $_endDate');
-    print('Categories: $_selectedCategories');
-    print('Divisions: $_selectedDivisions');
     print('Registration Deadline: $_registrationDeadline');
     
     // Validate required fields manually since we're not on the form page
@@ -1626,14 +859,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     
     if (_endDate == null) {
       missingFields.add('Enddatum');
-    }
-    
-    if (_selectedCategories.isEmpty) {
-      missingFields.add('Kategorien');
-    }
-    
-    if (_selectedDivisions.isEmpty) {
-      missingFields.add('Divisionen');
     }
     
     if (missingFields.isNotEmpty) {
@@ -1680,8 +905,6 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
       print('Location: "${_cityController.text.trim()}, ${_bundeslandController.text.trim()}"');
       print('Start Date: $_startDate');
       print('End Date: $_endDate');
-      print('Categories: $_selectedCategories');
-      print('Divisions: $_selectedDivisions');
       print('Registration Open: $_isRegistrationOpen');
       print('Registration Deadline: $_registrationDeadline');
       print('===========================');
@@ -1702,13 +925,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
         location: '${_cityController.text.trim()}, ${_bundeslandController.text.trim()}',
         startDate: _startDate!,
         endDate: _endDate!,
-        categories: _selectedCategories.toList(),
-        divisions: _selectedDivisions.toList(),
-        divisionMaxTeams: _divisionMaxTeams,
-        criteria: _criteria,
         isRegistrationOpen: _isRegistrationOpen,
         registrationDeadline: _registrationDeadline,
-        points: 0,
         status: 'upcoming',
         tournamentOrganizerId: tournamentOrganizerId,
         approvalStatus: 'pending_approval', // Set to pending approval

@@ -4,12 +4,10 @@ import '../services/tournament_service.dart';
 import '../screens/tournament_detail_screen.dart';
 
 class TournamentTimeline extends StatefulWidget {
-  final String? selectedCategory; // Accept category filter from parent
   final String? selectedSeason; // Accept season filter from parent
   
   const TournamentTimeline({
     super.key,
-    this.selectedCategory,
     this.selectedSeason,
   });
 
@@ -59,7 +57,6 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
           );
         }
 
-        String categoryFilter = widget.selectedCategory ?? 'Alle';
         String seasonFilter = widget.selectedSeason ?? '2025';
         List<Tournament> filteredTournaments = snapshot.data!
             .where((tournament) {
@@ -69,9 +66,8 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
               }
               
               // Filter by category and season
-              bool matchesCategory = categoryFilter == 'Alle' || tournament.hasCategory(categoryFilter);
               bool matchesSeason = tournament.season == seasonFilter;
-              return matchesCategory && matchesSeason;
+              return matchesSeason;
             })
             .toList();
 
@@ -415,6 +411,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => TournamentDetailScreen(tournament: tournament),
+                settings: const RouteSettings(name: 'TournamentDetailScreen'),
               ),
             );
           },
@@ -526,46 +523,12 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    tournament.categoryDisplayNames,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
+
                 ],
               ),
             ),
             
-            // Points and Status - compact
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${tournament.points}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Punkte',
-                  style: TextStyle(fontSize: 9, color: Colors.grey),
-                ),
-              ],
-            ),
+
           ],
         ),
         
@@ -712,16 +675,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                tournament.categoryDisplayNames,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -753,31 +707,10 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
           ),
         ),
         
-        // Points and Status
+        // Status
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${tournament.points}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Punkte',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
             _buildStatusBadge(tournament.status),
           ],
         ),
@@ -792,25 +725,11 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
     
     // Create color palette based on category
     List<Color> colors = [];
-    if (tournament.isJuniors) {
-      colors = [
-        Color((nameHash & 0xFF6B73FF) | 0xFF000000), // Blue variants
-        Color((nameHash & 0xFF4ECDC4) | 0xFF000000), // Teal variants
-        Color((nameHash & 0xFF45B7D1) | 0xFF000000), // Light blue variants
-      ];
-    } else if (tournament.isSeniors) {
-      colors = [
-        Color((nameHash & 0xFFFF6B6B) | 0xFF000000), // Red variants
-        Color((nameHash & 0xFFFFE66D) | 0xFF000000), // Yellow variants
-        Color((nameHash & 0xFFFF8E53) | 0xFF000000), // Orange variants
-      ];
-    } else {
-      colors = [
-        Color((nameHash & 0xFF6C5CE7) | 0xFF000000), // Purple variants
-        Color((nameHash & 0xFFA29BFE) | 0xFF000000), // Light purple variants
-        Color((nameHash & 0xFF74B9FF) | 0xFF000000), // Blue variants
-      ];
-    }
+    colors = [
+      Color((nameHash & 0xFF6C5CE7) | 0xFF000000), // Purple variants
+      Color((nameHash & 0xFFA29BFE) | 0xFF000000), // Light purple variants
+      Color((nameHash & 0xFF74B9FF) | 0xFF000000), // Blue variants
+    ];
     
     // Choose pattern type based on hash
     int patternType = nameHash.abs() % 4;
@@ -986,7 +905,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
           // Center icon
           Center(
             child: Icon(
-              tournament.isJuniors ? Icons.sports_volleyball : Icons.sports_basketball,
+              Icons.sports_handball,
               color: Colors.white.withOpacity(0.8),
               size: 24,
             ),

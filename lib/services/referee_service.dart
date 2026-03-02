@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/referee.dart';
+import 'geocoding_service.dart';
 
 class RefereeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collection = 'referees';
+  final GeocodingService _geocodingService = GeocodingService();
 
   // Get all referees
   Stream<List<Referee>> getReferees() {
@@ -33,7 +35,7 @@ class RefereeService {
     return referees;
   }
 
-  // Add a new referee
+  // Add a new referee (auto-geocodes address if provided)
   Future<void> addReferee(Referee referee) async {
     // Check if email already exists
     QuerySnapshot existingEmail = await _firestore
@@ -45,15 +47,16 @@ class RefereeService {
       throw Exception('Ein Schiedsrichter mit dieser E-Mail-Adresse existiert bereits');
     }
 
-    // Create referee with lowercase email for consistency
-    final refereeToAdd = referee.copyWith(
+    // Auto-geocode address
+    Referee refereeToAdd = referee.copyWith(
       email: referee.email.toLowerCase(),
     );
+    refereeToAdd = await _geocodeIfNeeded(refereeToAdd);
 
     await _firestore.collection(_collection).add(refereeToAdd.toMap());
   }
 
-  // Update referee
+  // Update referee (auto-geocodes address if changed)
   Future<void> updateReferee(Referee updatedReferee) async {
     // Check if email already exists for other referees
     QuerySnapshot existingEmail = await _firestore
@@ -67,16 +70,46 @@ class RefereeService {
       }
     }
 
-    // Update with lowercase email and updated timestamp
-    final refereeToUpdate = updatedReferee.copyWith(
+    // Auto-geocode address and update timestamp
+    Referee refereeToUpdate = updatedReferee.copyWith(
       email: updatedReferee.email.toLowerCase(),
       updatedAt: DateTime.now(),
     );
+    refereeToUpdate = await _geocodeIfNeeded(refereeToUpdate);
 
     await _firestore
         .collection(_collection)
         .doc(updatedReferee.id)
         .update(refereeToUpdate.toMap());
+  }
+
+  /// Auto-geocode the referee's address if street + plz or city are provided
+  /// and coordinates are not yet set.
+  Future<Referee> _geocodeIfNeeded(Referee referee) async {
+    // Only geocode if we have address data but no coordinates
+    final hasAddress = (referee.street != null && referee.street!.isNotEmpty) ||
+                       (referee.plz != null && referee.plz!.isNotEmpty) ||
+                       (referee.city != null && referee.city!.isNotEmpty);
+    
+    if (hasAddress) {
+      try {
+        final coords = await _geocodingService.geocodeAddress(
+          street: referee.street,
+          houseNumber: referee.houseNumber,
+          plz: referee.plz,
+          city: referee.city,
+        );
+        if (coords != null) {
+          return referee.copyWith(
+            latitude: coords['lat'],
+            longitude: coords['lng'],
+          );
+        }
+      } catch (e) {
+        print('Geocoding failed for referee ${referee.fullName}: $e');
+      }
+    }
+    return referee;
   }
 
   // Delete referee
@@ -111,7 +144,6 @@ class RefereeService {
 
   // Search referees
   Future<List<Referee>> searchReferees(String searchTerm) async {
-    // Get all referees and filter locally (Firestore doesn't support complex text search)
     List<Referee> allReferees = await getAllReferees();
     final term = searchTerm.toLowerCase();
     
@@ -119,7 +151,8 @@ class RefereeService {
       r.firstName.toLowerCase().contains(term) ||
       r.lastName.toLowerCase().contains(term) ||
       r.email.toLowerCase().contains(term) ||
-      r.licenseType.toLowerCase().contains(term)
+      r.licenseType.toLowerCase().contains(term) ||
+      (r.city?.toLowerCase().contains(term) ?? false)
     ).toList();
   }
 
@@ -140,217 +173,53 @@ class RefereeService {
     return distribution;
   }
 
-  // Initialize with sample data
-  Future<void> initializeSampleData() async {
-    // Check if data already exists
-    QuerySnapshot existing = await _firestore.collection(_collection).limit(1).get();
-    if (existing.docs.isNotEmpty) return;
+  /// Migrate all referees' license types from old values to new values in Firestore.
+  /// Call this once from an admin screen when transitioning.
+  Future<int> migrateLicenseTypes() async {
+    final snapshot = await _firestore.collection(_collection).get();
+    final batch = _firestore.batch();
+    int migratedCount = 0;
 
-    // Add sample referees
-    List<Referee> sampleReferees = [
-      Referee(
-        id: '',
-        firstName: 'Max',
-        lastName: 'Mustermann',
-        email: 'max.mustermann@example.com',
-        licenseType: 'DHB Elitekader',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Referee(
-        id: '',
-        firstName: 'Anna',
-        lastName: 'Schmidt',
-        email: 'anna.schmidt@example.com',
-        licenseType: 'DHB Stamm+Anschlusskader',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Referee(
-        id: '',
-        firstName: 'Thomas',
-        lastName: 'Weber',
-        email: 'thomas.weber@example.com',
-        licenseType: 'Perspektivkader',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Referee(
-        id: '',
-        firstName: 'Lisa',
-        lastName: 'Müller',
-        email: 'lisa.mueller@example.com',
-        licenseType: 'Basis-Lizenz',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    for (Referee referee in sampleReferees) {
-      await addReferee(referee);
-    }
-  }
-
-  // Create sample referees for testing
-  Future<void> createSampleReferees() async {
-    List<Referee> sampleReferees = [
-      Referee(
-        id: '',
-        firstName: 'Max',
-        lastName: 'Mustermann',
-        email: 'referee1@gbo.test',
-        licenseType: 'DHB Elitekader',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Referee(
-        id: '',
-        firstName: 'Anna',
-        lastName: 'Schmidt',
-        email: 'referee2@gbo.test',
-        licenseType: 'DHB Stamm+Anschlusskader',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      Referee(
-        id: '',
-        firstName: 'Thomas',
-        lastName: 'Weber',
-        email: 'referee3@gbo.test',
-        licenseType: 'Basis-Lizenz',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
-
-    for (Referee referee in sampleReferees) {
-      // Check if referee already exists
-      final existingReferees = await getAllReferees();
-      final exists = existingReferees.any((r) => r.email == referee.email);
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final oldLicense = data['licenseType'] as String? ?? '';
+      final newLicense = Referee._migrateLicenseType(oldLicense);
       
-      if (!exists) {
-        await addReferee(referee);
-        print('Created sample referee: ${referee.fullName} (${referee.email})');
+      if (newLicense != oldLicense) {
+        batch.update(doc.reference, {
+          'licenseType': newLicense,
+          'updatedAt': DateTime.now(),
+        });
+        migratedCount++;
       }
     }
-  }
 
-  // Clear cache and close stream
-  void dispose() {
-    // Firebase streams dispose automatically
-  }
-
-  // Update referee pending invitations array
-  Future<void> updatePendingInvitations(String refereeId, List<String> tournamentIds) async {
-    try {
-      await _firestore
-          .collection(_collection)
-          .doc(refereeId)
-          .set({
-        'invitationsPending': tournamentIds,
-        'updatedAt': DateTime.now(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error updating pending invitations: $e');
-    }
-  }
-
-  // Add pending invitation for a tournament
-  Future<void> addPendingInvitation(String refereeId, String tournamentId) async {
-    try {
-      final referee = await getRefereeById(refereeId);
-      if (referee != null && !referee.hasPendingInvitation(tournamentId)) {
-        final updatedPending = [...referee.invitationsPending, tournamentId];
-        await updatePendingInvitations(refereeId, updatedPending);
-      }
-    } catch (e) {
-      print('Error adding pending invitation: $e');
-    }
-  }
-
-  // Remove pending invitation for a tournament
-  Future<void> removePendingInvitation(String refereeId, String tournamentId) async {
-    try {
-      final referee = await getRefereeById(refereeId);
-      if (referee != null && referee.hasPendingInvitation(tournamentId)) {
-        final updatedPending = referee.invitationsPending.where((id) => id != tournamentId).toList();
-        await updatePendingInvitations(refereeId, updatedPending);
-      }
-    } catch (e) {
-      print('Error removing pending invitation: $e');
-    }
-  }
-
-  // Get pending invitations count for a referee
-  Future<int> getPendingInvitationsCount(String refereeId) async {
-    try {
-      final referee = await getRefereeById(refereeId);
-      return referee?.pendingInvitationsCount ?? 0;
-    } catch (e) {
-      print('Error getting pending invitations count: $e');
-      return 0;
-    }
-  }
-
-  // Get pending tournament IDs for a referee
-  Future<List<String>> getPendingInvitations(String refereeId) async {
-    try {
-      final referee = await getRefereeById(refereeId);
-      return referee?.invitationsPending ?? [];
-    } catch (e) {
-      print('Error getting pending invitations: $e');
-      return [];
-    }
-  }
-
-  // Update multiple referees' pending invitations (batch operation)
-  Future<void> updateMultipleRefereesPendingInvitations(Map<String, List<String>> refereeInvitationsMap) async {
-    try {
-      final batch = _firestore.batch();
-      final now = DateTime.now();
-      
-      for (final entry in refereeInvitationsMap.entries) {
-        final refereeId = entry.key;
-        final tournamentIds = entry.value;
-        
-        final docRef = _firestore.collection(_collection).doc(refereeId);
-        batch.set(docRef, {
-          'invitationsPending': tournamentIds,
-          'updatedAt': now,
-        }, SetOptions(merge: true));
-      }
-      
+    if (migratedCount > 0) {
       await batch.commit();
-    } catch (e) {
-      print('Error updating multiple referees pending invitations: $e');
     }
+    return migratedCount;
   }
 
-  // Update all referees to have invitationsPending field set to empty array if missing
-  Future<void> initializePendingInvitationsFieldForAllReferees() async {
-    try {
-      final batch = _firestore.batch();
-      final now = DateTime.now();
-      
-      // Get all referees
-      final snapshot = await _firestore.collection(_collection).get();
-      
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        // Initialize if missing or if it's the old int format
-        if (!data.containsKey('invitationsPending') || data['invitationsPending'] is int) {
-          batch.set(doc.reference, {
-            'invitationsPending': <String>[],
-            'updatedAt': now,
-          }, SetOptions(merge: true));
-        }
+  /// Remove the legacy invitationsPending field from all referee documents.
+  Future<int> cleanupLegacyInvitationFields() async {
+    final snapshot = await _firestore.collection(_collection).get();
+    final batch = _firestore.batch();
+    int cleanedCount = 0;
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      if (data.containsKey('invitationsPending')) {
+        batch.update(doc.reference, {
+          'invitationsPending': FieldValue.delete(),
+        });
+        cleanedCount++;
       }
-      
-      await batch.commit();
-      print('Initialized invitationsPending field for all referees');
-    } catch (e) {
-      print('Error initializing pending invitations field: $e');
     }
+
+    if (cleanedCount > 0) {
+      await batch.commit();
+    }
+    return cleanedCount;
   }
 
   // Delete referee by user ID
@@ -370,28 +239,8 @@ class RefereeService {
     }
   }
 
-  // Legacy methods for backward compatibility (deprecated)
-  @Deprecated('Use addPendingInvitation instead')
-  Future<void> incrementPendingInvitations(String refereeId) async {
-    // This method is deprecated and does nothing
-    print('Warning: incrementPendingInvitations is deprecated');
+  // Clear cache and close stream
+  void dispose() {
+    // Firebase streams dispose automatically
   }
-
-  @Deprecated('Use removePendingInvitation instead')
-  Future<void> decrementPendingInvitations(String refereeId) async {
-    // This method is deprecated and does nothing
-    print('Warning: decrementPendingInvitations is deprecated');
-  }
-
-  @Deprecated('Use updatePendingInvitations instead')
-  Future<void> updatePendingInvitationsCount(String refereeId, int count) async {
-    // This method is deprecated and does nothing
-    print('Warning: updatePendingInvitationsCount is deprecated');
-  }
-
-  @Deprecated('Use updateMultipleRefereesPendingInvitations instead')
-  Future<void> updateMultipleRefereesPendingCount(Map<String, int> refereeCountMap) async {
-    // This method is deprecated and does nothing
-    print('Warning: updateMultipleRefereesPendingCount is deprecated');
-  }
-} 
+}

@@ -93,6 +93,17 @@ class CityService {
     }
   }
 
+  // Get cities by country
+  Future<List<City>> getCitiesByCountry(String countryName) async {
+    try {
+      final allCities = await getAllCities();
+      return allCities.where((city) => city.country == countryName).toList();
+    } catch (e) {
+      print('Error fetching cities for country $countryName: $e');
+      return [];
+    }
+  }
+
   // Search cities
   Future<List<City>> searchCities(String query) async {
     if (query.isEmpty) return getAllCities();

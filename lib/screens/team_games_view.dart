@@ -187,7 +187,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           // Header
           Row(
             children: [
-              const Icon(Icons.sports_volleyball, color: Colors.blue),
+              const Icon(Icons.sports_handball, color: Colors.blue),
               const SizedBox(width: 8),
               Text(
                 'Spiele & Kader-Verwaltung',
@@ -217,8 +217,6 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                orElse: () => Tournament(
                  id: '', name: 'Unbekanntes Turnier', startDate: DateTime.now(), 
                  endDate: DateTime.now(), location: '', status: 'unknown',
-                 divisionTeams: {}, teamIds: [], courts: [],
-                 categories: [], points: 0,
                ),
              );
 
@@ -351,7 +349,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.sports_volleyball_outlined,
+            Icons.sports_handball_outlined,
             size: 64,
             color: Colors.grey[400],
           ),

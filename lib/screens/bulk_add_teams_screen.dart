@@ -16,27 +16,13 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
   final TeamService _teamService = TeamService();
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedDivision = 'Men\'s Seniors';
+  String _selectedBracket = 'RHBL';
   bool _isLoading = false;
 
   // List to hold team data
   List<TeamFormData> _teams = [
     TeamFormData(), // Start with one empty team
     TeamFormData(), // Always have one extra for adding new teams
-  ];
-
-  // Available divisions
-  final List<String> _divisions = [
-    'Women\'s U14',
-    'Women\'s U16',
-    'Women\'s U18',
-    'Women\'s Seniors',
-    'Women\'s FUN',
-    'Men\'s U14',
-    'Men\'s U16',
-    'Men\'s U18',
-    'Men\'s Seniors',
-    'Men\'s FUN',
   ];
 
   @override
@@ -77,7 +63,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Geben Sie für jedes Team individuelle Daten ein. Alle Teams werden in der gleichen Division erstellt.',
+                'Geben Sie für jedes Team individuelle Daten ein.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -85,7 +71,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Division Selection (shared)
+              // RHBL League indicator
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -98,33 +84,10 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
                     const Icon(Icons.group, color: Colors.blue),
                     const SizedBox(width: 12),
                     const Text(
-                      'Division für alle Teams:',
+                      'Liga: RHBL',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedDivision,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        items: _divisions.map((String division) {
-                          return DropdownMenuItem<String>(
-                            value: division,
-                            child: Text(division),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _selectedDivision = newValue;
-                            });
-                          }
-                        },
                       ),
                     ),
                   ],
@@ -440,7 +403,6 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
             : teamData.logoUrl.text.trim(),
         city: city,
         bundesland: state,
-        division: _selectedDivision,
         createdAt: DateTime.now(),
       );
 
@@ -608,7 +570,6 @@ class TeamConfirmationScreen extends StatelessWidget {
                     columns: const [
                       DataColumn(label: Text('Team Name', style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('Team Manager', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Division', style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('Stadt', style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('Bundesland', style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text('Logo', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -627,23 +588,6 @@ class TeamConfirmationScreen extends StatelessWidget {
                             ),
                           ),
                           DataCell(Text(team.teamManager ?? 'Nicht angegeben')),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getDivisionColor(team.division).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                team.division,
-                                style: TextStyle(
-                                  color: _getDivisionColor(team.division),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
                           DataCell(Text(team.city)),
                           DataCell(Text(team.bundesland)),
                           DataCell(
@@ -651,7 +595,6 @@ class TeamConfirmationScreen extends StatelessWidget {
                               teamName: team.name,
                               logoUrl: team.logoUrl,
                               size: 40,
-                              division: team.division,
                             ),
                           ),
                         ],
@@ -694,19 +637,7 @@ class TeamConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Color _getDivisionColor(String division) {
-    if (division.contains('Women')) {
-      if (division.contains('FUN')) return Colors.pink;
-      if (division.contains('U14')) return Colors.purple;
-      if (division.contains('U16')) return Colors.deepPurple;
-      if (division.contains('U18')) return Colors.indigo;
-      return Colors.blue; // Women's Seniors
-    } else {
-      if (division.contains('FUN')) return Colors.orange;
-      if (division.contains('U14')) return Colors.green;
-      if (division.contains('U16')) return Colors.teal;
-      if (division.contains('U18')) return Colors.cyan;
-      return Colors.red; // Men's Seniors
-    }
+  Color _getTeamColor(String label) {
+    return Colors.blue; // Single league (RHBL)
   }
 } 

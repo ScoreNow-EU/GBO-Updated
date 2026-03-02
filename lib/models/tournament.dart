@@ -1,21 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'tournament_criteria.dart';
 import 'court.dart';
 import 'tournament_link.dart';
 
+/// Tracks a referee's availability for a tournament.
+/// Status is entered by the admin after contacting the referee externally (e.g. email).
 class RefereeInvitation {
   final String refereeId;
   final String status; // 'pending', 'accepted', 'declined'
-  final DateTime invitedAt;
-  final DateTime? respondedAt;
-  final String? notes; // Optional notes from referee
+  final DateTime? respondedAt; // When admin entered the response
+  final String? notes; // Admin notes
+  // Availability window for the tournament day(s)
+  final DateTime? availableFrom;
+  final DateTime? availableUntil;
+  final bool isFullDay;
 
   RefereeInvitation({
     required this.refereeId,
     required this.status,
-    required this.invitedAt,
     this.respondedAt,
     this.notes,
+    this.availableFrom,
+    this.availableUntil,
+    this.isFullDay = true,
   });
 
   bool get isPending => status == 'pending';
@@ -25,16 +31,20 @@ class RefereeInvitation {
   RefereeInvitation copyWith({
     String? refereeId,
     String? status,
-    DateTime? invitedAt,
     DateTime? respondedAt,
     String? notes,
+    DateTime? availableFrom,
+    DateTime? availableUntil,
+    bool? isFullDay,
   }) {
     return RefereeInvitation(
       refereeId: refereeId ?? this.refereeId,
       status: status ?? this.status,
-      invitedAt: invitedAt ?? this.invitedAt,
       respondedAt: respondedAt ?? this.respondedAt,
       notes: notes ?? this.notes,
+      availableFrom: availableFrom ?? this.availableFrom,
+      availableUntil: availableUntil ?? this.availableUntil,
+      isFullDay: isFullDay ?? this.isFullDay,
     );
   }
 
@@ -42,9 +52,11 @@ class RefereeInvitation {
     return {
       'refereeId': refereeId,
       'status': status,
-      'invitedAt': Timestamp.fromDate(invitedAt),
       'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
       'notes': notes,
+      'availableFrom': availableFrom != null ? Timestamp.fromDate(availableFrom!) : null,
+      'availableUntil': availableUntil != null ? Timestamp.fromDate(availableUntil!) : null,
+      'isFullDay': isFullDay,
     };
   }
 
@@ -52,14 +64,89 @@ class RefereeInvitation {
     return RefereeInvitation(
       refereeId: map['refereeId'] ?? '',
       status: map['status'] ?? 'pending',
-      invitedAt: (map['invitedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       respondedAt: (map['respondedAt'] as Timestamp?)?.toDate(),
       notes: map['notes'],
+      availableFrom: (map['availableFrom'] as Timestamp?)?.toDate(),
+      availableUntil: (map['availableUntil'] as Timestamp?)?.toDate(),
+      isFullDay: map['isFullDay'] ?? true,
     );
   }
 
   Map<String, dynamic> toJson() => toMap();
   factory RefereeInvitation.fromJson(Map<String, dynamic> json) => RefereeInvitation.fromMap(json);
+}
+
+/// Tracks a Kampfgericht member's availability for a tournament.
+/// Kampfgericht = Zeitnehmer (Timekeeper) + Sekretär (Scorekeeper).
+class KampfgerichtInvitation {
+  final String memberId;
+  final String status; // 'pending', 'accepted', 'declined'
+  final DateTime? respondedAt;
+  final String? notes;
+  final DateTime? availableFrom;
+  final DateTime? availableUntil;
+  final bool isFullDay;
+
+  KampfgerichtInvitation({
+    required this.memberId,
+    required this.status,
+    this.respondedAt,
+    this.notes,
+    this.availableFrom,
+    this.availableUntil,
+    this.isFullDay = true,
+  });
+
+  bool get isPending => status == 'pending';
+  bool get isAccepted => status == 'accepted';
+  bool get isDeclined => status == 'declined';
+
+  KampfgerichtInvitation copyWith({
+    String? memberId,
+    String? status,
+    DateTime? respondedAt,
+    String? notes,
+    DateTime? availableFrom,
+    DateTime? availableUntil,
+    bool? isFullDay,
+  }) {
+    return KampfgerichtInvitation(
+      memberId: memberId ?? this.memberId,
+      status: status ?? this.status,
+      respondedAt: respondedAt ?? this.respondedAt,
+      notes: notes ?? this.notes,
+      availableFrom: availableFrom ?? this.availableFrom,
+      availableUntil: availableUntil ?? this.availableUntil,
+      isFullDay: isFullDay ?? this.isFullDay,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'memberId': memberId,
+      'status': status,
+      'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
+      'notes': notes,
+      'availableFrom': availableFrom != null ? Timestamp.fromDate(availableFrom!) : null,
+      'availableUntil': availableUntil != null ? Timestamp.fromDate(availableUntil!) : null,
+      'isFullDay': isFullDay,
+    };
+  }
+
+  factory KampfgerichtInvitation.fromMap(Map<String, dynamic> map) {
+    return KampfgerichtInvitation(
+      memberId: map['memberId'] ?? '',
+      status: map['status'] ?? 'pending',
+      respondedAt: (map['respondedAt'] as Timestamp?)?.toDate(),
+      notes: map['notes'],
+      availableFrom: (map['availableFrom'] as Timestamp?)?.toDate(),
+      availableUntil: (map['availableUntil'] as Timestamp?)?.toDate(),
+      isFullDay: map['isFullDay'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() => toMap();
+  factory KampfgerichtInvitation.fromJson(Map<String, dynamic> json) => KampfgerichtInvitation.fromMap(json);
 }
 
 class TournamentBracket {
@@ -308,76 +395,64 @@ class CustomBracketStructure {
 class Tournament {
   final String id;
   final String name;
-  final List<String> categories;
   final String season; // e.g., "2025", "2026"
   final String location;
   final DateTime startDate;
   final DateTime? endDate;
-  // Add category-specific dates for separate tournament scheduling
-  final Map<String, DateTime>? categoryStartDates; // category -> specific start date
-  final Map<String, DateTime>? categoryEndDates; // category -> specific end date
-  final int points;
   final String status; // 'upcoming', 'ongoing', 'completed'
   final String? description;
-  final String? imageUrl; // Tournament image URL
-  final List<String> teamIds; // Team IDs
-  final List<RefereeInvitation> refereeInvitations; // Referee invitations with status
-  final List<String> delegateIds; // Delegate IDs
-  final List<Map<String, dynamic>> refereeGespanne; // Referee pairs
-  final Map<String, TournamentBracket> divisionBrackets; // division -> bracket structure
-  final Map<String, CustomBracketStructure> customBrackets; // division -> custom bracket structure
-  final TournamentCriteria? criteria; // Tournament criteria for Seniors Cup
-  final List<Court> courts; // Courts available for this tournament
-  final List<String> divisions; // Available divisions for this tournament
-  final Map<String, List<String>> divisionTeams; // division -> list of team IDs
-  final Map<String, int> divisionMaxTeams; // division -> max teams allowed
-  final bool isRegistrationOpen; // Whether team registration is open
-  final DateTime? registrationDeadline; // When registration closes
-  // Changed pools to store more data per pool
+  final String? imageUrl;
+  final List<String> teamIds;
+  final List<RefereeInvitation> refereeInvitations;
+  final List<KampfgerichtInvitation> kampfgerichtInvitations;
+  final List<String> delegateIds;
+  final List<Map<String, dynamic>> refereeGespanne;
+  final Map<String, TournamentBracket> divisionBrackets; // kept for bracket infra
+  final Map<String, CustomBracketStructure> customBrackets;
+  final List<Court> courts;
+  final bool isRegistrationOpen;
+  final DateTime? registrationDeadline;
   final Map<String, List<String>> pools;
-  final Map<String, Map<String, dynamic>> poolMetadata; // Store additional pool data
-  // Tournament results by division
-  final Map<String, List<Map<String, dynamic>>>? results; // division -> list of team results
-  final String? tournamentOrganizerId; // ID of the tournament organizer
-  final List<TournamentLink> links; // Custom links for Ausschreibungen/AGBs and social media
+  final Map<String, Map<String, dynamic>> poolMetadata;
+  final Map<String, List<Map<String, dynamic>>>? results;
+  final String? tournamentOrganizerId;
+  final List<TournamentLink> links;
   // Approval workflow fields
   final String approvalStatus; // 'pending_approval', 'approved', 'rejected'
-  final String? approvedBy; // User ID who approved/rejected
-  final DateTime? approvedAt; // When it was approved/rejected
-  final String? rejectionReason; // Reason for rejection if rejected
+  final String? approvedBy;
+  final DateTime? approvedAt;
+  final String? rejectionReason;
+  // Ausrichterverein – the team hosting the tournament (gets +3 Ligapunkte)
+  final String? hostClubTeamId;
+  // Venue address (for distance calculation to referee/Kampfgericht home addresses)
+  final String? venueStreet;
+  final String? venueHouseNumber;
+  final String? venuePlz;
+  final double? venueLatitude;
+  final double? venueLongitude;
 
-  // Static method to determine season
   static String determineSeason(DateTime startDate) {
-    // If tournament starts between January and December of a year, 
-    // assign it to that year's season
     return startDate.year.toString();
   }
 
   Tournament({
     required this.id,
     required this.name,
-    required this.categories,
-    String? season, // Make season optional
+    String? season,
     required this.location,
     required this.startDate,
     this.endDate,
-    this.categoryStartDates,
-    this.categoryEndDates,
-    required this.points,
     required this.status,
     this.description,
     this.imageUrl,
     this.teamIds = const [],
     this.refereeInvitations = const [],
+    this.kampfgerichtInvitations = const [],
     this.delegateIds = const [],
     this.refereeGespanne = const [],
     this.divisionBrackets = const {},
     this.customBrackets = const {},
-    this.criteria,
     this.courts = const [],
-    this.divisions = const [],
-    this.divisionTeams = const {},
-    this.divisionMaxTeams = const {},
     this.isRegistrationOpen = true,
     this.registrationDeadline,
     Map<String, List<String>>? pools,
@@ -389,179 +464,79 @@ class Tournament {
     this.approvedBy,
     this.approvedAt,
     this.rejectionReason,
+    this.hostClubTeamId,
+    this.venueStreet,
+    this.venueHouseNumber,
+    this.venuePlz,
+    this.venueLatitude,
+    this.venueLongitude,
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
     season = season ?? determineSeason(startDate);
 
-  String get category => categories.isNotEmpty ? categories.first : '';
-  
-  String get categoryDisplayNames => categories.join(', ');
-  
-  bool hasCategory(String category) {
-    return categories.contains(category);
-  }
-
   // Helper getter for backward compatibility
   List<String> get refereeIds => refereeInvitations.map((invitation) => invitation.refereeId).toList();
-  
-  bool get isJuniors => categories.contains('GBO Juniors Cup');
-  
-  bool get isSeniors => categories.contains('GBO Seniors Cup');
-  
+
+  /// Whether this tournament has valid venue coordinates for distance calculation
+  bool get hasVenueCoordinates => venueLatitude != null && venueLongitude != null;
+
+  /// Full formatted venue address string
+  String? get venueAddress {
+    final parts = <String>[];
+    if (venueStreet != null && venueStreet!.isNotEmpty) {
+      parts.add(venueHouseNumber != null && venueHouseNumber!.isNotEmpty
+          ? '$venueStreet $venueHouseNumber'
+          : venueStreet!);
+    }
+    if (venuePlz != null && venuePlz!.isNotEmpty || location.isNotEmpty) {
+      parts.add('${venuePlz ?? ''} $location'.trim());
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
   // Approval status helpers
   bool get isPendingApproval => approvalStatus == 'pending_approval';
   bool get isApproved => approvalStatus == 'approved';
   bool get isRejected => approvalStatus == 'rejected';
 
-  // Get start date for specific category or fallback to main startDate
-  DateTime getStartDateForCategory(String category) {
-    return categoryStartDates?[category] ?? startDate;
-  }
-
-  // Get end date for specific category or fallback to main endDate
-  DateTime? getEndDateForCategory(String category) {
-    return categoryEndDates?[category] ?? endDate;
-  }
-
-  // Get playing days for specific category
-  int getPlayingDaysForCategory(String category) {
-    final startDate = getStartDateForCategory(category);
-    final endDate = getEndDateForCategory(category);
-    if (endDate == null) return 1;
-    return endDate.difference(startDate).inDays + 1;
-  }
-
-  // Get playing days points for specific category (20 points for multi-day tournaments)
-  int getPlayingDaysPointsForCategory(String category) {
-    return getPlayingDaysForCategory(category) > 1 ? 20 : 0;
-  }
-
   String get dateString {
-    if (categoryStartDates != null && categoryStartDates!.isNotEmpty) {
-      // If we have category-specific dates, show them
-      List<String> dateStrings = [];
-      for (String category in categories) {
-        final catStart = getStartDateForCategory(category);
-        final catEnd = getEndDateForCategory(category);
-        String categoryShort = category.contains('Juniors') ? 'Jugend' : 'Senioren';
-        if (catEnd != null) {
-          dateStrings.add('$categoryShort: ${catStart.day}.${catStart.month} - ${catEnd.day}.${catEnd.month}.${catEnd.year}');
-        } else {
-          dateStrings.add('$categoryShort: ${catStart.day}.${catStart.month}.${catStart.year}');
-        }
-      }
-      return dateStrings.join(' / ');
+    if (endDate != null) {
+      return '${startDate.day}.${startDate.month} - ${endDate!.day}.${endDate!.month}.${endDate!.year}';
     } else {
-      // Fallback to main dates
-      if (endDate != null) {
-        return '${startDate.day}.${startDate.month} - ${endDate!.day}.${endDate!.month}.${endDate!.year}';
-      } else {
-        return '${startDate.day}.${startDate.month}.${startDate.year}';
-      }
+      return '${startDate.day}.${startDate.month}.${startDate.year}';
     }
   }
 
-  // Get total playing days across all categories
   int get totalPlayingDays {
-    if (categoryStartDates != null && categoryStartDates!.isNotEmpty) {
-      int maxDays = 0;
-      for (String category in categories) {
-        maxDays = maxDays > getPlayingDaysForCategory(category) ? maxDays : getPlayingDaysForCategory(category);
-      }
-      return maxDays;
-    } else {
-      if (endDate == null) return 1;
-      return endDate!.difference(startDate).inDays + 1;
-    }
+    if (endDate == null) return 1;
+    return endDate!.difference(startDate).inDays + 1;
   }
 
-  // Calculate total points including criteria if it's a Seniors Cup
-  int get totalPointsWithCriteria {
-    if (isSeniors && criteria != null) {
-      return criteria!.totalPoints + criteria!.supercupBonus;
-    }
-    return points;
-  }
-
-  // Check if a team can register for a specific division
-  bool canRegisterForDivision(String division, String teamDivision) {
-    if (!divisions.contains(division)) return false;
-    if (!isRegistrationOpen) return false;
-    if (registrationDeadline != null && DateTime.now().isAfter(registrationDeadline!)) return false;
-    
-    // For seniors teams, allow registration in either their regular division or FUN division
-    bool canRegister = false;
-    if (teamDivision.contains('Seniors')) {
-      // Seniors team can register for their division or corresponding FUN division
-      String funDivision = teamDivision.replaceAll('Seniors', 'FUN');
-      canRegister = (division == teamDivision) || (division == funDivision);
-    } else {
-      // Non-seniors teams must match exactly
-      canRegister = (division == teamDivision);
-    }
-    
-    if (!canRegister) return false;
-    
-    // Check if division has space
-    final currentTeams = divisionTeams[division] ?? [];
-    final maxTeams = divisionMaxTeams[division] ?? 32; // Default max
-    
-    return currentTeams.length < maxTeams;
-  }
-
-  // Get registered teams count for a division
-  int getRegisteredTeamsCount(String division) {
-    return divisionTeams[division]?.length ?? 0;
-  }
-
-  // Get max teams allowed for a division
-  int getMaxTeamsForDivision(String division) {
-    return divisionMaxTeams[division] ?? 32;
-  }
-
-  // Check if team is already registered for any division
+  // Check if team is already registered
   bool isTeamRegistered(String teamId) {
-    for (final teams in divisionTeams.values) {
-      if (teams.contains(teamId)) return true;
-    }
-    return false;
-  }
-
-  // Get division that a team is registered for
-  String? getTeamDivision(String teamId) {
-    for (final entry in divisionTeams.entries) {
-      if (entry.value.contains(teamId)) return entry.key;
-    }
-    return null;
+    return teamIds.contains(teamId);
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'name': name,
-      'categories': categories,
-      'season': determineSeason(startDate), // Always use dynamic season determination
+      'season': determineSeason(startDate),
       'location': location,
       'startDate': Timestamp.fromDate(startDate),
       'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
-      'categoryStartDates': categoryStartDates?.map((key, value) => MapEntry(key, Timestamp.fromDate(value))),
-      'categoryEndDates': categoryEndDates?.map((key, value) => MapEntry(key, Timestamp.fromDate(value))),
-      'points': points,
       'status': status,
       'description': description,
       'imageUrl': imageUrl,
       'teamIds': teamIds,
       'refereeInvitations': refereeInvitations.map((invitation) => invitation.toMap()).toList(),
+      'kampfgerichtInvitations': kampfgerichtInvitations.map((invitation) => invitation.toMap()).toList(),
       'delegateIds': delegateIds,
       'refereeGespanne': refereeGespanne,
       'divisionBrackets': divisionBrackets.map((key, value) => MapEntry(key, value.toMap())),
       'customBrackets': customBrackets.map((key, value) => MapEntry(key, value.toMap())),
-      'criteria': criteria?.toMap(),
       'courts': courts.map((court) => court.toMap()).toList(),
-      'divisions': divisions,
-      'divisionTeams': divisionTeams,
-      'divisionMaxTeams': divisionMaxTeams,
       'isRegistrationOpen': isRegistrationOpen,
       'registrationDeadline': registrationDeadline?.millisecondsSinceEpoch,
       'pools': pools,
@@ -573,61 +548,36 @@ class Tournament {
       'approvedBy': approvedBy,
       'approvedAt': approvedAt?.millisecondsSinceEpoch,
       'rejectionReason': rejectionReason,
+      'hostClubTeamId': hostClubTeamId,
+      'venueStreet': venueStreet,
+      'venueHouseNumber': venueHouseNumber,
+      'venuePlz': venuePlz,
+      'venueLatitude': venueLatitude,
+      'venueLongitude': venueLongitude,
     };
   }
 
-  // Factory method to update season dynamically during deserialization
   factory Tournament.fromMap(Map<String, dynamic> map, [String? documentId]) {
-    // Helper method to convert Timestamp or int to DateTime
     DateTime _convertToDateTime(dynamic dateValue) {
       if (dateValue == null) return DateTime.now();
       if (dateValue is Timestamp) return dateValue.toDate();
       if (dateValue is int) return DateTime.fromMillisecondsSinceEpoch(dateValue);
       if (dateValue is DateTime) return dateValue;
-      return DateTime.now(); // Fallback
+      return DateTime.now();
     }
 
-    // Helper method to convert Timestamp or int maps
-    Map<String, DateTime>? _convertDateMap(Map<String, dynamic>? inputMap) {
-      if (inputMap == null) return null;
-      
-      return inputMap.map((key, value) {
-        return MapEntry(key, _convertToDateTime(value));
-      });
-    }
-
-    // Determine start date with robust conversion
     final startDate = _convertToDateTime(map['startDate']);
-    
-    // Override season with dynamically determined season if not explicitly set
     final season = map['season'] ?? determineSeason(startDate);
-
-    // Parse category-specific dates
-    final categoryStartDates = _convertDateMap(map['categoryStartDates'] is Map 
-        ? Map<String, dynamic>.from(map['categoryStartDates']) 
-        : null);
-    
-    final categoryEndDates = _convertDateMap(map['categoryEndDates'] is Map 
-        ? Map<String, dynamic>.from(map['categoryEndDates']) 
-        : null);
 
     return Tournament(
       id: documentId ?? map['id'] ?? '',
       name: map['name'] ?? '',
-      categories: List<String>.from(map['categories'] ?? []),
       season: season,
       location: map['location'] ?? '',
       startDate: startDate,
       endDate: map['endDate'] != null 
         ? _convertToDateTime(map['endDate'])
         : null,
-      categoryStartDates: categoryStartDates,
-      categoryEndDates: categoryEndDates,
-      points: (map['points'] is int) 
-        ? map['points'] 
-        : (map['points'] is double) 
-          ? (map['points'] as double).toInt() 
-          : 0,
       status: map['status'] ?? 'upcoming',
       description: map['description'],
       imageUrl: map['imageUrl'],
@@ -635,6 +585,11 @@ class Tournament {
       refereeInvitations: map['refereeInvitations'] != null
         ? (map['refereeInvitations'] as List)
             .map((invitation) => RefereeInvitation.fromMap(invitation))
+            .toList()
+        : [],
+      kampfgerichtInvitations: map['kampfgerichtInvitations'] != null
+        ? (map['kampfgerichtInvitations'] as List)
+            .map((invitation) => KampfgerichtInvitation.fromMap(invitation))
             .toList()
         : [],
       delegateIds: List<String>.from(map['delegateIds'] ?? []),
@@ -653,19 +608,9 @@ class Tournament {
             )
           )
         : {},
-      criteria: map['criteria'] != null 
-        ? TournamentCriteria.fromMap(map['criteria']) 
-        : null,
       courts: map['courts'] != null
         ? (map['courts'] as List).map((court) => Court.fromMap(court)).toList()
         : [],
-      divisions: List<String>.from(map['divisions'] ?? []),
-      divisionTeams: map['divisionTeams'] != null
-        ? Map<String, List<String>>.from(map['divisionTeams'])
-        : {},
-      divisionMaxTeams: map['divisionMaxTeams'] != null
-        ? Map<String, int>.from(map['divisionMaxTeams'])
-        : {},
       approvalStatus: map['approvalStatus'] ?? 'pending_approval',
       approvedBy: map['approvedBy'],
       approvedAt: map['approvedAt'] != null
@@ -686,13 +631,18 @@ class Tournament {
         ? _parseResults(map['results'])
         : null,
       tournamentOrganizerId: map['tournamentOrganizerId'],
+      hostClubTeamId: map['hostClubTeamId'],
+      venueStreet: map['venueStreet'],
+      venueHouseNumber: map['venueHouseNumber'],
+      venuePlz: map['venuePlz'],
+      venueLatitude: map['venueLatitude']?.toDouble(),
+      venueLongitude: map['venueLongitude']?.toDouble(),
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],
     );
   }
 
-  // Helper method to parse results from Firestore
   static Map<String, List<Map<String, dynamic>>>? _parseResults(dynamic resultsData) {
     if (resultsData == null) return null;
     
@@ -704,13 +654,13 @@ class Tournament {
         final dynamic value = entry.value;
         
         if (value is List) {
-          final List<Map<String, dynamic>> divisionResults = [];
+          final List<Map<String, dynamic>> parsedResults = [];
           for (final item in value) {
             if (item is Map) {
-              divisionResults.add(Map<String, dynamic>.from(item));
+              parsedResults.add(Map<String, dynamic>.from(item));
             }
           }
-          results[key] = divisionResults;
+          results[key] = parsedResults;
         }
       }
     }
@@ -718,32 +668,24 @@ class Tournament {
     return results;
   }
 
-  // Add copyWith method
   Tournament copyWith({
     String? id,
     String? name,
-    List<String>? categories,
     String? season,
     String? location,
     DateTime? startDate,
     DateTime? endDate,
-    Map<String, DateTime>? categoryStartDates,
-    Map<String, DateTime>? categoryEndDates,
-    int? points,
     String? status,
     String? description,
     String? imageUrl,
     List<String>? teamIds,
     List<RefereeInvitation>? refereeInvitations,
+    List<KampfgerichtInvitation>? kampfgerichtInvitations,
     List<String>? delegateIds,
     List<Map<String, dynamic>>? refereeGespanne,
     Map<String, TournamentBracket>? divisionBrackets,
     Map<String, CustomBracketStructure>? customBrackets,
-    TournamentCriteria? criteria,
     List<Court>? courts,
-    List<String>? divisions,
-    Map<String, List<String>>? divisionTeams,
-    Map<String, int>? divisionMaxTeams,
     bool? isRegistrationOpen,
     DateTime? registrationDeadline,
     Map<String, List<String>>? pools,
@@ -755,32 +697,31 @@ class Tournament {
     String? approvedBy,
     DateTime? approvedAt,
     String? rejectionReason,
+    String? hostClubTeamId,
+    String? venueStreet,
+    String? venueHouseNumber,
+    String? venuePlz,
+    double? venueLatitude,
+    double? venueLongitude,
   }) {
     return Tournament(
       id: id ?? this.id,
       name: name ?? this.name,
-      categories: categories ?? List.from(this.categories),
       season: season ?? this.season,
       location: location ?? this.location,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
-      categoryStartDates: categoryStartDates ?? Map.from(this.categoryStartDates ?? {}),
-      categoryEndDates: categoryEndDates ?? Map.from(this.categoryEndDates ?? {}),
-      points: points ?? this.points,
       status: status ?? this.status,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       teamIds: teamIds ?? List.from(this.teamIds),
       refereeInvitations: refereeInvitations ?? List.from(this.refereeInvitations),
+      kampfgerichtInvitations: kampfgerichtInvitations ?? List.from(this.kampfgerichtInvitations),
       delegateIds: delegateIds ?? List.from(this.delegateIds),
       refereeGespanne: refereeGespanne ?? List.from(this.refereeGespanne),
       divisionBrackets: divisionBrackets ?? Map.from(this.divisionBrackets),
       customBrackets: customBrackets ?? Map.from(this.customBrackets),
-      criteria: criteria ?? this.criteria,
       courts: courts ?? List.from(this.courts),
-      divisions: divisions ?? List.from(this.divisions),
-      divisionTeams: divisionTeams ?? Map.from(this.divisionTeams),
-      divisionMaxTeams: divisionMaxTeams ?? Map.from(this.divisionMaxTeams),
       isRegistrationOpen: isRegistrationOpen ?? this.isRegistrationOpen,
       registrationDeadline: registrationDeadline ?? this.registrationDeadline,
       pools: pools ?? Map.from(this.pools),
@@ -792,6 +733,12 @@ class Tournament {
       approvedBy: approvedBy ?? this.approvedBy,
       approvedAt: approvedAt ?? this.approvedAt,
       rejectionReason: rejectionReason ?? this.rejectionReason,
+      hostClubTeamId: hostClubTeamId ?? this.hostClubTeamId,
+      venueStreet: venueStreet ?? this.venueStreet,
+      venueHouseNumber: venueHouseNumber ?? this.venueHouseNumber,
+      venuePlz: venuePlz ?? this.venuePlz,
+      venueLatitude: venueLatitude ?? this.venueLatitude,
+      venueLongitude: venueLongitude ?? this.venueLongitude,
     );
   }
 } 

@@ -3,14 +3,14 @@ import 'dart:io';
 import 'package:pay/pay.dart';
 
 class ApplePayService {
-  static const String _merchantIdentifier = 'merchant.com.scorenow.germanbeachopen';
+  static const String _merchantIdentifier = 'merchant.com.scorenow.rollstuhlhandball';
   
   static const String _applePayConfigJson = '''
 {
   "provider": "apple_pay",
   "data": {
-    "merchantIdentifier": "merchant.com.scorenow.germanbeachopen",
-    "displayName": "German Beach Open",
+    "merchantIdentifier": "merchant.com.scorenow.rollstuhlhandball",
+    "displayName": "Rollstuhlhandball Bundesliga",
     "merchantCapabilities": ["3DS", "debit", "credit"],
     "supportedNetworks": ["visa", "masterCard", "amex"],
     "countryCode": "DE",
@@ -58,7 +58,7 @@ class ApplePayService {
       // Create payment items
       final List<PaymentItem> paymentItems = [
         PaymentItem(
-          label: description ?? 'German Beach Open Spende',
+          label: description ?? 'RHBL Spende',
           amount: amount.toStringAsFixed(2),
           status: PaymentItemStatus.final_price,
         ),

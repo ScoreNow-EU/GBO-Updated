@@ -16,7 +16,6 @@ class _TournamentOverviewState extends State<TournamentOverview> {
   final TournamentService _tournamentService = TournamentService();
   final RefereeService _refereeService = RefereeService();
   final AuthService _authService = AuthService();
-  String selectedCategory = 'GBO Seniors Cup'; // Default to Seniors only
   String selectedSeason = '2026'; // Default to 2026 season
 
   @override
@@ -37,21 +36,16 @@ class _TournamentOverviewState extends State<TournamentOverview> {
       if (user != null) {
         // User is logged in - use their preferences
         setState(() {
-          selectedCategory = user.defaultTournamentFilter ?? 'GBO Seniors Cup';
           selectedSeason = user.defaultSeason ?? '2026';
         });
       } else {
-        // User is not logged in - use Seniors default
         setState(() {
-          selectedCategory = 'GBO Seniors Cup';
           selectedSeason = '2026';
         });
       }
     } catch (e) {
       print('Error loading user preferences: $e');
-      // Fallback to Seniors default on error
       setState(() {
-        selectedCategory = 'GBO Seniors Cup';
         selectedSeason = '2026';
       });
     }
@@ -76,12 +70,6 @@ class _TournamentOverviewState extends State<TournamentOverview> {
                   width: double.infinity,
                   child: _buildSeasonDropdown(),
                 ),
-                const SizedBox(height: 12),
-                // Category filter
-                Container(
-                  width: double.infinity,
-                  child: _buildCategoryDropdown(),
-                ),
               ] else ...[
                 Row(
                   children: [
@@ -91,9 +79,6 @@ class _TournamentOverviewState extends State<TournamentOverview> {
                       constraints: const BoxConstraints(maxWidth: 200),
                       child: _buildSeasonDropdown(),
                     ),
-                    const SizedBox(width: 16),
-                    // Category filter
-                    _buildCategoryDropdown(),
                   ],
                 ),
               ],
@@ -102,7 +87,6 @@ class _TournamentOverviewState extends State<TournamentOverview> {
               // Timeline View
               Expanded(
                 child: TournamentTimeline(
-                  selectedCategory: selectedCategory,
                   selectedSeason: selectedSeason,
                 ),
               ),
@@ -144,39 +128,5 @@ class _TournamentOverviewState extends State<TournamentOverview> {
     );
   }
 
-  Widget _buildCategoryDropdown() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedCategory,
-          isExpanded: true,
-          items: const [
-            DropdownMenuItem(
-              value: 'Alle',
-              child: Text('Kategorie: Alle', overflow: TextOverflow.ellipsis),
-            ),
-            DropdownMenuItem(
-              value: 'GBO Juniors Cup',
-              child: Text('Kategorie: Juniors', overflow: TextOverflow.ellipsis),
-            ),
-            DropdownMenuItem(
-              value: 'GBO Seniors Cup',
-              child: Text('Kategorie: Seniors', overflow: TextOverflow.ellipsis),
-            ),
-          ],
-          onChanged: (value) {
-            setState(() {
-              selectedCategory = value!;
-            });
-          },
-        ),
-      ),
-    );
-  }
+
 } 

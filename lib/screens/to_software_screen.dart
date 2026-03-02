@@ -202,7 +202,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                     children: [
                       _buildNavItem(
                         title: 'Court View',
-                        icon: Icons.sports_volleyball,
+                        icon: Icons.sports_handball,
                         section: 'court_view',
                         isSelected: selectedSection == 'court_view',
                       ),
@@ -373,7 +373,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
           Row(
             children: [
               Icon(
-                Icons.sports_volleyball,
+                Icons.sports_handball,
                 color: AppColors.primaryColor,
                 size: 24,
               ),
@@ -500,7 +500,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
             child: Row(
               children: [
                 Icon(
-                  Icons.sports_volleyball,
+                  Icons.sports_handball,
                   color: Colors.white,
                   size: 20,
                 ),
@@ -600,24 +600,16 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
       }
     }
     
-    final division = _getShortDivision(_getGameDivision(game));
+    final gameLabel = _getGameLabel(game);
     
     // Get actual scores from game result if available
-    final teamAScore = game.result?.sets.isNotEmpty == true ? game.result!.sets.map((s) => s.teamAScore).reduce((a, b) => a + b) : 0;
-    final teamBScore = game.result?.sets.isNotEmpty == true ? game.result!.sets.map((s) => s.teamBScore).reduce((a, b) => a + b) : 0;
+    final teamAScore = game.result?.teamAScore ?? 0;
+    final teamBScore = game.result?.teamBScore ?? 0;
     final teamAName = game.teamAName;
     final teamBName = game.teamBName;
     
-    // Get set scores from game result
-    final set1Score = (game.result?.sets.isNotEmpty == true) 
-        ? '${game.result!.sets[0].teamAScore}:${game.result!.sets[0].teamBScore}'
-        : '0:0';
-    final set2Score = (game.result?.sets != null && game.result!.sets.length > 1) 
-        ? '${game.result!.sets[1].teamAScore}:${game.result!.sets[1].teamBScore}'
-        : '0:0';
-    final shootoutScore = (game.result?.sets != null && game.result!.sets.length > 2) 
-        ? '${game.result!.sets[2].teamAScore}:${game.result!.sets[2].teamBScore}'
-        : '0:0';
+    // Get score from game result
+    final scoreDisplay = '${game.result?.teamAScore ?? 0}:${game.result?.teamBScore ?? 0}';
     
     // Team colors based on game status and scores
     final teamAColor = teamAScore > teamBScore ? Colors.green.shade600 : Colors.blue.shade600;
@@ -648,7 +640,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                    // Header with time and division
+                    // Header with time and league
           Row(
             children: [
               Text(
@@ -670,7 +662,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               ),
               const Spacer(),
               Text(
-                division,
+                gameLabel,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
@@ -777,38 +769,12 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
           
           const SizedBox(height: 8),
           
-          // Set scores with vertical dividers
+          // Score display
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                set1Score,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 12,
-                color: Colors.grey.shade300,
-              ),
-              Text(
-                set2Score,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 12,
-                color: Colors.grey.shade300,
-              ),
-              Text(
-                shootoutScore,
+                scoreDisplay,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 11,
@@ -873,7 +839,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.sports_volleyball_outlined,
+            Icons.sports_handball_outlined,
             size: 64,
             color: Colors.grey.shade400,
           ),
@@ -1225,13 +1191,14 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
-                        Text(
-                          court.type.toString().split('.').last.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade600,
-                          ),
-                          textAlign: TextAlign.center,
+                        if (court.description.isNotEmpty)
+                          Text(
+                            court.description.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -1334,8 +1301,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   }
 
   Widget _buildScheduledGameCard(Game game) {
-    final division = _getGameDivision(game);
-    final divisionColor = _getDivisionColor(division);
+    final gameColor = _getGameColor(game);
     
     return Draggable<Game>(
       data: game,
@@ -1350,8 +1316,8 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                divisionColor,
-                divisionColor.withOpacity(0.8),
+                gameColor,
+                gameColor.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(6),
@@ -1386,8 +1352,8 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                divisionColor,
-                divisionColor.withOpacity(0.8),
+                gameColor,
+                gameColor.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(6),
@@ -1443,7 +1409,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   }
 
   Widget _buildModernGameCardContent(Game game) {
-    final division = _getGameDivision(game);
+    // Game label: RHBL
     
     // Use team names directly from game object
     String teamAName = game.teamAName.isNotEmpty ? game.teamAName : 'Team A';
@@ -1454,7 +1420,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Division badge (top-right)
+          // Liga badge (top-right)
           Align(
             alignment: Alignment.topRight,
             child: Container(
@@ -1464,7 +1430,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                _getShortDivision(division),
+                _getGameLabel(game),
                 style: const TextStyle(
                   fontSize: 8,
                   fontWeight: FontWeight.bold,
@@ -1639,8 +1605,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   }
 
   Widget _buildDraggableGameCard(Game game) {
-    final division = _getGameDivision(game);
-    final divisionColor = _getDivisionColor(division);
+    final gameColor = _getGameColor(game);
     
     return Draggable<Game>(
       data: game,
@@ -1655,8 +1620,8 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                divisionColor,
-                divisionColor.withOpacity(0.8),
+                gameColor,
+                gameColor.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
@@ -1688,8 +1653,8 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              divisionColor,
-              divisionColor.withOpacity(0.8),
+              gameColor,
+              gameColor.withOpacity(0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(8),
@@ -1708,7 +1673,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
 
   Widget _buildUnscheduledGameContent(Game game, {bool isPlaceholder = false}) {
     final opacity = isPlaceholder ? 0.5 : 1.0;
-    final division = _getGameDivision(game);
+    // Game label: RHBL
     final teamAName = game.teamAName.isNotEmpty ? game.teamAName : 'Team A';
     final teamBName = game.teamBName.isNotEmpty ? game.teamBName : 'Team B';
     
@@ -1761,7 +1726,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    _getShortDivision(division),
+                    _getGameLabel(game),
                     style: const TextStyle(
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
@@ -2037,68 +2002,11 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   // ===== HELPER METHODS =====
   
   Color _getGameColor(Game game) {
-    final division = _getGameDivision(game);
-    return _getDivisionColor(division);
+    return Colors.blue.shade700; // Single league (RHBL)
   }
 
-  String _getGameDivision(Game game) {
-    // For TO Software, we'll use a simplified approach
-    // Try to extract division from team names or use default
-    return 'Men\'s Seniors'; // Default for now
-  }
-
-  Color _getDivisionColor(String division) {
-    switch (division) {
-      case 'Women\'s U14':
-        return Colors.pink.shade400;
-      case 'Women\'s U16':
-        return Colors.pink.shade500;
-      case 'Women\'s U18':
-        return Colors.pink.shade600;
-      case 'Women\'s Seniors':
-        return Colors.pink.shade700;
-      case 'Women\'s FUN':
-        return Colors.pink.shade300;
-      case 'Men\'s U14':
-        return Colors.blue.shade400;
-      case 'Men\'s U16':
-        return Colors.blue.shade500;
-      case 'Men\'s U18':
-        return Colors.blue.shade600;
-      case 'Men\'s Seniors':
-        return Colors.blue.shade700;
-      case 'Men\'s FUN':
-        return Colors.blue.shade300;
-      default:
-        return Colors.grey.shade600;
-    }
-  }
-
-  String _getShortDivision(String division) {
-    switch (division) {
-      case 'Women\'s U14':
-        return 'WU14';
-      case 'Women\'s U16':
-        return 'WU16';
-      case 'Women\'s U18':
-        return 'WU18';
-      case 'Women\'s Seniors':
-        return 'WS';
-      case 'Women\'s FUN':
-        return 'WF';
-      case 'Men\'s U14':
-        return 'MU14';
-      case 'Men\'s U16':
-        return 'MU16';
-      case 'Men\'s U18':
-        return 'MU18';
-      case 'Men\'s Seniors':
-        return 'MS';
-      case 'Men\'s FUN':
-        return 'MF';
-      default:
-        return 'UNK';
-    }
+  String _getGameLabel(Game game) {
+    return 'RHBL';
   }
 
   // ===== COURT VIEW HELPER METHODS =====
@@ -2295,14 +2203,14 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              // Set 1
+              // Score
               Row(
                 children: [
-                  const Text('Set 1:', style: TextStyle(fontWeight: FontWeight.w500)),
+                  const Text('Score:', style: TextStyle(fontWeight: FontWeight.w500)),
                   const SizedBox(width: 16),
                   Expanded(
                     child: TextFormField(
-                      initialValue: game.result?.sets.isNotEmpty == true ? game.result!.sets[0].teamAScore.toString() : '0',
+                      initialValue: game.result?.teamAScore.toString() ?? '0',
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
@@ -2313,34 +2221,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
-                      initialValue: game.result?.sets.isNotEmpty == true ? game.result!.sets[0].teamBScore.toString() : '0',
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Set 2
-              Row(
-                children: [
-                  const Text('Set 2:', style: TextStyle(fontWeight: FontWeight.w500)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: (game.result?.sets != null && game.result!.sets.length > 1) ? game.result!.sets[1].teamAScore.toString() : '0',
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(':', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: (game.result?.sets != null && game.result!.sets.length > 1) ? game.result!.sets[1].teamBScore.toString() : '0',
+                      initialValue: game.result?.teamBScore.toString() ?? '0',
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),

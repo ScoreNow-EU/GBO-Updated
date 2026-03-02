@@ -6,7 +6,7 @@ class KanbanService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _boardsCollection = 'kanban_boards';
   final String _tasksCollection = 'kanban_tasks';
-  static const String _defaultBoardId = 'gbo_main_board';
+  static const String _defaultBoardId = 'rhbl_main_board';
 
   // Get or create the single default board
   Future<KanbanBoard> getDefaultBoard() async {
@@ -18,9 +18,9 @@ class KanbanService {
         // Create default board if it doesn't exist
         final defaultBoard = KanbanBoard(
           id: _defaultBoardId,
-          name: 'German Beach Open - Aufgaben',
-          description: 'Hauptboard für die Verwaltung aller GBO-Aufgaben',
-          projectKey: 'GBO',
+          name: 'RHBL - Aufgaben',
+          description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
+          projectKey: 'RHBL',
           adminIds: [],
           memberIds: [],
           createdAt: DateTime.now(),
@@ -37,9 +37,9 @@ class KanbanService {
       // Return a fallback board
       return KanbanBoard(
         id: _defaultBoardId,
-        name: 'German Beach Open - Aufgaben',
-        description: 'Hauptboard für die Verwaltung aller GBO-Aufgaben',
-        projectKey: 'GBO',
+        name: 'RHBL - Aufgaben',
+        description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
+        projectKey: 'RHBL',
         adminIds: [],
         memberIds: [],
         createdAt: DateTime.now(),

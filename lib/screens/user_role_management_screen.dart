@@ -486,7 +486,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.user:
         return Icons.account_circle;
       case app_user.UserRole.referee:
-        return Icons.sports_volleyball;
+        return Icons.sports_handball;
       case app_user.UserRole.teamManager:
         return Icons.groups;
       case app_user.UserRole.delegate:
@@ -634,7 +634,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         break;
       case app_user.UserRole.referee:
         color = Colors.orange;
-        icon = Icons.sports_volleyball;
+        icon = Icons.sports_handball;
         break;
       case app_user.UserRole.teamManager:
         color = Colors.blue;
@@ -790,7 +790,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         break;
       case app_user.UserRole.referee:
         color = Colors.orange;
-        icon = Icons.sports_volleyball;
+        icon = Icons.sports_handball;
         break;
       case app_user.UserRole.teamManager:
         color = Colors.blue;
@@ -874,7 +874,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     // Filter out system and managed accounts
     filtered = filtered.where((user) {
       final email = user.email.toLowerCase();
-      return !email.endsWith('@gbo-system.de') && !email.endsWith('@managed.gbo.app');
+      return !email.endsWith('@rollstuhlhandball.de') && !email.endsWith('@managed.rollstuhlhandball.de');
     }).toList();
     
     // Filter by search query
@@ -1488,7 +1488,7 @@ class _TeamManagerCreationDialogState extends State<_TeamManagerCreationDialog> 
                 items: widget.teams.map((team) {
                   return DropdownMenuItem(
                     value: team,
-                    child: Text('${team.name} - ${team.division}'),
+                    child: Text('${team.name} - ${team.city}'),
                   );
                 }).toList(),
                 onChanged: (team) {

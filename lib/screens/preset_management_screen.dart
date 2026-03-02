@@ -15,24 +15,15 @@ class PresetManagementScreen extends StatefulWidget {
 
 class _PresetManagementScreenState extends State<PresetManagementScreen> {
   final PresetService _presetService = PresetService();
-  String _selectedDivision = 'Women\'s Seniors';
+  String _selectedCategory = 'RHBL';
   List<CustomBracketNode> _currentNodes = [];
   List<Team> _sampleTeams = [];
   Map<String, List<String>> _poolTeams = {};
   List<BracketPreset> _savedPresets = [];
   bool _isLoading = false;
   
-  final List<String> _divisions = [
-    'Women\'s U14',
-    'Women\'s U16', 
-    'Women\'s U18',
-    'Women\'s Seniors',
-    'Women\'s FUN',
-    'Men\'s U14',
-    'Men\'s U16',
-    'Men\'s U18', 
-    'Men\'s Seniors',
-    'Men\'s FUN',
+  final List<String> _categories = [
+    'RHBL',
   ];
 
   @override
@@ -49,8 +40,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
         id: 'team_$teamNumber',
         name: 'Team $teamNumber',
         city: 'Stadt $teamNumber',
-        bundesland: 'Baden-Württemberg',
-        division: _selectedDivision,
+        bundesland: 'Baden-WÃ¼rttemberg',
         createdAt: DateTime.now(),
         teamManager: 'Manager $teamNumber',
         logoUrl: null,
@@ -64,7 +54,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
     });
     
     try {
-      final presets = await _presetService.getPresetsForDivision(_selectedDivision);
+      final presets = await _presetService.getPresetsForCategory(_selectedCategory);
       setState(() {
         _savedPresets = presets;
         _isLoading = false;
@@ -145,14 +135,14 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
             ),
           ),
           
-          // Division selection
+          // Category selection
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Division',
+                  'Liga',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -169,21 +159,21 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
-                      value: _selectedDivision,
+                      value: _selectedCategory,
                       isExpanded: true,
                       onChanged: (value) {
                         if (value != null) {
                           setState(() {
-                            _selectedDivision = value;
+                            _selectedCategory = value;
                             _generateSampleTeams();
                           });
                           _loadPresets();
                         }
                       },
-                      items: _divisions.map((division) {
+                      items: _categories.map((category) {
                         return DropdownMenuItem<String>(
-                          value: division,
-                          child: Text(division),
+                          value: category,
+                          child: Text(category),
                         );
                       }).toList(),
                     ),
@@ -306,7 +296,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                         : _savedPresets.isEmpty
                             ? Center(
                                 child: Text(
-                                  'Keine Presets für\n$_selectedDivision',
+                                  'Keine Presets fÃ¼r\n$_selectedCategory',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 12,
@@ -347,7 +337,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                                           ),
                                           const PopupMenuItem(
                                             value: 'delete',
-                                            child: Text('Löschen'),
+                                            child: Text('LÃ¶schen'),
                                           ),
                                         ],
                                       ),
@@ -384,7 +374,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            'Preset Builder - $_selectedDivision',
+            'Preset Builder - $_selectedCategory',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -399,7 +389,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '${_sampleTeams.length} Test-Teams verfügbar',
+              '${_sampleTeams.length} Test-Teams verfÃ¼gbar',
               style: const TextStyle(
                 color: Colors.blue,
                 fontSize: 14,
@@ -417,18 +407,16 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
       padding: const EdgeInsets.all(24),
       child: CustomBracketBuilder(
         initialNodes: _currentNodes,
-        divisionName: _selectedDivision,
+        divisionName: _selectedCategory,
         availableTeams: _getAvailableTeams(),
         poolTeams: _poolTeams,
         allTeams: _sampleTeams,
         tournament: Tournament(
-          id: 'preset_${_selectedDivision}',
+          id: 'preset_${_selectedCategory}',
           name: 'Preset Tournament',
-          categories: [_selectedDivision],
           location: 'Preset Location',
           startDate: DateTime.now(),
           endDate: DateTime.now(),
-          points: 0,
           status: 'upcoming',
         ),
         onTeamDrop: _handleTeamDrop,
@@ -450,11 +438,11 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
   void _handleTeamDrop(Team team, CustomBracketNode node) {
     if (node.nodeType == 'pool') {
       setState(() {
-        final poolId = '${_selectedDivision}_${node.title}';
+        final poolId = '${_selectedCategory}_${node.title}';
         
         // Remove team from any other pools first
         for (String existingPoolId in _poolTeams.keys.toList()) {
-          if (existingPoolId.startsWith('${_selectedDivision}_') && existingPoolId != poolId) {
+          if (existingPoolId.startsWith('${_selectedCategory}_') && existingPoolId != poolId) {
             if (_poolTeams[existingPoolId]!.contains(team.id)) {
               _poolTeams[existingPoolId]!.remove(team.id);
               if (_poolTeams[existingPoolId]?.isEmpty ?? false) {
@@ -484,7 +472,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
   }
 
   void _loadTemplate(String templateName, List<CustomBracketNode> Function(String) templateFunc) {
-    final nodes = templateFunc(_selectedDivision);
+    final nodes = templateFunc(_selectedCategory);
     setState(() {
       _currentNodes = nodes;
       _poolTeams.clear(); // Clear existing pool assignments
@@ -552,7 +540,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
                 name: nameController.text.trim(),
                 description: descriptionController.text.trim(),
-                division: _selectedDivision,
+                division: _selectedCategory,
                 nodes: _currentNodes,
                 poolTeams: _poolTeams,
                 createdAt: DateTime.now(),
@@ -586,8 +574,8 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Preset löschen'),
-        content: Text('Möchten Sie das Preset "${preset.name}" wirklich löschen?'),
+        title: const Text('Preset lÃ¶schen'),
+        content: Text('MÃ¶chten Sie das Preset "${preset.name}" wirklich lÃ¶schen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -598,14 +586,14 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
               try {
                 await _presetService.deletePreset(preset.id);
                 Navigator.pop(context);
-                _showSuccess('Preset "${preset.name}" gelöscht');
+                _showSuccess('Preset "${preset.name}" gelÃ¶scht');
                 _loadPresets(); // Refresh the list
               } catch (e) {
-                _showError('Fehler beim Löschen: $e');
+                _showError('Fehler beim LÃ¶schen: $e');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

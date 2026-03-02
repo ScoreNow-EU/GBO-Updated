@@ -214,6 +214,8 @@ class AuthService {
         );
 
         await _firestore.collection(_usersCollection).doc(user.id).set(user.toFirestore());
+        // Sync display name to Firebase Auth so it's consistently available
+        await credential.user!.updateProfile(displayName: '$firstName $lastName');
         return user;
       }
     } catch (e) {

@@ -18,12 +18,9 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
   
   List<Team> allTeams = [];
   List<Team> filteredTeams = [];
-  List<String> availableDivisions = [];
-  String selectedDivision = '';
   String selectedSeason = '2025';
   bool isLoading = true;
   Set<String> expandedTeams = {}; // Track which teams are expanded
-  bool isFilterMenuOpen = false; // Track filter menu state
 
   // Available seasons
   final List<String> availableSeasons = ['2025', '2026', '2027'];
@@ -49,20 +46,6 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       // Load all teams
       allTeams = await _teamService.getAllTeams();
       
-      // Get unique divisions
-      Set<String> divisionsSet = {};
-      for (Team team in allTeams) {
-        if (team.division.isNotEmpty) {
-          divisionsSet.add(team.division);
-        }
-      }
-      availableDivisions = divisionsSet.toList()..sort();
-      
-      // Set initial filter
-      if (availableDivisions.isNotEmpty) {
-        selectedDivision = availableDivisions.first;
-      }
-      
       _filterTeams();
       
     } catch (e) {
@@ -72,48 +55,11 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
     }
   }
 
-  void _onDivisionChanged(String division) {
-    setState(() {
-      selectedDivision = division;
-    });
-    _filterTeams();
-  }
-
   void _onSeasonChanged(String season) {
     setState(() {
       selectedSeason = season;
     });
     _filterTeams();
-  }
-
-  Widget _buildDivisionButton(String displayName, String divisionName) {
-    final isSelected = selectedDivision == divisionName;
-    final divisionColor = _getDivisionColor(divisionName);
-    
-    return GestureDetector(
-      onTap: () => _onDivisionChanged(divisionName),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? divisionColor : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? divisionColor : Colors.grey.shade300,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          displayName,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 11,
-          ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
   }
 
   void _filterTeams() {
@@ -133,14 +79,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       });
     }).toList();
 
-    // Then filter by division
-    if (selectedDivision.isEmpty) {
-      filteredTeams = seasonFilteredTeams.where((team) => team.pointsHistory.isNotEmpty).toList();
-    } else {
-      filteredTeams = seasonFilteredTeams.where((team) => 
-        team.division == selectedDivision && team.pointsHistory.isNotEmpty
-      ).toList();
-    }
+    filteredTeams = seasonFilteredTeams.where((team) => team.pointsHistory.isNotEmpty).toList();
     
     // Sort by best 3 total points (descending)
     filteredTeams.sort((a, b) {
@@ -200,39 +139,6 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
     );
   }
 
-  Color _getDivisionColor(String division) {
-    switch (division.toLowerCase()) {
-      case 'men\'s seniors':
-      case 'mens seniors':
-        return Colors.blue;
-      case 'women\'s seniors':
-      case 'womens seniors':
-        return Colors.pink;
-      case 'men\'s u18':
-      case 'mens u18':
-        return Colors.green;
-      case 'women\'s u18':
-      case 'womens u18':
-        return Colors.purple;
-      case 'men\'s u16':
-      case 'mens u16':
-        return Colors.orange;
-      case 'women\'s u16':
-      case 'womens u16':
-        return Colors.teal;
-      case 'men\'s u14':
-      case 'mens u14':
-        return Colors.red;
-      case 'women\'s u14':
-      case 'womens u14':
-        return Colors.indigo;
-      case 'fun':
-        return Colors.amber;
-      default:
-        return Colors.grey;
-    }
-  }
-
   void _showErrorToast(String message) {
     toastification.show(
       context: context,
@@ -268,19 +174,6 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           icon: const Icon(Icons.menu, color: Colors.black87),
           onPressed: _openDrawer,
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isFilterMenuOpen ? Icons.close : Icons.filter_list,
-              color: Colors.black87,
-            ),
-            onPressed: () {
-              setState(() {
-                isFilterMenuOpen = !isFilterMenuOpen;
-              });
-            },
-          ),
-        ],
       ) : AppBar(
         title: const Text(
           'Rangliste',
@@ -295,8 +188,8 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       ),
               body: Column(
           children: [
-            // Division Filter (always show on web, show on mobile when filter menu is open)
-            if (!isMobile || isFilterMenuOpen) _buildDivisionFilter(),
+            // Season Filter
+            _buildSeasonFilter(),
           
           // Rankings List
           Expanded(
@@ -313,11 +206,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
     );
   }
 
-  Widget _buildDivisionFilter() {
-    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
-    final isMobile = MediaQuery.of(context).size.width < 768;
-    final isWeb = Theme.of(context).platform == TargetPlatform.linux || Theme.of(context).platform == TargetPlatform.windows || Theme.of(context).platform == TargetPlatform.macOS;
-    
+  Widget _buildSeasonFilter() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -331,193 +220,44 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          if (!isMobile) ...[
-            // Desktop layout (for large screens only)
-            Row(
-              children: [
-                // Seniors section
-                Expanded(
-                  child: Text(
-                    'Seniors $selectedSeason',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                
-                // Season dropdown
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: DropdownButton<String>(
-                    value: selectedSeason,
-                    underline: Container(),
-                    items: availableSeasons.map((season) {
-                      return DropdownMenuItem<String>(
-                        value: season,
-                        child: Text(
-                          'Saison $season',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        _onSeasonChanged(value);
-                      }
-                    },
-                  ),
-                ),
-                
-                // Juniors section
-                Expanded(
-                  child: Text(
-                    'Juniors $selectedSeason',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Division buttons row (all side by side for web)
-            Row(
-              children: [
-                Expanded(child: _buildDivisionButton('Men\'s Seniors', 'Men\'s Seniors')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Women\'s Seniors', 'Women\'s Seniors')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Men\'s U18', 'Men\'s U18')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Women\'s U18', 'Women\'s U18')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Men\'s U16', 'Men\'s U16')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Women\'s U16', 'Women\'s U16')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Men\'s U14', 'Men\'s U14')),
-                const SizedBox(width: 8),
-                Expanded(child: _buildDivisionButton('Women\'s U14', 'Women\'s U14')),
-              ],
-            ),
-          ] else ...[
-            // Mobile Filter Menu Layout
-            // Season dropdown at top
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButton<String>(
-                value: selectedSeason,
-                underline: Container(),
-                isExpanded: true,
-                items: availableSeasons.map((season) {
-                  return DropdownMenuItem<String>(
-                    value: season,
-                    child: Text(
-                      'Saison $season',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    _onSeasonChanged(value);
-                  }
-                },
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Seniors section
-            Text(
-              'Seniors $selectedSeason',
-              style: TextStyle(
+          Expanded(
+            child: Text(
+              'Rangliste $selectedSeason',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
             ),
-            
-            const SizedBox(height: 12),
-            
-            // All divisions in a 2x4 grid layout
-            Column(
-              children: [
-                // Row 1: Men's Seniors, Women's Seniors
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDivisionButton('Men\'s Seniors', 'Men\'s Seniors'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDivisionButton('Women\'s Seniors', 'Women\'s Seniors'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Row 2: Men's U18, Women's U18
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDivisionButton('Men\'s U18', 'Men\'s U18'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDivisionButton('Women\'s U18', 'Women\'s U18'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Row 3: Men's U16, Women's U16
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDivisionButton('Men\'s U16', 'Men\'s U16'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDivisionButton('Women\'s U16', 'Women\'s U16'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Row 4: Men's U14, Women's U14
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDivisionButton('Men\'s U14', 'Men\'s U14'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDivisionButton('Women\'s U14', 'Women\'s U14'),
-                    ),
-                  ],
-                ),
-              ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.shade300),
             ),
-          ],
+            child: DropdownButton<String>(
+              value: selectedSeason,
+              underline: Container(),
+              items: availableSeasons.map((season) {
+                return DropdownMenuItem<String>(
+                  value: season,
+                  child: Text(
+                    'Saison $season',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  _onSeasonChanged(value);
+                }
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -535,9 +275,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            selectedDivision.isEmpty 
-                ? 'Keine Teams in Saison $selectedSeason'
-                : 'Keine Teams in dieser Division',
+            'Keine Teams in Saison $selectedSeason',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -546,9 +284,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            selectedDivision.isEmpty
-                ? 'Es sind noch keine Teams verfügbar, die in der Saison $selectedSeason an Turnieren teilgenommen haben.'
-                : 'Es sind noch keine Teams für die ausgewählte Division verfügbar, die in der Saison $selectedSeason an Turnieren teilgenommen haben.',
+            'Es sind noch keine Teams verfÃ¼gbar, die in der Saison $selectedSeason an Turnieren teilgenommen haben.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -574,13 +310,13 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
   }
 
   Widget _buildTeamCard(Team team, int placement, bool isTablet) {
-    final divisionColor = _getDivisionColor(team.division);
+    final categoryColor = AppColors.primaryColor;
     final isExpanded = expandedTeams.contains(team.id);
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final isMobile = MediaQuery.of(context).size.width < 768;
     
     if (isIOS || isMobile) {
-      return _buildIOSTeamCard(team, placement, divisionColor, isExpanded);
+      return _buildIOSTeamCard(team, placement, categoryColor, isExpanded);
     }
     
     return Container(
@@ -611,12 +347,12 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                   
                   const SizedBox(width: 16),
                   
-                  // Division Color Indicator
+                  // Color Indicator
                   Container(
                     width: 6,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: divisionColor,
+                      color: categoryColor,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -663,16 +399,16 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: divisionColor.withOpacity(0.1),
+                            color: categoryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: divisionColor.withOpacity(0.3)),
+                            border: Border.all(color: categoryColor.withOpacity(0.3)),
                           ),
                           child: Text(
-                            team.division,
+                            team.city,
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: divisionColor,
+                              color: categoryColor,
                             ),
                           ),
                         ),
@@ -862,7 +598,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
 
   Widget _buildDefaultTeamIcon() {
     return const Icon(
-      Icons.sports_volleyball,
+      Icons.sports_handball,
       color: AppColors.primaryColor,
       size: 28,
     );
@@ -879,15 +615,14 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       initials = words[0].substring(0, words[0].length > 2 ? 2 : words[0].length).toUpperCase();
     }
     
-    // Get division color
-    final divisionColor = _getDivisionColor(team.division);
+    final categoryColor = AppColors.primaryColor;
     
     return Container(
       decoration: BoxDecoration(
-        color: divisionColor.withOpacity(0.2),
+        color: categoryColor.withOpacity(0.2),
         borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: divisionColor.withOpacity(0.6),
+          color: categoryColor.withOpacity(0.6),
           width: 2,
         ),
       ),
@@ -895,7 +630,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
         child: Text(
           initials,
           style: TextStyle(
-            color: divisionColor,
+            color: categoryColor,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -904,7 +639,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
     );
   }
 
-  Widget _buildIOSTeamCard(Team team, int placement, Color divisionColor, bool isExpanded) {
+  Widget _buildIOSTeamCard(Team team, int placement, Color categoryColor, bool isExpanded) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -992,15 +727,15 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
-                            color: divisionColor.withOpacity(0.1),
+                            color: categoryColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            team.division,
+                            team.city,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: divisionColor,
+                              color: categoryColor,
                             ),
                           ),
                         ),
@@ -1191,7 +926,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '$date • Platz $placement',
+                        '$date â€¢ Platz $placement',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey.shade600,
@@ -1231,7 +966,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Nur die besten 3 Turniere zählen zur Gesamtwertung',
+            'Nur die besten 3 Turniere zÃ¤hlen zur Gesamtwertung',
             style: TextStyle(
               fontSize: 10,
               color: Colors.grey.shade600,
@@ -1376,7 +1111,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                 color: Colors.grey.shade300,
                 child: const Center(
                   child: Text(
-                    'Nur die besten 3 Ergebnisse zählen zur Rangliste',
+                    'Nur die besten 3 Ergebnisse zÃ¤hlen zur Rangliste',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,

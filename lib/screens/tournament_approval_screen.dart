@@ -265,15 +265,7 @@ class _TournamentApprovalScreenState extends State<TournamentApprovalScreen> {
                       const SizedBox(height: 8),
                       _buildDetailRow(Icons.calendar_today, tournament.dateString),
                       const SizedBox(height: 8),
-                      _buildDetailRow(
-                        Icons.category,
-                        tournament.categoryDisplayNames,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildDetailRow(
-                        Icons.sports,
-                        tournament.divisions.join(', '),
-                      ),
+
 
                       if (tournament.description != null &&
                           tournament.description!.isNotEmpty) ...[

@@ -104,6 +104,6 @@ class Delegate {
   // Static list of available license types for delegates
   static const List<String> licenseTypes = [
     'EHF Delegate',
-    'DHB National Delegate',
+    'RHD Delegate',
   ];
 } 

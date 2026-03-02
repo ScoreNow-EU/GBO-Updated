@@ -5,14 +5,12 @@ class TeamAvatar extends StatelessWidget {
   final String teamName;
   final String? logoUrl;
   final double size;
-  final String? division;
 
   const TeamAvatar({
     super.key,
     required this.teamName,
     this.logoUrl,
     this.size = 40,
-    this.division,
   });
 
   @override

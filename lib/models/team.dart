@@ -3,28 +3,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Team {
   final String id;
   final String name;
-  final String? teamManager; // Made optional
-  final String? logoUrl; // URL or path to logo image
+  final String? clubName;
+  final String? teamManager;
+  final String? logoUrl;
   final String city;
   final String bundesland;
-  final String division; // Women's, Men's, U14, U16, U18, Seniors, FUN
-  final String? clubId; // Reference to parent club
-  final String? coachName; // Coach name
-  final String? coachEmail; // Coach email for authentication requests
-  final List<String> rosterPlayerIds; // List of player IDs in the roster
-  final int totalPoints; // Total EBT points accumulated
+  final String? coachName;
+  final String? coachEmail;
+  final List<String> rosterPlayerIds;
+  final int totalPoints; // Sum of tournament placement points (7,6,5,4,3,2,1,0)
   final List<Map<String, dynamic>> pointsHistory; // Array of tournaments with points earned
   final DateTime createdAt;
 
   Team({
     required this.id,
     required this.name,
-    this.teamManager, // Made optional
+    this.clubName,
+    this.teamManager,
     this.logoUrl,
     required this.city,
     required this.bundesland,
-    required this.division,
-    this.clubId,
     this.coachName,
     this.coachEmail,
     this.rosterPlayerIds = const [],
@@ -36,12 +34,11 @@ class Team {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
+      'clubName': clubName,
       'teamManager': teamManager,
       'logoUrl': logoUrl,
       'city': city,
       'bundesland': bundesland,
-      'division': division,
-      'clubId': clubId,
       'coachName': coachName,
       'coachEmail': coachEmail,
       'rosterPlayerIds': rosterPlayerIds,
@@ -57,12 +54,11 @@ class Team {
     return Team(
       id: doc.id,
       name: data['name'] ?? '',
-      teamManager: data['teamManager'], // Can be null
+      clubName: data['clubName'],
+      teamManager: data['teamManager'],
       logoUrl: data['logoUrl'],
       city: data['city'] ?? '',
       bundesland: data['bundesland'] ?? '',
-      division: data['division'] ?? 'Men\'s Seniors',
-      clubId: data['clubId'],
       coachName: data['coachName'],
       coachEmail: data['coachEmail'],
       rosterPlayerIds: List<String>.from(data['rosterPlayerIds'] ?? []),
@@ -76,12 +72,11 @@ class Team {
 
   Team copyWith({
     String? name,
+    String? clubName,
     String? teamManager,
     String? logoUrl,
     String? city,
     String? bundesland,
-    String? division,
-    String? clubId,
     String? coachName,
     String? coachEmail,
     List<String>? rosterPlayerIds,
@@ -91,12 +86,11 @@ class Team {
     return Team(
       id: id,
       name: name ?? this.name,
+      clubName: clubName ?? this.clubName,
       teamManager: teamManager ?? this.teamManager,
       logoUrl: logoUrl ?? this.logoUrl,
       city: city ?? this.city,
       bundesland: bundesland ?? this.bundesland,
-      division: division ?? this.division,
-      clubId: clubId ?? this.clubId,
       coachName: coachName ?? this.coachName,
       coachEmail: coachEmail ?? this.coachEmail,
       rosterPlayerIds: rosterPlayerIds ?? this.rosterPlayerIds,

@@ -4,13 +4,12 @@ class Player {
   final String id;
   final String firstName;
   final String lastName;
-  final String? email; // Made optional
+  final String? email;
   final String? phone;
   final DateTime? birthDate;
-  final String? position; // Optional position like 'Blocker', 'Defender', etc.
+  final String? classification; // 'Gruppe A', 'Gruppe B', 'Gruppe C'
   final String? jerseyNumber;
-  final String? clubId; // Reference to club
-  final String gender; // 'male' or 'female'
+  final String gender; // 'männlich', 'weiblich', 'divers'
   final bool isActive;
   final DateTime createdAt;
 
@@ -18,18 +17,36 @@ class Player {
     required this.id,
     required this.firstName,
     required this.lastName,
-    this.email, // Made optional
+    this.email,
     this.phone,
     this.birthDate,
-    this.position,
+    this.classification,
     this.jerseyNumber,
-    this.clubId,
     required this.gender,
     this.isActive = true,
     required this.createdAt,
   });
 
   String get fullName => '$firstName $lastName';
+
+  /// Classification types for wheelchair handball
+  static const List<String> classificationTypes = [
+    'Gruppe A',  // GdB & International Klassifizierbar
+    'Gruppe B',  // GdB
+    'Gruppe C',  // keine
+  ];
+
+  static const Map<String, String> classificationDescriptions = {
+    'Gruppe A': 'GdB & International Klassifizierbar',
+    'Gruppe B': 'GdB',
+    'Gruppe C': 'Keine Klassifizierung',
+  };
+
+  static const List<String> genderOptions = [
+    'männlich',
+    'weiblich',
+    'divers',
+  ];
 
   Map<String, dynamic> toFirestore() {
     return {
@@ -38,9 +55,8 @@ class Player {
       'email': email,
       'phone': phone,
       'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
-      'position': position,
+      'classification': classification,
       'jerseyNumber': jerseyNumber,
-      'clubId': clubId,
       'gender': gender,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -51,19 +67,29 @@ class Player {
     try {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
       
+      // Migration: convert old 'position' field to 'classification'
+      String? classification = data['classification'];
+      if (classification == null && data['position'] != null) {
+        classification = 'Gruppe C';
+      }
+
+      // Migration: convert old gender values
+      String gender = data['gender'] ?? 'männlich';
+      if (gender == 'male') gender = 'männlich';
+      if (gender == 'female') gender = 'weiblich';
+      
       return Player(
         id: doc.id,
         firstName: data['firstName'] ?? '',
         lastName: data['lastName'] ?? '',
-        email: data['email'] ?? null, // Allow null email
+        email: data['email'],
         phone: data['phone'],
         birthDate: data['birthDate'] != null 
             ? (data['birthDate'] as Timestamp).toDate() 
             : null,
-        position: data['position'],
+        classification: classification,
         jerseyNumber: data['jerseyNumber'],
-        clubId: data['clubId'],
-        gender: data['gender'] ?? 'male', // Default to male for backwards compatibility
+        gender: gender,
         isActive: data['isActive'] ?? true,
         createdAt: data['createdAt'] != null 
             ? (data['createdAt'] as Timestamp).toDate() 
@@ -82,9 +108,8 @@ class Player {
     String? email,
     String? phone,
     DateTime? birthDate,
-    String? position,
+    String? classification,
     String? jerseyNumber,
-    String? clubId,
     String? gender,
     bool? isActive,
   }) {
@@ -95,9 +120,8 @@ class Player {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       birthDate: birthDate ?? this.birthDate,
-      position: position ?? this.position,
+      classification: classification ?? this.classification,
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
-      clubId: clubId ?? this.clubId,
       gender: gender ?? this.gender,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt,

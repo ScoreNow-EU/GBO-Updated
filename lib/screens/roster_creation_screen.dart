@@ -10,13 +10,13 @@ import '../services/custom_notification_service.dart';
 class RosterCreationScreen extends StatefulWidget {
   final Team team;
   final Tournament tournament;
-  final String selectedDivision;
+  final String selectedCategory;
 
   const RosterCreationScreen({
     super.key,
     required this.team,
     required this.tournament,
-    required this.selectedDivision,
+    required this.selectedCategory,
   });
 
   @override
@@ -39,7 +39,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Roster für ${widget.tournament.name}'),
+        title: Text('Roster fÃ¼r ${widget.tournament.name}'),
         backgroundColor: const Color(0xFF2D5016),
         foregroundColor: Colors.white,
       ),
@@ -55,7 +55,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Roster für ${widget.team.name}',
+                    'Roster fÃ¼r ${widget.team.name}',
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -72,7 +72,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Division: ${widget.selectedDivision}',
+                    'Liga: RHBL',
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.grey,
@@ -80,7 +80,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_players.where((p) => p.firstName.text.isNotEmpty).length} Spieler werden hinzugefügt',
+                    '${_players.where((p) => p.firstName.text.isNotEmpty).length} Spieler werden hinzugefÃ¼gt',
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.grey,
@@ -90,7 +90,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Geben Sie für jeden Spieler die erforderlichen Daten ein. Mindestens 2 Spieler sind für die Anmeldung erforderlich.',
+                'Geben Sie fÃ¼r jeden Spieler die erforderlichen Daten ein. Mindestens 2 Spieler sind fÃ¼r die Anmeldung erforderlich.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -172,7 +172,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
           Row(
             children: [
               Text(
-                isLast ? 'Spieler ${index + 1} hinzufügen' : 'Spieler ${index + 1}',
+                isLast ? 'Spieler ${index + 1} hinzufÃ¼gen' : 'Spieler ${index + 1}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -241,7 +241,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
                   validator: (value) {
                     if (value?.trim().isEmpty == true) return 'Pflichtfeld';
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
-                      return 'Ungültige E-Mail';
+                      return 'UngÃ¼ltige E-Mail';
                     }
                     return null;
                   },
@@ -269,15 +269,15 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
 
           Row(
             children: [
-              // Position (optional)
+              // Klassifikation (optional)
               Expanded(
                 child: TextFormField(
                   controller: player.position,
                   decoration: const InputDecoration(
-                    labelText: 'Position',
+                    labelText: 'Klassifikation',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    hintText: 'z.B. Blocker, Defender',
+                    hintText: 'z.B. Gruppe A, Gruppe B, Gruppe C',
                   ),
                   onChanged: (_) => _onPlayerDataChanged(index),
                 ),
@@ -344,7 +344,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
         context: context,
         type: ToastificationType.error,
         style: ToastificationStyle.fillColored,
-        title: const Text('Mindestens 2 Spieler sind für die Anmeldung erforderlich.'),
+        title: const Text('Mindestens 2 Spieler sind fÃ¼r die Anmeldung erforderlich.'),
         autoCloseDuration: const Duration(seconds: 3),
       );
       return;
@@ -359,13 +359,13 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
       final success = await TournamentService().registerTeamForTournament(
         widget.tournament.id,
         widget.team.id,
-        widget.selectedDivision,
+        widget.selectedCategory,
         roster: validPlayers.map((p) => {
           'firstName': p.firstName.text.trim(),
           'lastName': p.lastName.text.trim(),
           'email': p.email.text.trim(),
           'phone': p.phone.text.trim(),
-          'position': p.position.text.trim(),
+          'classification': p.position.text.trim(),
           'jerseyNumber': p.jerseyNumber.text.trim(),
         }).toList(),
       );
@@ -377,19 +377,19 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
           final teamManager = await _teamManagerService.getTeamManagerByName(widget.team.teamManager!);
           if (teamManager != null) {
             await _notificationService.sendCustomNotification(
-              title: 'Team hat sich für Turnier angemeldet',
-              message: '${widget.team.name} hat sich für ${widget.tournament.name} angemeldet.',
+              title: 'Team hat sich fÃ¼r Turnier angemeldet',
+              message: '${widget.team.name} hat sich fÃ¼r ${widget.tournament.name} angemeldet.',
               userEmail: teamManager.email,
             );
           }
         }
 
-        final divisionType = widget.selectedDivision.contains('FUN') ? 'Fun Turnier' : 'A Cup';
+        final leagueType = 'RHBL';
         toastification.show(
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: Text('${widget.team.name} wurde erfolgreich für ${widget.tournament.name} ($divisionType - ${widget.selectedDivision}) mit ${validPlayers.length} Spielern angemeldet.'),
+          title: Text('${widget.team.name} wurde erfolgreich fÃ¼r ${widget.tournament.name} ($leagueType) mit ${validPlayers.length} Spielern angemeldet.'),
           autoCloseDuration: const Duration(seconds: 4),
         );
         

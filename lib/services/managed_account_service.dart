@@ -308,10 +308,10 @@ class ManagedAccountService {
     
     if (type == ManagedAccountType.scoringTablet && courtName != null) {
       final courtSlug = courtName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-      return '$prefix-$tournamentSlug-$courtSlug@gbo-system.de';
+      return '$prefix-$tournamentSlug-$courtSlug@rollstuhlhandball.de';
     } else {
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(8);
-      return '$prefix-$tournamentSlug-$timestamp@gbo-system.de';
+      return '$prefix-$tournamentSlug-$timestamp@rollstuhlhandball.de';
     }
   }
 

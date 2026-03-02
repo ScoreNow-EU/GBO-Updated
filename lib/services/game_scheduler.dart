@@ -115,7 +115,7 @@ class GameScheduler {
           scheduledGames: 0,
           unscheduledGames: unscheduledGames.length,
           fieldsUsed: 0,
-          errorMessage: 'Keine Felder verfügbar. Bitte Felder hinzufügen.',
+          errorMessage: 'Keine Felder verfÃ¼gbar. Bitte Felder hinzufÃ¼gen.',
         );
       }
 
@@ -356,7 +356,7 @@ class GameScheduler {
     bool allowSameTimeConflicts = false,
     bool allowBackToBackGames = false,
     int minimumRestMinutes = 15,
-    Map<String, String> divisionPriorities = const {},
+    Map<String, String> categoryPriorities = const {},
     TeamService? teamService,
     List<BreakSlot> breakSlots = const [],
     bool allowGapsForConflicts = true,
@@ -390,15 +390,15 @@ class GameScheduler {
           scheduledGames: 0,
           unscheduledGames: unscheduledGames.length,
           fieldsUsed: 0,
-          errorMessage: 'Keine Felder verfügbar. Bitte Felder hinzufügen.',
+          errorMessage: 'Keine Felder verfÃ¼gbar. Bitte Felder hinzufÃ¼gen.',
         );
       }
 
       // Get tournament days
       final tournamentDays = _getTournamentDays(tournament);
       
-      // Adjust days based on division priorities
-      final adjustedDays = _adjustDaysForPriorities(tournamentDays, divisionPriorities);
+      // Adjust days based on category priorities
+      final adjustedDays = _adjustDaysForPriorities(tournamentDays, categoryPriorities);
       
       // Create time slots for all days and courts
       final timeSlots = _generateTimeSlots(
@@ -410,10 +410,10 @@ class GameScheduler {
         breakSlots: breakSlots,
       );
 
-      // Prioritize games based on division priorities and game types
-      final prioritizedGames = await _prioritizeGamesWithDivisions(
+      // Prioritize games based on category priorities and game types
+      final prioritizedGames = await _prioritizeGamesWithCategories(
         unscheduledGames, 
-        divisionPriorities, 
+        categoryPriorities, 
         teamService,
       );
 
@@ -425,7 +425,7 @@ class GameScheduler {
         allowSameTimeConflicts: allowSameTimeConflicts,
         allowBackToBackGames: allowBackToBackGames,
         minimumRestMinutes: minimumRestMinutes,
-        divisionPriorities: divisionPriorities,
+        categoryPriorities: categoryPriorities,
         teamService: teamService,
         allowGapsForConflicts: allowGapsForConflicts,
       );
@@ -459,21 +459,21 @@ class GameScheduler {
     }
   }
 
-  /// Adjust tournament days based on division priorities
-  List<DateTime> _adjustDaysForPriorities(List<DateTime> tournamentDays, Map<String, String> divisionPriorities) {
+  /// Adjust tournament days based on category priorities
+  List<DateTime> _adjustDaysForPriorities(List<DateTime> tournamentDays, Map<String, String> categoryPriorities) {
     // For "today only" priorities, we might want to prioritize first day
     // For "time" priorities, we want all days available
     // This is a simple implementation - can be enhanced
     return tournamentDays;
   }
 
-  /// Get divisions that have games in this tournament
-  Future<Set<String>> getDivisionsWithGames(Tournament tournament, GameService gameService, TeamService? teamService) async {
-    final divisions = <String>{};
+  /// Get categories that have games in this tournament
+  Future<Set<String>> getCategoriesWithGames(Tournament tournament, GameService gameService, TeamService? teamService) async {
+    final categories = <String>{};
     
     if (teamService == null) {
-      // Fallback to tournament categories if no team service
-      return tournament.categories.toSet();
+      // Fallback to empty set if no team service
+      return <String>{};
     }
     
     try {
@@ -486,25 +486,25 @@ class GameScheduler {
         if (game.teamBId != null) teamIds.add(game.teamBId!);
       }
       
-      // Get teams by ID and collect their divisions
+      // Category field removed from Team model - use default category
       for (final teamId in teamIds) {
         final team = await teamService.getTeamById(teamId);
         if (team != null) {
-          divisions.add(team.division);
+          categories.add('Standard');
         }
       }
       
-      return divisions;
+      return categories;
     } catch (e) {
-      // Fallback to tournament categories if anything fails
-      return tournament.categories.toSet();
+      // Fallback to empty set if anything fails
+      return <String>{};
     }
   }
 
-  /// Prioritize games based on division priorities and game types
-  Future<List<Game>> _prioritizeGamesWithDivisions(
+  /// Prioritize games based on category priorities and game types
+  Future<List<Game>> _prioritizeGamesWithCategories(
     List<Game> games, 
-    Map<String, String> divisionPriorities,
+    Map<String, String> categoryPriorities,
     TeamService? teamService,
   ) async {
     final prioritized = <Game>[];
@@ -533,18 +533,12 @@ class GameScheduler {
       }
     }
     
-    // Separate games by division priority
+    // Separate games by category priority
     for (final game in games) {
-      String division = 'default';
+      String category = 'Standard';
       
-      // Try to get division from teams
-      if (teamService != null && game.teamAId != null && teamMap.containsKey(game.teamAId)) {
-        division = teamMap[game.teamAId]!.division;
-      } else if (teamService != null && game.teamBId != null && teamMap.containsKey(game.teamBId)) {
-        division = teamMap[game.teamBId]!.division;
-      }
-      
-      final priority = divisionPriorities[division] ?? 'asap';
+      // Category field removed from Team model - use default
+      final priority = categoryPriorities[category] ?? 'asap';
       
       switch (priority) {
         case 'today':
@@ -606,7 +600,7 @@ class GameScheduler {
     required bool allowSameTimeConflicts,
     required bool allowBackToBackGames,
     required int minimumRestMinutes,
-    required Map<String, String> divisionPriorities,
+    required Map<String, String> categoryPriorities,
     TeamService? teamService,
     bool allowGapsForConflicts = true,
   }) async {
@@ -664,7 +658,7 @@ class GameScheduler {
           
           // Additional priority-based checks (e.g., "today only" games should be on first day)
           if (canSchedule) {
-            canSchedule = await _respectsDivisionPriority(game, slot, divisionPriorities, teamService, teamMap);
+            canSchedule = await _respectsCategoryPriority(game, slot, categoryPriorities, teamService, teamMap);
           }
           
           if (canSchedule) {
@@ -759,24 +753,18 @@ class GameScheduler {
     return true;
   }
 
-  /// Check if game placement respects division priority settings
-  Future<bool> _respectsDivisionPriority(
+  /// Check if game placement respects category priority settings
+  Future<bool> _respectsCategoryPriority(
     Game game, 
     GameSlot slot, 
-    Map<String, String> divisionPriorities,
+    Map<String, String> categoryPriorities,
     TeamService? teamService,
     Map<String, Team> teamMap,
   ) async {
-    String division = 'default';
+    String category = 'Standard';
     
-    // Try to get division from teams
-    if (teamService != null && game.teamAId != null && teamMap.containsKey(game.teamAId)) {
-      division = teamMap[game.teamAId]!.division;
-    } else if (teamService != null && game.teamBId != null && teamMap.containsKey(game.teamBId)) {
-      division = teamMap[game.teamBId]!.division;
-    }
-    
-    final priority = divisionPriorities[division] ?? 'asap';
+    // Category field removed from Team model - use default
+    final priority = categoryPriorities[category] ?? 'asap';
     
     switch (priority) {
       case 'today':

@@ -21,8 +21,6 @@ class TournamentResultsScreen extends StatefulWidget {
 class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   List<TournamentResult> results = [];
   bool isLoading = true;
-  String selectedDivision = '';
-  List<String> availableDivisions = [];
   List<Team> availableTeams = [];
   List<Team> rankedTeams = [];
   final TeamService _teamService = TeamService();
@@ -33,45 +31,24 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   @override
   void initState() {
     super.initState();
-    print('🔍 Init: Tournament ID: ${widget.tournament.id}');
-    print('🔍 Init: Tournament results keys: ${widget.tournament.results?.keys}');
+    print('ðŸ” Init: Tournament ID: ${widget.tournament.id}');
+    print('ðŸ” Init: Tournament results keys: ${widget.tournament.results?.keys}');
     _currentTournament = widget.tournament;
-    _loadDivisions();
     _refreshTournamentAndLoadResults();
-  }
-
-  void _loadDivisions() {
-    // Get all divisions that were selected in the tournament manager
-    // This includes both divisions and any custom divisions that were added
-    availableDivisions = List<String>.from(widget.tournament.divisions);
-    
-    // Add any additional divisions that might be in divisionTeams
-    if (widget.tournament.divisionTeams.isNotEmpty) {
-      for (String division in widget.tournament.divisionTeams.keys) {
-        if (!availableDivisions.contains(division)) {
-          availableDivisions.add(division);
-        }
-      }
-    }
-    
-    // Set the first division as selected if available
-    if (availableDivisions.isNotEmpty) {
-      selectedDivision = availableDivisions.first;
-    }
   }
 
   Future<void> _refreshTournamentAndLoadResults() async {
     try {
-      print('🔍 Refresh: Getting latest tournament from database...');
+      print('ðŸ” Refresh: Getting latest tournament from database...');
       
       // Get the latest tournament data from database
       final latestTournament = await _tournamentService.getTournamentById(widget.tournament.id);
       
       if (latestTournament != null) {
-        print('🔍 Refresh: Latest tournament results keys: ${latestTournament.results?.keys}');
+        print('ðŸ” Refresh: Latest tournament results keys: ${latestTournament.results?.keys}');
         _currentTournament = latestTournament;
       } else {
-        print('❌ Refresh: Could not load tournament from database');
+        print('âŒ Refresh: Could not load tournament from database');
         _currentTournament = widget.tournament;
       }
       
@@ -79,7 +56,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       await _loadResults();
       
     } catch (e) {
-      print('❌ Refresh: Error refreshing tournament: $e');
+      print('âŒ Refresh: Error refreshing tournament: $e');
       // Fall back to original tournament
       _currentTournament = widget.tournament;
       await _loadResults();
@@ -111,23 +88,20 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
 
       // Prepare available teams
       setState(() {
-        // Filter teams based on selected division
-        availableTeams = selectedDivision.isEmpty
-            ? tournamentTeams
-            : tournamentTeams.where((team) => team.division == selectedDivision).toList();
+        // All teams participate (no category filter)
+        availableTeams = tournamentTeams;
         
-        // Check if there are saved results for this tournament and division
-        final divisionKey = selectedDivision.isEmpty ? 'All' : selectedDivision;
-        final savedResults = _currentTournament?.results?[divisionKey];
+        // Check if there are saved results for this tournament
+        final savedResults = _currentTournament?.results?['All'];
 
         // Reset ranked teams
         rankedTeams.clear();
       });
 
       // Load ranked teams asynchronously if results exist
-      if (_currentTournament?.results?[selectedDivision.isEmpty ? 'All' : selectedDivision] != null) {
+      if (_currentTournament?.results?['All'] != null) {
         final List<Team> loadedRankedTeams = [];
-        final savedResults = _currentTournament!.results![selectedDivision.isEmpty ? 'All' : selectedDivision]!;
+        final savedResults = _currentTournament!.results!['All']!;
 
         // Sort results by placement
         final sortedResults = List.from(savedResults)
@@ -190,173 +164,67 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         teamId: 'team1',
         teamName: 'Team Alpha',
         placement: 1,
-        points: _calculatePoints(1, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(1, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team2',
         teamName: 'Team Beta',
         placement: 2,
-        points: _calculatePoints(2, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(2, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team3',
         teamName: 'Team Gamma',
         placement: 3,
-        points: _calculatePoints(3, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(3, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team4',
         teamName: 'Team Delta',
         placement: 4,
-        points: _calculatePoints(4, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(4, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team5',
         teamName: 'Team Epsilon',
         placement: 5,
-        points: _calculatePoints(5, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(5, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team6',
         teamName: 'Team Zeta',
         placement: 6,
-        points: _calculatePoints(6, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(6, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team7',
         teamName: 'Team Eta',
         placement: 7,
-        points: _calculatePoints(7, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(7, totalTeams: 8),
       ),
       TournamentResult(
         teamId: 'team8',
         teamName: 'Team Theta',
         placement: 8,
-        points: _calculatePoints(8, widget.tournament.category, totalTeams: 8),
+        points: _calculatePoints(8, totalTeams: 8),
       ),
     ];
   }
 
-  int _calculatePoints(int placement, String category, {int? totalTeams}) {
-    // Get max points for the tournament (using calculated points from criteria or manual setting)
-    final maxPoints = _getCalculatedTournamentPoints(widget.tournament);
-    
-    // If totalTeams is not provided, use the current rankedTeams count
+  int _calculatePoints(int placement, {int? totalTeams}) {
+    // RHBL dynamic placement points: 1st = N, 2nd = N-1, ..., last = 1
     final teamCount = totalTeams ?? rankedTeams.length;
-    
-    // Calculate points based on placement and total number of teams (adjusted EBT system)
-    double percentage = _getPercentageForPlacement(placement, teamCount);
-    
-    return (maxPoints * percentage).round();
-  }
-
-  double _getPercentageForPlacement(int placement, int totalTeams) {
-    // Ensure we don't have invalid placements
-    if (placement <= 0 || placement > totalTeams) {
-      return 0.0;
-    }
-
-    // Define the percentage scale based on total teams
-    // Always start from the highest available percentage for the number of teams
-    switch (totalTeams) {
-      case 1:
-        return placement == 1 ? 0.3 : 0.0; // 30%
-      case 2:
-        switch (placement) {
-          case 1: return 0.4; // 40%
-          case 2: return 0.3; // 30%
-          default: return 0.0;
-        }
-      case 3:
-        switch (placement) {
-          case 1: return 0.5; // 50%
-          case 2: return 0.4; // 40%
-          case 3: return 0.3; // 30%
-          default: return 0.0;
-        }
-      case 4:
-        switch (placement) {
-          case 1: return 0.6; // 60%
-          case 2: return 0.5; // 50%
-          case 3: return 0.4; // 40%
-          case 4: return 0.3; // 30%
-          default: return 0.0;
-        }
-      case 5:
-        switch (placement) {
-          case 1: return 0.7; // 70%
-          case 2: return 0.6; // 60%
-          case 3: return 0.5; // 50%
-          case 4: return 0.4; // 40%
-          case 5: return 0.3; // 30%
-          default: return 0.0;
-        }
-      case 6:
-        switch (placement) {
-          case 1: return 0.8; // 80%
-          case 2: return 0.7; // 70%
-          case 3: return 0.6; // 60%
-          case 4: return 0.5; // 50%
-          case 5: return 0.4; // 40%
-          case 6: return 0.3; // 30%
-          default: return 0.0;
-        }
-      case 7:
-        switch (placement) {
-          case 1: return 0.9; // 90%
-          case 2: return 0.8; // 80%
-          case 3: return 0.7; // 70%
-          case 4: return 0.6; // 60%
-          case 5: return 0.5; // 50%
-          case 6: return 0.4; // 40%
-          case 7: return 0.3; // 30%
-          default: return 0.0;
-        }
-      default: // 8 or more teams
-        switch (placement) {
-          case 1: return 1.0; // 100%
-          case 2: return 0.9; // 90%
-          case 3: return 0.8; // 80%
-          case 4: return 0.7; // 70%
-          case 5: return 0.6; // 60%
-          case 6: return 0.5; // 50%
-          case 7: return 0.4; // 40%
-          case 8: return 0.3; // 30%
-          default: return 0.0; // No points for placements > 8
-        }
-    }
-  }
-
-  int _getMaxPoints(String category) {
-    switch (category) {
-      case 'GBO Supercup':
-        return 1600; // Supercup points - can be much higher based on criteria
-      case 'GBO Beachcup':
-        return 800; // Beachcup points - can be higher based on criteria
-      case 'GBO 4Fun-Cup':
-        return 400; // 4Fun-Cup points - can be higher based on criteria
-      default:
-        return 800; // Default Beachcup points
-    }
+    if (placement <= 0 || placement > teamCount) return 0;
+    return teamCount - placement + 1;
   }
 
   int _getCalculatedTournamentPoints(Tournament tournament) {
-    // If tournament has manually set points, use those
-    if (tournament.points > 0) {
-      return tournament.points;
-    }
-    
-    // Calculate points based on tournament criteria
-    if (tournament.criteria != null) {
-      return tournament.criteria!.totalPoints;
-    }
-    
-    // Fallback to category-based points if no criteria
-    return _getMaxPoints(tournament.category);
+    // RHBL: max points = number of participating teams (1st place gets this many)
+    return tournament.teamIds.length;
   }
 
   bool _arePointsDistributed() {
-    // Check if any teams in current division have points from this tournament
+    // Check if any teams have points from this tournament
     for (final team in rankedTeams) {
       final hasPointsFromThisTournament = team.pointsHistory.any((entry) => 
         entry['tournamentId'] == widget.tournament.id
@@ -404,12 +272,6 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           _buildHeader(isMobile),
           const SizedBox(height: 24),
 
-          // Division Navigation Bar
-          if (availableDivisions.isNotEmpty) ...[
-            _buildDivisionNavigationBar(),
-            const SizedBox(height: 24),
-          ],
-
           // Results Management Area
           Expanded(
             child: isLoading
@@ -428,7 +290,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'Zurück',
+          tooltip: 'ZurÃ¼ck',
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey.shade100,
             padding: const EdgeInsets.all(12),
@@ -471,14 +333,14 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
               Row(
                 children: [
                   Text(
-                    '${widget.tournament.location} • ',
+                    '${widget.tournament.location} â€¢ ',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
                     ),
                   ),
                   Text(
-                    'Max. Punkte: ${_getCalculatedTournamentPoints(widget.tournament)}',
+                    'Teams: ${widget.tournament.teamIds.length} â€¢ 1. Platz = ${widget.tournament.teamIds.length} Pkt',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -559,80 +421,6 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
 
 
 
-  Widget _buildDivisionNavigationBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.purple.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.category, color: Colors.purple.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Division auswählen',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.purple.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: availableDivisions.map((division) {
-              final isSelected = division == selectedDivision;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        selectedDivision = division;
-                      });
-                      _loadResultsForDivision(division);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.purple : Colors.white,
-                      foregroundColor: isSelected ? Colors.white : Colors.purple,
-                      side: BorderSide(
-                        color: isSelected ? Colors.purple : Colors.grey.shade300,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: Text(
-                      division,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _loadResultsForDivision(String division) {
-    // Reload teams for the selected division
-    setState(() {
-      selectedDivision = division;
-      isLoading = true;
-    });
-    
-    // Reload results with the new division filter and refresh tournament data
-    _refreshTournamentAndLoadResults();
-  }
-
   Widget _buildResultsManagementArea() {
     return Row(
       children: [
@@ -677,7 +465,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                     itemCount: availableTeams.length,
                     itemBuilder: (context, index) {
                       final team = availableTeams[index];
-                      final divisionColor = _getDivisionColor(team.division);
+                      final teamColor = _getBundeslandColor(team.bundesland);
                       
                       return Draggable<Team>(
                         data: team,
@@ -687,9 +475,9 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                             width: 250,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: divisionColor.withValues(alpha: 0.1),
+                              color: teamColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: divisionColor.withValues(alpha: 0.3)),
+                              border: Border.all(color: teamColor.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [
@@ -697,7 +485,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                                   width: 20,
                                   height: 20,
                                   decoration: BoxDecoration(
-                                    color: divisionColor,
+                                    color: teamColor,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: const Icon(
@@ -800,7 +588,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                                 width: 20,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color: divisionColor,
+                                  color: teamColor,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Icon(
@@ -1027,7 +815,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                                     width: 20,
                                     height: 20,
                                     decoration: BoxDecoration(
-                                      color: _getDivisionColor(team.division),
+                                      color: _getBundeslandColor(team.bundesland),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Icon(
@@ -1070,7 +858,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                                       border: Border.all(color: Colors.green.shade300),
                                     ),
                                     child: Text(
-                                      '${_calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length)} Pkt',
+                                      '${_calculatePoints(placement, totalTeams: rankedTeams.length)} Pkt',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -1167,20 +955,8 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
 
 
 
-  Color _getDivisionColor(String division) {
-    if (division.contains('Women')) {
-      if (division.contains('FUN')) return Colors.pink;
-      if (division.contains('U14')) return Colors.purple;
-      if (division.contains('U16')) return Colors.deepPurple;
-      if (division.contains('U18')) return Colors.indigo;
-      return Colors.blue; // Women's Seniors
-    } else {
-      if (division.contains('FUN')) return Colors.orange;
-      if (division.contains('U14')) return Colors.green;
-      if (division.contains('U16')) return Colors.teal;
-      if (division.contains('U18')) return Colors.cyan;
-      return Colors.red; // Men's Seniors
-    }
+  Color _getBundeslandColor(String bundesland) {
+    return Colors.blue;
   }
 
   int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
@@ -1204,7 +980,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
 
   Future<void> _generatePoints() async {
     if (rankedTeams.isEmpty) {
-      _showErrorToast('Keine Teams in der Platzierung. Bitte Teams hinzufügen.');
+      _showErrorToast('Keine Teams in der Platzierung. Bitte Teams hinzufÃ¼gen.');
       return;
     }
 
@@ -1215,7 +991,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       for (int i = 0; i < rankedTeams.length; i++) {
         final team = rankedTeams[i];
         final placement = i + 1;
-        final points = _calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length);
+        final points = _calculatePoints(placement, totalTeams: rankedTeams.length);
         
         // Create points history entry
         final pointsEntry = {
@@ -1224,7 +1000,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           'placement': placement,
           'points': points,
           'date': DateTime.now().toIso8601String(),
-          'category': widget.tournament.category,
+          // category removed
         };
         
         // Update team's points history and total points
@@ -1247,8 +1023,6 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           logoUrl: team.logoUrl,
           city: team.city,
           bundesland: team.bundesland,
-          division: team.division,
-          clubId: team.clubId,
           coachName: team.coachName,
           coachEmail: team.coachEmail,
           rosterPlayerIds: team.rosterPlayerIds,
@@ -1283,20 +1057,20 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
     try {
       setState(() => isLoading = true);
       
-      // Prepare results data for the current division
-      List<Map<String, dynamic>> divisionResults = [];
+      // Prepare results data for the current category
+      List<Map<String, dynamic>> tournamentResults = [];
       
       for (int i = 0; i < rankedTeams.length; i++) {
         final team = rankedTeams[i];
         final placement = i + 1;
-        final points = _calculatePoints(placement, widget.tournament.category, totalTeams: rankedTeams.length);
+        final points = _calculatePoints(placement, totalTeams: rankedTeams.length);
         
-        divisionResults.add({
+        tournamentResults.add({
           'teamId': team.id,
           'teamName': team.name,
           'placement': placement,
           'points': points,
-          'division': team.division,
+          'division': team.city,
           'city': team.city,
           'savedAt': DateTime.now().toIso8601String(),
         });
@@ -1307,8 +1081,8 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       final currentResults = tournamentToUpdate.results != null 
           ? Map<String, List<Map<String, dynamic>>>.from(tournamentToUpdate.results!)
           : <String, List<Map<String, dynamic>>>{};
-      final divisionKey = selectedDivision.isEmpty ? 'All' : selectedDivision;
-      currentResults[divisionKey] = divisionResults;
+      // Single league - always use 'All' as key
+      currentResults['All'] = tournamentResults;
       
       // Create updated tournament
       final updatedTournament = tournamentToUpdate.copyWith(
@@ -1342,9 +1116,9 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           content: TextField(
             controller: pointsController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Maximale Punkte',
-              hintText: 'z.B. 1600 für Supercup',
+              hintText: 'z.B. ${widget.tournament.teamIds.length} fÃ¼r dieses Turnier',
             ),
           ),
           actions: [
@@ -1361,10 +1135,8 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                     if (!mounted) return;
                     setState(() => isLoading = true);
                     
-                    // Create an updated tournament with new points
-                    final updatedTournament = widget.tournament.copyWith(
-                      points: points,
-                    );
+                    // Create an updated tournament with new results
+                    final updatedTournament = widget.tournament;
                     
                     // Update tournament in Firestore
                     await _tournamentService.updateTournament(updatedTournament);
@@ -1409,7 +1181,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                     }
                   }
                 } else {
-                  _showErrorToast('Bitte gültige Punktzahl eingeben');
+                  _showErrorToast('Bitte gÃ¼ltige Punktzahl eingeben');
                 }
               },
               child: const Text('Speichern'),

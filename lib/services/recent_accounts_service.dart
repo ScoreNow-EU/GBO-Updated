@@ -6,9 +6,9 @@ import '../models/recent_account.dart';
 import '../models/user.dart' as app_user;
 
 class RecentAccountsService {
-  static const String _recentAccountsKey = 'gbo_recent_accounts_global';
+  static const String _recentAccountsKey = 'rhbl_recent_accounts_global';
   static const int _maxRecentAccounts = 5; // Maximum number of recent accounts to keep
-  static const String _encryptionKeyBase = 'gbo_recent_accounts_key';
+  static const String _encryptionKeyBase = 'rhbl_recent_accounts_key';
   /// Save data using SharedPreferences (works on all platforms)
   Future<void> _saveData(String data) async {
     final prefs = await SharedPreferences.getInstance();

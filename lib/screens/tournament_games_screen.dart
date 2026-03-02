@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/game.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
+import 'game_report_screen.dart';
 
 class TournamentGamesScreen extends StatefulWidget {
   final Tournament tournament;
@@ -475,29 +476,6 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Set Results
-                        ...game.result!.sets.map((set) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            'Satz ${set.setNumber}: ${set.score}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        )),
-                        // Shootout
-                        if (game.result!.hasShootout) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shootout: ${game.result!.shootout!.score}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
-                        ],
                       ] else ...[
                         Text(
                           game.status == GameStatus.scheduled ? 'vs' : 'Läuft...',
@@ -601,6 +579,33 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
+                  // Spielbericht button
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => GameReportScreen(
+                            game: game,
+                            tournament: widget.tournament,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.description, size: 16),
+                    label: const Text('Spielbericht'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.deepPurple,
+                    ),
+                  ),
+                  // Edit scheduling button
+                  TextButton.icon(
+                    onPressed: () => _showGameEditDialog(game),
+                    icon: const Icon(Icons.schedule, size: 16),
+                    label: const Text('Planen'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.teal,
+                    ),
+                  ),
                   const Spacer(),
                   if (game.status != GameStatus.completed) ...[
                     TextButton.icon(
@@ -821,6 +826,150 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
             child: const Text('Schließen'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showGameEditDialog(Game game) {
+    DateTime? selectedDate = game.scheduledTime;
+    TimeOfDay? selectedTime = game.scheduledTime != null
+        ? TimeOfDay(hour: game.scheduledTime!.hour, minute: game.scheduledTime!.minute)
+        : null;
+    String? selectedCourtId = game.courtId;
+    GameStatus selectedStatus = game.status;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: Text('${game.teamAName} vs ${game.teamBName}'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Status
+                DropdownButtonFormField<GameStatus>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.flag),
+                  ),
+                  items: GameStatus.values.map((s) => DropdownMenuItem(
+                    value: s,
+                    child: Text(_getStatusText(s)),
+                  )).toList(),
+                  onChanged: (v) => setDlgState(() => selectedStatus = v!),
+                ),
+                const SizedBox(height: 16),
+
+                // Date
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today, color: Colors.blue),
+                  title: Text(selectedDate != null
+                      ? '${selectedDate!.day.toString().padLeft(2, '0')}.${selectedDate!.month.toString().padLeft(2, '0')}.${selectedDate!.year}'
+                      : 'Datum auswählen'),
+                  trailing: selectedDate != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () => setDlgState(() => selectedDate = null),
+                        )
+                      : null,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (date != null) setDlgState(() => selectedDate = date);
+                  },
+                ),
+
+                // Time
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.access_time, color: Colors.blue),
+                  title: Text(selectedTime != null
+                      ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
+                      : 'Uhrzeit auswählen'),
+                  trailing: selectedTime != null
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () => setDlgState(() => selectedTime = null),
+                        )
+                      : null,
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: ctx,
+                      initialTime: selectedTime ?? const TimeOfDay(hour: 10, minute: 0),
+                    );
+                    if (time != null) setDlgState(() => selectedTime = time);
+                  },
+                ),
+
+                // Court
+                if (widget.tournament.courts.isNotEmpty)
+                  DropdownButtonFormField<String?>(
+                    value: widget.tournament.courts.any((c) => c.id == selectedCourtId) ? selectedCourtId : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Feld / Halle',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.stadium),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(value: null, child: Text('Kein Feld')),
+                      ...widget.tournament.courts.map((court) => DropdownMenuItem<String?>(
+                        value: court.id,
+                        child: Text(court.name),
+                      )),
+                    ],
+                    onChanged: (v) => setDlgState(() => selectedCourtId = v),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                DateTime? scheduledTime;
+                if (selectedDate != null) {
+                  scheduledTime = DateTime(
+                    selectedDate!.year,
+                    selectedDate!.month,
+                    selectedDate!.day,
+                    selectedTime?.hour ?? 0,
+                    selectedTime?.minute ?? 0,
+                  );
+                }
+
+                final updated = game.copyWith(
+                  scheduledTime: scheduledTime,
+                  status: selectedStatus,
+                  courtId: selectedCourtId,
+                  updatedAt: DateTime.now(),
+                );
+
+                try {
+                  await _gameService.updateGame(updated);
+                  Navigator.of(ctx).pop();
+                  setState(() {});
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Fehler: $e')),
+                  );
+                }
+              },
+              child: const Text('Speichern'),
+            ),
+          ],
+        ),
       ),
     );
   }

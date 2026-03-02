@@ -35,19 +35,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
   
-  String _selectedDivision = 'Men\'s Seniors';
   String _selectedBundesland = 'Bayern';
-  
-  final List<String> _divisions = [
-    'Men\'s U14',
-    'Men\'s U16',
-    'Men\'s U18', 
-    'Men\'s Seniors',
-    'Women\'s U14',
-    'Women\'s U16',
-    'Women\'s U18',
-    'Women\'s Seniors',
-  ];
 
   @override
   void initState() {
@@ -72,7 +60,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           _team = team;
           _nameController.text = team.name;
           _cityController.text = team.city;
-          _selectedDivision = team.division;
           _selectedBundesland = team.bundesland;
         });
         
@@ -203,7 +190,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _team!.division,
+                  _team!.city,
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
@@ -223,7 +210,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 _buildNavItem('basic', 'Basisdaten', Icons.info_outline),
                 _buildNavItem('roster', 'Kader', Icons.group),
                 _buildNavItem('officials', 'Team Officials', Icons.supervisor_account),
-                _buildNavItem('tournaments', 'Turniere', Icons.sports_volleyball),
+                _buildNavItem('tournaments', 'Turniere', Icons.sports_handball),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
@@ -350,38 +337,13 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Division and City row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedDivision,
-                          decoration: const InputDecoration(
-                            labelText: 'Division *',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _divisions.map((division) => DropdownMenuItem(
-                            value: division,
-                            child: Text(division),
-                          )).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedDivision = value!;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          controller: _cityController,
-                          decoration: const InputDecoration(
-                            labelText: 'Stadt *',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ],
+                  // City
+                  TextField(
+                    controller: _cityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Stadt *',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   
@@ -628,7 +590,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                ),
              ),
              title: Text(player.fullName),
-             subtitle: Text('${player.position ?? 'Keine Position'} • Rückennr. ${player.jerseyNumber ?? 'N/A'}'),
+             subtitle: Text('${player.classification ?? 'Keine Klassifikation'} • Rückennr. ${player.jerseyNumber ?? 'N/A'}'),
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
@@ -807,8 +769,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         logoUrl: _team!.logoUrl,
         city: _cityController.text.trim(),
         bundesland: _selectedBundesland,
-        division: _selectedDivision,
-        clubId: _team!.clubId,
         rosterPlayerIds: _team!.rosterPlayerIds, // ✅ FIXED: Include roster data!
         createdAt: _team!.createdAt,
       );
@@ -874,8 +834,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           logoUrl: _team!.logoUrl,
           city: _team!.city,
           bundesland: _team!.bundesland,
-          division: _team!.division,
-          clubId: _team!.clubId,
           rosterPlayerIds: updatedRosterIds,
           createdAt: _team!.createdAt,
         );
@@ -908,9 +866,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final phoneController = TextEditingController();
     final jerseyController = TextEditingController();
     String selectedGender = 'male';
-    String selectedPosition = 'Goalkeeper';
+    String selectedClassification = 'Gruppe C';
     
-    final positions = ['Goalkeeper', 'Allrounder', 'Defense', 'Pivot', 'Right Wing', 'Left Wing'];
+    final classifications = ['Gruppe A', 'Gruppe B', 'Gruppe C'];
 
     showDialog(
       context: context,
@@ -1004,18 +962,18 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedPosition,
+                        value: selectedClassification,
                         decoration: const InputDecoration(
-                          labelText: 'Position',
+                          labelText: 'Klassifizierung',
                           border: OutlineInputBorder(),
                         ),
-                        items: positions.map((pos) => DropdownMenuItem(
-                          value: pos,
-                          child: Text(pos),
+                        items: classifications.map((cls) => DropdownMenuItem(
+                          value: cls,
+                          child: Text(cls),
                         )).toList(),
                         onChanged: (value) {
                           setDialogState(() {
-                            selectedPosition = value!;
+                            selectedClassification = value!;
                           });
                         },
                       ),
@@ -1038,7 +996,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 phoneController.text.isEmpty ? null : phoneController.text,
                 jerseyController.text.isEmpty ? null : jerseyController.text,
                 selectedGender,
-                selectedPosition,
+                selectedClassification,
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -1093,7 +1051,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                         filteredPlayers = availablePlayers.where((player) =>
                           player.fullName.toLowerCase().contains(searchQuery) ||
                           (player.email?.toLowerCase().contains(searchQuery) ?? false) ||
-                          (player.position?.toLowerCase().contains(searchQuery) ?? false)
+                          (player.classification?.toLowerCase().contains(searchQuery) ?? false)
                         ).toList();
                       });
                     },
@@ -1121,7 +1079,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text((player.email?.contains('@placeholder.com') ?? false) ? 'Keine E-Mail' : (player.email ?? 'Keine E-Mail')),
-                                Text('${player.position ?? 'Keine Position'} • ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
+                                Text('${player.classification ?? 'Keine Klassifikation'} • ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
                               ],
                             ),
                             trailing: ElevatedButton(
@@ -1163,9 +1121,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final phoneController = TextEditingController(text: player.phone ?? '');
     final jerseyController = TextEditingController(text: player.jerseyNumber ?? '');
     String selectedGender = player.gender;
-    String selectedPosition = player.position ?? 'Goalkeeper';
+    String selectedClassification = player.classification ?? 'Gruppe C';
     
-    final positions = ['Goalkeeper', 'Allrounder', 'Defense', 'Pivot', 'Right Wing', 'Left Wing'];
+    final classifications = ['Gruppe A', 'Gruppe B', 'Gruppe C'];
 
     showDialog(
       context: context,
@@ -1259,18 +1217,18 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: selectedPosition,
+                        value: selectedClassification,
                         decoration: const InputDecoration(
-                          labelText: 'Position',
+                          labelText: 'Klassifizierung',
                           border: OutlineInputBorder(),
                         ),
-                        items: positions.map((pos) => DropdownMenuItem(
-                          value: pos,
-                          child: Text(pos),
+                        items: classifications.map((cls) => DropdownMenuItem(
+                          value: cls,
+                          child: Text(cls),
                         )).toList(),
                         onChanged: (value) {
                           setDialogState(() {
-                            selectedPosition = value!;
+                            selectedClassification = value!;
                           });
                         },
                       ),
@@ -1294,7 +1252,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 phoneController.text.isEmpty ? null : phoneController.text,
                 jerseyController.text.isEmpty ? null : jerseyController.text,
                 selectedGender,
-                selectedPosition,
+                selectedClassification,
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
@@ -1315,7 +1273,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     String? phone,
     String? jerseyNumber,
     String gender,
-    String position,
+    String classification,
   ) async {
     if (firstName.trim().isEmpty || lastName.trim().isEmpty) {
       _showError('Vorname und Nachname sind erforderlich');
@@ -1333,7 +1291,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         email: email.trim().isEmpty ? 'no-email-${DateTime.now().millisecondsSinceEpoch}@placeholder.com' : email.trim().toLowerCase(),
         phone: phone?.trim(),
         jerseyNumber: jerseyNumber?.trim(),
-        position: position,
+        classification: classification,
         gender: gender,
         createdAt: DateTime.now(),
       );
@@ -1351,8 +1309,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           logoUrl: _team!.logoUrl,
           city: _team!.city,
           bundesland: _team!.bundesland,
-          division: _team!.division,
-          clubId: _team!.clubId,
           rosterPlayerIds: updatedRosterIds,
           createdAt: _team!.createdAt,
         );
@@ -1372,7 +1328,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                email: newPlayer.email,
                phone: newPlayer.phone,
                jerseyNumber: newPlayer.jerseyNumber,
-               position: newPlayer.position,
+               classification: newPlayer.classification,
                gender: newPlayer.gender,
                createdAt: newPlayer.createdAt,
              ));
@@ -1405,8 +1361,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         logoUrl: _team!.logoUrl,
         city: _team!.city,
         bundesland: _team!.bundesland,
-        division: _team!.division,
-        clubId: _team!.clubId,
         rosterPlayerIds: updatedRosterIds,
         createdAt: _team!.createdAt,
       );
@@ -1439,7 +1393,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     String? phone,
     String? jerseyNumber,
     String gender,
-    String position,
+    String classification,
   ) async {
     if (firstName.trim().isEmpty || lastName.trim().isEmpty) {
       _showError('Vorname und Nachname sind erforderlich');
@@ -1468,7 +1422,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         email: finalEmail,
         phone: phone?.trim(),
         jerseyNumber: jerseyNumber?.trim(),
-        position: position,
+        classification: classification,
         gender: gender,
       );
 
@@ -1657,8 +1611,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         logoUrl: _team!.logoUrl,
         city: _team!.city,
         bundesland: _team!.bundesland,
-        division: _team!.division,
-        clubId: _team!.clubId,
         rosterPlayerIds: _team!.rosterPlayerIds,
         createdAt: _team!.createdAt,
       );
@@ -1714,8 +1666,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           logoUrl: _team!.logoUrl,
           city: _team!.city,
           bundesland: _team!.bundesland,
-          division: _team!.division,
-          clubId: _team!.clubId,
           rosterPlayerIds: _team!.rosterPlayerIds,
           createdAt: _team!.createdAt,
         );

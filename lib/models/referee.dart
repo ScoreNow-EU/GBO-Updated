@@ -5,10 +5,16 @@ class Referee {
   final String firstName;
   final String lastName;
   final String email;
-  final String licenseType; // EHF Kader, DHB Elite Kader, DHB Stamm Kader, Perspektiv Kader, Basis Lizenz
+  final String licenseType;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<String> invitationsPending; // Tournament IDs with pending invitations
+  // Address fields
+  final String? street;
+  final String? houseNumber;
+  final String? plz;
+  final String? city;
+  final double? latitude;
+  final double? longitude;
 
   Referee({
     required this.id,
@@ -18,16 +24,32 @@ class Referee {
     required this.licenseType,
     required this.createdAt,
     required this.updatedAt,
-    this.invitationsPending = const [],
+    this.street,
+    this.houseNumber,
+    this.plz,
+    this.city,
+    this.latitude,
+    this.longitude,
   });
 
   String get fullName => '$firstName $lastName';
 
-  // Get count of pending invitations
-  int get pendingInvitationsCount => invitationsPending.length;
+  /// Full formatted address string, or null if no address data
+  String? get fullAddress {
+    final parts = <String>[];
+    if (street != null && street!.isNotEmpty) {
+      parts.add(houseNumber != null && houseNumber!.isNotEmpty
+          ? '$street $houseNumber'
+          : street!);
+    }
+    if (plz != null && plz!.isNotEmpty || city != null && city!.isNotEmpty) {
+      parts.add('${plz ?? ''} ${city ?? ''}'.trim());
+    }
+    return parts.isEmpty ? null : parts.join(', ');
+  }
 
-  // Check if has pending invitation for specific tournament
-  bool hasPendingInvitation(String tournamentId) => invitationsPending.contains(tournamentId);
+  /// Whether this referee has valid coordinates for distance calculation
+  bool get hasCoordinates => latitude != null && longitude != null;
 
   Map<String, dynamic> toJson() {
     return {
@@ -38,7 +60,12 @@ class Referee {
       'licenseType': licenseType,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-      'invitationsPending': invitationsPending,
+      'street': street,
+      'houseNumber': houseNumber,
+      'plz': plz,
+      'city': city,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -51,7 +78,12 @@ class Referee {
       licenseType: json['licenseType'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      invitationsPending: List<String>.from(json['invitationsPending'] ?? []),
+      street: json['street'],
+      houseNumber: json['houseNumber'],
+      plz: json['plz'],
+      city: json['city'],
+      latitude: json['latitude']?.toDouble(),
+      longitude: json['longitude']?.toDouble(),
     );
   }
 
@@ -64,34 +96,52 @@ class Referee {
       'licenseType': licenseType,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
-      'invitationsPending': invitationsPending,
+      'street': street,
+      'houseNumber': houseNumber,
+      'plz': plz,
+      'city': city,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
   factory Referee.fromMap(Map<String, dynamic> map, String documentId) {
-    // Handle migration from int to List<String>
-    dynamic invitationsPendingData = map['invitationsPending'];
-    List<String> invitationsPending = [];
-    
-    if (invitationsPendingData != null) {
-      if (invitationsPendingData is int) {
-        // Old format - just ignore the count as we'll sync it properly
-        invitationsPending = [];
-      } else if (invitationsPendingData is List) {
-        invitationsPending = List<String>.from(invitationsPendingData);
-      }
-    }
+    // Migrate old license types to new ones
+    String licenseType = map['licenseType'] ?? 'Entwicklungskader';
+    licenseType = _migrateLicenseType(licenseType);
 
     return Referee(
       id: documentId,
       firstName: map['firstName'] ?? '',
       lastName: map['lastName'] ?? '',
       email: map['email'] ?? '',
-      licenseType: map['licenseType'] ?? 'Basis-Lizenz',
+      licenseType: licenseType,
       createdAt: map['createdAt']?.toDate() ?? DateTime.now(),
       updatedAt: map['updatedAt']?.toDate() ?? DateTime.now(),
-      invitationsPending: invitationsPending,
+      street: map['street'],
+      houseNumber: map['houseNumber'],
+      plz: map['plz'],
+      city: map['city'],
+      latitude: map['latitude']?.toDouble(),
+      longitude: map['longitude']?.toDouble(),
     );
+  }
+
+  /// Migrate old license type values to the new system
+  static String _migrateLicenseType(String license) {
+    switch (license) {
+      case 'Keine Lizenz':
+        return 'Entwicklungskader';
+      case 'RHBL-Stammkader':
+        return 'Leistungskader';
+      case 'EHF Young Referee':
+        return 'Elitekader';
+      case 'EHF Referee':
+        return 'EHF Referee';
+      default:
+        // Already a new value or unknown — keep as-is
+        return license;
+    }
   }
 
   Referee copyWith({
@@ -102,7 +152,12 @@ class Referee {
     String? licenseType,
     DateTime? createdAt,
     DateTime? updatedAt,
-    List<String>? invitationsPending,
+    String? street,
+    String? houseNumber,
+    String? plz,
+    String? city,
+    double? latitude,
+    double? longitude,
   }) {
     return Referee(
       id: id ?? this.id,
@@ -112,13 +167,18 @@ class Referee {
       licenseType: licenseType ?? this.licenseType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      invitationsPending: invitationsPending ?? this.invitationsPending,
+      street: street ?? this.street,
+      houseNumber: houseNumber ?? this.houseNumber,
+      plz: plz ?? this.plz,
+      city: city ?? this.city,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 
   @override
   String toString() {
-    return 'Referee{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType, invitationsPending: $invitationsPending}';
+    return 'Referee{id: $id, firstName: $firstName, lastName: $lastName, email: $email, licenseType: $licenseType, city: $city}';
   }
 
   @override
@@ -132,11 +192,10 @@ class Referee {
 
   // Available license types
   static const List<String> licenseTypes = [
-    'EHF Kader',
-    'DHB Elite Kader', 
-    'DHB Stamm Kader',
-    'Perspektiv Kader',
-    'Basis-Lizenz',
+    'Entwicklungskader',
+    'Leistungskader',
+    'Elitekader',
+    'EHF Referee',
   ];
 }
 

@@ -42,10 +42,10 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
   bool _allowBackToBackGames = false;
   int _minimumRestMinutes = 15;
   
-  // Division priority settings
-  Map<String, String> _divisionPriorities = {}; // division -> priority (today, asap, time)
-  List<String> _availableDivisions = [];
-  bool _divisionsLoaded = false;
+  // Category priority settings
+  Map<String, String> _categoryPriorities = {}; // category -> priority (today, asap, time)
+  List<String> _availableCategories = [];
+  bool _categoriesLoaded = false;
   
   // Break/ceremony slots
   List<BreakSlot> _breakSlots = [];
@@ -55,34 +55,34 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
   void initState() {
     super.initState();
     _maxFieldsToUse = widget.tournament.courts.length;
-    _loadDivisions();
+    _loadCategories();
   }
 
-  Future<void> _loadDivisions() async {
+  Future<void> _loadCategories() async {
     try {
       final scheduler = GameScheduler();
-      final divisions = await scheduler.getDivisionsWithGames(
+      final categories = await scheduler.getCategoriesWithGames(
         widget.tournament, 
         widget.gameService, 
         widget.teamService,
       );
       
       setState(() {
-        _availableDivisions = divisions.toList()..sort();
-        // Initialize division priorities
-        for (String division in _availableDivisions) {
-          _divisionPriorities[division] = 'asap'; // Default to ASAP
+        _availableCategories = categories.toList()..sort();
+        // Initialize category priorities
+        for (String category in _availableCategories) {
+          _categoryPriorities[category] = 'asap'; // Default to ASAP
         }
-        _divisionsLoaded = true;
+        _categoriesLoaded = true;
       });
     } catch (e) {
-      // Fallback to tournament categories if loading fails
+      // Fallback if loading fails
       setState(() {
-        _availableDivisions = widget.tournament.categories;
-        for (String category in _availableDivisions) {
-          _divisionPriorities[category] = 'asap';
+        _availableCategories = [];
+        for (String category in _availableCategories) {
+          _categoryPriorities[category] = 'asap';
         }
-        _divisionsLoaded = true;
+        _categoriesLoaded = true;
       });
     }
   }
@@ -194,8 +194,8 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     _buildConflictOptions(),
                     
                     const SizedBox(height: 20),
-                    _buildSectionTitle('Kategorien-Prioritäten'),
-                    _buildDivisionPriorities(),
+                    _buildSectionTitle('Kategorien-PrioritÃ¤ten'),
+                    _buildCategoryPriorities(),
                     
                     const SizedBox(height: 20),
                     _buildSectionTitle('Pausen & Zeremonien'),
@@ -317,11 +317,13 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
             ),
             SizedBox(
               width: 100,
-              child: Slider(
-                value: _maxFieldsToUse.toDouble(),
+              child: widget.tournament.courts.isEmpty
+                  ? const Text('Keine Felder', style: TextStyle(fontSize: 12, color: Colors.grey))
+                  : Slider(
+                value: _maxFieldsToUse.clamp(1, widget.tournament.courts.length).toDouble(),
                 min: 1,
-                max: widget.tournament.courts.length.toDouble(),
-                divisions: widget.tournament.courts.length > 1 ? widget.tournament.courts.length - 1 : 1,
+                max: widget.tournament.courts.length.toDouble().clamp(1, double.infinity),
+                divisions: widget.tournament.courts.length > 1 ? widget.tournament.courts.length - 1 : null,
                 label: _maxFieldsToUse.toString(),
                 onChanged: (value) {
                   setState(() {
@@ -336,7 +338,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         
         SwitchListTile(
           title: const Text('Minimale Feldanzahl verwenden'),
-          subtitle: const Text('Versuche, möglichst wenige Felder zu nutzen'),
+          subtitle: const Text('Versuche, mÃ¶glichst wenige Felder zu nutzen'),
           value: _optimizeForMinimalFields,
           onChanged: (value) {
             setState(() {
@@ -353,7 +355,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
       children: [
         RadioListTile<String>(
           title: const Text('Ausgewogen'),
-          subtitle: const Text('Gleichmäßige Verteilung über alle Felder'),
+          subtitle: const Text('GleichmÃ¤ÃŸige Verteilung Ã¼ber alle Felder'),
           value: 'balanced',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -364,7 +366,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         RadioListTile<String>(
           title: const Text('Sequenziell'),
-          subtitle: const Text('Felder nacheinander füllen'),
+          subtitle: const Text('Felder nacheinander fÃ¼llen'),
           value: 'sequential',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -375,7 +377,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         RadioListTile<String>(
           title: const Text('Minimal Felder'),
-          subtitle: const Text('So wenige Felder wie möglich verwenden'),
+          subtitle: const Text('So wenige Felder wie mÃ¶glich verwenden'),
           value: 'minimize_fields',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -393,7 +395,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
       children: [
         SwitchListTile(
           title: const Text('Gleichzeitige Spiele erlauben'),
-          subtitle: const Text('Teams können zur gleichen Zeit auf verschiedenen Feldern spielen'),
+          subtitle: const Text('Teams kÃ¶nnen zur gleichen Zeit auf verschiedenen Feldern spielen'),
           value: _allowSameTimeConflicts,
           onChanged: (value) {
             setState(() {
@@ -404,7 +406,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         
         SwitchListTile(
           title: const Text('Direkt aufeinanderfolgende Spiele erlauben'),
-          subtitle: const Text('Teams können ohne Pause zwischen Spielen antreten'),
+          subtitle: const Text('Teams kÃ¶nnen ohne Pause zwischen Spielen antreten'),
           value: _allowBackToBackGames,
           onChanged: (value) {
             setState(() {
@@ -447,8 +449,8 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
     );
   }
 
-  Widget _buildDivisionPriorities() {
-    if (!_divisionsLoaded) {
+  Widget _buildCategoryPriorities() {
+    if (!_categoriesLoaded) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(20),
@@ -457,18 +459,18 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
       );
     }
 
-    if (_availableDivisions.isEmpty) {
+    if (_availableCategories.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(20),
         child: Text(
-          'Keine Divisionen mit Spielen gefunden',
+          'Keine Kategorien mit Spielen gefunden',
           style: TextStyle(color: Colors.grey),
         ),
       );
     }
 
     return Column(
-      children: _availableDivisions.map((category) {
+      children: _availableCategories.map((category) {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: Padding(
@@ -490,34 +492,34 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                       title: const Text('Nur heute'),
                       subtitle: const Text('Nur am ersten Tag planen'),
                       value: 'today',
-                      groupValue: _divisionPriorities[category],
+                      groupValue: _categoryPriorities[category],
                       onChanged: (value) {
                         setState(() {
-                          _divisionPriorities[category] = value!;
+                          _categoryPriorities[category] = value!;
                         });
                       },
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<String>(
                       title: const Text('ASAP'),
-                      subtitle: const Text('So früh wie möglich planen'),
+                      subtitle: const Text('So frÃ¼h wie mÃ¶glich planen'),
                       value: 'asap',
-                      groupValue: _divisionPriorities[category],
+                      groupValue: _categoryPriorities[category],
                       onChanged: (value) {
                         setState(() {
-                          _divisionPriorities[category] = value!;
+                          _categoryPriorities[category] = value!;
                         });
                       },
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<String>(
                       title: const Text('Zeit geben'),
-                      subtitle: const Text('Über mehrere Tage verteilen'),
+                      subtitle: const Text('Ãœber mehrere Tage verteilen'),
                       value: 'time',
-                      groupValue: _divisionPriorities[category],
+                      groupValue: _categoryPriorities[category],
                       onChanged: (value) {
                         setState(() {
-                          _divisionPriorities[category] = value!;
+                          _categoryPriorities[category] = value!;
                         });
                       },
                       contentPadding: EdgeInsets.zero,
@@ -552,7 +554,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     ElevatedButton.icon(
                       onPressed: _addBreakSlot,
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Pause hinzufügen'),
+                      label: const Text('Pause hinzufÃ¼gen'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
@@ -562,7 +564,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                 const SizedBox(height: 8),
                 if (_breakSlots.isEmpty)
                   const Text(
-                    'Keine Pausen definiert. Fügen Sie Zeiten für Zeremonien, Siegerehrungen oder Pausen hinzu.',
+                    'Keine Pausen definiert. FÃ¼gen Sie Zeiten fÃ¼r Zeremonien, Siegerehrungen oder Pausen hinzu.',
                     style: TextStyle(color: Colors.grey),
                   )
                 else
@@ -617,8 +619,8 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         
         SwitchListTile(
-          title: const Text('Lücken bei Konflikten erlauben'),
-          subtitle: const Text('Zeitslots freilassen wenn Konflikte nicht lösbar sind'),
+          title: const Text('LÃ¼cken bei Konflikten erlauben'),
+          subtitle: const Text('Zeitslots freilassen wenn Konflikte nicht lÃ¶sbar sind'),
           value: _allowGapsForConflicts,
           onChanged: (value) {
             setState(() {
@@ -671,7 +673,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         allowSameTimeConflicts: _allowSameTimeConflicts,
         allowBackToBackGames: _allowBackToBackGames,
         minimumRestMinutes: _minimumRestMinutes,
-        divisionPriorities: _divisionPriorities,
+        categoryPriorities: _categoryPriorities,
         teamService: widget.teamService,
         breakSlots: _breakSlots,
         allowGapsForConflicts: _allowGapsForConflicts,
@@ -712,7 +714,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Pause hinzufügen'),
+      title: const Text('Pause hinzufÃ¼gen'),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -730,7 +732,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
               controller: _descriptionController,
               decoration: const InputDecoration(
                 labelText: 'Beschreibung (optional)',
-                hintText: 'Zusätzliche Details',
+                hintText: 'ZusÃ¤tzliche Details',
               ),
               maxLines: 2,
             ),
@@ -783,7 +785,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
         ),
         ElevatedButton(
           onPressed: _titleController.text.isNotEmpty ? _addBreakSlot : null,
-          child: const Text('Hinzufügen'),
+          child: const Text('HinzufÃ¼gen'),
         ),
       ],
     );

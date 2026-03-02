@@ -90,10 +90,10 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   Map<String, GameSquad> _gameSquads = {}; // teamId -> GameSquad
   bool _squadsLoading = false;
   
-  // Set completion overlay
+  // Half completion overlay
   bool _showSetCompletionOverlay = false;
-  SetScore? _completedSet;
-  int _lastProcessedSetCount = 0;
+  bool _halfCompleted = false;
+  int _lastProcessedHalfCount = 0;
   
   // Shootout state
   bool _isInShootout = false;
@@ -152,16 +152,16 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     setState(() => _isRefreshing = true);
     
     try {
-      print('🔄 ScoringTablet: Starting comprehensive Firebase refresh...');
+      print('ðŸ”„ ScoringTablet: Starting comprehensive Firebase refresh...');
       
       // Force refresh games data from Firebase
       if (_assignedTournament != null) {
-        print('🔄 Force refreshing games for tournament: ${_assignedTournament!.name}');
+        print('ðŸ”„ Force refreshing games for tournament: ${_assignedTournament!.name}');
         await _gameService.forceRefreshGames(_assignedTournament!.id);
       }
       
       // Force refresh team data (clear cache)
-      print('🔄 Clearing team cache...');
+      print('ðŸ”„ Clearing team cache...');
       _teamService.clearCache();
       
       // Reload games with fresh data
@@ -169,7 +169,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // Refresh team data for selected game
       if (_selectedGame != null) {
-        print('🔄 Refreshing team data for selected game...');
+        print('ðŸ”„ Refreshing team data for selected game...');
         if (_selectedGame!.teamAId?.isNotEmpty == true) {
           final freshTeamA = await _teamService.getTeamById(_selectedGame!.teamAId!);
           if (mounted && freshTeamA != null) {
@@ -185,7 +185,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         
         // Also refresh squad data if in scoring mode
         if (_isInScoringMode) {
-          print('🔄 Refreshing squad data...');
+          print('ðŸ”„ Refreshing squad data...');
           setState(() => _squadsLoading = true);
           await _loadGameSquads();
           if (mounted) {
@@ -195,13 +195,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       }
       
       setState(() => _lastRefresh = DateTime.now());
-      print('✅ ScoringTablet: Comprehensive refresh complete');
+      print('âœ… ScoringTablet: Comprehensive refresh complete');
       
       // Show success feedback
       _showSuccessToast('Daten erfolgreich von Firebase aktualisiert');
       
     } catch (e) {
-      print('❌ Error during comprehensive refresh: $e');
+      print('âŒ Error during comprehensive refresh: $e');
       _showErrorToast('Fehler beim Aktualisieren der Daten: $e');
     } finally {
       setState(() => _isRefreshing = false);
@@ -210,17 +210,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Future<void> _loadManagedAccountData() async {
     try {
-      print('🔍 ScoringTablet: Loading managed account data for user: ${widget.user.email}');
+      print('ðŸ” ScoringTablet: Loading managed account data for user: ${widget.user.email}');
       
       final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-      print('🔍 Found ${allAccounts.length} managed accounts total');
+      print('ðŸ” Found ${allAccounts.length} managed accounts total');
       
       _managedAccount = allAccounts.firstWhere(
         (account) => account.email == widget.user.email,
         orElse: () => throw Exception('Managed account not found for email: ${widget.user.email}'),
       );
 
-      print('🔍 Managed account found:');
+      print('ðŸ” Managed account found:');
       print('   - Email: ${_managedAccount!.email}');
       print('   - Tournament ID: ${_managedAccount!.tournamentId}');
       print('   - Court ID: ${_managedAccount!.courtId}');
@@ -228,13 +228,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
       if (_managedAccount != null && _managedAccount!.tournamentId != null) {
         _assignedTournament = await _tournamentService.getTournamentById(_managedAccount!.tournamentId!);
-        print('🔍 Tournament loaded: ${_assignedTournament?.name}');
-        print('🔍 Tournament has ${_assignedTournament?.courts.length} courts');
+        print('ðŸ” Tournament loaded: ${_assignedTournament?.name}');
+        print('ðŸ” Tournament has ${_assignedTournament?.courts.length} courts');
         
         if (_assignedTournament != null && _managedAccount!.courtId != null) {
           try {
             // Debug: Show all available courts
-            print('🔍 Available courts in tournament:');
+            print('ðŸ” Available courts in tournament:');
             for (final court in _assignedTournament!.courts) {
               print('   - Court ID: "${court.id}", Name: "${court.name}"');
             }
@@ -243,20 +243,20 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               (court) => court.id == _managedAccount!.courtId,
             );
             
-            print('🔍 Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
+            print('ðŸ” Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
             
             await _loadGames();
             
             // Update tablet status to indicate it's connected (disabled to prevent null errors)
             // _updateTabletStatus();
           } catch (e) {
-            print('❌ Court not found: $e');
+            print('âŒ Court not found: $e');
             _showErrorToast('Court "${_managedAccount!.courtId}" nicht im Turnier gefunden');
           }
         }
       }
     } catch (e) {
-      print('❌ Error loading managed account data: $e');
+      print('âŒ Error loading managed account data: $e');
       _showErrorToast('Fehler beim Laden der Account-Daten: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
@@ -270,12 +270,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show all game court IDs and assigned court ID
-      print('🏐 ScoringTablet: Debug court ID matching');
-      print('🏐 Assigned court ID: "${_assignedCourt!.id}"');
-      print('🏐 Found ${allGames.length} total games for tournament');
+      print('ðŸ ScoringTablet: Debug court ID matching');
+      print('ðŸ Assigned court ID: "${_assignedCourt!.id}"');
+      print('ðŸ Found ${allGames.length} total games for tournament');
       
       for (final game in allGames) {
-        print('🏐 Game: ${game.teamAName} vs ${game.teamBName}');
+        print('ðŸ Game: ${game.teamAName} vs ${game.teamBName}');
         print('   - Game court ID: "${game.courtId}"');
         print('   - Matches assigned court: ${game.courtId == _assignedCourt!.id}');
         print('   - Game status: ${game.status}');
@@ -287,7 +287,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If no exact matches, try matching by court name
       if (courtGames.isEmpty) {
-        print('🏐 No exact court ID matches, trying to match by court name...');
+        print('ðŸ No exact court ID matches, trying to match by court name...');
         
         // Get all courts from the tournament
         final allTournamentCourts = _assignedTournament!.courts;
@@ -300,18 +300,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               orElse: () => Court(
                 id: '',
                 name: '',
-                latitude: 0.0,
-                longitude: 0.0,
-                type: 'outdoor',
-                maxCapacity: 0,
-                createdAt: DateTime.now(),
               ),
             );
             
             // If we found a matching court and it has the same name as our assigned court
             if (gamesCourt.id.isNotEmpty && gamesCourt.name == _assignedCourt!.name) {
               courtGames.add(game);
-              print('🏐 Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
+              print('ðŸ Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
             }
           }
         }
@@ -319,12 +314,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If still no matches, show ALL games for debugging (remove this in production)
       if (courtGames.isEmpty) {
-        print('⚠️ Still no court matches found. For debugging, showing all games:');
+        print('âš ï¸ Still no court matches found. For debugging, showing all games:');
         courtGames = allGames;
-        print('⚠️ DEBUG MODE: Showing all ${courtGames.length} games');
+        print('âš ï¸ DEBUG MODE: Showing all ${courtGames.length} games');
       }
       
-      print('🏐 Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
+      print('ðŸ Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
       
       final now = DateTime.now();
       
@@ -364,7 +359,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       });
       
     } catch (e) {
-      print('❌ Error loading games: $e');
+      print('âŒ Error loading games: $e');
     }
   }
 
@@ -375,9 +370,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show court ID matching (same as _loadGames)
-      print('🔄 ScoringTablet: Refreshing games with animation');
-      print('🔄 Assigned court ID: "${_assignedCourt!.id}"');
-      print('🔄 Found ${allGames.length} total games');
+      print('ðŸ”„ ScoringTablet: Refreshing games with animation');
+      print('ðŸ”„ Assigned court ID: "${_assignedCourt!.id}"');
+      print('ðŸ”„ Found ${allGames.length} total games');
       
       // Try multiple matching strategies for court assignment (same as _loadGames)
       var courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
@@ -393,11 +388,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               orElse: () => Court(
                 id: '',
                 name: '',
-                latitude: 0.0,
-                longitude: 0.0,
-                type: 'outdoor',
-                maxCapacity: 0,
-                createdAt: DateTime.now(),
               ),
             );
             
@@ -413,7 +403,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         courtGames = allGames;
       }
       
-      print('🔄 Found ${courtGames.length} games for assigned court');
+      print('ðŸ”„ Found ${courtGames.length} games for assigned court');
       
       final now = DateTime.now();
       
@@ -452,7 +442,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       await _animateGameListChanges(_upcomingGames, newUpcomingGames, _upcomingGamesListKey, false);
       
     } catch (e) {
-      print('❌ Error loading games with animation: $e');
+      print('âŒ Error loading games with animation: $e');
     }
   }
 
@@ -1182,12 +1172,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Find squads for each team
       for (final squad in squads) {
         _gameSquads[squad.teamId] = squad;
-        print('✅ Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
+        print('âœ… Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
       }
       
-      print('✅ Total squads loaded: ${_gameSquads.length}');
+      print('âœ… Total squads loaded: ${_gameSquads.length}');
     } catch (e) {
-      print('❌ Error loading game squads: $e');
+      print('âŒ Error loading game squads: $e');
     }
   }
 
@@ -1300,7 +1290,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: TextButton.icon(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 20),
-                      label: const Text('Zurück zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      label: const Text('ZurÃ¼ck zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1311,7 +1301,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: IconButton(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 22),
-                      tooltip: 'Zurück zu Spielen',
+                      tooltip: 'ZurÃ¼ck zu Spielen',
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                       padding: const EdgeInsets.all(12),
                       style: IconButton.styleFrom(
@@ -1393,7 +1383,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 child: TextButton.icon(
                   onPressed: _backToGames,
                   icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                  label: const Text('Zurück zu Spielen', style: TextStyle(color: Colors.white70)),
+                  label: const Text('ZurÃ¼ck zu Spielen', style: TextStyle(color: Colors.white70)),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white70,
                   ),
@@ -1441,7 +1431,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           IconButton(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back, color: Color(0xFF4A5568)),
-            tooltip: 'Zurück zu Spielen',
+            tooltip: 'ZurÃ¼ck zu Spielen',
           ),
         ],
       ),
@@ -1460,8 +1450,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _selectedPlayerTeamId = null;
       _selectedTab = 'main';
       _showSetCompletionOverlay = false; // Clear overlay
-      _completedSet = null;
-      _lastProcessedSetCount = 0;
+      _halfCompleted = false;
+      _lastProcessedHalfCount = 0;
     });
   }
 
@@ -1686,14 +1676,14 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     ],
                   ),
                   
-                  // Division and Pool Information
+                  // Liga and Pool Information
                   const SizedBox(height: 12),
                   Wrap(
                     alignment: WrapAlignment.center,
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      // Division Info
+                      // Liga Info
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -1711,7 +1701,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _extractDivisionFromGame(_selectedGame!),
+                              _extractCategoryFromGame(_selectedGame!),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1990,7 +1980,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 24),
           Text(
-            'Kein Spiel ausgewählt',
+            'Kein Spiel ausgewÃ¤hlt',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -1999,7 +1989,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 12),
           Text(
-            'Wählen Sie ein Spiel aus der Liste aus.',
+            'WÃ¤hlen Sie ein Spiel aus der Liste aus.',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade500,
@@ -2010,7 +2000,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ElevatedButton.icon(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back),
-            label: const Text('Zurück zu Spielen'),
+            label: const Text('ZurÃ¼ck zu Spielen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFffd665),
               foregroundColor: Colors.black87,
@@ -2114,7 +2104,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _buildPlaceholderScreen(
       'Schiedsrichter und Offizielle',
       Icons.sports_handball,
-      'Hier können Sie Schiedsrichter und Spieloffizielle verwalten.',
+      'Hier kÃ¶nnen Sie Schiedsrichter und Spieloffizielle verwalten.',
       Colors.purple,
     );
   }
@@ -2202,12 +2192,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         
         // Set Completion Overlay
-        if (_showSetCompletionOverlay && _completedSet != null)
-          _buildSetCompletionOverlay(_completedSet!),
+        if (_showSetCompletionOverlay && _halfCompleted)
+          _buildSetCompletionOverlay(gameState),
         
         // Shootout Setup Dialog
-        if (_showShootoutSetupDialog && _completedSet != null)
-          _buildShootoutSetupDialog(_completedSet!),
+        if (_showShootoutSetupDialog && _halfCompleted)
+          _buildShootoutSetupDialog(gameState),
       ],
         );
       },
@@ -2218,7 +2208,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _buildPlaceholderScreen(
       'Live-Statistiken',
       Icons.analytics,
-      'Hier können Sie Live-Statistiken und Spielanalysen einsehen.',
+      'Hier kÃ¶nnen Sie Live-Statistiken und Spielanalysen einsehen.',
       Colors.blue,
     );
   }
@@ -2369,7 +2359,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       ),
                       child: Center(
                         child: Text(
-                          '${gameState.getCurrentSetScore(_selectedGame!.teamAId ?? '')}',
+                          '${gameState.getTeamScore(_selectedGame!.teamAId ?? '')}',
                           style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
@@ -2412,7 +2402,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       ),
                       child: Center(
                         child: Text(
-                          '${gameState.getCurrentSetScore(_selectedGame!.teamBId ?? '')}',
+                          '${gameState.getTeamScore(_selectedGame!.teamBId ?? '')}',
                           style: const TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
@@ -2443,7 +2433,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: Column(
                     children: [
                       Text(
-                        'Gewonnene Sätze',
+                        'Punkte',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.blue.shade700,
@@ -2452,7 +2442,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${gameState.teamASetWins}',
+                        '${gameState.teamAScore}',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -2477,7 +2467,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: Column(
                     children: [
                       Text(
-                        'Gewonnene Sätze',
+                        'Punkte',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.red.shade700,
@@ -2486,7 +2476,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${gameState.teamBSetWins}',
+                        '${gameState.teamBScore}',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -2583,7 +2573,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   }
 
   Widget _buildResetOptionsCard(GameState gameState) {
-    final hasData = gameState.events.isNotEmpty || gameState.setScores.isNotEmpty;
+    final hasData = gameState.events.isNotEmpty;
     
     return Container(
       padding: const EdgeInsets.all(24),
@@ -2610,7 +2600,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
               const SizedBox(width: 12),
               const Text(
-                'Spiel zurücksetzen',
+                'Spiel zurÃ¼cksetzen',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -2623,8 +2613,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           
           Text(
             hasData 
-                ? 'Alle Punkte, Ereignisse und Sätze löschen. Diese Aktion kann nicht rückgängig gemacht werden.'
-                : 'Aktuell sind keine Daten zum Zurücksetzen vorhanden.',
+                ? 'Alle Punkte, Ereignisse und SÃ¤tze lÃ¶schen. Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'
+                : 'Aktuell sind keine Daten zum ZurÃ¼cksetzen vorhanden.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -2652,7 +2642,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelöscht!',
+                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelÃ¶scht!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -2672,7 +2662,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, false),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Aktuellen Satz zurücksetzen'),
+                    label: const Text('Aktuellen Satz zurÃ¼cksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange.shade600,
                       foregroundColor: Colors.white,
@@ -2688,7 +2678,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, true),
                     icon: const Icon(Icons.delete_forever),
-                    label: const Text('Gesamtes Spiel zurücksetzen'),
+                    label: const Text('Gesamtes Spiel zurÃ¼cksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
                       foregroundColor: Colors.white,
@@ -2790,7 +2780,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'Diese Funktionalität wird in einer zukünftigen Version implementiert.',
+                'Diese FunktionalitÃ¤t wird in einer zukÃ¼nftigen Version implementiert.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -2862,7 +2852,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Abmelden'),
-        content: const Text('Möchten Sie sich wirklich abmelden?'),
+        content: const Text('MÃ¶chten Sie sich wirklich abmelden?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -2910,52 +2900,21 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     );
   }
 
-  String _extractDivisionFromGame(Game game) {
-    // Use actual team data if available
+  String _extractCategoryFromGame(Game game) {
+    // Use actual team data if available - show city info
     if (_teamA != null && _teamB != null) {
-      // If both teams are from the same division, show that
-      if (_teamA!.division == _teamB!.division) {
-        return _teamA!.division;
+      if (_teamA!.city == _teamB!.city) {
+        return _teamA!.city;
       } else {
-        // Show both divisions if different
-        return '${_teamA!.division} vs ${_teamB!.division}';
+        return '${_teamA!.city} vs ${_teamB!.city}';
       }
     } else if (_teamA != null) {
-      return _teamA!.division;
+      return _teamA!.city;
     } else if (_teamB != null) {
-      return _teamB!.division;
+      return _teamB!.city;
     }
 
-    // Fallback: try to extract division from team names if no team data loaded yet
-    String combinedNames = '${game.teamAName} ${game.teamBName}'.toLowerCase();
-    
-    if (combinedNames.contains('women') || combinedNames.contains('damen')) {
-      if (combinedNames.contains('u14')) return 'Women\'s U14';
-      if (combinedNames.contains('u16')) return 'Women\'s U16';
-      if (combinedNames.contains('u18')) return 'Women\'s U18';
-      if (combinedNames.contains('seniors')) return 'Women\'s Seniors';
-      if (combinedNames.contains('fun')) return 'Women\'s FUN';
-      return 'Women\'s';
-    } else if (combinedNames.contains('men') || combinedNames.contains('herren')) {
-      if (combinedNames.contains('u14')) return 'Men\'s U14';
-      if (combinedNames.contains('u16')) return 'Men\'s U16';
-      if (combinedNames.contains('u18')) return 'Men\'s U18';
-      if (combinedNames.contains('seniors')) return 'Men\'s Seniors';
-      if (combinedNames.contains('fun')) return 'Men\'s FUN';
-      return 'Men\'s';
-    } else if (combinedNames.contains('u14')) {
-      return 'U14';
-    } else if (combinedNames.contains('u16')) {
-      return 'U16';
-    } else if (combinedNames.contains('u18')) {
-      return 'U18';
-    } else if (combinedNames.contains('seniors')) {
-      return 'Seniors';
-    } else if (combinedNames.contains('fun')) {
-      return 'FUN';
-    }
-    
-    return 'Lade Division...';
+    return 'RHBL'; // Single league
   }
 
   String _getGameTypeDisplay(Game game) {
@@ -3018,7 +2977,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 8),
           Text(
-            _selectedGame?.displayName ?? 'Kein Spiel ausgewählt',
+            _selectedGame?.displayName ?? 'Kein Spiel ausgewÃ¤hlt',
             style: const TextStyle(
               fontSize: 18,
               color: Colors.black54,
@@ -3126,7 +3085,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 12),
         Text(
-          'Kein Kader ausgewählt',
+          'Kein Kader ausgewÃ¤hlt',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey[600],
@@ -3135,7 +3094,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 8),
         Text(
-          'Der Trainer muss noch den Kader für dieses Spiel auswählen.',
+          'Der Trainer muss noch den Kader fÃ¼r dieses Spiel auswÃ¤hlen.',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[500],
@@ -3167,7 +3126,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
     if (squad.isApproved) {
       statusColor = Colors.green;
-      statusText = 'Vom Trainer bestätigt';
+      statusText = 'Vom Trainer bestÃ¤tigt';
       statusIcon = Icons.check_circle;
     } else if (squad.isRejected) {
       statusColor = Colors.red;
@@ -3175,7 +3134,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       statusIcon = Icons.cancel;
     } else {
       statusColor = Colors.orange;
-      statusText = 'Wartet auf Trainer-Bestätigung';
+      statusText = 'Wartet auf Trainer-BestÃ¤tigung';
       statusIcon = Icons.hourglass_empty;
     }
 
@@ -3203,7 +3162,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   ),
                 ),
                 Text(
-                  'Ausgewählt von ${squad.selectedByName}',
+                  'AusgewÃ¤hlt von ${squad.selectedByName}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -3227,7 +3186,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         Row(
           children: [
             Text(
-              'Ausgewählte Spieler (${squad.playerCount})',
+              'AusgewÃ¤hlte Spieler (${squad.playerCount})',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -3369,7 +3328,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 16),
           const Text(
-            'Wählen Sie Farben für Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
+            'WÃ¤hlen Sie Farben fÃ¼r Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
@@ -3622,7 +3581,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${gameState.getCurrentSetScore(_selectedGame!.teamAId ?? '')} : ${gameState.getCurrentSetScore(_selectedGame!.teamBId ?? '')}',
+                      '${gameState.getTeamScore(_selectedGame!.teamAId ?? '')} : ${gameState.getTeamScore(_selectedGame!.teamBId ?? '')}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -3670,7 +3629,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${gameState.teamASetWins}',
+                    '${gameState.teamAScore}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -3688,7 +3647,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${gameState.teamBSetWins}',
+                    '${gameState.teamBScore}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -3697,21 +3656,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   ),
                 ),
                 
-                if (gameState.setScores.isNotEmpty) ...[
+                if (gameState.events.isNotEmpty) ...[
                   const SizedBox(width: 16),
-                  const Text('Sätze:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(width: 8),
-                  ...gameState.setScores.take(3).map((setScore) => Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      '${setScore.teamAScore}:${setScore.teamBScore}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  )).toList(),
+                  Text('Halbzeit: ${gameState.currentHalf}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ],
             ),
@@ -3781,7 +3728,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                         backgroundColor: Colors.white.withOpacity(0.2),
                         padding: const EdgeInsets.all(8),
                       ),
-                      tooltip: 'Letzte Aktion rückgängig',
+                      tooltip: 'Letzte Aktion rÃ¼ckgÃ¤ngig',
                     ),
                   ],
                 ),
@@ -3806,11 +3753,11 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     );
   }
 
-  // Helper method to count player suspensions
+  // Helper method to count player 2-minute suspensions
   int _getPlayerSuspensionCount(GameState gameState, String playerId) {
     return gameState.events.where((event) => 
       event.playerId == playerId && 
-      event.eventType == GameEventType.suspension
+      event.eventType == GameEventType.twoMinuteSuspension
     ).length;
   }
 
@@ -3819,36 +3766,36 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _getPlayerSuspensionCount(gameState, playerId) > 0;
   }
 
-  // Helper method to check for newly completed sets
+  // Helper method to check for newly completed halves
   void _checkForSetCompletion(GameState gameState) {
-    final completedSets = gameState.setScores.where((set) => set.isCompleted).toList();
+    final currentHalf = gameState.currentHalf;
     
-    if (completedSets.length > _lastProcessedSetCount) {
-      // New set completed
-      final newlyCompletedSet = completedSets.last;
-      
-      // Check if we need a shootout (1:1 in sets)
-      if (gameState.teamASetWins == 1 && gameState.teamBSetWins == 1) {
+    if (currentHalf > _lastProcessedHalfCount) {
+      // Half completed
+      // Check if we need a shootout (scores tied after 2 halves)
+      if (currentHalf > 2 && gameState.teamAScore == gameState.teamBScore) {
         setState(() {
-          _completedSet = newlyCompletedSet;
+          _halfCompleted = true;
           _showShootoutSetupDialog = true;
-          _lastProcessedSetCount = completedSets.length;
+          _lastProcessedHalfCount = currentHalf;
         });
-      } else {
+      } else if (currentHalf > 1) {
         setState(() {
-          _completedSet = newlyCompletedSet;
+          _halfCompleted = true;
           _showSetCompletionOverlay = true;
-          _lastProcessedSetCount = completedSets.length;
+          _lastProcessedHalfCount = currentHalf;
         });
       }
     }
   }
 
-  // Build set completion overlay
-  Widget _buildSetCompletionOverlay(SetScore completedSet) {
-    final winnerId = completedSet.teamAScore > completedSet.teamBScore 
-        ? completedSet.teamAId 
-        : completedSet.teamBId;
+  // Build half completion overlay
+  Widget _buildSetCompletionOverlay(GameState gameState) {
+    final teamAScore = gameState.teamAScore;
+    final teamBScore = gameState.teamBScore;
+    final winnerId = teamAScore > teamBScore 
+        ? _selectedGame!.teamAId 
+        : _selectedGame!.teamBId;
     final winnerName = winnerId == _selectedGame!.teamAId 
         ? _selectedGame!.teamAName 
         : _selectedGame!.teamBName;
@@ -3891,7 +3838,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               
               // Set Number
               Text(
-                '${completedSet.setNumber}. Satz beendet',
+                '${(gameState.currentHalf) - 1}. Halbzeit beendet',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -3938,14 +3885,14 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: winnerId == completedSet.teamAId 
+                            color: winnerId == _selectedGame!.teamAId 
                                 ? Colors.green.shade600 
                                 : Colors.grey.shade400,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Center(
                             child: Text(
-                              '${completedSet.teamAScore}',
+                              '$teamAScore',
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -3987,14 +3934,14 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: winnerId == completedSet.teamBId 
+                            color: winnerId == _selectedGame!.teamBId 
                                 ? Colors.green.shade600 
                                 : Colors.grey.shade400,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Center(
                             child: Text(
-                              '${completedSet.teamBScore}',
+                              '$teamBScore',
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -4019,7 +3966,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleMakeChanges,
                       icon: const Icon(Icons.edit),
-                      label: const Text('Änderungen vornehmen'),
+                      label: const Text('Ã„nderungen vornehmen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange.shade600,
                         foregroundColor: Colors.white,
@@ -4038,7 +3985,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleConfirmSet,
                       icon: const Icon(Icons.check_circle),
-                      label: const Text('Bestätigen'),
+                      label: const Text('BestÃ¤tigen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade600,
                         foregroundColor: Colors.white,
@@ -4059,7 +4006,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   }
 
   // Build shootout setup dialog
-  Widget _buildShootoutSetupDialog(SetScore completedSet) {
+  Widget _buildShootoutSetupDialog(GameState gameState) {
     return Container(
       color: Colors.black.withOpacity(0.8),
       child: Center(
@@ -4219,7 +4166,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     setState(() {
       _isInShootout = true;
       _showShootoutSetupDialog = false;
-      _completedSet = null;
+      _halfCompleted = false;
       _teamAStartsShootout = teamAStarts;
       _isTeamATurn = teamAStarts; // Set current turn based on who starts
       // Clear any previous player assignments
@@ -4689,7 +4636,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         child: Center(
           child: Text(
-            'Kein Kader für $teamName',
+            'Kein Kader fÃ¼r $teamName',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -4850,7 +4797,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   void _recordShootoutScore(int points) {
     // Validate that all positions are assigned
     if (_assignedShooter == null || _assignedPlayer == null || _assignedGoalkeeper == null) {
-      _showErrorToast('Alle Positionen müssen besetzt sein!');
+      _showErrorToast('Alle Positionen mÃ¼ssen besetzt sein!');
       return;
     }
 
@@ -4873,7 +4820,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         if (teamATotal == teamBTotal) {
           // It's a draw after 5 throws each - reset used players for sudden death
           _usedPlayerIds.clear();
-          _showSuccessToast('Unentschieden nach 5 Würfen - Sudden Death! Alle Spieler wieder verfügbar.');
+          _showSuccessToast('Unentschieden nach 5 WÃ¼rfen - Sudden Death! Alle Spieler wieder verfÃ¼gbar.');
         }
       }
       
@@ -4910,27 +4857,27 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   void _handleConfirmSet() {
     setState(() {
       _showSetCompletionOverlay = false;
-      _completedSet = null;
+      _halfCompleted = false;
     });
     
-    _showSuccessToast('Satz bestätigt und weiter zum nächsten Satz');
+    _showSuccessToast('Halbzeit bestÃ¤tigt und weiter');
   }
 
   // Handle make changes to set
   void _handleMakeChanges() {
     setState(() {
       _showSetCompletionOverlay = false;
-      _completedSet = null;
+      _halfCompleted = false;
     });
     
     // TODO: Implement score editing functionality
-    _showErrorToast('Funktion "Änderungen vornehmen" wird in einer zukünftigen Version implementiert');
+    _showErrorToast('Funktion "Ã„nderungen vornehmen" wird in einer zukÃ¼nftigen Version implementiert');
   }
 
   // Show end set dialog for beach handball
   void _showEndSetDialog(GameState gameState) {
-    final teamAScore = gameState.getCurrentSetScore(_selectedGame!.teamAId ?? '');
-    final teamBScore = gameState.getCurrentSetScore(_selectedGame!.teamBId ?? '');
+    final teamAScore = gameState.getTeamScore(_selectedGame!.teamAId ?? '');
+    final teamBScore = gameState.getTeamScore(_selectedGame!.teamBId ?? '');
     
     showDialog(
       context: context,
@@ -5070,7 +5017,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             // Winner/Tie indicator
             if (teamAScore > teamBScore) ...[
               Text(
-                '${_selectedGame!.teamAName} führt',
+                '${_selectedGame!.teamAName} fÃ¼hrt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -5079,7 +5026,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else if (teamBScore > teamAScore) ...[
               Text(
-                '${_selectedGame!.teamBName} führt',
+                '${_selectedGame!.teamBName} fÃ¼hrt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -5119,19 +5066,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
          );
    }
 
-  // End set by time (beach handball rules)
+  // End half by time (handball rules)
   Future<void> _endSetByTime(GameState gameState) async {
     try {
-      await _liveScoringService.completeSetByTime(
+      await _liveScoringService.completeHalf(
         _selectedGame!.id,
-        _selectedGame!.teamAId ?? '',
-        _selectedGame!.teamBId ?? '',
       );
       
-      _showSuccessToast('Satz wurde erfolgreich beendet');
+      _showSuccessToast('Halbzeit wurde erfolgreich beendet');
       
     } catch (e) {
-      print('❌ Error ending set by time: $e');
+      print('âŒ Error ending set by time: $e');
       _showErrorToast('Fehler beim Beenden des Satzes: $e');
     }
   }
@@ -5150,7 +5095,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(width: 12),
             Text(
-              resetFullGame ? 'Gesamtes Spiel zurücksetzen?' : 'Aktuellen Satz zurücksetzen?',
+              resetFullGame ? 'Gesamtes Spiel zurÃ¼cksetzen?' : 'Aktuellen Satz zurÃ¼cksetzen?',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -5164,8 +5109,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           children: [
             Text(
               resetFullGame 
-                  ? 'Alle Punkte, Ereignisse, Sätze und Spielzeit werden dauerhaft gelöscht!'
-                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelöscht!',
+                  ? 'Alle Punkte, Ereignisse, SÃ¤tze und Spielzeit werden dauerhaft gelÃ¶scht!'
+                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelÃ¶scht!',
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
@@ -5186,7 +5131,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Diese Aktion kann nicht rückgängig gemacht werden!',
+                      'Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -5217,7 +5162,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: Text(resetFullGame ? 'Gesamtes Spiel zurücksetzen' : 'Satz zurücksetzen'),
+            child: Text(resetFullGame ? 'Gesamtes Spiel zurÃ¼cksetzen' : 'Satz zurÃ¼cksetzen'),
           ),
         ],
       ),
@@ -5258,7 +5203,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Rote Karte bestätigen',
+                    'Rote Karte bestÃ¤tigen',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -5369,7 +5314,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else ...[
               Text(
-                'Möchten Sie eine direkte Rote Karte für diesen Spieler vergeben?',
+                'MÃ¶chten Sie eine direkte Rote Karte fÃ¼r diesen Spieler vergeben?',
                 style: const TextStyle(fontSize: 16),
               ),
             ],
@@ -5384,8 +5329,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             onPressed: () {
               Navigator.of(context).pop();
               if (isAutomatic) {
-                // Add the suspension first, then the automatic red card
-                _executePlayerEvent(gameState, teamId, teamName, player, GameEventType.suspension);
+                // Add the 2-minute suspension first, then the automatic red card
+                _executePlayerEvent(gameState, teamId, teamName, player, GameEventType.twoMinuteSuspension);
                 // Add a small delay to ensure the suspension is processed first
                 Future.delayed(const Duration(milliseconds: 500), () {
                   _executePlayerEvent(gameState, teamId, teamName, player, GameEventType.redCard);
@@ -5399,7 +5344,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Rote Karte bestätigen'),
+            child: const Text('Rote Karte bestÃ¤tigen'),
           ),
         ],
       ),
@@ -5412,32 +5357,32 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Delete all game events
       await _liveScoringService.clearAllGameData(_selectedGame!.id);
       
-      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurückgesetzt');
+      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurÃ¼ckgesetzt');
       
       // Clear local overlay state
       setState(() {
         _showSetCompletionOverlay = false;
-        _completedSet = null;
-        _lastProcessedSetCount = 0;
+        _halfCompleted = false;
+        _lastProcessedHalfCount = 0;
       });
       
     } catch (e) {
-      print('❌ Error resetting full game: $e');
-      _showErrorToast('Fehler beim Zurücksetzen des Spiels: $e');
+      print('âŒ Error resetting full game: $e');
+      _showErrorToast('Fehler beim ZurÃ¼cksetzen des Spiels: $e');
     }
   }
 
   // Reset only the current set
   Future<void> _resetCurrentSet(GameState gameState) async {
     try {
-      // Delete events from current set only
-      await _liveScoringService.clearCurrentSetData(_selectedGame!.id, gameState.currentSet);
+      // Delete events from current half only
+      await _liveScoringService.clearCurrentHalfData(_selectedGame!.id, gameState.currentHalf);
       
-      _showSuccessToast('Aktueller Satz wurde erfolgreich zurückgesetzt');
+      _showSuccessToast('Aktueller Satz wurde erfolgreich zurÃ¼ckgesetzt');
       
     } catch (e) {
-      print('❌ Error resetting current set: $e');
-      _showErrorToast('Fehler beim Zurücksetzen des Satzes: $e');
+      print('âŒ Error resetting current set: $e');
+      _showErrorToast('Fehler beim ZurÃ¼cksetzen des Satzes: $e');
     }
   }
 
@@ -5478,7 +5423,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 16),
             Text(
-              'Kein Kader ausgewählt',
+              'Kein Kader ausgewÃ¤hlt',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -5487,7 +5432,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'Der Trainer muss noch den Kader für dieses Spiel auswählen.',
+              'Der Trainer muss noch den Kader fÃ¼r dieses Spiel auswÃ¤hlen.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -5537,7 +5482,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'Für dieses Spiel wurden noch keine Spieler ausgewählt.',
+              'FÃ¼r dieses Spiel wurden noch keine Spieler ausgewÃ¤hlt.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -5776,10 +5721,10 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                          ],
                        ),
                      ),
-                                         if (squadPlayer.position != null) ...[
+                                         if (squadPlayer.classification != null) ...[
                        const SizedBox(height: 2),
                        Text(
-                         squadPlayer.position!,
+                         squadPlayer.classification!,
                          style: TextStyle(
                            fontSize: 12,
                            color: hasRedCard ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -5980,8 +5925,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     _selectedPlayer != null 
                       ? (_hasRedCard(gameState, _selectedPlayer!.id)
                           ? 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) - ROTE KARTE (nicht spielberechtigt)'
-                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewählt')
-                        : 'Wählen Sie zuerst einen Spieler aus',
+                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewÃ¤hlt')
+                        : 'WÃ¤hlen Sie zuerst einen Spieler aus',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: _selectedPlayer != null ? FontWeight.bold : FontWeight.normal,
@@ -6018,42 +5963,42 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               padding: const EdgeInsets.all(16),
               children: [
                 _buildCenterActionButton(
-                  label: '1 Punkt',
+                  label: 'Tor',
                   color: Colors.green,
-                  icon: Icons.add_circle,
-                  eventType: GameEventType.onePoint,
-                  gameState: gameState,
-                ),
-                const SizedBox(height: 12),
-                _buildCenterActionButton(
-                  label: '2 Punkte',
-                  color: Colors.blue,
-                  icon: Icons.add_circle_outline,
-                  eventType: GameEventType.twoPoints,
-                  gameState: gameState,
-                ),
-                const SizedBox(height: 12),
-                _buildCenterActionButton(
-                  label: '6m Treffer',
-                  color: Colors.indigo,
                   icon: Icons.sports_handball,
-                  eventType: GameEventType.sixMeterHit,
+                  eventType: GameEventType.goal,
                   gameState: gameState,
                 ),
                 const SizedBox(height: 12),
                 _buildCenterActionButton(
-                  label: '6m Verfehlt',
+                  label: '7m Treffer',
+                  color: Colors.indigo,
+                  icon: Icons.my_location,
+                  eventType: GameEventType.sevenMeterHit,
+                  gameState: gameState,
+                ),
+                const SizedBox(height: 12),
+                _buildCenterActionButton(
+                  label: '7m Verfehlt',
                   color: Colors.grey,
-                  icon: Icons.sports_handball_outlined,
-                  eventType: GameEventType.sixMeterMiss,
+                  icon: Icons.location_off,
+                  eventType: GameEventType.sevenMeterMiss,
                   gameState: gameState,
                 ),
                 const SizedBox(height: 12),
                 _buildCenterActionButton(
-                  label: 'Hinausstellung',
+                  label: 'Gelbe Karte',
+                  color: Colors.yellow.shade700,
+                  icon: Icons.square,
+                  eventType: GameEventType.yellowCard,
+                  gameState: gameState,
+                ),
+                const SizedBox(height: 12),
+                _buildCenterActionButton(
+                  label: '2 Min. Strafe',
                   color: Colors.orange,
                   icon: Icons.access_time,
-                  eventType: GameEventType.suspension,
+                  eventType: GameEventType.twoMinuteSuspension,
                   gameState: gameState,
                 ),
                 const SizedBox(height: 12),
@@ -6062,6 +6007,14 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   color: Colors.red,
                   icon: Icons.cancel,
                   eventType: GameEventType.redCard,
+                  gameState: gameState,
+                ),
+                const SizedBox(height: 12),
+                _buildCenterActionButton(
+                  label: 'Blaue Karte',
+                  color: Colors.blue.shade800,
+                  icon: Icons.report,
+                  eventType: GameEventType.blueCard,
                   gameState: gameState,
                 ),
               ],
@@ -6077,29 +6030,33 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     IconData eventIcon;
     
     switch (event.eventType) {
-      case GameEventType.onePoint:
+      case GameEventType.goal:
         eventColor = Colors.green;
-        eventIcon = Icons.add_circle;
-        break;
-      case GameEventType.twoPoints:
-        eventColor = Colors.blue;
-        eventIcon = Icons.add_circle_outline;
-        break;
-      case GameEventType.sixMeterHit:
-        eventColor = Colors.indigo;
         eventIcon = Icons.sports_handball;
         break;
-      case GameEventType.sixMeterMiss:
-        eventColor = Colors.grey;
-        eventIcon = Icons.sports_handball_outlined;
+      case GameEventType.sevenMeterHit:
+        eventColor = Colors.indigo;
+        eventIcon = Icons.my_location;
         break;
-      case GameEventType.suspension:
+      case GameEventType.sevenMeterMiss:
+        eventColor = Colors.grey;
+        eventIcon = Icons.location_off;
+        break;
+      case GameEventType.yellowCard:
+        eventColor = Colors.yellow.shade700;
+        eventIcon = Icons.square;
+        break;
+      case GameEventType.twoMinuteSuspension:
         eventColor = Colors.orange;
         eventIcon = Icons.access_time;
         break;
       case GameEventType.redCard:
         eventColor = Colors.red;
         eventIcon = Icons.cancel;
+        break;
+      case GameEventType.blueCard:
+        eventColor = Colors.blue.shade800;
+        eventIcon = Icons.report;
         break;
       case GameEventType.timeout:
         eventColor = Colors.purple;
@@ -6156,18 +6113,18 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     Player player,
     GameEventType eventType,
   ) {
-    // Check if this is a suspension that would trigger automatic red card
-    if (eventType == GameEventType.suspension) {
+    // Check if this is a 2-minute suspension that would trigger automatic red card
+    if (eventType == GameEventType.twoMinuteSuspension) {
       final currentSuspensions = _getPlayerSuspensionCount(gameState, player.id);
       if (currentSuspensions >= 1) {
-        // This would be the second suspension - trigger automatic red card
+        // This would be the second 2-min suspension - trigger automatic red card
         _showRedCardConfirmationDialog(
           gameState: gameState,
           teamId: teamId,
           teamName: teamName,
           player: player,
           isAutomatic: true,
-          reason: 'Zweite Hinausstellung',
+          reason: 'Zweite 2-Minuten-Strafe',
         );
         return;
       }
@@ -6211,38 +6168,40 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         _selectedPlayerTeamId = null;
       });
       
-      _showSuccessToast('${_getEventTypeDisplayName(eventType)} für ${player.fullName} hinzugefügt');
+      _showSuccessToast('${_getEventTypeDisplayName(eventType)} fÃ¼r ${player.fullName} hinzugefÃ¼gt');
     }).catchError((error) {
-      _showErrorToast('Fehler beim Hinzufügen des Ereignisses: $error');
+      _showErrorToast('Fehler beim HinzufÃ¼gen des Ereignisses: $error');
     });
   }
 
   void _undoLastAction(String teamId) {
     _liveScoringService.removeLastEvent(_selectedGame!.id, teamId).then((_) {
-      _showSuccessToast('Letzte Aktion rückgängig gemacht');
+      _showSuccessToast('Letzte Aktion rÃ¼ckgÃ¤ngig gemacht');
     }).catchError((error) {
-      _showErrorToast('Fehler beim Rückgängigmachen: $error');
+      _showErrorToast('Fehler beim RÃ¼ckgÃ¤ngigmachen: $error');
     });
   }
 
   String _getEventTypeDisplayName(GameEventType eventType) {
     switch (eventType) {
-      case GameEventType.onePoint:
-        return '1 Punkt';
-      case GameEventType.twoPoints:
-        return '2 Punkte';
-      case GameEventType.suspension:
-        return 'Hinausstellung';
+      case GameEventType.goal:
+        return 'Tor';
+      case GameEventType.sevenMeterHit:
+        return '7m Treffer';
+      case GameEventType.sevenMeterMiss:
+        return '7m Verfehlt';
+      case GameEventType.yellowCard:
+        return 'Gelbe Karte';
+      case GameEventType.twoMinuteSuspension:
+        return '2 Min. Strafe';
       case GameEventType.redCard:
         return 'Rote Karte';
+      case GameEventType.blueCard:
+        return 'Blaue Karte';
       case GameEventType.timeout:
         return 'Auszeit';
       case GameEventType.substitution:
         return 'Wechsel';
-      case GameEventType.sixMeterHit:
-        return '6m Treffer';
-      case GameEventType.sixMeterMiss:
-        return '6m Verfehlt';
     }
   }
 
@@ -6363,7 +6322,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               onAccept: (player) {
                 // Check if player was already used as Werfer
                 if (_usedPlayerIds.contains(player.playerId)) {
-                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wähle einen anderen Spieler');
+                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wÃ¤hle einen anderen Spieler');
                   return;
                 }
                 setState(() {
@@ -6452,17 +6411,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // Update tablet status when tablet is connected
   Future<void> _updateTabletStatus() async {
     if (_managedAccount == null || _assignedCourt == null) {
-      print('⚠️ ScoringTablet: Cannot update tablet status - missing managed account or court');
+      print('âš ï¸ ScoringTablet: Cannot update tablet status - missing managed account or court');
       return;
     }
     
     if (_managedAccount!.id.isEmpty || _assignedCourt!.id.isEmpty) {
-      print('⚠️ ScoringTablet: Cannot update tablet status - empty IDs');
+      print('âš ï¸ ScoringTablet: Cannot update tablet status - empty IDs');
       return;
     }
     
     try {
-      print('📱 ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
+      print('ðŸ“± ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
       
       // Simulate battery level (in a real implementation, this would come from device info)
       final batteryLevel = _getBatteryLevel();
@@ -6476,12 +6435,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       );
       
       if (success) {
-        print('✅ ScoringTablet: Tablet status updated successfully');
+        print('âœ… ScoringTablet: Tablet status updated successfully');
       } else {
-        print('❌ ScoringTablet: Failed to update tablet status');
+        print('âŒ ScoringTablet: Failed to update tablet status');
       }
     } catch (e) {
-      print('❌ ScoringTablet: Error updating tablet status: $e');
+      print('âŒ ScoringTablet: Error updating tablet status: $e');
     }
   }
 

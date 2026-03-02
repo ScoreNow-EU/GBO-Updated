@@ -15,8 +15,13 @@ class Game {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? courtId; // Court where the game is scheduled
-  final String? refereeGespannId; // Allocated referee pair
+  final String? refereeGespannId; // Legacy: allocated referee pair
   final String? delegateId; // Allocated delegate
+  // Individual official assignments (used by AI solver)
+  final String? referee1Id;
+  final String? referee2Id;
+  final String? timekeeperId;
+  final String? scorekeeperId;
 
   Game({
     required this.id,
@@ -37,6 +42,10 @@ class Game {
     this.courtId,
     this.refereeGespannId,
     this.delegateId,
+    this.referee1Id,
+    this.referee2Id,
+    this.timekeeperId,
+    this.scorekeeperId,
   });
 
   bool get isPlaceholder => teamAId == null || teamBId == null;
@@ -63,11 +72,16 @@ class Game {
       'courtId': courtId,
       'refereeGespannId': refereeGespannId,
       'delegateId': delegateId,
+      'referee1Id': referee1Id,
+      'referee2Id': referee2Id,
+      'timekeeperId': timekeeperId,
+      'scorekeeperId': scorekeeperId,
     };
     
     // Debug logging for scheduling data
     if (scheduledTime != null || courtId != null) {
-      print('🎮 Game.toJson: Saving scheduling data for ${id.substring(id.length - 8)}: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
+      final shortId = id.length >= 8 ? id.substring(id.length - 8) : id;
+      print('🎮 Game.toJson: Saving scheduling data for $shortId: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
     }
     
     return json;
@@ -102,6 +116,10 @@ class Game {
       courtId: courtId,
       refereeGespannId: json['refereeGespannId'],
       delegateId: json['delegateId'],
+      referee1Id: json['referee1Id'],
+      referee2Id: json['referee2Id'],
+      timekeeperId: json['timekeeperId'],
+      scorekeeperId: json['scorekeeperId'],
     );
   }
 
@@ -124,6 +142,10 @@ class Game {
     String? courtId,
     String? refereeGespannId,
     String? delegateId,
+    String? referee1Id,
+    String? referee2Id,
+    String? timekeeperId,
+    String? scorekeeperId,
   }) {
     return Game(
       id: id ?? this.id,
@@ -144,122 +166,81 @@ class Game {
       courtId: courtId ?? this.courtId,
       refereeGespannId: refereeGespannId ?? this.refereeGespannId,
       delegateId: delegateId ?? this.delegateId,
+      referee1Id: referee1Id ?? this.referee1Id,
+      referee2Id: referee2Id ?? this.referee2Id,
+      timekeeperId: timekeeperId ?? this.timekeeperId,
+      scorekeeperId: scorekeeperId ?? this.scorekeeperId,
     );
   }
 }
 
 class GameResult {
-  final int teamASetWins;
-  final int teamBSetWins;
-  final List<SetResult> sets;
-  final ShootoutResult? shootout;
+  final int teamAScore;
+  final int teamBScore;
   final String? winnerId;
   final String winnerName;
+  final int? halfTimeScoreA;
+  final int? halfTimeScoreB;
+  final int? overtimeScoreA;
+  final int? overtimeScoreB;
+  final int? penaltyScoreA;
+  final int? penaltyScoreB;
+  final String? specialScenario; // e.g. "Wertung gegen Heim", "Spielabbruch"
+  final String? resultComment;   // free-text remark
 
   GameResult({
-    required this.teamASetWins,
-    required this.teamBSetWins,
-    required this.sets,
-    this.shootout,
+    required this.teamAScore,
+    required this.teamBScore,
     this.winnerId,
     required this.winnerName,
+    this.halfTimeScoreA,
+    this.halfTimeScoreB,
+    this.overtimeScoreA,
+    this.overtimeScoreB,
+    this.penaltyScoreA,
+    this.penaltyScoreB,
+    this.specialScenario,
+    this.resultComment,
   });
 
   bool get isComplete => winnerId != null;
-  bool get hasShootout => shootout != null;
-  String get finalScore => '$teamASetWins:$teamBSetWins';
+  bool get isDraw => teamAScore == teamBScore;
+  String get finalScore => '$teamAScore:$teamBScore';
+  String? get halfTimeScore => halfTimeScoreA != null && halfTimeScoreB != null
+      ? '$halfTimeScoreA:$halfTimeScoreB'
+      : null;
 
   Map<String, dynamic> toJson() {
     return {
-      'teamASetWins': teamASetWins,
-      'teamBSetWins': teamBSetWins,
-      'sets': sets.map((s) => s.toJson()).toList(),
-      'shootout': shootout?.toJson(),
+      'teamAScore': teamAScore,
+      'teamBScore': teamBScore,
       'winnerId': winnerId,
       'winnerName': winnerName,
+      'halfTimeScoreA': halfTimeScoreA,
+      'halfTimeScoreB': halfTimeScoreB,
+      'overtimeScoreA': overtimeScoreA,
+      'overtimeScoreB': overtimeScoreB,
+      'penaltyScoreA': penaltyScoreA,
+      'penaltyScoreB': penaltyScoreB,
+      'specialScenario': specialScenario,
+      'resultComment': resultComment,
     };
   }
 
   factory GameResult.fromJson(Map<String, dynamic> json) {
     return GameResult(
-      teamASetWins: json['teamASetWins'],
-      teamBSetWins: json['teamBSetWins'],
-      sets: (json['sets'] as List).map((s) => SetResult.fromJson(s)).toList(),
-      shootout: json['shootout'] != null ? ShootoutResult.fromJson(json['shootout']) : null,
+      teamAScore: json['teamAScore'] ?? json['teamASetWins'] ?? 0,
+      teamBScore: json['teamBScore'] ?? json['teamBSetWins'] ?? 0,
       winnerId: json['winnerId'],
-      winnerName: json['winnerName'],
-    );
-  }
-}
-
-class SetResult {
-  final int setNumber;
-  final int teamAScore;
-  final int teamBScore;
-  final String? winnerId;
-  final String winnerName;
-
-  SetResult({
-    required this.setNumber,
-    required this.teamAScore,
-    required this.teamBScore,
-    this.winnerId,
-    required this.winnerName,
-  });
-
-  String get score => '$teamAScore:$teamBScore';
-
-  Map<String, dynamic> toJson() {
-    return {
-      'setNumber': setNumber,
-      'teamAScore': teamAScore,
-      'teamBScore': teamBScore,
-      'winnerId': winnerId,
-      'winnerName': winnerName,
-    };
-  }
-
-  factory SetResult.fromJson(Map<String, dynamic> json) {
-    return SetResult(
-      setNumber: json['setNumber'],
-      teamAScore: json['teamAScore'],
-      teamBScore: json['teamBScore'],
-      winnerId: json['winnerId'],
-      winnerName: json['winnerName'],
-    );
-  }
-}
-
-class ShootoutResult {
-  final int teamAScore;
-  final int teamBScore;
-  final String? winnerId;
-  final String winnerName;
-
-  ShootoutResult({
-    required this.teamAScore,
-    required this.teamBScore,
-    this.winnerId,
-    required this.winnerName,
-  });
-
-  String get score => '$teamAScore:$teamBScore';
-
-  Map<String, dynamic> toJson() {
-    return {
-      'teamAScore': teamAScore,
-      'teamBScore': teamBScore,
-      'winnerId': winnerId,
-      'winnerName': winnerName,
-    };
-  }
-
-  factory ShootoutResult.fromJson(Map<String, dynamic> json) {
-    return ShootoutResult(
-      teamAScore: json['teamAScore'],
-      teamBScore: json['teamBScore'],
-      winnerId: json['winnerId'],
-      winnerName: json['winnerName'],
+      winnerName: json['winnerName'] ?? '',
+      halfTimeScoreA: json['halfTimeScoreA'],
+      halfTimeScoreB: json['halfTimeScoreB'],
+      overtimeScoreA: json['overtimeScoreA'],
+      overtimeScoreB: json['overtimeScoreB'],
+      penaltyScoreA: json['penaltyScoreA'],
+      penaltyScoreB: json['penaltyScoreB'],
+      specialScenario: json['specialScenario'],
+      resultComment: json['resultComment'],
     );
   }
 }
@@ -267,6 +248,7 @@ class ShootoutResult {
 enum GameType {
   pool,
   elimination,
+  friendly,
 }
 
 enum GameStatus {

@@ -86,7 +86,6 @@ class _SideNavigationState extends State<SideNavigation> {
             _currentAppUser = appUser;
           });
         }
-        await _loadRefereeProfile();
         await _loadOrganizerTournaments();
       } catch (e) {
         // Error loading app user: $e
@@ -128,131 +127,7 @@ class _SideNavigationState extends State<SideNavigation> {
     }
   }
 
-  Future<void> _loadRefereeProfile() async {
-    // Check if currentAppUser is available
-    if (_currentAppUser == null) {
-              // ⏳ Nav: currentAppUser is null, waiting...
-      if (mounted) {
-        setState(() {
-          _refereeProfile = null;
-          _refereeTournaments = [];
-        });
-      }
-      return;
-    }
-
-    if (_currentAppUser!.roles.contains(app_user.UserRole.referee)) {
-      if (_currentAppUser!.refereeId != null) {
-        try {
-          // 📝 Nav: Loading referee profile for ID: ${_currentAppUser!.refereeId}
-          _refereeProfile = await _refereeService.getRefereeById(_currentAppUser!.refereeId!);
-          if (_refereeProfile != null) {
-            // ✅ Nav: Referee profile loaded: ${_refereeProfile!.fullName}
-            await _loadRefereeTournaments();
-          } else {
-            // ❌ Nav: Referee profile not found
-            if (mounted) {
-              setState(() {
-                _refereeProfile = null;
-                _refereeTournaments = [];
-              });
-            }
-          }
-        } catch (e) {
-          // ❌ Nav: Error loading referee profile: $e
-          if (mounted) {
-            setState(() {
-              _refereeProfile = null;
-              _refereeTournaments = [];
-            });
-          }
-        }
-      } else {
-        // User has referee role but no refereeId - try to find and link it
-        print('🔍 Nav: User has referee role but no refereeId, searching for matching referee...');
-        try {
-          final referees = await _refereeService.getAllReferees();
-          final matchingReferee = referees.firstWhere(
-            (referee) => referee.email.toLowerCase() == _currentAppUser!.email.toLowerCase(),
-            orElse: () => throw Exception('No referee found with email: ${_currentAppUser!.email}'),
-          );
-          
-          print('✅ Nav: Found matching referee: ${matchingReferee.fullName} (ID: ${matchingReferee.id})');
-          
-          // Update user record with the referee ID
-          final authService = AuthService();
-          final success = await authService.addRoleToUser(
-            _currentAppUser!.id,
-            app_user.UserRole.referee,
-            refereeId: matchingReferee.id,
-          );
-          
-          if (success) {
-            // Load the referee profile
-            _refereeProfile = matchingReferee;
-            await _loadRefereeTournaments();
-            print('✅ Nav: Auto-linked referee ID and loaded profile');
-            
-            // Notify parent to refresh current user
-            if (widget.onUserUpdated != null && mounted) {
-              widget.onUserUpdated!();
-            }
-          } else {
-            print('❌ Nav: Failed to update user record');
-          }
-          
-        } catch (e) {
-          print('❌ Nav: Failed to auto-link referee ID: $e');
-          if (mounted) {
-            setState(() {
-              _refereeProfile = null;
-              _refereeTournaments = [];
-            });
-          }
-        }
-      }
-    } else {
-      print('ℹ️ Nav: User does not have referee role (roles: ${_currentAppUser!.roles})');
-      if (mounted) {
-        setState(() {
-          _refereeProfile = null;
-          _refereeTournaments = [];
-        });
-      }
-    }
-  }
-
-  Future<void> _loadRefereeTournaments() async {
-    if (_refereeProfile == null) return;
-
-    if (mounted) {
-      setState(() {
-        _isLoadingTournaments = true;
-      });
-    }
-
-    try {
-      print('🔄 Nav: Loading tournaments for referee: ${_refereeProfile!.fullName}');
-      final tournamentsStream = _tournamentService.getAcceptedTournamentsForReferee(_refereeProfile!.id);
-      final tournaments = await tournamentsStream.first;
-      
-      print('✅ Nav: Loaded ${tournaments.length} tournaments');
-      if (mounted) {
-        setState(() {
-          _refereeTournaments = tournaments;
-          _isLoadingTournaments = false;
-        });
-      }
-    } catch (e) {
-      print('❌ Nav: Error loading tournaments: $e');
-      if (mounted) {
-        setState(() {
-          _refereeTournaments = [];
-          _isLoadingTournaments = false;
-        });
-      }
-    }
-  }
+  
 
   Future<void> _loadOrganizerTournaments() async {
     if (_currentAppUser?.id == null) return;
@@ -324,7 +199,7 @@ class _SideNavigationState extends State<SideNavigation> {
         final teams = await _teamManagerService.getTeamsManagedByUser(_currentUser!.uid);
         print('Managed teams: ${teams.length}');
         for (final team in teams) {
-          print('Team: ${team.name} - ${team.division}');
+          print('Team: ${team.name} - ${team.city}');
         }
         if (mounted) {
           setState(() {
@@ -371,104 +246,29 @@ class _SideNavigationState extends State<SideNavigation> {
       ),
       child: Column(
         children: [
-          // Logo Section with German flag overlay
-          Stack(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                width: 280,
-                
-                decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(8),
-                  bottomRight: Radius.circular(8),
-                ),
-                  gradient: AppColors.primaryGradient,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Image.asset(
-                      'logo_ball_half.png',
-                      height: 80,
-                      width: 120,
-                    ),
-                    Transform.translate(
-                      offset: const Offset(0, -5),
-                      child: const Text(
-                        'GBO',
-                        style: TextStyle(
-                          fontFamily: 'CasanovaScotia',
-                          fontSize: 64,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                          letterSpacing: 1,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
-                    Transform.translate(
-                      offset: const Offset(0, -10),
-                      child: const Text(
-                        'GERMAN BEACH OPEN',
-                        style: TextStyle(
-                          fontFamily: 'MyriadPro',
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                          letterSpacing: 0.5,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          // Logo Section - RHBL
+          Container(
+            padding: const EdgeInsets.all(20),
+            width: 280,
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(8),
+                bottomRight: Radius.circular(8),
               ),
-              // Sparkle overlay
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                  child: const SparkleOverlay(),
-                ),
+              gradient: AppColors.primaryGradient,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
               ),
-              // German flag border overlay
-              Positioned(
-                bottom: 1, // Position above the border
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(8),
-                      bottomRight: Radius.circular(8),
-                    ),
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      stops: [0.0, 0.3, 0.3001, 0.35, 0.3501, 0.65, 0.6501, 0.7, 0.7001, 1.0],
-                      colors: [
-                        Color(0xFF000000), // Black start
-                        Color(0xFF000000), // Black end at 30%
-                        Colors.transparent, // Transparent start at 30.01%
-                        Colors.transparent, // Transparent end at 35%
-                        Color(0xFFc10003), // Red start at 35.01%
-                        Color(0xFFc10003), // Red end at 65%
-                        Colors.transparent, // Transparent start at 65.01%
-                        Colors.transparent, // Transparent end at 70%
-                        Color(0xFFffd765), // Yellow start at 70.01%
-                        Color(0xFFffd765), // Yellow end at 100%
-                      ],
-                    ),
-                  ),
+            ),
+            child: Column(
+              children: [
+                Image.asset(
+                  'rhbl_logo.png',
+                  height: 120,
+                  fit: BoxFit.contain,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           // Navigation Menu
           Expanded(
@@ -483,7 +283,7 @@ class _SideNavigationState extends State<SideNavigation> {
                   isSelected: widget.selectedSection == 'login',
                 ),
                 _buildNavigationItem(
-                  icon: Icons.sports_volleyball,
+                  icon: Icons.sports_handball,
                   title: 'Turniere',
                   key: 'turniere',
                   isSelected: widget.selectedSection == 'turniere',
@@ -646,7 +446,7 @@ class _SideNavigationState extends State<SideNavigation> {
             child: Row(
               children: [
                 const Icon(
-                  Icons.sports_volleyball,
+                  Icons.sports_handball,
                   color: Color(0xFFffd665),
                   size: 16,
                 ),
@@ -678,7 +478,7 @@ class _SideNavigationState extends State<SideNavigation> {
           // Team Items
           ...(_managedTeams.map((team) => [
             _buildTeamManagerItem(
-              title: '${team.name} - ${team.division}',
+              title: '${team.name} - ${team.city}',
               key: 'team_${team.id}',
               isSelected: widget.selectedSection.startsWith('team_${team.id}'),
               team: team,
@@ -693,7 +493,7 @@ class _SideNavigationState extends State<SideNavigation> {
             _buildTeamSubItem(
               title: 'Turnier Anmeldung',
               key: 'team_${team.id}_tournaments',
-              icon: Icons.sports_volleyball,
+              icon: Icons.sports_handball,
               isSelected: widget.selectedSection == 'team_${team.id}_tournaments',
             ),
             _buildTeamSubItem(
@@ -755,7 +555,7 @@ class _SideNavigationState extends State<SideNavigation> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              team.division,
+              team.city,
               style: TextStyle(
                 color: isSelected ? const Color(0xFFffd665) : Colors.white54,
                 fontSize: 11,
@@ -852,6 +652,12 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'referee_management',
           ),
           _buildAdminItem(
+            icon: Icons.gavel,
+            title: 'Kampfgericht Verwaltung',
+            key: 'kampfgericht_management',
+            isSelected: widget.selectedSection == 'kampfgericht_management',
+          ),
+          _buildAdminItem(
             icon: Icons.account_balance,
             title: 'Delegierte Verwaltung',
             key: 'delegate_management',
@@ -893,6 +699,12 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Einmalone Codes erstellen',
             key: 'generate_sign_in_codes',
             isSelected: widget.selectedSection == 'generate_sign_in_codes',
+          ),
+          _buildAdminItem(
+            icon: Icons.delete_forever,
+            title: 'Datenverwaltung',
+            key: 'admin_data_management',
+            isSelected: widget.selectedSection == 'admin_data_management',
           ),
           
           // "Mehr" entry after regular items
@@ -1285,7 +1097,7 @@ class _SideNavigationState extends State<SideNavigation> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            Icons.sports_volleyball,
+            Icons.sports_handball,
             color: const Color(0xFF2D3748),
             size: 14,
           ),
@@ -1439,7 +1251,7 @@ class _SideNavigationState extends State<SideNavigation> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
-            Icons.sports_volleyball,
+            Icons.sports_handball,
             color: Colors.orange.shade600,
             size: 14,
           ),
@@ -1596,7 +1408,7 @@ class _SideNavigationState extends State<SideNavigation> {
   Widget _buildUserProfile() {
     if (_currentUser == null) return Container();
     
-    final displayName = _currentUser!.displayName ?? 'Benutzer';
+    final displayName = _currentAppUser?.fullName ?? _currentUser!.displayName ?? 'Benutzer';
     final email = _currentUser!.email ?? '';
     final photoUrl = _currentUser!.photoURL;
     

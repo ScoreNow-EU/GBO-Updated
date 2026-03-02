@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
-import '../models/tournament_criteria.dart';
 import '../models/game.dart';
 
 /// Script to create demo teams, tournaments, and games for testing
@@ -33,97 +32,81 @@ class DemoDataCreator {
         'name': 'Hamburg Beach Kings',
         'city': 'Hamburg',
         'bundesland': 'Hamburg',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Berlin Sand Warriors',
         'city': 'Berlin',
         'bundesland': 'Berlin',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'München Beach Stars',
         'city': 'München',
         'bundesland': 'Bayern',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Köln Coastal Crew',
         'city': 'Köln',
         'bundesland': 'Nordrhein-Westfalen',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Frankfurt Sand Fighters',
         'city': 'Frankfurt am Main',
         'bundesland': 'Hessen',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Stuttgart Beach United',
         'city': 'Stuttgart',
         'bundesland': 'Baden-Württemberg',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Dresden Dunes',
         'city': 'Dresden',
         'bundesland': 'Sachsen',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Hannover Heat',
         'city': 'Hannover',
         'bundesland': 'Niedersachsen',
-        'division': 'Men\'s Seniors',
       },
       {
         'name': 'Bremen Beach Blazers',
         'city': 'Bremen',
         'bundesland': 'Bremen',
-        'division': 'Women\'s Seniors',
       },
       {
         'name': 'Leipzig Ladies',
         'city': 'Leipzig',
         'bundesland': 'Sachsen',
-        'division': 'Women\'s Seniors',
       },
       {
         'name': 'Düsseldorf Divas',
         'city': 'Düsseldorf',
         'bundesland': 'Nordrhein-Westfalen',
-        'division': 'Women\'s Seniors',
       },
       {
         'name': 'Nürnberg Nets',
         'city': 'Nürnberg',
         'bundesland': 'Bayern',
-        'division': 'Women\'s Seniors',
       },
       {
         'name': 'Essen Eagles',
         'city': 'Essen',
         'bundesland': 'Nordrhein-Westfalen',
-        'division': 'U18',
       },
       {
         'name': 'Dortmund Dolphins',
         'city': 'Dortmund',
         'bundesland': 'Nordrhein-Westfalen',
-        'division': 'U18',
       },
       {
         'name': 'Karlsruhe Kickers',
         'city': 'Karlsruhe',
         'bundesland': 'Baden-Württemberg',
-        'division': 'U16',
       },
       {
         'name': 'Mannheim Mavericks',
         'city': 'Mannheim',
         'bundesland': 'Baden-Württemberg',
-        'division': 'U16',
       },
     ];
 
@@ -136,7 +119,6 @@ class DemoDataCreator {
         name: teamData['name'] as String,
         city: teamData['city'] as String,
         bundesland: teamData['bundesland'] as String,
-        division: teamData['division'] as String,
         createdAt: DateTime.now(),
         totalPoints: _getRandomPoints(),
         pointsHistory: _generatePointsHistory(),
@@ -178,44 +160,36 @@ class DemoDataCreator {
     
     final tournaments = [
       {
-        'name': 'German Beach Open 2025',
+        'name': 'RHBL Spieltag 1',
         'location': 'Hamburg',
         'startDate': now.add(Duration(days: 30)),
         'endDate': now.add(Duration(days: 32)),
-        'categories': ['Men\'s Seniors', 'Women\'s Seniors'],
-        'points': 500,
         'status': 'upcoming',
-        'description': 'The biggest beach handball tournament in Germany!',
+        'description': 'RHBL Spieltag in Hamburg.',
       },
       {
-        'name': 'Berlin Beach Championship',
+        'name': 'RHBL Spieltag 2',
         'location': 'Berlin',
         'startDate': now.add(Duration(days: 15)),
         'endDate': now.add(Duration(days: 16)),
-        'categories': ['Men\'s Seniors', 'U18'],
-        'points': 300,
         'status': 'upcoming',
-        'description': 'Annual beach handball championship in the capital.',
+        'description': 'RHBL Spieltag in der Hauptstadt.',
       },
       {
-        'name': 'Munich Summer Cup',
+        'name': 'RHBL Spieltag 3',
         'location': 'München',
         'startDate': now.add(Duration(days: 45)),
         'endDate': now.add(Duration(days: 47)),
-        'categories': ['Women\'s Seniors', 'U16'],
-        'points': 400,
         'status': 'upcoming',
-        'description': 'Summer beach handball tournament in Bavaria.',
+        'description': 'RHBL Spieltag in Bayern.',
       },
       {
-        'name': 'Rhine Beach Festival',
+        'name': 'RHBL Spieltag 4',
         'location': 'Köln',
         'startDate': now.subtract(Duration(days: 10)),
         'endDate': now.subtract(Duration(days: 8)),
-        'categories': ['Men\'s Seniors', 'Women\'s Seniors', 'U18', 'U16'],
-        'points': 600,
         'status': 'finished',
-        'description': 'Major beach handball festival at the Rhine.',
+        'description': 'RHBL Spieltag am Rhein.',
       },
     ];
 
@@ -231,28 +205,14 @@ class DemoDataCreator {
       final tournament = Tournament(
         id: tournamentRef.id,
         name: tournamentData['name'] as String,
-        categories: List<String>.from(tournamentData['categories'] as List),
         location: tournamentData['location'] as String,
         startDate: tournamentData['startDate'] as DateTime,
         endDate: tournamentData['endDate'] as DateTime,
-        points: tournamentData['points'] as int,
         status: tournamentData['status'] as String,
         description: tournamentData['description'] as String,
         teamIds: assignedTeams,
-        approvalStatus: 'approved', // Make it approved so it's visible
+        approvalStatus: 'approved',
         isRegistrationOpen: tournamentData['status'] == 'upcoming',
-        divisions: List<String>.from(tournamentData['categories'] as List),
-        divisionMaxTeams: {
-          for (var cat in tournamentData['categories'] as List)
-            cat as String: 16
-        },
-        criteria: TournamentCriteria(
-          officialBeachhandballRules: true,
-          twoRefereesPerGame: true,
-          cleanZone: true,
-          gboOnlineSchedule: true,
-          gboScoringSystem: true,
-        ),
       );
       
       await tournamentRef.set(tournament.toMap());
@@ -289,16 +249,8 @@ class DemoDataCreator {
           status = GameStatus.inProgress;
           scheduledTime = now.subtract(Duration(minutes: 15 + j * 10));
           result = GameResult(
-            teamASetWins: j % 2,
-            teamBSetWins: (j + 1) % 2,
-            sets: [
-              SetResult(
-                setNumber: 1,
-                teamAScore: 15 + j,
-                teamBScore: 12 + j,
-                winnerName: 'Team A',
-              ),
-            ],
+            teamAScore: 15 + j,
+            teamBScore: 12 + j,
             winnerName: '',
           );
         } else if (j < 3) {

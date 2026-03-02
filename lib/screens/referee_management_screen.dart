@@ -20,6 +20,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _searchController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _houseNumberController = TextEditingController();
+  final _plzController = TextEditingController();
+  final _cityController = TextEditingController();
 
   String _selectedLicenseType = Referee.licenseTypes.first;
   String _filterLicenseType = 'Alle';
@@ -32,6 +36,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     _lastNameController.dispose();
     _emailController.dispose();
     _searchController.dispose();
+    _streetController.dispose();
+    _houseNumberController.dispose();
+    _plzController.dispose();
+    _cityController.dispose();
     _refereeService.dispose();
     super.dispose();
   }
@@ -443,6 +451,16 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                             fontSize: 13,
                           ),
                         ),
+                        if (referee.city.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            referee.city,
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -523,7 +541,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           columns: [
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.25, // 25% of available width
+                width: (availableWidth - 40) * 0.20, // 20% of available width
                 child: Text(
                   'Name',
                   style: TextStyle(
@@ -535,7 +553,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.30, // 30% of available width
+                width: (availableWidth - 40) * 0.25, // 25% of available width
                 child: Text(
                   'E-Mail',
                   style: TextStyle(
@@ -547,7 +565,19 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.20, // 20% of available width
+                width: (availableWidth - 40) * 0.15, // 15% of available width
+                child: Text(
+                  'Ort',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: isMobile ? 12 : 13,
+                  ),
+                ),
+              ),
+            ),
+            DataColumn(
+              label: SizedBox(
+                width: (availableWidth - 40) * 0.18, // 18% of available width
                 child: Text(
                   'Lizenz',
                   style: TextStyle(
@@ -559,7 +589,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
             ),
             DataColumn(
               label: SizedBox(
-                width: (availableWidth - 40) * 0.15, // 15% of available width
+                width: (availableWidth - 40) * 0.12, // 12% of available width
                 child: Text(
                   'Erstellt',
                   style: TextStyle(
@@ -587,7 +617,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
               cells: [
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.25,
+                    width: (availableWidth - 40) * 0.20,
                     child: Text(
                       referee.fullName,
                       style: TextStyle(
@@ -600,7 +630,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                 ),
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.30,
+                    width: (availableWidth - 40) * 0.25,
                     child: Text(
                       referee.email,
                       overflow: TextOverflow.ellipsis,
@@ -610,7 +640,20 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                 ),
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.20,
+                    width: (availableWidth - 40) * 0.15,
+                    child: Text(
+                      referee.city,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+                DataCell(
+                  SizedBox(
+                    width: (availableWidth - 40) * 0.18,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
@@ -631,7 +674,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                 ),
                 DataCell(
                   SizedBox(
-                    width: (availableWidth - 40) * 0.15,
+                    width: (availableWidth - 40) * 0.12,
                     child: Text(
                       '${referee.createdAt.day}.${referee.createdAt.month}.${referee.createdAt.year}',
                       style: TextStyle(
@@ -690,16 +733,14 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
 
   Color _getLicenseColor(String licenseType) {
     switch (licenseType) {
-      case 'Basis-Lizenz':
+      case 'Entwicklungskader':
         return Colors.green;
-      case 'Perspektivkader':
+      case 'Leistungskader':
         return Colors.blue;
-      case 'DHB Stamm+Anschlusskader':
+      case 'Elitekader':
         return Colors.orange;
-      case 'DHB Elitekader':
+      case 'EHF Referee':
         return Colors.red;
-      case 'EBT Referee':
-        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -713,6 +754,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
       _lastNameController.text = referee.lastName;
       _emailController.text = referee.email;
       _selectedLicenseType = referee.licenseType;
+      _streetController.text = referee.street;
+      _houseNumberController.text = referee.houseNumber;
+      _plzController.text = referee.plz;
+      _cityController.text = referee.city;
     } else {
       _clearForm();
     }
@@ -785,6 +830,54 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                           }
                         },
                       ),
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Adresse',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: _streetController,
+                              decoration: const InputDecoration(labelText: 'Straße'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: _houseNumberController,
+                              decoration: const InputDecoration(labelText: 'Nr.'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: _plzController,
+                              decoration: const InputDecoration(labelText: 'PLZ'),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: _cityController,
+                              decoration: const InputDecoration(labelText: 'Ort'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -810,6 +903,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
     _firstNameController.clear();
     _lastNameController.clear();
     _emailController.clear();
+    _streetController.clear();
+    _houseNumberController.clear();
+    _plzController.clear();
+    _cityController.clear();
     _selectedLicenseType = Referee.licenseTypes.first;
   }
 
@@ -827,6 +924,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
           licenseType: _selectedLicenseType,
+          street: _streetController.text.trim(),
+          houseNumber: _houseNumberController.text.trim(),
+          plz: _plzController.text.trim(),
+          city: _cityController.text.trim(),
           createdAt: now,
           updatedAt: now,
         );
@@ -852,6 +953,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
           lastName: _lastNameController.text.trim(),
           email: _emailController.text.trim(),
           licenseType: _selectedLicenseType,
+          street: _streetController.text.trim(),
+          houseNumber: _houseNumberController.text.trim(),
+          plz: _plzController.text.trim(),
+          city: _cityController.text.trim(),
           updatedAt: now,
         );
         

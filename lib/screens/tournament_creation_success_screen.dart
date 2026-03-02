@@ -167,8 +167,7 @@ class TournamentCreationSuccessScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         _buildDetailRow('Ort', tournament.location),
                         _buildDetailRow('Datum', tournament.dateString),
-                        _buildDetailRow('Kategorien', tournament.categoryDisplayNames),
-                        _buildDetailRow('Divisionen', tournament.divisions.join(', ')),
+
                         _buildDetailRow('Status', 'Warten auf Freigabe'),
                       ],
                     ),

@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+import '../models/city.dart';
 import '../models/team.dart';
-import '../models/club.dart';
 import '../models/team_manager.dart';
+import '../services/city_service.dart';
 import '../services/team_service.dart';
-import '../services/club_service.dart';
 import '../services/team_manager_service.dart';
-import '../widgets/state_dropdown.dart';
 
 class TeamFormScreen extends StatefulWidget {
   final Team? team;
-  final Club? preselectedClub;
   
-  const TeamFormScreen({super.key, this.team, this.preselectedClub});
+  const TeamFormScreen({super.key, this.team});
 
   @override
   State<TeamFormScreen> createState() => _TeamFormScreenState();
@@ -19,79 +17,70 @@ class TeamFormScreen extends StatefulWidget {
 
 class _TeamFormScreenState extends State<TeamFormScreen> {
   final TeamService _teamService = TeamService();
-  final ClubService _clubService = ClubService();
   final TeamManagerService _teamManagerService = TeamManagerService();
+  final CityService _cityService = CityService();
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _clubNameController = TextEditingController();
   final _cityController = TextEditingController();
   final _teamManagerController = TextEditingController();
 
-  String _selectedDivision = 'Men\'s U14';
-  String _selectedBundesland = 'Baden-Württemberg';
-  Club? _selectedClub;
-  List<Club> _clubs = [];
+  static const List<String> _countries = [
+    'Deutschland', 'Österreich', 'Niederlande',
+    'Dänemark', 'Norwegen', 'Serbien', 'Frankreich',
+  ];
+  static const Set<String> _germanStates = {
+    'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
+    'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen',
+    'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen',
+    'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen',
+  };
+
+  String _selectedCountry = 'Deutschland';
+  final _bundeslandController = TextEditingController();
+  List<City> _stateCities = [];
+  bool _citiesLoading = false;
+  City? _selectedCity;
   List<TeamManager> _teamManagers = [];
   TeamManager? _selectedTeamManager;
   bool _isLoading = false;
 
-  final List<String> _divisions = [
-    'Men\'s U14',
-    'Men\'s U16',
-    'Men\'s U18',
-    'Men\'s Seniors',
-    'Women\'s U14',
-    'Women\'s U16',
-    'Women\'s U18',
-    'Women\'s Seniors',
-  ];
-
   @override
   void initState() {
     super.initState();
-    _loadClubs();
     _loadTeamManagers();
     _initializeForm();
+    _loadCitiesForCountry(_selectedCountry);
   }
 
   void _initializeForm() {
     if (widget.team != null) {
       final team = widget.team!;
       _nameController.text = team.name;
+      _clubNameController.text = team.clubName ?? '';
       _cityController.text = team.city;
-      _selectedDivision = team.division;
-      _selectedBundesland = team.bundesland;
+      _bundeslandController.text = team.bundesland;
+      _selectedCountry = _deriveCountry(team.bundesland);
       _teamManagerController.text = team.teamManager ?? '';
-    }
-    
-    if (widget.preselectedClub != null) {
-      _selectedClub = widget.preselectedClub;
     }
   }
 
-  Future<void> _loadClubs() async {
+  String _deriveCountry(String bundesland) {
+    if (_germanStates.contains(bundesland)) return 'Deutschland';
+    if (_countries.contains(bundesland)) return bundesland;
+    return 'Deutschland';
+  }
+
+  Future<void> _loadCitiesForCountry(String country) async {
+    if (country.isEmpty) return;
+    setState(() => _citiesLoading = true);
     try {
-      final clubsStream = _clubService.getClubs();
-      clubsStream.listen((clubs) {
-        setState(() {
-          _clubs = clubs;
-          // If editing a team with a club, find and select it
-          if (widget.team?.clubId != null) {
-            _selectedClub = clubs.firstWhere(
-              (club) => club.id == widget.team!.clubId,
-              orElse: () => clubs.isNotEmpty ? clubs.first : Club(
-                id: '',
-                name: '',
-                city: '',
-                bundesland: '',
-                teamIds: [],
-                createdAt: DateTime.now(),
-              ),
-            );
-          }
-        });
-      });
+      final cities = await _cityService.getCitiesByCountry(country);
+      if (mounted) setState(() => _stateCities = cities);
     } catch (e) {
-      print('Error loading clubs: $e');
+      print('Error loading cities for $country: $e');
+    } finally {
+      if (mounted) setState(() => _citiesLoading = false);
     }
   }
 
@@ -163,7 +152,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                           labelText: 'Team Name *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.group),
-                          hintText: 'z.B. Beach Warriors München',
+                          hintText: 'z.B. Red Ants',
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -173,22 +162,14 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: _selectedDivision,
+                      TextFormField(
+                        controller: _clubNameController,
                         decoration: const InputDecoration(
-                          labelText: 'Division *',
+                          labelText: 'Vereinsname',
                           border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.sports_volleyball),
+                          prefixIcon: Icon(Icons.shield_outlined),
+                          hintText: 'z.B. TuS Eicklingen',
                         ),
-                        items: _divisions.map((division) => DropdownMenuItem(
-                          value: division,
-                          child: Text(division),
-                        )).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedDivision = value!;
-                          });
-                        },
                       ),
                       const SizedBox(height: 16),
                       _buildTeamManagerSelector(),
@@ -218,88 +199,159 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _cityController,
+                      // 1. Land auswählen (lädt nur Städte dieses Landes)
+                      DropdownButtonFormField<String>(
+                        value: _selectedCountry,
                         decoration: const InputDecoration(
-                          labelText: 'Stadt *',
+                          labelText: 'Land *',
                           border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.location_city),
+                          prefixIcon: Icon(Icons.public),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Bitte geben Sie eine Stadt ein';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      StateDropdown(
-                        value: _selectedBundesland,
-                        labelText: 'Bundesland *',
-                        prefixIcon: const Icon(Icons.map),
+                        items: _countries.map((country) {
+                          return DropdownMenuItem(
+                            value: country,
+                            child: Text(country),
+                          );
+                        }).toList(),
                         onChanged: (value) {
+                          if (value == null) return;
                           setState(() {
-                            _selectedBundesland = value!;
+                            _selectedCountry = value;
+                            _selectedCity = null;
+                            _cityController.clear();
+                            _bundeslandController.clear();
                           });
+                          _loadCitiesForCountry(value);
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Bitte wählen Sie ein Bundesland';
+                            return 'Bitte wählen Sie ein Land';
                           }
                           return null;
                         },
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.business, color: Colors.black87),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Verein (optional)',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<Club?>(
-                        value: _selectedClub != null && _clubs.any((club) => club.id == _selectedClub!.id) 
-                            ? _clubs.firstWhere((club) => club.id == _selectedClub!.id) 
-                            : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Verein zuweisen',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.business),
-                        ),
-                        items: [
-                          const DropdownMenuItem<Club?>(
-                            value: null,
-                            child: Text('Kein Verein'),
-                          ),
-                          // Use Set to ensure unique clubs by ID
-                          ...{for (var club in _clubs) club.id: club}.values.map((club) => DropdownMenuItem<Club?>(
-                            value: club,
-                            child: Text('${club.name} (${club.city})'),
-                          )),
-                        ],
-                        onChanged: (value) {
+                      // 2. Stadt aus dem gewählten Land
+                      Autocomplete<City>(
+                        displayStringForOption: (City city) => city.name,
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return const Iterable<City>.empty();
+                          }
+                          final query = textEditingValue.text.toLowerCase();
+                          return _stateCities
+                              .where((c) => c.name.toLowerCase().contains(query))
+                              .take(10);
+                        },
+                        onSelected: (City city) {
                           setState(() {
-                            _selectedClub = value;
+                            _selectedCity = city;
+                            _cityController.text = city.name;
+                            _bundeslandController.text = city.state;
                           });
                         },
+                        fieldViewBuilder: (context, textController, focusNode, onSubmitted) {
+                          if (_cityController.text.isNotEmpty &&
+                              textController.text != _cityController.text) {
+                            textController.text = _cityController.text;
+                          }
+                          return TextFormField(
+                            controller: textController,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Stadt *',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.location_city),
+                              hintText: _citiesLoading
+                                  ? 'Städte werden geladen...'
+                                  : 'Stadt eingeben...',
+                              helperText: _citiesLoading ? 'Städte werden geladen...' : null,
+                              suffixIcon: _citiesLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (value) {
+                              _cityController.text = value;
+                              if (!_stateCities.any((c) => c.name == value)) {
+                                setState(() {
+                                  _selectedCity = null;
+                                  _bundeslandController.clear();
+                                });
+                              }
+                            },
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Bitte geben Sie eine Stadt ein';
+                              }
+                              return null;
+                            },
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              borderRadius: BorderRadius.circular(8),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 200,
+                                  maxWidth: 350,
+                                ),
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final city = options.elementAt(index);
+                                    return InkWell(
+                                      onTap: () => onSelected(city),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade200,
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          city.name,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      // 3. Bundesland / Region – automatisch aus gewählter Stadt
+                      TextFormField(
+                        controller: _bundeslandController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: 'Bundesland / Region',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.map),
+                          fillColor: Colors.grey.shade100,
+                          filled: true,
+                          helperText: _selectedCity == null
+                              ? 'Wird automatisch aus der Stadt übernommen'
+                              : null,
+                        ),
                       ),
                     ],
                   ),
@@ -597,11 +649,12 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
       final team = Team(
         id: widget.team?.id ?? '',
         name: _nameController.text.trim(),
+        clubName: _clubNameController.text.trim().isEmpty ? null : _clubNameController.text.trim(),
         teamManager: _selectedTeamManager?.name,
         city: _cityController.text.trim(),
-        bundesland: _selectedBundesland,
-        division: _selectedDivision,
-        clubId: _selectedClub?.id,
+        bundesland: _bundeslandController.text.isNotEmpty
+            ? _bundeslandController.text
+            : _selectedCountry,
         createdAt: widget.team?.createdAt ?? DateTime.now(),
       );
 
@@ -623,16 +676,10 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
           
           final createdTeam = teams.firstWhere(
             (t) => t.name == team.name && t.teamManager == team.teamManager,
-            orElse: () => Team(id: '', name: '', city: '', bundesland: '', division: '', createdAt: DateTime.now()),
+            orElse: () => Team(id: '', name: '', city: '', bundesland: '', createdAt: DateTime.now()),
           );
           teamId = createdTeam.id;
           print('Found team ID: $teamId');
-        }
-        
-        // If team was created and assigned to a club, add team to club
-        if (success && _selectedClub != null && teamId != null && teamId.isNotEmpty) {
-          print('Assigning team to club: ${_selectedClub!.name}');
-          await _clubService.addTeamToClub(_selectedClub!.id, teamId);
         }
         
         // If team was created and assigned to a team manager, add team to manager
@@ -645,24 +692,6 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
         // Updating existing team
         success = await _teamService.updateTeam(widget.team!.id, team);
         teamId = widget.team!.id;
-        
-        // Handle club assignment changes
-        if (success) {
-          final oldClubId = widget.team!.clubId;
-          final newClubId = _selectedClub?.id;
-          
-          if (oldClubId != newClubId) {
-            // Remove from old club if it had one
-            if (oldClubId != null) {
-              await _clubService.removeTeamFromClub(oldClubId, widget.team!.id);
-            }
-            
-            // Add to new club if selected
-            if (newClubId != null) {
-              await _clubService.addTeamToClub(newClubId, widget.team!.id);
-            }
-          }
-        }
         
         // Handle team manager assignment changes
         if (success) {
@@ -721,7 +750,9 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _clubNameController.dispose();
     _cityController.dispose();
+    _bundeslandController.dispose();
     _teamManagerController.dispose();
     super.dispose();
   }

@@ -23,9 +23,6 @@ class CustomBracketBuilder extends StatefulWidget {
   final Map<String, List<String>> placeholderTeams; // poolId -> list of placeholder team IDs
   final Tournament tournament; // Add tournament reference
   final bool showLeftSidebar; // Add parameter to control sidebar visibility
-  final List<String>? divisions; // Available divisions (optional)
-  final String? selectedDivision; // Currently selected division (optional)
-  final Function(String?)? onDivisionChanged; // Division change callback (optional)
 
   const CustomBracketBuilder({
     Key? key,
@@ -41,9 +38,6 @@ class CustomBracketBuilder extends StatefulWidget {
     this.placeholderTeams = const {},
     required this.tournament,
     this.showLeftSidebar = true,
-    this.divisions,
-    this.selectedDivision,
-    this.onDivisionChanged,
   }) : super(key: key);
 
   @override
@@ -116,9 +110,9 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   void _preloadGames() async {
     try {
       await _gameService.preloadGames(widget.tournament.id);
-      print('🎮 Custom Bracket: Games preloaded for tournament ${widget.tournament.id}');
+      print('ðŸŽ® Custom Bracket: Games preloaded for tournament ${widget.tournament.id}');
     } catch (e) {
-      print('❌ Error preloading games in custom bracket: $e');
+      print('âŒ Error preloading games in custom bracket: $e');
     }
   }
 
@@ -233,21 +227,8 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
         children: [
           Icon(Icons.account_tree, color: Colors.blue, size: 20),
           const SizedBox(width: 8),
-          // Division Selector or Title
-          if (widget.divisions != null && widget.onDivisionChanged != null)
-            DropdownButton<String>(
-              value: widget.selectedDivision,
-              hint: const Text('Division auswählen'),
-              items: widget.divisions!.map((division) {
-                return DropdownMenuItem(
-                  value: division,
-                  child: Text(division),
-                );
-              }).toList(),
-              onChanged: widget.onDivisionChanged,
-            )
-          else
-            Text(
+          // Bracket Builder Title
+          Text(
               'Custom Bracket Builder - ${widget.divisionName}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
@@ -519,7 +500,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   }
 
   Widget _buildTeamItem(Team team, int position) {
-    Color divisionColor = _getDivisionColor(_getTeamDisplayDivision(team));
+    Color categoryColor = _getCategoryColor(_getTeamDisplayCategory(team));
     
     return Container(
       padding: const EdgeInsets.all(8),
@@ -534,7 +515,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             width: 20,
             height: 20,
             decoration: BoxDecoration(
-              color: divisionColor,
+              color: categoryColor,
               borderRadius: BorderRadius.circular(4),
             ),
             child: Center(
@@ -580,7 +561,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   }
 
   Widget _buildCompactTeamItem(Team team, int position, {bool isProceeding = true}) {
-    Color divisionColor = _getDivisionColor(_getTeamDisplayDivision(team));
+    Color categoryColor = _getCategoryColor(_getTeamDisplayCategory(team));
     
     return Container(
       height: 32,
@@ -599,7 +580,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             width: 16,
             height: 16,
             decoration: BoxDecoration(
-              color: isProceeding ? divisionColor : Colors.grey.shade400,
+              color: isProceeding ? categoryColor : Colors.grey.shade400,
               borderRadius: BorderRadius.circular(3),
             ),
             child: Center(
@@ -703,33 +684,13 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     );
   }
 
-  String _getTeamDisplayDivision(Team team) {
-    // If this is a Senior team in a Fun tournament, display as Fun
-    if (team.division.contains('Seniors') && widget.divisionName.contains('FUN')) {
-      // Check if they're the same gender
-      if ((team.division.contains('Women') && widget.divisionName.contains('Women')) ||
-          (team.division.contains('Men') && widget.divisionName.contains('Men'))) {
-        return widget.divisionName; // Use tournament division for display
-      }
-    }
-    
-    return team.division; // Use team's original division
+  String _getTeamDisplayCategory(Team team) {
+    // Category field - return divisionName - return divisionName from tournament context
+    return widget.divisionName;
   }
 
-  Color _getDivisionColor(String division) {
-    if (division.contains('Women')) {
-      if (division.contains('FUN')) return Colors.pink;
-      if (division.contains('U14')) return Colors.purple;
-      if (division.contains('U16')) return Colors.deepPurple;
-      if (division.contains('U18')) return Colors.indigo;
-      return Colors.blue; // Women's Seniors
-    } else {
-      if (division.contains('FUN')) return Colors.orange;
-      if (division.contains('U14')) return Colors.green;
-      if (division.contains('U16')) return Colors.teal;
-      if (division.contains('U18')) return Colors.cyan;
-      return Colors.red; // Men's Seniors
-    }
+  Color _getCategoryColor(String category) {
+    return Colors.blue; // Single league (RHBL)
   }
 
   Widget _buildNodePalette() {
@@ -1057,7 +1018,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Erfolg'),
-                description: Text('${team.name} zu ${node.title} hinzugefügt'),
+                description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
                 alignment: Alignment.topRight,
                 autoCloseDuration: const Duration(seconds: 2),
                 showProgressBar: false,
@@ -1175,7 +1136,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   type: ToastificationType.success,
                   style: ToastificationStyle.fillColored,
                   title: const Text('Erfolg'),
-                  description: Text('${team.name} zu ${node.title} hinzugefügt'),
+                  description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
                   alignment: Alignment.topRight,
                   autoCloseDuration: const Duration(seconds: 2),
                   showProgressBar: false,
@@ -1310,7 +1271,6 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   name: 'TBD',
                   city: '',
                   bundesland: '',
-                  division: '',
                   createdAt: DateTime.now(),
                 ))
               : null;
@@ -1422,7 +1382,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   type: ToastificationType.success,
                   style: ToastificationStyle.fillColored,
                   title: const Text('Erfolg'),
-                  description: Text('${team.name} zu ${node.title} hinzugefügt'),
+                  description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
                   alignment: Alignment.topRight,
                   autoCloseDuration: const Duration(seconds: 2),
                   showProgressBar: false,
@@ -1579,9 +1539,9 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: _getDivisionColor(_getTeamDisplayDivision(team)).withOpacity(0.1),
+        color: _getCategoryColor(_getTeamDisplayCategory(team)).withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: _getDivisionColor(_getTeamDisplayDivision(team)).withOpacity(0.3)),
+        border: Border.all(color: _getCategoryColor(_getTeamDisplayCategory(team)).withOpacity(0.3)),
       ),
       child: Center(
         child: Text(
@@ -1875,7 +1835,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Keine Spiele möglich',
+          'Keine Spiele mÃ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1886,7 +1846,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     }
 
     final teams = assignedTeams.map((teamId) {
-      final team = widget.allTeams.firstWhere((t) => t.id == teamId, orElse: () => Team(id: teamId, name: teamId, city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+      final team = widget.allTeams.firstWhere((t) => t.id == teamId, orElse: () => Team(id: teamId, name: teamId, city: '', bundesland: '', createdAt: DateTime.now()));
       return team;
     }).toList();
 
@@ -1904,7 +1864,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Keine Spiele möglich',
+          'Keine Spiele mÃ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1937,7 +1897,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Kein Spiel möglich',
+          'Kein Spiel mÃ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1953,7 +1913,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     
     // Determine team 1
     if (assignedTeams.isNotEmpty) {
-      final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+      final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', createdAt: DateTime.now()));
       team1Name = team.name;
     } else if (connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
       team1Name = connectedInputs[0];
@@ -1961,7 +1921,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     
     // Determine team 2
     if (assignedTeams.length >= 2) {
-      final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+      final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', createdAt: DateTime.now()));
       team2Name = team.name;
     } else if (connectedInputs.length >= 2 && connectedInputs[1].isNotEmpty) {
       team2Name = connectedInputs[1];
@@ -1974,7 +1934,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     } else if (team1Name.isNotEmpty) {
       gameText = '$team1Name vs Wartend...';
     } else {
-      gameText = 'Bereit für Planung';
+      gameText = 'Bereit fÃ¼r Planung';
     }
 
     // Smaller constraints for match tooltips since they only show one game
@@ -2112,14 +2072,14 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   // Generate pool games
   Future<void> _generatePoolGames(CustomBracketNode node, List<String> assignedTeams) async {
     if (assignedTeams.length < 2) {
-      _showError('Pool "${node.title}" benötigt mindestens 2 Teams für Spiele');
+      _showError('Pool "${node.title}" benÃ¶tigt mindestens 2 Teams fÃ¼r Spiele');
       return;
     }
 
     try {
       final poolName = node.title;
       final teams = assignedTeams.map((teamId) => 
-        widget.allTeams.firstWhere((t) => t.id == teamId, orElse: () => Team(id: teamId, name: teamId, city: '', bundesland: '', division: '', createdAt: DateTime.now()))
+        widget.allTeams.firstWhere((t) => t.id == teamId, orElse: () => Team(id: teamId, name: teamId, city: '', bundesland: '', createdAt: DateTime.now()))
       ).toList();
 
       // Generate the games list for display
@@ -2156,7 +2116,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     }
     
     if (totalTeams < 2) {
-      _showError('Match "${node.title}" benötigt 2 Teams für ein Spiel');
+      _showError('Match "${node.title}" benÃ¶tigt 2 Teams fÃ¼r ein Spiel');
       return;
     }
 
@@ -2168,7 +2128,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       
       // Determine team 1
       if (assignedTeams.isNotEmpty) {
-        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[0], orElse: () => Team(id: assignedTeams[0], name: assignedTeams[0], city: '', bundesland: '', createdAt: DateTime.now()));
         team1Name = team.name;
         team1Id = team.id;
       } else if (connectedInputs.isNotEmpty && connectedInputs[0].isNotEmpty) {
@@ -2178,7 +2138,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       
       // Determine team 2
       if (assignedTeams.length >= 2) {
-        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', division: '', createdAt: DateTime.now()));
+        final team = widget.allTeams.firstWhere((t) => t.id == assignedTeams[1], orElse: () => Team(id: assignedTeams[1], name: assignedTeams[1], city: '', bundesland: '', createdAt: DateTime.now()));
         team2Name = team.name;
         team2Id = team.id;
       } else if (connectedInputs.length >= 2 && connectedInputs[1].isNotEmpty) {
@@ -2208,7 +2168,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       await _gameService.addGame(game);
 
       _showSuccess(
-        'Match "${node.title}" generiert:\n\n$team1Name\nvs\n$team2Name\n\nSpiel erfolgreich erstellt!\n${team1Id == null || team2Id == null ? '\n(Mit Platzhaltern für Planung)' : ''}'
+        'Match "${node.title}" generiert:\n\n$team1Name\nvs\n$team2Name\n\nSpiel erfolgreich erstellt!\n${team1Id == null || team2Id == null ? '\n(Mit Platzhaltern fÃ¼r Planung)' : ''}'
       );
       
       // Refresh the UI to update button states
@@ -2748,7 +2708,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
               ),
               TextButton(
                 onPressed: () => _deleteNode(node),
-                child: const Text('Löschen', style: TextStyle(color: Colors.red)),
+                child: const Text('LÃ¶schen', style: TextStyle(color: Colors.red)),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -2996,7 +2956,6 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             name: 'TBD',
             city: '',
             bundesland: '',
-            division: '',
             createdAt: DateTime.now(),
           ),
         );

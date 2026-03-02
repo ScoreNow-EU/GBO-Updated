@@ -50,7 +50,7 @@
       "layers" : [
         {
           "glass" : true,
-          "image-name" : "logo_ball_half.png",
+          "image-name" : "logo.png",
           "name" : "logo_ball_half",
           "position" : {
             "scale" : 0.55,

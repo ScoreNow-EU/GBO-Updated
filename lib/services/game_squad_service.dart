@@ -35,7 +35,8 @@ class GameSquadService {
           firstName: player.firstName,
           lastName: player.lastName,
           jerseyNumber: player.jerseyNumber,
-          position: player.position,
+          classification: player.classification,
+          gender: player.gender,
         )
       ).toList();
 

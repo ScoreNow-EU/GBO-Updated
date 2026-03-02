@@ -355,7 +355,7 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          // Team city/division info if available
+          // Team city info if available
           if (teams.isNotEmpty) _buildTeamInfo(teamName),
         ],
       ),
@@ -369,7 +369,6 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
         id: '',
         name: teamName,
         city: '',
-        division: '',
         bundesland: '',
         createdAt: DateTime.now(),
       ),
@@ -378,7 +377,7 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
     if (team.city.isEmpty) return const SizedBox.shrink();
 
     return Text(
-      '${team.city} • ${team.division}',
+      team.city,
       style: TextStyle(
         color: Colors.white.withOpacity(0.8),
         fontSize: 14,
@@ -388,95 +387,28 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
   }
 
   Widget _buildScoreDisplay(Game game) {
-    if (game.result == null || game.result!.sets.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildScoreBox('0'),
-            const SizedBox(width: 20),
-            const Text(
-              ':',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 20),
-            _buildScoreBox('0'),
-          ],
-        ),
-      );
-    }
+    final teamAScore = game.result?.teamAScore ?? 0;
+    final teamBScore = game.result?.teamBScore ?? 0;
 
-    final result = game.result!;
-    final teamASets = result.sets.where((s) => s.teamAScore > s.teamBScore).length;
-    final teamBSets = result.sets.where((s) => s.teamBScore > s.teamAScore).length;
-
-    return Column(
-      children: [
-        // Set scores
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildScoreBox(teamASets.toString()),
-              const SizedBox(width: 20),
-              const Text(
-                ':',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 20),
-              _buildScoreBox(teamBSets.toString()),
-            ],
-          ),
-        ),
-        // Current set points
-        if (result.sets.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: result.sets.asMap().entries.map((entry) {
-                final index = entry.key;
-                final set = entry.value;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Set ${index + 1}',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        '${set.teamAScore} : ${set.teamBScore}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildScoreBox(teamAScore.toString()),
+          const SizedBox(width: 20),
+          const Text(
+            ':',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
             ),
           ),
-      ],
+          const SizedBox(width: 20),
+          _buildScoreBox(teamBScore.toString()),
+        ],
+      ),
     );
   }
 
@@ -837,15 +769,12 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
 
   // Helper methods
   String _getGameScore(Game game) {
-    if (game.result == null || game.result!.sets.isEmpty) {
+    if (game.result == null) {
       return '0 : 0';
     }
     
     final result = game.result!;
-    final teamASets = result.sets.where((s) => s.teamAScore > s.teamBScore).length;
-    final teamBSets = result.sets.where((s) => s.teamBScore > s.teamAScore).length;
-    
-    return '$teamASets : $teamBSets';
+    return '${result.teamAScore} : ${result.teamBScore}';
   }
 
   String _formatDate(DateTime date) {

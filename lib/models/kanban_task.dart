@@ -208,7 +208,7 @@ class KanbanTask {
     );
   }
 
-  String get taskKey => 'GBO-${id.substring(0, 8).toUpperCase()}';
+  String get taskKey => 'RHBL-${id.substring(0, 8).toUpperCase()}';
 
   String get priorityDisplayName {
     switch (priority) {

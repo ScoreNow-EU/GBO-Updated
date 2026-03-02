@@ -12,7 +12,7 @@ import 'package:GermanBeachOpen/main.dart';
 void main() {
   testWidgets('App title is displayed', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const GBOApp());
+    await tester.pumpWidget(const RHBLApp());
 
     // Verify that the app title is present
     expect(find.text('German Beach Open'), findsOneWidget);

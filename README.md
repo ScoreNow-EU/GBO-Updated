@@ -1,10 +1,10 @@
-# German Beach Open - Tournament Management System
+# Rollstuhlhandball Bundesliga - Tournament Management System
 
-A comprehensive Flutter application for managing beach volleyball tournaments, built specifically for the German Beach Open (GBO).
+A comprehensive Flutter application for managing wheelchair handball tournaments, built specifically for the Rollstuhlhandball Bundesliga (RHBL).
 
-## 🏐 Features
+## 🤾 Features
 
-- **Tournament Management**: Create and manage beach volleyball tournaments
+- **Tournament Management**: Create and manage wheelchair handball tournaments
 - **Team Management**: Register teams and manage rosters
 - **Referee System**: Invite and manage referees with real-time notifications
 - **Delegate Management**: Handle tournament delegates and officials
@@ -86,4 +86,4 @@ The app is configured to use Firebase for:
 
 ## 📄 License
 
-This project is proprietary software developed for the German Beach Open.
+This project is proprietary software developed for the Rollstuhlhandball Bundesliga.

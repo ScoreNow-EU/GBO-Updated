@@ -57,7 +57,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
     for (final row in widget.csvData) {
       final playerId = '${row['Firstname']}_${row['Lastname']}_${row['Jersey Number']}';
       final clubName = row['Club Name'] as String? ?? '';
-      final division = row['Division'] as String? ?? '';
+      final classification = row['Division'] as String? ?? '';
       
       // Try to find matching team with improved logic
       List<Team> matchingTeams = [];
@@ -75,13 +75,8 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
         ).toList();
       }
       
-      // If still no match, try division match
-      if (matchingTeams.isEmpty) {
-        matchingTeams = availableTeams.where((team) => 
-          team.division.toLowerCase().contains(division.toLowerCase()) ||
-          division.toLowerCase().contains(team.division.toLowerCase())
-        ).toList();
-      }
+      // Classification field from CSV - no longer used for team matching
+      // If still no match, leave matchingTeams empty
       
       if (matchingTeams.isNotEmpty) {
         final matchingTeam = matchingTeams.first;
@@ -140,7 +135,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${widget.csvData.length} Spieler gefunden. Überprüfen Sie die Zuordnungen und bestätigen Sie den Upload.',
+                '${widget.csvData.length} Spieler gefunden. ÃœberprÃ¼fen Sie die Zuordnungen und bestÃ¤tigen Sie den Upload.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -177,7 +172,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Upload Bestätigen'),
+                  child: const Text('Upload BestÃ¤tigen'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -250,11 +245,11 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: null,
-                    hint: const Text('Team auswählen...'),
+                    hint: const Text('Team auswÃ¤hlen...'),
                     items: availableTeams.map((team) {
                       return DropdownMenuItem<String>(
                         value: team.id,
-                        child: Text('${team.name} (${team.division})'),
+                        child: Text('${team.name} (${team.city})'),
                       );
                     }).toList(),
                     onChanged: (teamId) {
@@ -331,7 +326,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
         children: [
           Text('Position: ${player['Position'] ?? 'N/A'}'),
           Text('Verein: ${player['Club Name'] ?? 'N/A'}'),
-          Text('Division: ${player['Division'] ?? 'N/A'}'),
+          Text('Klassifikation: ${player['Division'] ?? 'N/A'}'),
         ],
       ),
       trailing: assignedTeamId != null
@@ -360,11 +355,12 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
         
         final assignedTeamId = playerTeamAssignments[playerId];
         if (assignedTeamId != null) {
-          // Determine gender based on division
-          final division = row['Division'] as String? ?? '';
-          final gender = division.toLowerCase().contains('women') || 
-                        division.toLowerCase().contains('womens') || 
-                        division.toLowerCase().contains('weiblich') 
+          // Determine gender from CSV data if available
+          final classification = row['Division'] as String? ?? '';
+          final gender = classification.toLowerCase().contains('women') || 
+                        classification.toLowerCase().contains('womens') || 
+                        classification.toLowerCase().contains('weiblich') || 
+                        classification.toLowerCase().contains('female')
                         ? 'female' : 'male';
           
           // Create player
@@ -374,8 +370,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
             lastName: row['Lastname'] ?? '',
             email: '', // Empty email - optional field
             jerseyNumber: row['Jersey Number']?.toString() ?? '',
-            position: row['Position'] ?? '',
-            clubId: assignedTeamId,
+            classification: row['Position'] ?? '',
             gender: gender,
             createdAt: DateTime.now(),
           );
@@ -393,7 +388,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
               final teamUpdateSuccess = await _teamService.updateTeam(assignedTeamId, updatedTeam);
               if (teamUpdateSuccess) {
                 // Single concise log per player as requested
-                print('Added player ${firstName} ${lastName} to team ${team.name} (${team.division})');
+                print('Added player ${firstName} ${lastName} to team ${team.name} (${team.city})');
               }
             } catch (e) {
               // Suppress verbose error logging
@@ -414,7 +409,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
           context: context,
           type: ToastificationType.success,
           title: const Text('Upload erfolgreich'),
-          description: Text('$successCount Spieler hinzugefügt, $discardCount verworfen'),
+          description: Text('$successCount Spieler hinzugefÃ¼gt, $discardCount verworfen'),
           autoCloseDuration: const Duration(seconds: 4),
         );
       }

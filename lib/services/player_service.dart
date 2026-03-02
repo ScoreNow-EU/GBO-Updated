@@ -27,9 +27,8 @@ class PlayerService {
         'email': player.email?.toLowerCase() ?? '',
         'phone': player.phone,
         'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
-        'position': player.position,
+        'classification': player.classification,
         'jerseyNumber': player.jerseyNumber,
-        'clubId': player.clubId,
         'gender': player.gender,
         'isActive': player.isActive,
         'createdAt': Timestamp.fromDate(player.createdAt),
@@ -65,9 +64,8 @@ class PlayerService {
         'email': updatedPlayer.email?.toLowerCase() ?? '',
         'phone': updatedPlayer.phone,
         'birthDate': updatedPlayer.birthDate != null ? Timestamp.fromDate(updatedPlayer.birthDate!) : null,
-        'position': updatedPlayer.position,
+        'classification': updatedPlayer.classification,
         'jerseyNumber': updatedPlayer.jerseyNumber,
-        'clubId': updatedPlayer.clubId,
         'gender': updatedPlayer.gender,
         'isActive': updatedPlayer.isActive,
       });
@@ -137,7 +135,7 @@ class PlayerService {
           p.firstName.toLowerCase().contains(term) ||
           p.lastName.toLowerCase().contains(term) ||
           (p.email?.toLowerCase().contains(term) ?? false) ||
-          (p.position?.toLowerCase().contains(term) ?? false) ||
+          (p.classification?.toLowerCase().contains(term) ?? false) ||
           (p.jerseyNumber?.toLowerCase().contains(term) ?? false)
       ).toList();
     });
@@ -196,9 +194,8 @@ class PlayerService {
           'email': player.email?.toLowerCase() ?? '',
           'phone': player.phone,
           'birthDate': player.birthDate != null ? Timestamp.fromDate(player.birthDate!) : null,
-          'position': player.position,
+          'classification': player.classification,
           'jerseyNumber': player.jerseyNumber,
-          'clubId': player.clubId,
           'gender': player.gender,
           'isActive': player.isActive,
           'createdAt': Timestamp.fromDate(player.createdAt),
@@ -222,9 +219,9 @@ class PlayerService {
         lastName: 'Mustermann',
         email: 'max.mustermann@example.com',
         phone: '+49 123 456789',
-        position: 'Blocker',
+        classification: 'Gruppe A',
         jerseyNumber: '1',
-        gender: 'male',
+        gender: 'männlich',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -233,9 +230,9 @@ class PlayerService {
         lastName: 'Schmidt',
         email: 'anna.schmidt@example.com',
         phone: '+49 987 654321',
-        position: 'Defender',
+        classification: 'Gruppe B',
         jerseyNumber: '2',
-        gender: 'female',
+        gender: 'weiblich',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -243,9 +240,9 @@ class PlayerService {
         firstName: 'Thomas',
         lastName: 'Weber',
         email: 'thomas.weber@example.com',
-        position: 'Setter',
+        classification: 'Gruppe C',
         jerseyNumber: '3',
-        gender: 'male',
+        gender: 'männlich',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -254,9 +251,9 @@ class PlayerService {
         lastName: 'Mueller',
         email: 'lisa.mueller@example.com',
         phone: '+49 555 123456',
-        position: 'Libero',
+        classification: 'Gruppe A',
         jerseyNumber: '4',
-        gender: 'female',
+        gender: 'weiblich',
         createdAt: DateTime.now(),
       ),
     ];

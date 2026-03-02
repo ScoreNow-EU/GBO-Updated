@@ -309,12 +309,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         child: Text('Alle Turniere'),
                       ),
                       DropdownMenuItem(
-                        value: 'GBO Juniors Cup',
-                        child: Text('Nur Juniors'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'GBO Seniors Cup',
-                        child: Text('Nur Seniors'),
+                        value: 'RHBL Spieltag',
+                        child: Text('RHBL Spieltag'),
                       ),
                     ],
                     onChanged: (value) {

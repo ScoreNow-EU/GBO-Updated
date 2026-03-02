@@ -8,7 +8,7 @@ class GameEvent {
   final GameEventType eventType;
   final DateTime timestamp;
   final int gameMinute;
-  final int? setNumber;
+  final int? half; // 1 or 2 (for 2x15 minute halves)
   final String? notes;
 
   GameEvent({
@@ -21,7 +21,7 @@ class GameEvent {
     required this.eventType,
     required this.timestamp,
     required this.gameMinute,
-    this.setNumber,
+    this.half,
     this.notes,
   });
 
@@ -36,122 +36,151 @@ class GameEvent {
       'eventType': eventType.toString(),
       'timestamp': timestamp.toIso8601String(),
       'gameMinute': gameMinute,
-      'setNumber': setNumber,
+      'half': half,
       'notes': notes,
     };
   }
 
   factory GameEvent.fromJson(Map<String, dynamic> json) {
+    // Parse eventType: handle both "GameEventType.goal" and "goal" formats
+    final rawType = json['eventType'] as String? ?? '';
+    final eventType = GameEventType.values.firstWhere(
+      (e) => e.toString() == rawType || e.name == rawType,
+      orElse: () => GameEventType.goal,
+    );
+
+    // Parse timestamp: handle String (ISO 8601), Firestore Timestamp, and null
+    DateTime ts;
+    final rawTs = json['timestamp'];
+    if (rawTs is String) {
+      ts = DateTime.tryParse(rawTs) ?? DateTime.now();
+    } else if (rawTs != null && rawTs.runtimeType.toString().contains('Timestamp')) {
+      // Firestore Timestamp — has toDate()
+      ts = (rawTs as dynamic).toDate();
+    } else {
+      ts = DateTime.now();
+    }
+
     return GameEvent(
-      id: json['id'],
-      gameId: json['gameId'],
+      id: json['id'] ?? '',
+      gameId: json['gameId'] ?? '',
       playerId: json['playerId'],
-      playerName: json['playerName'],
-      teamId: json['teamId'],
-      teamName: json['teamName'],
-      eventType: GameEventType.values.firstWhere((e) => e.toString() == json['eventType']),
-      timestamp: DateTime.parse(json['timestamp']),
-      gameMinute: json['gameMinute'],
-      setNumber: json['setNumber'],
+      playerName: (json['playerName'] as String?) ?? '',
+      teamId: (json['teamId'] as String?) ?? '',
+      teamName: (json['teamName'] as String?) ?? '',
+      eventType: eventType,
+      timestamp: ts,
+      gameMinute: (json['gameMinute'] as int?) ?? 0,
+      half: json['half'] ?? json['setNumber'],
       notes: json['notes'],
     );
   }
 
   String get displayName {
     switch (eventType) {
-      case GameEventType.onePoint:
-        return '1 Punkt';
-      case GameEventType.twoPoints:
-        return '2 Punkte';
-      case GameEventType.suspension:
-        return 'Hinausstellung';
+      case GameEventType.goal:
+        return 'Tor';
+      case GameEventType.sevenMeterHit:
+        return '7m Treffer';
+      case GameEventType.sevenMeterMiss:
+        return '7m Verfehlt';
+      case GameEventType.yellowCard:
+        return 'Gelbe Karte';
+      case GameEventType.twoMinuteSuspension:
+        return '2-Min Hinausstellung';
       case GameEventType.redCard:
         return 'Rote Karte';
+      case GameEventType.blueCard:
+        return 'Blaue Karte';
       case GameEventType.timeout:
         return 'Auszeit';
       case GameEventType.substitution:
         return 'Wechsel';
-      case GameEventType.sixMeterHit:
-        return '6m Treffer';
-      case GameEventType.sixMeterMiss:
-        return '6m Verfehlt';
     }
   }
 
   int get points {
     switch (eventType) {
-      case GameEventType.onePoint:
+      case GameEventType.goal:
         return 1;
-      case GameEventType.twoPoints:
-        return 2;
-      case GameEventType.sixMeterHit:
-        return 2; // 6m goals always give 2 points in beach handball
+      case GameEventType.sevenMeterHit:
+        return 1; // 7m goals give 1 point in indoor/wheelchair handball
       default:
         return 0;
     }
   }
+
+  bool get isPenalty {
+    return eventType == GameEventType.yellowCard ||
+           eventType == GameEventType.twoMinuteSuspension ||
+           eventType == GameEventType.redCard ||
+           eventType == GameEventType.blueCard;
+  }
 }
 
 enum GameEventType {
-  onePoint,
-  twoPoints,
-  suspension,
+  goal,
+  sevenMeterHit,
+  sevenMeterMiss,
+  yellowCard,
+  twoMinuteSuspension,
   redCard,
+  blueCard,
   timeout,
   substitution,
-  sixMeterHit,
-  sixMeterMiss,
 }
 
 class GameState {
   final String gameId;
-  final int currentSet;
-  final int teamASetWins;
-  final int teamBSetWins;
-  final List<SetScore> setScores;
+  final int currentHalf; // 1 or 2
+  final int teamAScore;
+  final int teamBScore;
   final GameTime gameTime;
   final bool isRunning;
   final List<GameEvent> events;
 
   GameState({
     required this.gameId,
-    this.currentSet = 1,
-    this.teamASetWins = 0,
-    this.teamBSetWins = 0,
-    this.setScores = const [],
+    this.currentHalf = 1,
+    this.teamAScore = 0,
+    this.teamBScore = 0,
     required this.gameTime,
     this.isRunning = false,
     this.events = const [],
   });
 
-  int getTeamScore(String teamId, int setNumber) {
-    final set = setScores.where((s) => s.setNumber == setNumber).firstOrNull;
-    if (set == null) return 0;
-    
-    return teamId == set.teamAId ? set.teamAScore : set.teamBScore;
-  }
-
-  int getCurrentSetScore(String teamId) {
+  int getTeamScore(String teamId) {
     return events
-        .where((e) => e.teamId == teamId && e.setNumber == currentSet)
+        .where((e) => e.teamId == teamId)
         .fold(0, (total, event) => total + event.points);
   }
 
+  int getTeamScoreForHalf(String teamId, int half) {
+    return events
+        .where((e) => e.teamId == teamId && e.half == half)
+        .fold(0, (total, event) => total + event.points);
+  }
+
+  /// Count 2-minute suspensions for a player (3rd = automatic red card)
+  int getPlayerSuspensionCount(String playerId) {
+    return events
+        .where((e) => e.playerId == playerId && e.eventType == GameEventType.twoMinuteSuspension)
+        .length;
+  }
+
   GameState copyWith({
-    int? currentSet,
-    int? teamASetWins,
-    int? teamBSetWins,
-    List<SetScore>? setScores,
+    int? currentHalf,
+    int? teamAScore,
+    int? teamBScore,
     GameTime? gameTime,
     bool? isRunning,
     List<GameEvent>? events,
   }) {
     return GameState(
       gameId: gameId,
-      currentSet: currentSet ?? this.currentSet,
-      teamASetWins: teamASetWins ?? this.teamASetWins,
-      teamBSetWins: teamBSetWins ?? this.teamBSetWins,
-      setScores: setScores ?? this.setScores,
+      currentHalf: currentHalf ?? this.currentHalf,
+      teamAScore: teamAScore ?? this.teamAScore,
+      teamBScore: teamBScore ?? this.teamBScore,
       gameTime: gameTime ?? this.gameTime,
       isRunning: isRunning ?? this.isRunning,
       events: events ?? this.events,
@@ -159,43 +188,10 @@ class GameState {
   }
 }
 
-class SetScore {
-  final int setNumber;
-  final String teamAId;
-  final String teamBId;
-  final int teamAScore;
-  final int teamBScore;
-  final bool isCompleted;
-
-  SetScore({
-    required this.setNumber,
-    required this.teamAId,
-    required this.teamBId,
-    required this.teamAScore,
-    required this.teamBScore,
-    this.isCompleted = false,
-  });
-
-  SetScore copyWith({
-    int? teamAScore,
-    int? teamBScore,
-    bool? isCompleted,
-  }) {
-    return SetScore(
-      setNumber: setNumber,
-      teamAId: teamAId,
-      teamBId: teamBId,
-      teamAScore: teamAScore ?? this.teamAScore,
-      teamBScore: teamBScore ?? this.teamBScore,
-      isCompleted: isCompleted ?? this.isCompleted,
-    );
-  }
-}
-
 class GameTime {
   final int minutes;
   final int seconds;
-  final int currentPeriod; // 1 or 2 (for 2x 10 minute periods)
+  final int currentPeriod; // 1 or 2 (for 2x 15 minute halves)
 
   GameTime({
     this.minutes = 0,
@@ -208,11 +204,11 @@ class GameTime {
   }
 
   String get periodDisplay {
-    return '$currentPeriod. Halbzeit ($displayTime/10:00)';
+    return '$currentPeriod. Halbzeit ($displayTime/15:00)';
   }
 
-  bool get isHalfTime => minutes >= 10 && currentPeriod == 1;
-  bool get isFullTime => minutes >= 10 && currentPeriod == 2;
+  bool get isHalfTime => minutes >= 15 && currentPeriod == 1;
+  bool get isFullTime => minutes >= 15 && currentPeriod == 2;
 
   GameTime copyWith({
     int? minutes,

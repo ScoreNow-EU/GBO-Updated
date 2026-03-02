@@ -74,9 +74,9 @@ class PresetService {
     }
   }
 
-  Future<List<BracketPreset>> getPresetsForDivision(String division) async {
+  Future<List<BracketPreset>> getPresetsForCategory(String category) async {
     final allPresets = await getPresets();
-    return allPresets.where((preset) => preset.division == division).toList();
+    return allPresets.where((preset) => preset.division == category).toList();
   }
 
   Future<void> savePreset(BracketPreset preset) async {

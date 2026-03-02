@@ -9,11 +9,11 @@ import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'screens/obs_graphics_screen.dart';
 import 'services/preloader_service.dart';
-import 'services/referee_invitation_monitoring_service.dart';
 import 'utils/app_colors.dart';
 import 'utils/version_helper.dart';
 import 'utils/web_helper.dart';
 import 'utils/debug_filter.dart';
+import 'utils/route_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,13 +47,6 @@ void main() async {
     print('Preloader error: $e - continuing without preloading');
   }
   
-  // Initialize internal monitoring service for referee invitations
-  try {
-    await RefereeInvitationMonitoringService.initialize();
-  } catch (e) {
-    print('Monitoring service initialization error: $e');
-  }
-  
   // Update web version display (only on web platform)
   if (kIsWeb) {
     try {
@@ -64,11 +57,11 @@ void main() async {
     }
   }
   
-  runApp(const GBOApp());
+  runApp(const RHBLApp());
 }
 
-class GBOApp extends StatelessWidget {
-  const GBOApp({super.key});
+class RHBLApp extends StatelessWidget {
+  const RHBLApp({super.key});
 
   static FirebaseAnalytics? analytics;
   static FirebaseAnalyticsObserver? observer;
@@ -92,7 +85,7 @@ class GBOApp extends StatelessWidget {
 
     return ToastificationWrapper(
       child: MaterialApp(
-        title: 'German Beach Open',
+        title: 'Rollstuhlhandball Bundesliga',
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -147,7 +140,10 @@ class GBOApp extends StatelessWidget {
           '/': (context) => const HomeScreen(),
           '/obs-graphics': (context) => _buildOBSGraphicsScreen(context),
         },
-        navigatorObservers: observer != null ? <NavigatorObserver>[observer!] : <NavigatorObserver>[],
+        navigatorObservers: [
+          RouteLogger(), // Debug: Zeigt aktuelle Route in Konsole
+          if (observer != null) observer!,
+        ],
       ),
     );
   }

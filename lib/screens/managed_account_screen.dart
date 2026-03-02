@@ -551,9 +551,6 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
           orElse: () => Court(
             id: account.courtId!,
             name: 'Unbekannt',
-            latitude: 0,
-            longitude: 0,
-            createdAt: DateTime.now(),
           ),
         );
 
@@ -1385,14 +1382,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                   ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              tournament.categoryDisplayNames,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
+
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1430,21 +1420,6 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
             const SizedBox(height: 12),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${tournament.points} Punkte',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
                 const Spacer(),
                 Text(
                   '${tournament.courts.length} Courts',
@@ -1556,7 +1531,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    court.type.toUpperCase(),
+                    court.description.isNotEmpty ? court.description.toUpperCase() : 'COURT',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,

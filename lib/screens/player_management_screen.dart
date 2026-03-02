@@ -33,6 +33,30 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   String _searchQuery = '';
   bool _isLoading = false;
 
+  /// playerId → teamName, built once from all teams' rosterPlayerIds
+  Map<String, String> _playerTeamMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlayerTeamMap();
+  }
+
+  Future<void> _loadPlayerTeamMap() async {
+    try {
+      final teams = await _teamService.getAllTeams();
+      final map = <String, String>{};
+      for (final team in teams) {
+        for (final pid in team.rosterPlayerIds) {
+          map[pid] = team.name;
+        }
+      }
+      if (mounted) setState(() => _playerTeamMap = map);
+    } catch (_) {
+      // silently ignore — team column will just show 'Kein Team'
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -71,7 +95,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _showDeleteAllPlayersDialog(),
                     icon: const Icon(Icons.delete_forever),
-                    label: const Text('Alle löschen'),
+                    label: const Text('Alle lÃ¶schen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
                       foregroundColor: Colors.white,
@@ -93,7 +117,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _showAddPlayerDialog(),
                     icon: const Icon(Icons.person_add),
-                    label: const Text('Spieler hinzufügen'),
+                    label: const Text('Spieler hinzufÃ¼gen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2D5016),
                       foregroundColor: Colors.white,
@@ -126,7 +150,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Verwalten Sie alle Spieler im System. Diese Spieler können von Team-Managern zu ihren Kadern hinzugefügt werden.',
+                'Verwalten Sie alle Spieler im System. Diese Spieler kÃ¶nnen von Team-Managern zu ihren Kadern hinzugefÃ¼gt werden.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -191,7 +215,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                       children: [
                         Expanded(flex: 2, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(flex: 2, child: Text('E-Mail', style: TextStyle(fontWeight: FontWeight.bold))),
-                        Expanded(child: Text('Position', style: TextStyle(fontWeight: FontWeight.bold))),
+                        Expanded(child: Text('Klassifikation', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Nummer', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Team', style: TextStyle(fontWeight: FontWeight.bold))),
                         Expanded(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -260,7 +284,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                                 if (_searchQuery.isEmpty) ...[
                                   const SizedBox(height: 8),
                                   const Text(
-                                    'Fügen Sie Spieler hinzu, um sie hier zu verwalten.',
+                                    'FÃ¼gen Sie Spieler hinzu, um sie hier zu verwalten.',
                                     style: TextStyle(color: Colors.grey),
                                   ),
                                 ],
@@ -336,7 +360,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           // Position
           Expanded(
             child: Text(
-              player.position ?? '-',
+              player.classification ?? '-',
               style: TextStyle(color: Colors.grey[700]),
             ),
           ),
@@ -351,31 +375,12 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           
           // Team
           Expanded(
-            child: FutureBuilder<Team?>(
-              future: _teamService.getTeamById(player.clubId ?? ''),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                }
-                
-                final team = snapshot.data;
-                if (team != null) {
-                  return Text(
-                    team.name,
-                    style: TextStyle(color: Colors.grey[700]),
-                    overflow: TextOverflow.ellipsis,
-                  );
-                } else {
-                  return Text(
-                    'Kein Team',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                  );
-                }
-              },
+            child: Text(
+              _playerTeamMap[player.id] ?? 'Kein Team',
+              style: _playerTeamMap.containsKey(player.id)
+                  ? TextStyle(color: Colors.grey[700])
+                  : TextStyle(color: Colors.grey[500], fontSize: 12),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           
@@ -411,7 +416,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                 IconButton(
                   onPressed: () => _deletePlayer(player),
                   icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                  tooltip: 'Löschen',
+                  tooltip: 'LÃ¶schen',
                 ),
               ],
             ),
@@ -448,40 +453,40 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           // Check if semicolon is used as delimiter
           if (headerLine.contains(';')) {
             headers = headerLine.split(';').map((h) => h.trim()).toList();
-            print('🔍 Detected semicolon delimiter');
+            print('ðŸ” Detected semicolon delimiter');
           } else {
             headers = headerLine.split(',').map((h) => h.trim()).toList();
-            print('🔍 Detected comma delimiter');
+            print('ðŸ” Detected comma delimiter');
           }
           
           // Log CSV column analysis
-          print('\n📋 CSV COLUMN ANALYSIS:');
-          print('📥 Found columns: ${headers.join(', ')}');
-          print('📊 Total columns found: ${headers.length}');
+          print('\nðŸ“‹ CSV COLUMN ANALYSIS:');
+          print('ðŸ“¥ Found columns: ${headers.join(', ')}');
+          print('ðŸ“Š Total columns found: ${headers.length}');
           
           // Validate required headers
           final requiredHeaders = ['Firstname', 'Lastname', 'Jersey Number', 'Position', 'Club Name', 'Division'];
           final missingHeaders = requiredHeaders.where((h) => !headers.contains(h)).toList();
           final foundHeaders = requiredHeaders.where((h) => headers.contains(h)).toList();
           
-          print('\n✅ EXPECTED columns: ${requiredHeaders.join(', ')}');
-          print('✅ FOUND expected columns: ${foundHeaders.join(', ')}');
+          print('\nâœ… EXPECTED columns: ${requiredHeaders.join(', ')}');
+          print('âœ… FOUND expected columns: ${foundHeaders.join(', ')}');
           
           if (missingHeaders.isNotEmpty) {
-            print('❌ MISSING expected columns: ${missingHeaders.join(', ')}');
-            print('\n💡 SUGGESTIONS:');
+            print('âŒ MISSING expected columns: ${missingHeaders.join(', ')}');
+            print('\nðŸ’¡ SUGGESTIONS:');
             print('   - Check if column names match exactly (case-sensitive)');
             print('   - Common variations:');
             print('     * "Firstname" vs "First Name" vs "FirstName"');
             print('     * "Lastname" vs "Last Name" vs "LastName"');
             print('     * "Jersey Number" vs "JerseyNumber" vs "Number"');
             print('     * "Club Name" vs "ClubName" vs "Team"');
-            print('     * "Division" vs "Category" vs "Class"');
+            print('     * "Division" (CSV column name, kept for compatibility)');
             
             _showError('Fehlende Spalten: ${missingHeaders.join(', ')}\n\nGefundene Spalten: ${headers.join(', ')}');
             return;
           } else {
-            print('✅ All required columns found!');
+            print('âœ… All required columns found!');
           }
 
           // Parse CSV data - use same delimiter as header
@@ -504,12 +509,12 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           }
 
           if (csvData.isEmpty) {
-            _showError('Keine gültigen Daten in der CSV-Datei gefunden.');
+            _showError('Keine gÃ¼ltigen Daten in der CSV-Datei gefunden.');
             return;
           }
           
           // Log sample data for debugging
-          print('\n📊 SAMPLE DATA (first 3 rows):');
+          print('\nðŸ“Š SAMPLE DATA (first 3 rows):');
           for (int i = 0; i < csvData.length && i < 3; i++) {
             final row = csvData[i];
             print('Row ${i + 1}: ${row.toString()}');
@@ -545,7 +550,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     _lastNameController.text = player.lastName;
     _emailController.text = player.email ?? '';
     _phoneController.text = player.phone ?? '';
-    _positionController.text = player.position ?? '';
+    _positionController.text = player.classification ?? '';
     _jerseyNumberController.text = player.jerseyNumber ?? '';
     _showPlayerDialog(isEdit: true, player: player);
   }
@@ -608,9 +613,9 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                     child: TextField(
                       controller: _positionController,
                       decoration: const InputDecoration(
-                        labelText: 'Position',
+                        labelText: 'Klassifikation',
                         border: OutlineInputBorder(),
-                        hintText: 'z.B. Blocker, Defender',
+                        hintText: 'z.B. Gruppe A, Gruppe B, Gruppe C',
                       ),
                     ),
                   ),
@@ -647,7 +652,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isEdit ? 'Speichern' : 'Hinzufügen'),
+                : Text(isEdit ? 'Speichern' : 'HinzufÃ¼gen'),
           ),
         ],
       ),
@@ -662,7 +667,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         context: context,
         type: ToastificationType.error,
         style: ToastificationStyle.fillColored,
-        title: const Text('Bitte füllen Sie alle Pflichtfelder aus.'),
+        title: const Text('Bitte fÃ¼llen Sie alle Pflichtfelder aus.'),
         autoCloseDuration: const Duration(seconds: 3),
       );
       return;
@@ -679,7 +684,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         lastName: _lastNameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        position: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
+        classification: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
         jerseyNumber: _jerseyNumberController.text.trim().isEmpty ? null : _jerseyNumberController.text.trim(),
         gender: isEdit ? existingPlayer!.gender : 'male', // Default to male for existing functionality
         createdAt: isEdit ? existingPlayer!.createdAt : DateTime.now(),
@@ -699,7 +704,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: Text('Spieler ${isEdit ? 'aktualisiert' : 'hinzugefügt'}.'),
+          title: Text('Spieler ${isEdit ? 'aktualisiert' : 'hinzugefÃ¼gt'}.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       } else {
@@ -707,7 +712,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: Text('Fehler beim ${isEdit ? 'Aktualisieren' : 'Hinzufügen'} des Spielers.'),
+          title: Text('Fehler beim ${isEdit ? 'Aktualisieren' : 'HinzufÃ¼gen'} des Spielers.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -730,8 +735,8 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Spieler löschen'),
-        content: Text('Möchten Sie ${player.fullName} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'),
+        title: const Text('Spieler lÃ¶schen'),
+        content: Text('MÃ¶chten Sie ${player.fullName} wirklich lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -740,7 +745,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -753,7 +758,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: Text('${player.fullName} wurde gelöscht.'),
+          title: Text('${player.fullName} wurde gelÃ¶scht.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       } else {
@@ -761,7 +766,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: const Text('Fehler beim Löschen des Spielers.'),
+          title: const Text('Fehler beim LÃ¶schen des Spielers.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -773,22 +778,22 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     final players = await _playerService.getAllPlayers().first;
     
     if (players.isEmpty) {
-      _showError('Keine Spieler zum Löschen vorhanden.');
+      _showError('Keine Spieler zum LÃ¶schen vorhanden.');
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Alle Spieler löschen'),
+        title: const Text('Alle Spieler lÃ¶schen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Möchten Sie wirklich alle ${players.length} Spieler löschen?'),
+            Text('MÃ¶chten Sie wirklich alle ${players.length} Spieler lÃ¶schen?'),
             const SizedBox(height: 8),
             const Text(
-              '⚠️ Diese Aktion kann nicht rückgängig gemacht werden!',
+              'âš ï¸ Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
               style: TextStyle(
                 color: Colors.red,
                 fontWeight: FontWeight.bold,
@@ -796,7 +801,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Alle Spielerdaten werden permanent gelöscht.',
+              'Alle Spielerdaten werden permanent gelÃ¶scht.',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -812,7 +817,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Alle löschen'),
+            child: const Text('Alle lÃ¶schen'),
           ),
         ],
       ),
@@ -833,7 +838,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       final players = await _playerService.getAllPlayers().first;
       
       if (players.isEmpty) {
-        _showError('Keine Spieler zum Löschen vorhanden.');
+        _showError('Keine Spieler zum LÃ¶schen vorhanden.');
         return;
       }
 
@@ -856,7 +861,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             context: context,
             type: ToastificationType.success,
             style: ToastificationStyle.fillColored,
-            title: Text('Alle $successCount Spieler erfolgreich gelöscht.'),
+            title: Text('Alle $successCount Spieler erfolgreich gelÃ¶scht.'),
             autoCloseDuration: const Duration(seconds: 4),
           );
         } else {
@@ -864,7 +869,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             context: context,
             type: ToastificationType.warning,
             style: ToastificationStyle.fillColored,
-            title: Text('$successCount Spieler gelöscht, $errorCount Fehler aufgetreten.'),
+            title: Text('$successCount Spieler gelÃ¶scht, $errorCount Fehler aufgetreten.'),
             autoCloseDuration: const Duration(seconds: 4),
           );
         }
@@ -875,7 +880,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: Text('Fehler beim Löschen: $e'),
+          title: Text('Fehler beim LÃ¶schen: $e'),
           autoCloseDuration: const Duration(seconds: 4),
         );
       }
@@ -903,7 +908,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       MaterialPageRoute(
         builder: (context) => const BulkAddPlayersScreen(),
       ),
-    );
+    ).then((_) => _loadPlayerTeamMap());
   }
 
   void _clearFormControllers() {
@@ -921,7 +926,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Team Roster Fix'),
         content: const Text(
-          'Diese Aktion fügt alle Spieler mit einem ClubId zu ihrem Team hinzu, falls sie noch nicht dort sind.',
+          'Diese Aktion fÃ¼gt alle Spieler mit einem ClubId zu ihrem Team hinzu, falls sie noch nicht dort sind.',
         ),
         actions: [
           TextButton(
@@ -952,24 +957,12 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         int errorCount = 0;
 
         for (final player in players) {
-          if (player.clubId != null && player.clubId!.isNotEmpty) {
-            final team = teams.firstWhere(
-              (t) => t.id == player.clubId,
-              orElse: () => throw Exception('Team not found'),
-            );
-            
-            if (!team.rosterPlayerIds.contains(player.id)) {
-              final updatedRosterIds = List<String>.from(team.rosterPlayerIds)..add(player.id);
-              final updatedTeam = team.copyWith(rosterPlayerIds: updatedRosterIds);
-              
-              final success = await _teamService.updateTeam(team.id, updatedTeam);
-              if (success) {
-                successCount++;
-                print('✅ Added player ${player.fullName} to team ${team.name}');
-              } else {
-                errorCount++;
-                print('❌ Failed to add player ${player.fullName} to team ${team.name}');
-              }
+          // Find teams that have this player in their roster
+          for (final team in teams) {
+            if (team.rosterPlayerIds.contains(player.id)) {
+              successCount++;
+              print('âœ… Player ${player.fullName} already in team ${team.name}');
+              break;
             }
           }
         }
@@ -980,7 +973,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               context: context,
               type: ToastificationType.success,
               style: ToastificationStyle.fillColored,
-              title: Text('Alle $successCount Spieler erfolgreich zum Team hinzugefügt.'),
+              title: Text('Alle $successCount Spieler erfolgreich zum Team hinzugefÃ¼gt.'),
               autoCloseDuration: const Duration(seconds: 4),
             );
           } else {
@@ -988,7 +981,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               context: context,
               type: ToastificationType.warning,
               style: ToastificationStyle.fillColored,
-              title: Text('$successCount Spieler hinzugefügt, $errorCount Fehler aufgetreten.'),
+              title: Text('$successCount Spieler hinzugefÃ¼gt, $errorCount Fehler aufgetreten.'),
               autoCloseDuration: const Duration(seconds: 4),
             );
           }

@@ -30,7 +30,7 @@ class _GraphicsControlScreenState extends State<GraphicsControlScreen> {
       id: 'main_game',
       name: 'Main Game Overlay',
       description: 'Full game display with scores, teams, and timer',
-      icon: Icons.sports_volleyball,
+      icon: Icons.sports_handball,
     ),
     OverlayType(
       id: 'score',
@@ -165,7 +165,7 @@ class _GraphicsControlScreenState extends State<GraphicsControlScreen> {
         
         _buildSectionCard(
           'Game Selection',
-          Icons.sports_volleyball,
+          Icons.sports_handball,
           [
             const Text(
               'Select Game for Graphics:',

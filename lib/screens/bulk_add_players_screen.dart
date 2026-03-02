@@ -1,676 +1,343 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/player.dart';
-import '../models/club.dart';
+import '../models/team.dart';
 import '../services/player_service.dart';
-import '../services/club_service.dart';
+import '../services/team_service.dart';
 
 class BulkAddPlayersScreen extends StatefulWidget {
-  const BulkAddPlayersScreen({super.key});
+  final Team? preselectedTeam;
+  const BulkAddPlayersScreen({super.key, this.preselectedTeam});
 
   @override
   State<BulkAddPlayersScreen> createState() => _BulkAddPlayersScreenState();
 }
 
-class PlayerFormData {
+/// Lightweight per-row data — no email required.
+class BulkPlayerRow {
   final TextEditingController firstName = TextEditingController();
   final TextEditingController lastName = TextEditingController();
-  final TextEditingController email = TextEditingController();
-  String? position;
-  String? clubId;
+  final TextEditingController jersey = TextEditingController();
   String? gender;
 
   void dispose() {
     firstName.dispose();
     lastName.dispose();
-    email.dispose();
+    jersey.dispose();
   }
 
-  bool get isComplete {
-    return firstName.text.isNotEmpty &&
-           lastName.text.isNotEmpty &&
-           email.text.isNotEmpty &&
-           position != null &&
-           gender != null;
-  }
-
-  bool get hasAnyData {
-    return firstName.text.isNotEmpty ||
-           lastName.text.isNotEmpty ||
-           email.text.isNotEmpty ||
-           position != null ||
-           clubId != null ||
-           gender != null;
-  }
+  bool get hasData => firstName.text.isNotEmpty || lastName.text.isNotEmpty;
+  bool get isComplete => firstName.text.isNotEmpty && lastName.text.isNotEmpty && gender != null;
 }
 
 class _BulkAddPlayersScreenState extends State<BulkAddPlayersScreen> {
   final PlayerService _playerService = PlayerService();
-  final ClubService _clubService = ClubService();
-  final _formKey = GlobalKey<FormState>();
+  final TeamService _teamService = TeamService();
 
   bool _isLoading = false;
-  List<Club> _clubs = [];
-
-  // List to hold player data
-  List<PlayerFormData> _players = [
-    PlayerFormData(), // Start with one empty player
-    PlayerFormData(), // Always have one extra for adding new players
-  ];
-
-  // Available positions
-  final List<String> _positions = [
-    'Right Wing',
-    'Left Wing',
-    'Allrounder',
-    'Defense',
-    'Specialist',
-    'Goalkeeper',
-  ];
-
-  // Available genders
-  final List<String> _genders = [
-    'male',
-    'female',
-  ];
+  bool _teamsLoading = true;
+  String? _teamsError;
+  List<Team> _teams = [];
+  Team? _selectedTeam;
+  List<BulkPlayerRow> _rows = [BulkPlayerRow()];
 
   @override
   void initState() {
     super.initState();
-    _loadClubs();
+    if (widget.preselectedTeam != null) {
+      _selectedTeam = widget.preselectedTeam;
+    }
+    _loadTeams();
+  }
+
+  Future<void> _loadTeams() async {
+    setState(() { _teamsLoading = true; _teamsError = null; });
+    try {
+      final teams = await _teamService.getAllTeams();
+      if (mounted) {
+        setState(() {
+          _teams = teams..sort((a, b) => a.name.compareTo(b.name));
+          _teamsLoading = false;
+          // Refresh selectedTeam from loaded list so we have latest roster data
+          if (widget.preselectedTeam != null) {
+            _selectedTeam = _teams.firstWhere(
+              (t) => t.id == widget.preselectedTeam!.id,
+              orElse: () => widget.preselectedTeam!,
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _teamsLoading = false; _teamsError = '$e'; });
+    }
   }
 
   @override
   void dispose() {
-    for (var player in _players) {
-      player.dispose();
-    }
+    for (final r in _rows) r.dispose();
     super.dispose();
   }
 
-  Future<void> _loadClubs() async {
+  void _ensureTrailingEmpty() {
+    if (_rows.isEmpty || _rows.last.hasData) _rows.add(BulkPlayerRow());
+  }
+
+  void _removeRow(int i) {
+    setState(() {
+      _rows[i].dispose();
+      _rows.removeAt(i);
+      _ensureTrailingEmpty();
+    });
+  }
+
+  Future<void> _save() async {
+    final ready = _rows.where((r) => r.isComplete).toList();
+    if (ready.isEmpty) { _toast('Keine vollständigen Einträge', ToastificationType.warning); return; }
+    setState(() => _isLoading = true);
     try {
-      final clubs = await _clubService.getAllClubs();
-      setState(() {
-        _clubs = clubs;
-      });
+      final newIds = <String>[];
+      int created = 0, failed = 0;
+      for (final row in ready) {
+        final id = await _playerService.addPlayer(Player(
+          id: '',
+          firstName: row.firstName.text.trim(),
+          lastName: row.lastName.text.trim(),
+          jerseyNumber: row.jersey.text.trim().isEmpty ? null : row.jersey.text.trim(),
+          gender: row.gender!,
+          isActive: true,
+          createdAt: DateTime.now(),
+        ));
+        if (id != null) { newIds.add(id); created++; } else { failed++; }
+      }
+      if (_selectedTeam != null && newIds.isNotEmpty) {
+        final updated = _selectedTeam!.copyWith(rosterPlayerIds: [..._selectedTeam!.rosterPlayerIds, ...newIds]);
+        await _teamService.updateTeam(_selectedTeam!.id, updated);
+      }
+      if (mounted) {
+        final teamMsg = _selectedTeam != null ? ' • mit ${_selectedTeam!.name} verknüpft' : '';
+        _toast('$created Spieler erstellt${failed > 0 ? ', $failed fehler' : ''}$teamMsg', ToastificationType.success);
+        Navigator.of(context).pop();
+      }
     } catch (e) {
-      print('Error loading clubs: $e');
+      _toast('Fehler: $e', ToastificationType.error);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _toast(String msg, ToastificationType type) {
+    toastification.show(
+      context: context, type: type, style: ToastificationStyle.fillColored,
+      title: Text(msg), autoCloseDuration: const Duration(seconds: 4), alignment: Alignment.topCenter,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final completeCount = _rows.where((r) => r.isComplete).length;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spieler Bulk Hinzufügen'),
-        backgroundColor: Colors.green,
+        title: const Text('Spieler Import'),
+        backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save, size: 18),
+                label: Text('$completeCount Spieler speichern'),
+                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green.shade800),
+              ),
+            ),
+        ],
       ),
-      body: Container(
-        padding: const EdgeInsets.all(32),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  const Text(
-                    'Spieler hinzufügen',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${_players.where((p) => p.isComplete).length} Spieler werden erstellt',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Geben Sie für jeden Spieler die erforderlichen Daten ein. Alle Felder außer Verein sind Pflichtfelder.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Players List
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _players.length,
-                  itemBuilder: (context, index) {
-                    return _buildPlayerCard(index);
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Action Buttons
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: const Text('Abbrechen'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _previewPlayers,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Mannschafts-Auswahl
+            Row(
+              children: [
+                const Text('Mannschaft:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 340,
+                  child: _teamsLoading
+                      ? const SizedBox(
+                          height: 40,
+                          child: Row(children: [
+                            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                            SizedBox(width: 10),
+                            Text('Teams werden geladen…', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                          ]),
+                        )
+                      : _teamsError != null
+                          ? Row(children: [
+                              Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
+                              const SizedBox(width: 6),
+                              Expanded(child: Text('Ladefehler: $_teamsError', style: TextStyle(fontSize: 12, color: Colors.red.shade700))),
+                              TextButton(onPressed: _loadTeams, child: const Text('Nochmal')),
+                            ])
+                          : DropdownButtonFormField<Team>(
+                              value: _selectedTeam,
+                              hint: Text(_teams.isEmpty ? 'Keine Teams im System' : 'Keine (nur Spieler anlegen)'),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                              items: [
+                                const DropdownMenuItem<Team>(value: null, child: Text('Ohne Mannschaft')),
+                                ..._teams.map((t) => DropdownMenuItem<Team>(value: t, child: Text(t.name))),
+                              ],
+                              onChanged: (t) => setState(() => _selectedTeam = t),
                             ),
-                          )
-                        : const Text('Spieler Vorschau'),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _createPlayers,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text('Spieler Erstellen'),
-                  ),
-                ],
+                ),
+                const Spacer(),
+                Text('$completeCount vollständige Einträge', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Spalten-Header
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                border: Border.all(color: Colors.green.shade200),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: const Row(children: [
+                SizedBox(width: 40, child: Text('#', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12))),
+                Expanded(flex: 3, child: Text('Vorname *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                SizedBox(width: 8),
+                Expanded(flex: 3, child: Text('Nachname *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                SizedBox(width: 8),
+                SizedBox(width: 70, child: Text('Trikot', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                SizedBox(width: 8),
+                SizedBox(width: 140, child: Text('Geschlecht *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                SizedBox(width: 40),
+              ]),
+            ),
 
-  Widget _buildPlayerCard(int index) {
-    final player = _players[index];
-    final isLast = index == _players.length - 1;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: player.hasAnyData ? Colors.white : Colors.grey.shade50,
-        border: Border.all(
-          color: player.hasAnyData ? Colors.green.shade300 : Colors.grey.shade300,
-          width: player.hasAnyData ? 2 : 1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: player.hasAnyData ? [
-          BoxShadow(
-            color: Colors.green.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ] : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            // Zeilen
+            Expanded(
+              child: Container(
                 decoration: BoxDecoration(
-                  color: player.hasAnyData ? Colors.green : Colors.grey,
-                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.shade200),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
                 ),
-                child: Text(
-                  'Spieler ${index + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
+                child: ListView.builder(
+                  itemCount: _rows.length,
+                  itemExtent: 58.0,
+                  itemBuilder: (_, i) => _buildRow(i),
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Footer
+            Row(children: [
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _rows.add(BulkPlayerRow())),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Zeile hinzufügen'),
+                style: OutlinedButton.styleFrom(foregroundColor: Colors.green.shade700),
               ),
               const Spacer(),
-              if (player.hasAnyData && !isLast)
-                IconButton(
-                  onPressed: () => _removePlayer(index),
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  tooltip: 'Spieler entfernen',
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Abbrechen'),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Form Fields
-          Row(
-            children: [
-              // First Name
-              Expanded(
-                child: TextFormField(
-                  controller: player.firstName,
-                  decoration: InputDecoration(
-                    labelText: 'Vorname *',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.person),
-                  ),
-                  onChanged: (_) {
-                    setState(() {
-                      _ensureEmptyPlayerAtEnd();
-                    });
-                  },
-                  validator: (value) {
-                    if (player.hasAnyData && (value == null || value.trim().isEmpty)) {
-                      return 'Vorname ist erforderlich';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Last Name
-              Expanded(
-                child: TextFormField(
-                  controller: player.lastName,
-                  decoration: InputDecoration(
-                    labelText: 'Nachname *',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.person_outline),
-                  ),
-                  onChanged: (_) {
-                    setState(() {
-                      _ensureEmptyPlayerAtEnd();
-                    });
-                  },
-                  validator: (value) {
-                    if (player.hasAnyData && (value == null || value.trim().isEmpty)) {
-                      return 'Nachname ist erforderlich';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              // Email
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: player.email,
-                  decoration: InputDecoration(
-                    labelText: 'E-Mail *',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) {
-                    setState(() {
-                      _ensureEmptyPlayerAtEnd();
-                    });
-                  },
-                  validator: (value) {
-                    if (player.hasAnyData) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'E-Mail ist erforderlich';
-                      }
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                        return 'Ungültige E-Mail-Adresse';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Position
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: player.position,
-                  decoration: InputDecoration(
-                    labelText: 'Position *',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.sports_volleyball),
-                  ),
-                  items: _positions.map((String position) {
-                    return DropdownMenuItem<String>(
-                      value: position,
-                      child: Text(position),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      player.position = newValue;
-                      _ensureEmptyPlayerAtEnd();
-                    });
-                  },
-                  validator: (value) {
-                    if (player.hasAnyData && value == null) {
-                      return 'Position ist erforderlich';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              // Gender
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: player.gender,
-                  decoration: InputDecoration(
-                    labelText: 'Geschlecht *',
-                    border: const OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.person),
-                  ),
-                  items: _genders.map((String gender) {
-                    return DropdownMenuItem<String>(
-                      value: gender,
-                      child: Text(gender == 'male' ? 'Männlich' : 'Weiblich'),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      player.gender = newValue;
-                      _ensureEmptyPlayerAtEnd();
-                    });
-                  },
-                  validator: (value) {
-                    if (player.hasAnyData && value == null) {
-                      return 'Geschlecht ist erforderlich';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Club (Optional)
-          DropdownButtonFormField<String>(
-            value: player.clubId,
-            decoration: InputDecoration(
-              labelText: 'Verein (Optional)',
-              border: const OutlineInputBorder(),
-              filled: true,
-              fillColor: Colors.white,
-              prefixIcon: const Icon(Icons.groups),
+  Widget _buildRow(int i) {
+    final row = _rows[i];
+    final InputDecoration dec = InputDecoration(
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    );
+    return Container(
+      decoration: BoxDecoration(
+        color: i.isOdd ? Colors.grey.shade50 : Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(width: 40, child: Text('${i + 1}', style: TextStyle(color: Colors.grey.shade500, fontSize: 12))),
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: row.firstName,
+              style: const TextStyle(fontSize: 12),
+              decoration: dec.copyWith(hintText: 'Vorname'),
+              onChanged: (_) => setState(_ensureTrailingEmpty),
             ),
-            items: [
-              const DropdownMenuItem<String>(
-                value: null,
-                child: Text('Kein Verein'),
-              ),
-              ..._clubs.map((Club club) {
-                return DropdownMenuItem<String>(
-                  value: club.id,
-                  child: Text('${club.name} (${club.city})'),
-                );
-              }).toList(),
-            ],
-            onChanged: (String? newValue) {
-              setState(() {
-                player.clubId = newValue;
-                _ensureEmptyPlayerAtEnd();
-              });
-            },
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              controller: row.lastName,
+              style: const TextStyle(fontSize: 12),
+              decoration: dec.copyWith(hintText: 'Nachname'),
+              onChanged: (_) => setState(_ensureTrailingEmpty),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: TextFormField(
+              controller: row.jersey,
+              style: const TextStyle(fontSize: 12),
+              decoration: dec.copyWith(hintText: 'Nr.'),
+              keyboardType: TextInputType.number,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 140,
+            child: DropdownButtonFormField<String>(
+              value: row.gender,
+              isDense: true,
+              decoration: dec,
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              hint: Text('–', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+              items: const [
+                DropdownMenuItem(value: 'male', child: Text('Männlich', style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'female', child: Text('Weiblich', style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'divers', child: Text('Divers', style: TextStyle(fontSize: 12))),
+              ],
+              onChanged: (v) => setState(() { row.gender = v; _ensureTrailingEmpty(); }),
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: IconButton(
+              icon: Icon(Icons.remove_circle_outline, color: Colors.red.shade300, size: 18),
+              onPressed: _rows.length > 1 ? () => _removeRow(i) : null,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
           ),
         ],
       ),
     );
   }
-
-  void _ensureEmptyPlayerAtEnd() {
-    // Remove empty players from the middle
-    _players.removeWhere((player) => 
-        !player.hasAnyData && _players.indexOf(player) != _players.length - 1);
-    
-    // Ensure we always have an empty player at the end
-    if (_players.isEmpty || _players.last.hasAnyData) {
-      _players.add(PlayerFormData());
-    }
-    
-    // But don't have more than one empty at the end
-    while (_players.length > 1 && 
-           !_players[_players.length - 1].hasAnyData && 
-           !_players[_players.length - 2].hasAnyData) {
-      _players.removeLast().dispose();
-    }
-  }
-
-  void _removePlayer(int index) {
-    setState(() {
-      _players[index].dispose();
-      _players.removeAt(index);
-      _ensureEmptyPlayerAtEnd();
-    });
-  }
-
-  void _previewPlayers() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final validPlayers = _players.where((p) => p.isComplete).toList();
-    
-    if (validPlayers.isEmpty) {
-      _showWarningToast('Keine gültigen Spieler zum Anzeigen');
-      return;
-    }
-
-    _showPreviewDialog(validPlayers);
-  }
-
-  void _showPreviewDialog(List<PlayerFormData> validPlayers) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Spieler Vorschau (${validPlayers.length})'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: ListView.builder(
-            itemCount: validPlayers.length,
-            itemBuilder: (context, index) {
-              final player = validPlayers[index];
-              final club = player.clubId != null 
-                  ? _clubs.firstWhere((c) => c.id == player.clubId, orElse: () => Club(id: '', name: 'Unbekannt', city: '', bundesland: '', createdAt: DateTime.now()))
-                  : null;
-              
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green,
-                    child: Text('${index + 1}'),
-                  ),
-                  title: Text('${player.firstName.text} ${player.lastName.text}'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('E-Mail: ${player.email.text}'),
-                      Text('Position: ${player.position}'),
-                      Text('Geschlecht: ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
-                      if (club != null) Text('Verein: ${club.name}'),
-                    ],
-                  ),
-                  isThreeLine: true,
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _createPlayers() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final validPlayers = _players.where((p) => p.isComplete).toList();
-    
-    if (validPlayers.isEmpty) {
-      _showWarningToast('Keine gültigen Spieler zum Erstellen');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Convert form data to Player objects
-      final players = validPlayers.map((playerData) => Player(
-        id: '', // Will be set by Firestore
-        firstName: playerData.firstName.text.trim(),
-        lastName: playerData.lastName.text.trim(),
-        email: playerData.email.text.trim(),
-        position: playerData.position,
-        clubId: playerData.clubId,
-        gender: playerData.gender!,
-        createdAt: DateTime.now(),
-      )).toList();
-
-      // Create players in bulk
-      final results = await _playerService.addPlayersInBulk(players);
-      
-      _showResultsDialog(results);
-      
-    } catch (e) {
-      _showErrorToast('Fehler beim Erstellen der Spieler: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _showResultsDialog(List<String> results) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ergebnisse'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: ListView.builder(
-            itemCount: results.length,
-            itemBuilder: (context, index) {
-              final result = results[index];
-              final isSuccess = result.startsWith('ERFOLG');
-              
-              return ListTile(
-                leading: Icon(
-                  isSuccess ? Icons.check_circle : Icons.error,
-                  color: isSuccess ? Colors.green : Colors.red,
-                ),
-                title: Text(
-                  result.replaceFirst('ERFOLG: ', '').replaceFirst('FEHLER: ', ''),
-                  style: TextStyle(
-                    color: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pop(); // Close screen
-            },
-            child: const Text('Fertig'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      style: ToastificationStyle.fillColored,
-      title: Text(message),
-      autoCloseDuration: const Duration(seconds: 3),
-      alignment: Alignment.topCenter,
-    );
-  }
-
-  void _showErrorToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.error,
-      style: ToastificationStyle.fillColored,
-      title: Text(message),
-      autoCloseDuration: const Duration(seconds: 4),
-      alignment: Alignment.topCenter,
-    );
-  }
-
-  void _showWarningToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.warning,
-      style: ToastificationStyle.fillColored,
-      title: Text(message),
-      autoCloseDuration: const Duration(seconds: 3),
-      alignment: Alignment.topCenter,
-    );
-  }
-} 
+}

@@ -568,7 +568,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
         sprint: _sprintController.text.isNotEmpty ? _sprintController.text.trim() : null,
         attachments: [],
         comments: [],
-                  boardId: 'gbo_main_board', // Will be set to default board by service
+                  boardId: 'rhbl_main_board', // Will be set to default board by service
         position: newPosition,
       );
 

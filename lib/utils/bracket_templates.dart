@@ -2,9 +2,9 @@ import '../models/tournament.dart';
 import 'bracket_id_helper.dart';
 
 class BracketTemplates {
-  /// Template for Women's U18, U16, and Fun - Group phase then direct 3rd vs 4th and 1st vs 2nd
+  /// Template for simple bracket - Group phase then direct 3rd vs 4th and 1st vs 2nd
   static List<CustomBracketNode> getSimpleBracketTemplate(String divisionName) {
-    final gender = BracketIdHelper.getDivisionCode(divisionName);
+    final gender = BracketIdHelper.getCategoryCode(divisionName);
     final cup = BracketIdHelper.getCupCode(divisionName);
     
     return [
@@ -52,10 +52,10 @@ class BracketTemplates {
     ];
   }
   
-  /// Template for Men's and Women's Seniors - Complex bracket with specific match IDs
+  /// Template for complex bracket with specific match IDs (RHBL)
   static List<CustomBracketNode> getSeniorsBracketTemplate(String divisionName) {
-    final gender = BracketIdHelper.getDivisionCode(divisionName);
-    final cup = BracketIdHelper.SENIORS_CUP; // Always A cup for seniors
+    final gender = BracketIdHelper.getCategoryCode(divisionName);
+    final cup = BracketIdHelper.CUP_A; // RHBL cup
     
     return [
       // Pool Stage
@@ -290,7 +290,7 @@ class BracketTemplates {
     ];
   }
   
-  /// Template for Men's Fun - Only Group Phase
+  /// Template for Group Phase Only
   static List<CustomBracketNode> getFunOnlyTemplate(String divisionName) {
     return [
       CustomBracketNode(
@@ -308,30 +308,18 @@ class BracketTemplates {
     ];
   }
   
-  /// Get the appropriate template based on division name
-  static List<CustomBracketNode> getTemplateForDivision(String divisionName) {
-    final lowerDivision = divisionName.toLowerCase();
-    
-    if (lowerDivision.contains('men') && lowerDivision.contains('fun')) {
-      return getFunOnlyTemplate(divisionName);
-    } else if (lowerDivision.contains('senior')) {
-      return getSeniorsBracketTemplate(divisionName);
-    } else if (lowerDivision.contains('u18') || 
-               lowerDivision.contains('u16') || 
-               lowerDivision.contains('fun')) {
-      return getSimpleBracketTemplate(divisionName);
-    }
-    
-    // Default to simple bracket
-    return getSimpleBracketTemplate(divisionName);
+  /// Get the appropriate template based on category name
+  static List<CustomBracketNode> getTemplateForCategory(String divisionName) {
+    // Single league (RHBL) - default to complex bracket
+    return getSeniorsBracketTemplate(divisionName);
   }
   
   /// Get all available templates
   static Map<String, List<CustomBracketNode> Function(String)> getAllTemplates() {
     return {
-      'Simple Bracket (U18/U16/Fun)': getSimpleBracketTemplate,
-      'Seniors Complex Bracket': getSeniorsBracketTemplate,
-      'Fun Only (Group Stage)': getFunOnlyTemplate,
+      'Simple Bracket': getSimpleBracketTemplate,
+      'Complex Bracket': getSeniorsBracketTemplate,
+      'Group Stage Only': getFunOnlyTemplate,
     };
   }
 } 

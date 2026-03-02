@@ -163,7 +163,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            _team!.division,
+                            _team!.city,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -215,7 +215,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Icon(Icons.sports_volleyball, size: 32, color: Colors.blue),
+                        const Icon(Icons.sports_handball, size: 32, color: Colors.blue),
                         const SizedBox(height: 8),
                         const Text(
                           '12',
@@ -353,7 +353,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.sports_volleyball, color: Colors.black87),
+              const Icon(Icons.sports_handball, color: Colors.black87),
               const SizedBox(width: 8),
               const Text(
                 'Turnier Anmeldung',
@@ -382,7 +382,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  _buildTournamentItem('German Beach Open 2024', '25.-27. Mai 2024', 'Hamburg'),
+                  _buildTournamentItem('RHBL Meisterschaft 2024', '25.-27. Mai 2024', 'Hamburg'),
                   _buildTournamentItem('Nord Cup 2024', '15.-16. Juni 2024', 'Bremen'),
                   _buildTournamentItem('Summer Beach Tournament', '20.-22. Juli 2024', 'Rostock'),
                 ],
@@ -473,7 +473,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   const SizedBox(height: 16),
                   
                   _buildSettingItem('Team Name', _team!.name),
-                  _buildSettingItem('Division', _team!.division),
+                  _buildSettingItem('Stadt', _team!.city),
                   _buildSettingItem('Stadt', _team!.city),
                   _buildSettingItem('Bundesland', _team!.bundesland),
                   if (_team!.teamManager != null)
@@ -615,38 +615,8 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
 
   bool _isTeamEligibleForTournament(Tournament tournament) {
     if (_team == null) return false;
-    
-    // Check if team division matches tournament categories
-    String teamDivision = _team!.division.toLowerCase();
-    
-    // Check if team is a senior team (contains "senior" or adult divisions)
-    bool isTeamSenior = teamDivision.contains('senior') || 
-                       teamDivision.contains('men') ||
-                       teamDivision.contains('women') ||
-                       teamDivision.contains('fun');
-    
-    // Check if team is a junior team (contains age groups)
-    bool isTeamJunior = teamDivision.contains('u14') ||
-                       teamDivision.contains('u16') ||
-                       teamDivision.contains('u18') ||
-                       teamDivision.contains('junior');
-    
-    // Check tournament categories
-    for (String category in tournament.categories) {
-      String categoryLower = category.toLowerCase();
-      
-      // Senior teams can register for Senior Cups
-      if (isTeamSenior && categoryLower.contains('seniors')) {
-        return true;
-      }
-      
-      // Junior teams can register for Junior Cups
-      if (isTeamJunior && categoryLower.contains('juniors')) {
-        return true;
-      }
-    }
-    
-    return false;
+    // With categories removed, all teams are potentially eligible
+    return true;
   }
 
   @override
@@ -740,7 +710,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            _team!.division,
+                            _team!.city,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -815,13 +785,10 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                   ),
                   const SizedBox(height: 8),
                   Text('• Team Name: ${_team!.name}'),
-                  Text('• Division: ${_team!.division}'),
                   Text('• Stadt: ${_team!.city}'),
                   Text('• Bundesland: ${_team!.bundesland}'),
                   if (_team!.teamManager != null)
                     Text('• Team Manager: ${_team!.teamManager}'),
-                  if (_team!.clubId != null)
-                    Text('• Verein ID: ${_team!.clubId}'),
                   Text('• Erstellt am: ${_team!.createdAt.day}.${_team!.createdAt.month}.${_team!.createdAt.year}'),
                 ],
               ),
@@ -839,7 +806,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
         children: [
           Row(
             children: [
-              const Icon(Icons.sports_volleyball, color: Colors.black87),
+              const Icon(Icons.sports_handball, color: Colors.black87),
               const SizedBox(width: 8),
               const Text(
                 'Turnier Anmeldung',
@@ -872,7 +839,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                     const SizedBox(height: 16),
                     Text(
                       _team != null 
-                        ? 'Aktuell sind keine Turniere für ${_team!.division} Teams verfügbar.'
+                        ? 'Aktuell sind keine Turniere für ${_team!.city} Teams verfügbar.'
                         : 'Aktuell sind keine Turniere verfügbar.',
                       style: TextStyle(
                         fontSize: 14,
@@ -882,7 +849,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                     const SizedBox(height: 8),
                     if (_team != null) ...[
                       Text(
-                        '• Senior Teams (Men\'s, Women\'s, Seniors, FUN) können sich für "GBO Seniors Cup" Turniere anmelden',
+                        '• Senior Teams (Men\'s, Women\'s, Seniors, FUN) können sich für "RHBL Spieltag" Turniere anmelden',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[500],
@@ -890,7 +857,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '• Junior Teams (U14, U16, U18) können sich für "GBO Juniors Cup" Turniere anmelden',
+                        '• Junior Teams (U14, U16, U18) können sich für "RHBL Spieltag" Turniere anmelden',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[500],
@@ -981,26 +948,6 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: tournament.categories.map((category) =>
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFffd665),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              category,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                        ).toList(),
-                      ),
                       if (tournament.description != null) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -1016,21 +963,6 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                 ),
                 Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2D5016),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        '${tournament.points} Punkte',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () {
@@ -1095,7 +1027,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                   const SizedBox(height: 16),
                   
                   _buildSettingItem('Team Name', _team!.name),
-                  _buildSettingItem('Division', _team!.division),
+                  _buildSettingItem('Stadt', _team!.city),
                   _buildSettingItem('Stadt', _team!.city),
                   _buildSettingItem('Bundesland', _team!.bundesland),
                   if (_team!.teamManager != null)

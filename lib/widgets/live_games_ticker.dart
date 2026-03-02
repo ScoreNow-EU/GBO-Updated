@@ -285,7 +285,7 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  '${game.result?.teamASetWins ?? 0}',
+                  '${game.result?.teamAScore ?? 0}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -323,7 +323,7 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  '${game.result?.teamBSetWins ?? 0}',
+                  '${game.result?.teamBScore ?? 0}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,

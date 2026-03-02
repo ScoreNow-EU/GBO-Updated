@@ -98,7 +98,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return Icon(
-                            Icons.sports_volleyball,
+                            Icons.sports_handball,
                             size: isMobile ? 30 : 40,
                             color: Colors.blue.shade600,
                           );
@@ -106,7 +106,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                       ),
                     )
                   : Icon(
-                      Icons.sports_volleyball,
+                      Icons.sports_handball,
                       size: isMobile ? 30 : 40,
                       color: Colors.blue.shade600,
                     ),
@@ -141,7 +141,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    widget.team.division,
+                    widget.team.city,
                     style: TextStyle(
                       fontSize: isMobile ? 12 : 14,
                       color: Colors.purple.shade800,
@@ -258,7 +258,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
               child: Column(
                 children: [
                   Icon(
-                    Icons.sports_volleyball,
+                    Icons.sports_handball,
                     size: 48,
                     color: Colors.grey[400],
                   ),
@@ -286,9 +286,9 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
 
   Widget _buildTournamentCard(Tournament tournament, bool isMobile) {
     final isRegistered = tournament.isTeamRegistered(widget.team.id);
-    final canRegister = tournament.canRegisterForDivision(widget.team.division, widget.team.division);
-    final registeredCount = tournament.getRegisteredTeamsCount(widget.team.division);
-    final maxTeams = tournament.getMaxTeamsForDivision(widget.team.division);
+    final canRegister = tournament.isRegistrationOpen;
+    final registeredCount = tournament.teamIds.length;
+    final maxTeams = 32;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -358,7 +358,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                           return Container(
                             color: Colors.grey[200],
                             child: Icon(
-                              Icons.sports_volleyball,
+                              Icons.sports_handball,
                               size: isMobile ? 30 : 40,
                               color: Colors.grey[400],
                             ),
@@ -385,28 +385,12 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${tournament.points} Punkte',
-                    style: TextStyle(
-                      fontSize: isMobile ? 12 : 14,
-                      color: Colors.orange.shade800,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
               ],
             ),
             
-            if (tournament.divisions.contains(widget.team.division)) ...[
-              const SizedBox(height: 12),
+            const SizedBox(height: 12),
               
-              // Division Info
+              // Team Info
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -417,7 +401,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Division: ${widget.team.division}',
+                      'Stadt: ${widget.team.city}',
                       style: TextStyle(
                         fontSize: isMobile ? 14 : 16,
                         fontWeight: FontWeight.w600,
@@ -453,31 +437,6 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
                 width: double.infinity,
                 child: _buildActionButton(tournament, isRegistered, canRegister),
               ),
-            ] else ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Dieses Turnier akzeptiert keine Anmeldungen für ${widget.team.division}',
-                        style: TextStyle(
-                          fontSize: isMobile ? 12 : 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ]
           ],
         ),
       ),
@@ -485,6 +444,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
   }
 
   Widget _buildActionButton(Tournament tournament, bool isRegistered, bool canRegister) {
+    final maxTeams = 32;
     if (isRegistered) {
       return ElevatedButton.icon(
         onPressed: _isLoading ? null : () => _unregisterFromTournament(tournament),
@@ -526,9 +486,8 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
       } else if (tournament.registrationDeadline != null && 
                  DateTime.now().isAfter(tournament.registrationDeadline!)) {
         reason = 'Anmeldeschluss überschritten';
-      } else if (tournament.getRegisteredTeamsCount(widget.team.division) >= 
-                 tournament.getMaxTeamsForDivision(widget.team.division)) {
-        reason = 'Division ist voll';
+      } else if (tournament.teamIds.length >= maxTeams) {
+        reason = 'Turnier ist voll';
       }
       
       return ElevatedButton.icon(
@@ -547,16 +506,14 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
   Stream<List<Tournament>> _getFilteredTournaments() {
     switch (_selectedFilter) {
       case 'Verfügbar':
-        return _tournamentService.getTournamentsForTeamRegistration(widget.team.division);
+        return _tournamentService.getTournamentsForTeamRegistration(widget.team.id);
       case 'Angemeldet':
         return _tournamentService.getTournamentsForTeam(widget.team.id);
       case 'Alle':
       default:
         return _tournamentService.getTournamentsWithCache().map((tournaments) => 
             tournaments.where((tournament) => 
-                tournament.approvalStatus == 'approved' &&
-                (tournament.divisions.contains(widget.team.division) ||
-                tournament.isTeamRegistered(widget.team.id))
+                tournament.approvalStatus == 'approved'
             ).toList());
     }
   }
@@ -564,7 +521,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
   String _getEmptyStateMessage() {
     switch (_selectedFilter) {
       case 'Verfügbar':
-        return 'Keine verfügbaren Turniere für Ihre Division gefunden.';
+        return 'Keine verfügbaren Turniere gefunden.';
       case 'Angemeldet':
         return 'Sie sind noch zu keinem Turnier angemeldet.';
       case 'Alle':
@@ -582,7 +539,7 @@ class _TeamTournamentRegistrationScreenState extends State<TeamTournamentRegistr
       final success = await _tournamentService.registerTeamForTournament(
         tournament.id,
         widget.team.id,
-        widget.team.division,
+        widget.team.city,
       );
 
       if (success) {

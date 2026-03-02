@@ -4,12 +4,14 @@ import '../models/tournament.dart';
 import '../models/referee.dart';
 import '../models/team.dart';
 import '../services/referee_service.dart';
+import '../services/geocoding_service.dart';
 import '../services/team_manager_service.dart';
 import '../services/custom_notification_service.dart';
 
 class TournamentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final RefereeService _refereeService = RefereeService();
+  final GeocodingService _geocodingService = GeocodingService();
   final String _collection = 'tournaments';
 
   // Cache for faster subsequent loads
@@ -114,10 +116,10 @@ class TournamentService {
         tournaments.where((tournament) => tournament.status == status).toList());
   }
 
-  // Get tournaments by category with caching
-  Stream<List<Tournament>> getTournamentsByCategory(String category) {
+  // Get tournaments by season
+  Stream<List<Tournament>> getTournamentsBySeason(String season) {
     return getTournamentsWithCache().map((tournaments) => 
-        tournaments.where((tournament) => tournament.hasCategory(category)).toList());
+        tournaments.where((tournament) => tournament.season == season).toList());
   }
 
   // Add a new tournament
@@ -178,11 +180,9 @@ class TournamentService {
       return Tournament(
         id: tournamentId,
         name: tournament.name,
-        categories: tournament.categories,
         location: tournament.location,
         startDate: tournament.startDate,
         endDate: tournament.endDate,
-        points: tournament.points,
         status: tournament.status,
         description: tournament.description,
         imageUrl: tournament.imageUrl,
@@ -192,11 +192,7 @@ class TournamentService {
         refereeGespanne: tournament.refereeGespanne,
         divisionBrackets: tournament.divisionBrackets,
         customBrackets: tournament.customBrackets,
-        criteria: tournament.criteria,
         courts: tournament.courts,
-        divisions: tournament.divisions,
-        divisionTeams: tournament.divisionTeams,
-        divisionMaxTeams: tournament.divisionMaxTeams,
         isRegistrationOpen: tournament.isRegistrationOpen,
         registrationDeadline: tournament.registrationDeadline,
         pools: tournament.pools,
@@ -211,7 +207,7 @@ class TournamentService {
 
   /// Notify team managers about their teams being added to the tournament
   Future<void> _notifyTeamManagers(List<String> teamIds, Tournament tournament) async {
-    print('📬 Sending notifications to team managers...');
+    print('ðŸ“¬ Sending notifications to team managers...');
     
     // Fetch all teams in parallel
     final teamFutures = teamIds.map((teamId) => 
@@ -245,33 +241,33 @@ class TournamentService {
       final managerName = entry.key;
       final teamNames = entry.value;
       
-      print('🔍 Looking up team manager: $managerName');
+      print('ðŸ” Looking up team manager: $managerName');
       final manager = await teamManagerService.getTeamManagerByName(managerName);
       
       if (manager != null) {
-        print('✉️ Sending notification to ${manager.name} (${manager.email})');
+        print('âœ‰ï¸ Sending notification to ${manager.name} (${manager.email})');
         
         String message;
         if (teamNames.length == 1) {
-          message = '${teamNames[0]} wurde zu ${tournament.name} hinzugefügt.';
+          message = '${teamNames[0]} wurde zu ${tournament.name} hinzugefÃ¼gt.';
         } else {
-          message = 'Ihre Teams (${teamNames.join(", ")}) wurden zu ${tournament.name} hinzugefügt.';
+          message = 'Ihre Teams (${teamNames.join(", ")}) wurden zu ${tournament.name} hinzugefÃ¼gt.';
         }
         
         await notificationService.sendCustomNotification(
-          title: 'Teams zum Turnier hinzugefügt',
+          title: 'Teams zum Turnier hinzugefÃ¼gt',
           message: message,
           userEmail: manager.email,
         );
       } else {
-        print('❌ Team manager not found: $managerName');
+        print('âŒ Team manager not found: $managerName');
       }
     }
   }
 
   /// Log all teams and their managers in the tournament
   Future<void> _logTeamsAndManagers(Tournament tournament) async {
-    print('\n👥 Teams in Tournament:');
+    print('\nðŸ‘¥ Teams in Tournament:');
     
     final teamIds = tournament.teamIds;
     
@@ -289,7 +285,7 @@ class TournamentService {
     // Process each team
     for (final teamDoc in teamDocs) {
       if (!teamDoc.exists) {
-        print('   ❌ Team ${teamDoc.id} not found');
+        print('   âŒ Team ${teamDoc.id} not found');
         continue;
       }
 
@@ -298,15 +294,7 @@ class TournamentService {
       final teamManager = teamData['teamManager'] as String?;
       final division = teamData['division'] as String;
 
-      // Find which tournament division this team is in
-      final teamDivisions = tournament.divisionTeams.entries
-          .where((entry) => entry.value.contains(teamDoc.id))
-          .map((entry) => entry.key)
-          .toList();
-
-      print('   📋 Team: $teamName');
-      print('      Division: $division');
-      print('      Tournament Divisions: ${teamDivisions.isEmpty ? "Not assigned to division" : teamDivisions.join(", ")}');
+      print('   ðŸ“‹ Team: $teamName');
       print('      Team Manager: ${teamManager ?? "none"}');
     }
     print(''); // Empty line for better readability
@@ -333,15 +321,6 @@ class TournamentService {
         // Determine the actual start and end dates
         DateTime tournamentStart = tournament.startDate;
         DateTime? tournamentEnd = tournament.endDate;
-        
-        // If tournament has category-specific dates, find the earliest start and latest end
-        if (tournament.categoryStartDates != null && tournament.categoryStartDates!.isNotEmpty) {
-          tournamentStart = tournament.categoryStartDates!.values.reduce((a, b) => a.isBefore(b) ? a : b);
-        }
-        
-        if (tournament.categoryEndDates != null && tournament.categoryEndDates!.isNotEmpty) {
-          tournamentEnd = tournament.categoryEndDates!.values.reduce((a, b) => a.isAfter(b) ? a : b);
-        }
         
         // Convert to date-only for comparison
         final startDate = DateTime(tournamentStart.year, tournamentStart.month, tournamentStart.day);
@@ -402,127 +381,24 @@ class TournamentService {
     return null;
   }
 
-  // Sync pending invitations count for all referees
-  Future<void> syncAllRefereesPendingInvitationsCount() async {
-    try {
-      // First, initialize the pendingInvitations field for all referees
-      await _refereeService.initializePendingInvitationsFieldForAllReferees();
+  // ──────────────────────────────────────────────────────────────────────────
+  // Referee Availability (admin-entered)
+  // ──────────────────────────────────────────────────────────────────────────
 
-      // Get all tournaments
-      final tournamentsSnapshot = await _firestore.collection(_collection).get();
-      final Map<String, List<String>> refereesPendingInvitations = {};
-
-      // Collect pending invitations for each referee
-      for (final doc in tournamentsSnapshot.docs) {
-        final tournament = Tournament.fromMap(doc.data(), doc.id);
-        
-        for (final invitation in tournament.refereeInvitations) {
-          if (invitation.isPending) {
-            refereesPendingInvitations[invitation.refereeId] = 
-                (refereesPendingInvitations[invitation.refereeId] ?? [])..add(tournament.id);
-          }
-        }
-      }
-
-      // Update all referees with their actual pending invitations
-      await _refereeService.updateMultipleRefereesPendingInvitations(refereesPendingInvitations);
-
-      print('Synced pending invitations for ${refereesPendingInvitations.length} referees');
-    } catch (e) {
-      print('Error syncing referees pending invitations: $e');
-    }
-  }
-
-  // Update tournament referee nominations (deprecated but kept for backward compatibility)
-  Future<void> updateTournamentReferees(String tournamentId, List<String> refereeIds) async {
-    try {
-      final tournament = await getTournamentById(tournamentId);
-      if (tournament == null) return;
-
-      // Track changes in pending invitations
-      final Set<String> refereesWithRemovedPendingInvitations = {};
-      final Set<String> refereesWithAddedPendingInvitations = {};
-      
-      // Check for removed pending invitations
-      for (final oldInvitation in tournament.refereeInvitations) {
-        if (oldInvitation.isPending && !refereeIds.contains(oldInvitation.refereeId)) {
-          refereesWithRemovedPendingInvitations.add(oldInvitation.refereeId);
-        }
-      }
-
-      // Check for new pending invitations
-      for (final refereeId in refereeIds) {
-        final existingInvitation = tournament.refereeInvitations
-            .where((inv) => inv.refereeId == refereeId)
-            .firstOrNull;
-        
-        if (existingInvitation == null) {
-          // New invitation
-          refereesWithAddedPendingInvitations.add(refereeId);
-        }
-      }
-
-      // Convert refereeIds to invitations for backward compatibility
-      final invitations = refereeIds.map((refereeId) {
-        // Check if this referee already has an invitation
-        final existingInvitation = tournament.refereeInvitations
-            .where((inv) => inv.refereeId == refereeId)
-            .firstOrNull;
-
-        if (existingInvitation != null) {
-          // Keep existing invitation
-          return existingInvitation;
-        } else {
-          // Create new pending invitation
-          return RefereeInvitation(
-            refereeId: refereeId,
-            status: 'pending',
-            invitedAt: DateTime.now(),
-          );
-        }
-      }).toList();
-
-      await _firestore
-          .collection(_collection)
-          .doc(tournamentId)
-          .update({'refereeInvitations': invitations.map((inv) => inv.toMap()).toList()});
-
-      // Update pending invitations for affected referees
-      for (final refereeId in refereesWithRemovedPendingInvitations) {
-        await _refereeService.removePendingInvitation(refereeId, tournamentId);
-      }
-      
-      for (final refereeId in refereesWithAddedPendingInvitations) {
-        await _refereeService.addPendingInvitation(refereeId, tournamentId);
-      }
-
-      _invalidateCache();
-    } catch (e) {
-      print('Error updating tournament referees: $e');
-    }
-  }
-
-  // Invite a referee to a tournament
-  Future<bool> inviteRefereeToTournament(String tournamentId, String refereeId) async {
+  /// Add a referee to the tournament's availability list (status: 'pending').
+  Future<bool> addRefereeToTournament(String tournamentId, String refereeId) async {
     try {
       final tournament = await getTournamentById(tournamentId);
       if (tournament == null) return false;
 
-      // Check if referee is already invited
-      final existingInvitation = tournament.refereeInvitations
-          .where((invitation) => invitation.refereeId == refereeId)
-          .firstOrNull;
-
-      if (existingInvitation != null) {
-        // Already invited, don't duplicate
+      // Don't duplicate
+      if (tournament.refereeInvitations.any((inv) => inv.refereeId == refereeId)) {
         return false;
       }
 
-      // Add new invitation
       final newInvitation = RefereeInvitation(
         refereeId: refereeId,
         status: 'pending',
-        invitedAt: DateTime.now(),
       );
 
       final updatedInvitations = [...tournament.refereeInvitations, newInvitation];
@@ -531,63 +407,253 @@ class TournamentService {
         'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
       });
 
-      // Add pending invitation to referee
-      await _refereeService.addPendingInvitation(refereeId, tournamentId);
-
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error inviting referee to tournament: $e');
+      print('Error adding referee to tournament: $e');
       return false;
     }
   }
 
-  // Respond to referee invitation
-  Future<bool> respondToRefereeInvitation(
-    String tournamentId, 
-    String refereeId, 
-    String response, // 'accepted', 'declined', 'pending'
-    {String? notes}
-  ) async {
+  /// Remove a referee from the tournament's availability list entirely.
+  Future<bool> removeRefereeFromTournament(String tournamentId, String refereeId) async {
     try {
       final tournament = await getTournamentById(tournamentId);
       if (tournament == null) return false;
 
-      // Find the invitation
+      final updatedInvitations = tournament.refereeInvitations
+          .where((inv) => inv.refereeId != refereeId)
+          .toList();
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error removing referee from tournament: $e');
+      return false;
+    }
+  }
+
+  /// Set a referee's availability status (admin enters accept/decline after external contact).
+  Future<bool> setRefereeAvailability(
+    String tournamentId,
+    String refereeId,
+    String status, // 'pending', 'accepted', 'declined'
+    {
+    String? notes,
+    DateTime? availableFrom,
+    DateTime? availableUntil,
+    bool? isFullDay,
+  }) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
       final invitationIndex = tournament.refereeInvitations
           .indexWhere((invitation) => invitation.refereeId == refereeId);
 
       if (invitationIndex == -1) return false;
 
-      final oldInvitation = tournament.refereeInvitations[invitationIndex];
-
-      // Update the invitation
       final updatedInvitations = List<RefereeInvitation>.from(tournament.refereeInvitations);
-      updatedInvitations[invitationIndex] = tournament.refereeInvitations[invitationIndex].copyWith(
-        status: response,
-        respondedAt: response != 'pending' ? DateTime.now() : null,
+      updatedInvitations[invitationIndex] = updatedInvitations[invitationIndex].copyWith(
+        status: status,
+        respondedAt: status != 'pending' ? DateTime.now() : null,
         notes: notes,
+        availableFrom: availableFrom,
+        availableUntil: availableUntil,
+        isFullDay: isFullDay,
       );
 
       await _firestore.collection(_collection).doc(tournamentId).update({
         'refereeInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
       });
 
-      // Update pending invitations for referee
-      if (oldInvitation.status == 'pending' && response != 'pending') {
-        // Was pending, now responded - remove from pending
-        await _refereeService.removePendingInvitation(refereeId, tournamentId);
-      } else if (oldInvitation.status != 'pending' && response == 'pending') {
-        // Was responded, now pending again - add to pending
-        await _refereeService.addPendingInvitation(refereeId, tournamentId);
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error setting referee availability: $e');
+      return false;
+    }
+  }
+
+  // Legacy method — kept for backward compat but simplified
+  Future<bool> inviteRefereeToTournament(String tournamentId, String refereeId) async {
+    return addRefereeToTournament(tournamentId, refereeId);
+  }
+
+  // Legacy method — kept for backward compat but simplified
+  Future<bool> respondToRefereeInvitation(
+    String tournamentId,
+    String refereeId,
+    String response,
+    {String? notes}
+  ) async {
+    return setRefereeAvailability(tournamentId, refereeId, response, notes: notes);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Kampfgericht Availability (admin-entered)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Add a Kampfgericht member to the tournament's availability list.
+  Future<bool> addKampfgerichtToTournament(String tournamentId, String memberId) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      if (tournament.kampfgerichtInvitations.any((inv) => inv.memberId == memberId)) {
+        return false;
       }
+
+      final newInvitation = KampfgerichtInvitation(
+        memberId: memberId,
+        status: 'pending',
+      );
+
+      final updatedInvitations = [...tournament.kampfgerichtInvitations, newInvitation];
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'kampfgerichtInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
 
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error responding to referee invitation: $e');
+      print('Error adding Kampfgericht member to tournament: $e');
       return false;
     }
+  }
+
+  /// Remove a Kampfgericht member from the tournament.
+  Future<bool> removeKampfgerichtFromTournament(String tournamentId, String memberId) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      final updatedInvitations = tournament.kampfgerichtInvitations
+          .where((inv) => inv.memberId != memberId)
+          .toList();
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'kampfgerichtInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error removing Kampfgericht member from tournament: $e');
+      return false;
+    }
+  }
+
+  /// Set a Kampfgericht member's availability status.
+  Future<bool> setKampfgerichtAvailability(
+    String tournamentId,
+    String memberId,
+    String status,
+    {
+    String? notes,
+    DateTime? availableFrom,
+    DateTime? availableUntil,
+    bool? isFullDay,
+  }) async {
+    try {
+      final tournament = await getTournamentById(tournamentId);
+      if (tournament == null) return false;
+
+      final invitationIndex = tournament.kampfgerichtInvitations
+          .indexWhere((inv) => inv.memberId == memberId);
+
+      if (invitationIndex == -1) return false;
+
+      final updatedInvitations = List<KampfgerichtInvitation>.from(tournament.kampfgerichtInvitations);
+      updatedInvitations[invitationIndex] = updatedInvitations[invitationIndex].copyWith(
+        status: status,
+        respondedAt: status != 'pending' ? DateTime.now() : null,
+        notes: notes,
+        availableFrom: availableFrom,
+        availableUntil: availableUntil,
+        isFullDay: isFullDay,
+      );
+
+      await _firestore.collection(_collection).doc(tournamentId).update({
+        'kampfgerichtInvitations': updatedInvitations.map((inv) => inv.toMap()).toList(),
+      });
+
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error setting Kampfgericht availability: $e');
+      return false;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Venue address and geocoding
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /// Update venue address and auto-geocode coordinates.
+  Future<bool> updateVenueAddress(
+    String tournamentId, {
+    String? venueStreet,
+    String? venueHouseNumber,
+    String? venuePlz,
+    String? location,
+  }) async {
+    try {
+      final updates = <String, dynamic>{};
+      if (venueStreet != null) updates['venueStreet'] = venueStreet;
+      if (venueHouseNumber != null) updates['venueHouseNumber'] = venueHouseNumber;
+      if (venuePlz != null) updates['venuePlz'] = venuePlz;
+      if (location != null) updates['location'] = location;
+
+      // Auto-geocode
+      final coords = await _geocodingService.geocodeAddress(
+        street: venueStreet,
+        houseNumber: venueHouseNumber,
+        plz: venuePlz,
+        city: location,
+      );
+      if (coords != null) {
+        updates['venueLatitude'] = coords['lat'];
+        updates['venueLongitude'] = coords['lng'];
+      }
+
+      await _firestore.collection(_collection).doc(tournamentId).update(updates);
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      print('Error updating venue address: $e');
+      return false;
+    }
+  }
+
+  /// Calculate distances between venue and all accepted referees/Kampfgericht.
+  /// Returns a map of officialId → DistanceResult.
+  Future<Map<String, DistanceResult>> getDistancesToVenue(Tournament tournament) async {
+    final distances = <String, DistanceResult>{};
+    if (!tournament.hasVenueCoordinates) return distances;
+
+    final venueLat = tournament.venueLatitude!;
+    final venueLng = tournament.venueLongitude!;
+
+    // Get all accepted referees
+    for (final invitation in tournament.refereeInvitations) {
+      final referee = await _refereeService.getRefereeById(invitation.refereeId);
+      if (referee != null && referee.hasCoordinates) {
+        final result = await _geocodingService.calculateDrivingDistance(
+          referee.latitude!, referee.longitude!, venueLat, venueLng,
+        );
+        if (result != null) {
+          distances[referee.id] = result;
+        }
+      }
+    }
+
+    return distances;
   }
 
   // Preload tournaments for faster initial access
@@ -631,24 +697,20 @@ class TournamentService {
     List<Tournament> sampleTournaments = [
       Tournament(
         id: '',
-        name: 'Herrenhäuser Beachcup 2025',
-        categories: ['GBO Juniors Cup', 'GBO Seniors Cup'], // Both categories
-        location: 'Hannover, DEU',
-        startDate: DateTime(2025, 6, 13),
-        endDate: DateTime(2025, 6, 14),
-        points: 20,
+        name: 'RHBL Spieltag 1',
+        location: 'Berlin, DEU',
+        startDate: DateTime(2025, 9, 13),
+        endDate: DateTime(2025, 9, 14),
         status: 'upcoming',
-        description: 'Annual beach handball tournament in Hannover for all age groups',
+        description: 'Erster Spieltag der Rollstuhlhandball Bundesliga Saison 2025/26',
       ),
       Tournament(
         id: '',
-        name: 'Verdener Beach-Cup mU18 + mU16',
-        categories: ['GBO Juniors Cup'],
-        location: 'Verden, DEU',
-        startDate: DateTime(2025, 7, 5),
-        points: 15,
+        name: 'RHBL Spieltag 2',
+        location: 'Hamburg, DEU',
+        startDate: DateTime(2025, 10, 5),
         status: 'upcoming',
-        description: 'Junior tournament for U18 and U16 divisions',
+        description: 'Zweiter Spieltag der Rollstuhlhandball Bundesliga',
       ),
     ];
 
@@ -657,78 +719,60 @@ class TournamentService {
     }
   }
 
-  // Register a team for a tournament division
-  Future<bool> registerTeamForTournament(String tournamentId, String teamId, String division, {List<Map<String, String>>? roster}) async {
+  // Register a team for a tournament
+  Future<bool> registerTeamForTournament(String tournamentId, String teamId, String category, {List<Map<String, String>>? roster}) async {
     try {
-      print('🏆 Registering team $teamId for tournament $tournamentId in division $division');
+      print('ðŸ† Registering team $teamId for tournament $tournamentId');
       
-      // Get the tournament first
       final tournament = await getTournamentById(tournamentId);
       if (tournament == null) {
-        print('❌ Tournament not found: $tournamentId');
+        print('âŒ Tournament not found: $tournamentId');
         return false;
       }
-      print('📅 Found tournament: ${tournament.name}');
+      print('ðŸ“… Found tournament: ${tournament.name}');
 
-      // Check if team can register
+      // Check if team exists
       final team = await FirebaseFirestore.instance.collection('teams').doc(teamId).get();
       if (!team.exists) {
-        print('❌ Team not found: $teamId');
+        print('âŒ Team not found: $teamId');
         return false;
       }
       
       final teamData = team.data() as Map<String, dynamic>;
-      final teamDivision = teamData['division'] as String;
       final teamName = teamData['name'] as String;
-      final teamManager = teamData['teamManager'];
-      print('👥 Found team: $teamName (Manager: $teamManager)');
-      
-      if (!tournament.canRegisterForDivision(division, teamDivision)) {
-        print('❌ Team cannot register for division $division (team division: $teamDivision)');
-        return false;
-      }
+      print('ðŸ‘¥ Found team: $teamName');
 
       // Check if team is already registered
       if (tournament.isTeamRegistered(teamId)) {
-        print('❌ Team is already registered');
+        print('âŒ Team is already registered');
         return false;
       }
 
-      // Update the tournament with the new team registration
-      Map<String, List<String>> updatedDivisionTeams = Map.from(tournament.divisionTeams);
-      if (!updatedDivisionTeams.containsKey(division)) {
-        updatedDivisionTeams[division] = [];
-      }
-      updatedDivisionTeams[division]!.add(teamId);
-      print('✅ Added team to division $division');
-
-      // Also add to general teamIds for backward compatibility
+      // Add to general teamIds
       List<String> updatedTeamIds = List.from(tournament.teamIds);
       if (!updatedTeamIds.contains(teamId)) {
         updatedTeamIds.add(teamId);
       }
 
       Map<String, dynamic> updateData = {
-        'divisionTeams': updatedDivisionTeams.map((key, value) => MapEntry(key, value)),
         'teamIds': updatedTeamIds,
       };
 
-      // Store roster information if provided
       if (roster != null && roster.isNotEmpty) {
         updateData['rosters'] = {
           ...tournament.toMap()['rosters'] ?? {},
           teamId: roster,
         };
-        print('📋 Added roster information for team');
+        print('ðŸ“‹ Added roster information for team');
       }
 
       await _firestore.collection(_collection).doc(tournamentId).update(updateData);
-      print('💾 Tournament updated with new team registration');
+      print('ðŸ’¾ Tournament updated with new team registration');
 
       _invalidateCache();
       return true;
     } catch (e) {
-      print('❌ Error registering team for tournament: $e');
+      print('âŒ Error registering team for tournament: $e');
       return false;
     }
   }
@@ -739,26 +783,12 @@ class TournamentService {
       final tournament = await getTournamentById(tournamentId);
       if (tournament == null) return false;
 
-      // Find and remove team from division
-      Map<String, List<String>> updatedDivisionTeams = Map.from(tournament.divisionTeams);
-      bool teamFound = false;
-      
-      for (String division in updatedDivisionTeams.keys) {
-        if (updatedDivisionTeams[division]!.contains(teamId)) {
-          updatedDivisionTeams[division]!.remove(teamId);
-          teamFound = true;
-          break;
-        }
-      }
+      if (!tournament.teamIds.contains(teamId)) return false;
 
-      if (!teamFound) return false;
-
-      // Also remove from general teamIds
       List<String> updatedTeamIds = List.from(tournament.teamIds);
       updatedTeamIds.remove(teamId);
 
       await _firestore.collection(_collection).doc(tournamentId).update({
-        'divisionTeams': updatedDivisionTeams.map((key, value) => MapEntry(key, value)),
         'teamIds': updatedTeamIds,
       });
 
@@ -770,18 +800,14 @@ class TournamentService {
     }
   }
 
-  // Update tournament divisions and settings
-  Future<bool> updateTournamentDivisions(String tournamentId, {
-    List<String>? divisions,
-    Map<String, int>? divisionMaxTeams,
+  // Update tournament registration settings
+  Future<bool> updateTournamentRegistration(String tournamentId, {
     bool? isRegistrationOpen,
     DateTime? registrationDeadline,
   }) async {
     try {
       Map<String, dynamic> updates = {};
       
-      if (divisions != null) updates['divisions'] = divisions;
-      if (divisionMaxTeams != null) updates['divisionMaxTeams'] = divisionMaxTeams;
       if (isRegistrationOpen != null) updates['isRegistrationOpen'] = isRegistrationOpen;
       if (registrationDeadline != null) {
         updates['registrationDeadline'] = registrationDeadline.millisecondsSinceEpoch;
@@ -791,19 +817,19 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error updating tournament divisions: $e');
+      print('Error updating tournament registration: $e');
       return false;
     }
   }
 
   // Get tournaments that a specific team can register for
-  Stream<List<Tournament>> getTournamentsForTeamRegistration(String teamDivision) {
+  Stream<List<Tournament>> getTournamentsForTeamRegistration(String teamId) {
     return getTournamentsWithCache().map((tournaments) => 
         tournaments.where((tournament) => 
             tournament.approvalStatus == 'approved' &&
             tournament.isRegistrationOpen && 
-            tournament.divisions.contains(teamDivision) &&
             tournament.status == 'upcoming' &&
+            !tournament.isTeamRegistered(teamId) &&
             (tournament.registrationDeadline == null || 
              DateTime.now().isBefore(tournament.registrationDeadline!))
         ).toList());
@@ -854,63 +880,10 @@ class TournamentService {
         ).toList());
   }
 
-  // Update existing tournaments to have default divisions if they don't have any
-  Future<void> updateTournamentsWithDefaultDivisions() async {
-    try {
-      final snapshot = await _firestore.collection(_collection).get();
-      
-      for (final doc in snapshot.docs) {
-        final tournament = Tournament.fromMap(doc.data(), doc.id);
-        
-        // Skip if tournament already has divisions configured
-        if (tournament.divisions.isNotEmpty) continue;
-        
-        // Configure default divisions based on categories
-        List<String> defaultDivisions = [];
-        Map<String, int> defaultMaxTeams = {};
-        
-        if (tournament.categories.contains('GBO Seniors Cup')) {
-          defaultDivisions.addAll([
-            'Women\'s Seniors',
-            'Women\'s FUN',
-            'Men\'s Seniors', 
-            'Men\'s FUN',
-          ]);
-          for (String division in defaultDivisions) {
-            defaultMaxTeams[division] = 32;
-          }
-        }
-        
-        if (tournament.categories.contains('GBO Juniors Cup')) {
-          defaultDivisions.addAll([
-            'Women\'s U14',
-            'Women\'s U16',
-            'Women\'s U18',
-            'Men\'s U14',
-            'Men\'s U16',
-            'Men\'s U18',
-          ]);
-          for (String division in ['Women\'s U14', 'Women\'s U16', 'Women\'s U18', 'Men\'s U14', 'Men\'s U16', 'Men\'s U18']) {
-            defaultMaxTeams[division] = 32;
-          }
-        }
-        
-        // Update tournament with default divisions
-        if (defaultDivisions.isNotEmpty) {
-          await _firestore.collection(_collection).doc(doc.id).update({
-            'divisions': defaultDivisions,
-            'divisionMaxTeams': defaultMaxTeams,
-            'isRegistrationOpen': true,
-          });
-          print('Updated tournament ${tournament.name} with default divisions: $defaultDivisions');
-        }
-      }
-      
-      // Invalidate cache to reload updated tournaments
-      _invalidateCache();
-    } catch (e) {
-      print('Error updating tournaments with default divisions: $e');
-    }
+  // Placeholder: update tournaments with default settings for RHBL
+  Future<void> updateTournamentsWithDefaultSettings() async {
+    // RHBL doesn't use categories - nothing to do
+    return;
   }
 
   // Migrate all tournaments to 2025 season
@@ -934,27 +907,13 @@ class TournamentService {
       // Invalidate cache
       _invalidateCache();
       
-      print('✅ Successfully migrated $count tournaments to 2025 season');
+      print('âœ… Successfully migrated $count tournaments to 2025 season');
       return count;
     } catch (e) {
-      print('❌ Error migrating tournaments: $e');
+      print('âŒ Error migrating tournaments: $e');
       rethrow;
     }
   }
 
-  // Update tournament points manually
-  Future<void> updateTournamentPoints(String tournamentId, int points) async {
-    try {
-      await _firestore
-          .collection(_collection)
-          .doc(tournamentId)
-          .update({'points': points});
-      
-      // Invalidate cache to ensure fresh data
-      _invalidateCache();
-    } catch (e) {
-      print('Error updating tournament points: $e');
-      rethrow;
-    }
-  }
+  // Removed: updateTournamentPoints (no longer used in RHBL)
 } 

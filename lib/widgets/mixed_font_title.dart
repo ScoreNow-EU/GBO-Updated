@@ -13,7 +13,7 @@ class MixedFontTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'GERMAN BEACH OPEN',
+      'ROLLSTUHLHANDBALL BUNDESLIGA',
       style: TextStyle(
         fontFamily: 'MyriadPro',
         fontSize: fontSize + 4,

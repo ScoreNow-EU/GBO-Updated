@@ -20,7 +20,6 @@ class LiveScoringService {
   Stream<GameState> streamGameState(String gameId) {
     final controller = _getGameStateController(gameId);
     
-    // Initialize with default state if not already done
     _loadGameState(gameId).then((state) {
       if (!controller.isClosed) {
         controller.add(state);
@@ -43,10 +42,9 @@ class LiveScoringService {
           .map((doc) => GameEvent.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
       
-      // Sort events by timestamp in memory (avoids need for compound index)
       events.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-      // Load game time and state from Firestore if exists
+      // Load game time and state from Firestore
       final gameStateDoc = await _firestore
           .collection('gameStates')
           .doc(gameId)
@@ -54,10 +52,9 @@ class LiveScoringService {
 
       GameTime gameTime = GameTime();
       bool isRunning = false;
-      int currentSet = 1;
-      int teamASetWins = 0;
-      int teamBSetWins = 0;
-      List<SetScore> setScores = [];
+      int currentHalf = 1;
+      int teamAScore = 0;
+      int teamBScore = 0;
 
       if (gameStateDoc.exists) {
         final data = gameStateDoc.data()!;
@@ -67,30 +64,16 @@ class LiveScoringService {
           currentPeriod: data['currentPeriod'] ?? 1,
         );
         isRunning = data['isRunning'] ?? false;
-        currentSet = data['currentSet'] ?? 1;
-        teamASetWins = data['teamASetWins'] ?? 0;
-        teamBSetWins = data['teamBSetWins'] ?? 0;
-        
-        if (data['setScores'] != null) {
-          setScores = (data['setScores'] as List)
-              .map((s) => SetScore(
-                    setNumber: s['setNumber'],
-                    teamAId: s['teamAId'],
-                    teamBId: s['teamBId'],
-                    teamAScore: s['teamAScore'],
-                    teamBScore: s['teamBScore'],
-                    isCompleted: s['isCompleted'] ?? false,
-                  ))
-              .toList();
-        }
+        currentHalf = data['currentHalf'] ?? data['currentSet'] ?? 1;
+        teamAScore = data['teamAScore'] ?? data['teamASetWins'] ?? 0;
+        teamBScore = data['teamBScore'] ?? data['teamBSetWins'] ?? 0;
       }
 
       return GameState(
         gameId: gameId,
-        currentSet: currentSet,
-        teamASetWins: teamASetWins,
-        teamBSetWins: teamBSetWins,
-        setScores: setScores,
+        currentHalf: currentHalf,
+        teamAScore: teamAScore,
+        teamBScore: teamBScore,
         gameTime: gameTime,
         isRunning: isRunning,
         events: events,
@@ -112,17 +95,9 @@ class LiveScoringService {
         'seconds': state.gameTime.seconds,
         'currentPeriod': state.gameTime.currentPeriod,
         'isRunning': state.isRunning,
-        'currentSet': state.currentSet,
-        'teamASetWins': state.teamASetWins,
-        'teamBSetWins': state.teamBSetWins,
-        'setScores': state.setScores.map((s) => {
-          'setNumber': s.setNumber,
-          'teamAId': s.teamAId,
-          'teamBId': s.teamBId,
-          'teamAScore': s.teamAScore,
-          'teamBScore': s.teamBScore,
-          'isCompleted': s.isCompleted,
-        }).toList(),
+        'currentHalf': state.currentHalf,
+        'teamAScore': state.teamAScore,
+        'teamBScore': state.teamBScore,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -152,7 +127,7 @@ class LiveScoringService {
       await _saveGameState(newState);
       _updateGameState(gameId, newState);
       
-      // Auto-pause at half time and full time
+      // Auto-pause at half time (15:00) and full time
       if (newGameTime.isHalfTime && state.gameTime.currentPeriod == 1) {
         await pauseGameTimer(gameId);
       } else if (newGameTime.isFullTime) {
@@ -180,6 +155,7 @@ class LiveScoringService {
       currentPeriod: 2,
     );
     final updatedState = currentState.copyWith(
+      currentHalf: 2,
       gameTime: newGameTime,
       isRunning: false,
     );
@@ -202,7 +178,7 @@ class LiveScoringService {
       final currentState = await _loadGameState(gameId);
       
       final event = GameEvent(
-        id: '', // Will be set by Firestore
+        id: '',
         gameId: gameId,
         playerId: playerId,
         playerName: playerName,
@@ -211,7 +187,7 @@ class LiveScoringService {
         eventType: eventType,
         timestamp: DateTime.now(),
         gameMinute: currentState.gameTime.minutes,
-        setNumber: currentState.currentSet,
+        half: currentState.currentHalf,
         notes: notes,
       );
 
@@ -219,10 +195,29 @@ class LiveScoringService {
       final docRef = await _firestore.collection('gameEvents').add(event.toJson());
       final savedEvent = event.copyWith(id: docRef.id);
 
+      // Update scores if it's a scoring event
+      int newTeamAScore = currentState.teamAScore;
+      int newTeamBScore = currentState.teamBScore;
+      
+      if (eventType == GameEventType.goal || eventType == GameEventType.sevenMeterHit) {
+        if (teamId == (currentState.events.isNotEmpty 
+            ? _getTeamAId(currentState) 
+            : teamId)) {
+          newTeamAScore++;
+        } else {
+          newTeamBScore++;
+        }
+      }
+
       // Update local state and broadcast
       final updatedEvents = [...currentState.events, savedEvent];
-      final updatedState = currentState.copyWith(events: updatedEvents);
+      final updatedState = currentState.copyWith(
+        events: updatedEvents,
+        teamAScore: newTeamAScore,
+        teamBScore: newTeamBScore,
+      );
       
+      await _saveGameState(updatedState);
       _updateGameState(gameId, updatedState);
       
       print('✅ Game event added: ${eventType.toString()} by $playerName');
@@ -230,6 +225,18 @@ class LiveScoringService {
       print('❌ Error adding game event: $e');
       throw e;
     }
+  }
+
+  // Helper to determine team A from events
+  String? _getTeamAId(GameState state) {
+    // Team A is determined by the first scoring event's team
+    for (final event in state.events) {
+      if (event.eventType == GameEventType.goal || 
+          event.eventType == GameEventType.sevenMeterHit) {
+        return event.teamId;
+      }
+    }
+    return null;
   }
 
   // Remove last event (undo)
@@ -251,8 +258,13 @@ class LiveScoringService {
       final updatedEvents = currentState.events
           .where((e) => e.id != lastEvent.id)
           .toList();
-      final updatedState = currentState.copyWith(events: updatedEvents);
       
+      // Recalculate scores
+      final updatedState = _recalculateScores(
+        currentState.copyWith(events: updatedEvents),
+      );
+      
+      await _saveGameState(updatedState);
       _updateGameState(gameId, updatedState);
       
       print('✅ Last event removed: ${lastEvent.eventType.toString()}');
@@ -262,120 +274,48 @@ class LiveScoringService {
     }
   }
 
-  // Complete current set by time (beach handball rules)
-  Future<void> completeSetByTime(String gameId, String teamAId, String teamBId) async {
-    try {
-      final currentState = await _loadGameState(gameId);
-      final teamAScore = currentState.getCurrentSetScore(teamAId);
-      final teamBScore = currentState.getCurrentSetScore(teamBId);
-      
-      // Determine winner based on score when time runs out
-      String? winnerId;
-      if (teamAScore > teamBScore) {
-        winnerId = teamAId;
-      } else if (teamBScore > teamAScore) {
-        winnerId = teamBId;
+  // Recalculate scores from events
+  GameState _recalculateScores(GameState state) {
+    int teamAScore = 0;
+    int teamBScore = 0;
+    String? teamAId;
+    
+    for (final event in state.events) {
+      if (event.eventType == GameEventType.goal || 
+          event.eventType == GameEventType.sevenMeterHit) {
+        teamAId ??= event.teamId;
+        if (event.teamId == teamAId) {
+          teamAScore++;
+        } else {
+          teamBScore++;
+        }
       }
-      // If tied, winnerId remains null (tie)
-      
-      // Create completed set score
-      final completedSet = SetScore(
-        setNumber: currentState.currentSet,
-        teamAId: teamAId,
-        teamBId: teamBId,
-        teamAScore: teamAScore,
-        teamBScore: teamBScore,
-        isCompleted: true,
-      );
-      
-      // Update set wins (only if there's a winner)
-      final newTeamASetWins = winnerId == teamAId 
-          ? currentState.teamASetWins + 1 
-          : currentState.teamASetWins;
-      final newTeamBSetWins = winnerId == teamBId 
-          ? currentState.teamBSetWins + 1 
-          : currentState.teamBSetWins;
-      
-      // Reset timer for next set
-      final newGameTime = GameTime(
-        minutes: 0,
-        seconds: 0,
-        currentPeriod: 1,
-      );
-      
-      // Update state
-      final updatedSetScores = [...currentState.setScores, completedSet];
-      final updatedState = currentState.copyWith(
-        currentSet: currentState.currentSet + 1,
-        teamASetWins: newTeamASetWins,
-        teamBSetWins: newTeamBSetWins,
-        setScores: updatedSetScores,
-        gameTime: newGameTime,
-        isRunning: false,
-      );
-      
-      await _saveGameState(updatedState);
-      _updateGameState(gameId, updatedState);
-      
-      print('✅ Set ${currentState.currentSet} completed by time - Score: $teamAScore:$teamBScore');
-    } catch (e) {
-      print('❌ Error completing set by time: $e');
-      throw e;
     }
+    
+    return state.copyWith(
+      teamAScore: teamAScore,
+      teamBScore: teamBScore,
+    );
   }
 
-  // Complete current set (traditional rules - keeping for compatibility)
-  Future<void> completeCurrentSet(String gameId, String teamAId, String teamBId) async {
+  // Complete current half
+  Future<void> completeHalf(String gameId) async {
     try {
       final currentState = await _loadGameState(gameId);
-      final teamAScore = currentState.getCurrentSetScore(teamAId);
-      final teamBScore = currentState.getCurrentSetScore(teamBId);
       
-      // Determine winner (assuming 15 points to win, must win by 2)
-      String? winnerId;
-      if (teamAScore >= 15 && teamAScore >= teamBScore + 2) {
-        winnerId = teamAId;
-      } else if (teamBScore >= 15 && teamBScore >= teamAScore + 2) {
-        winnerId = teamBId;
+      if (currentState.currentHalf == 1) {
+        // Move to second half
+        await startSecondHalf(gameId);
+      } else {
+        // Game is complete
+        final updatedState = currentState.copyWith(isRunning: false);
+        await _saveGameState(updatedState);
+        _updateGameState(gameId, updatedState);
       }
       
-      if (winnerId == null) {
-        throw Exception('Set cannot be completed: No clear winner yet');
-      }
-      
-      // Create completed set score
-      final completedSet = SetScore(
-        setNumber: currentState.currentSet,
-        teamAId: teamAId,
-        teamBId: teamBId,
-        teamAScore: teamAScore,
-        teamBScore: teamBScore,
-        isCompleted: true,
-      );
-      
-      // Update set wins
-      final newTeamASetWins = winnerId == teamAId 
-          ? currentState.teamASetWins + 1 
-          : currentState.teamASetWins;
-      final newTeamBSetWins = winnerId == teamBId 
-          ? currentState.teamBSetWins + 1 
-          : currentState.teamBSetWins;
-      
-      // Update state
-      final updatedSetScores = [...currentState.setScores, completedSet];
-      final updatedState = currentState.copyWith(
-        currentSet: currentState.currentSet + 1,
-        teamASetWins: newTeamASetWins,
-        teamBSetWins: newTeamBSetWins,
-        setScores: updatedSetScores,
-      );
-      
-      await _saveGameState(updatedState);
-      _updateGameState(gameId, updatedState);
-      
-      print('✅ Set ${currentState.currentSet} completed');
+      print('✅ Half ${currentState.currentHalf} completed');
     } catch (e) {
-      print('❌ Error completing set: $e');
+      print('❌ Error completing half: $e');
       throw e;
     }
   }
@@ -401,10 +341,9 @@ class LiveScoringService {
         'seconds': 0,
         'currentPeriod': 1,
         'isRunning': false,
-        'currentSet': 1,
-        'teamASetWins': 0,
-        'teamBSetWins': 0,
-        'setScores': [],
+        'currentHalf': 1,
+        'teamAScore': 0,
+        'teamBScore': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
@@ -423,14 +362,14 @@ class LiveScoringService {
     }
   }
 
-  // Clear current set data only
-  Future<void> clearCurrentSetData(String gameId, int currentSet) async {
+  // Clear current half data only
+  Future<void> clearCurrentHalfData(String gameId, int currentHalf) async {
     try {
-      // Delete events from current set only
+      // Delete events from current half only
       final eventsSnapshot = await _firestore
           .collection('gameEvents')
           .where('gameId', isEqualTo: gameId)
-          .where('setNumber', isEqualTo: currentSet)
+          .where('half', isEqualTo: currentHalf)
           .get();
       
       final batch = _firestore.batch();
@@ -439,13 +378,13 @@ class LiveScoringService {
       }
       await batch.commit();
       
-      // Reload and update game state (this will recalculate scores)
+      // Reload and update game state
       final updatedState = await _loadGameState(gameId);
       _updateGameState(gameId, updatedState);
       
-      print('✅ Current set data cleared for game: $gameId, set: $currentSet');
+      print('✅ Current half data cleared for game: $gameId, half: $currentHalf');
     } catch (e) {
-      print('❌ Error clearing current set data: $e');
+      print('❌ Error clearing current half data: $e');
       throw e;
     }
   }
@@ -480,7 +419,7 @@ extension GameEventCopyWith on GameEvent {
     GameEventType? eventType,
     DateTime? timestamp,
     int? gameMinute,
-    int? setNumber,
+    int? half,
     String? notes,
   }) {
     return GameEvent(
@@ -493,7 +432,7 @@ extension GameEventCopyWith on GameEvent {
       eventType: eventType ?? this.eventType,
       timestamp: timestamp ?? this.timestamp,
       gameMinute: gameMinute ?? this.gameMinute,
-      setNumber: setNumber ?? this.setNumber,
+      half: half ?? this.half,
       notes: notes ?? this.notes,
     );
   }

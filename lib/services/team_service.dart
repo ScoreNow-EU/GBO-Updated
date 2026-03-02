@@ -137,40 +137,6 @@ class TeamService {
         teams.where((team) => team.bundesland == bundesland).toList());
   }
 
-  // Get teams by division with caching  
-  Stream<List<Team>> getTeamsByDivision(String division) {
-    return getTeamsWithCache().map((teams) => 
-        teams.where((team) => team.division == division).toList());
-  }
-
-  // Get teams by multiple divisions
-  Future<List<Team>> getTeamsByDivisions(List<String> divisions) async {
-    try {
-      // If no divisions are provided, return all teams
-      if (divisions.isEmpty) {
-        return await getAllTeams();
-      }
-
-      // Create a query to filter teams by multiple divisions
-      Query query = _firestore.collection(_collection)
-          .where('division', whereIn: divisions);
-
-      final snapshot = await query.get();
-
-      List<Team> teams = snapshot.docs
-          .map((doc) => Team.fromFirestore(doc))
-          .toList();
-
-      // Sort teams by name
-      teams.sort((a, b) => a.name.compareTo(b.name));
-
-      return teams;
-    } catch (e) {
-      print('Error fetching teams by divisions: $e');
-      return [];
-    }
-  }
-
   // Add a new team
   Future<void> addTeam(Team team) async {
     await _firestore.collection(_collection).add(team.toFirestore());

@@ -126,7 +126,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       final success = await ApplePayService.processApplePayPayment(
         amount: amount,
         currency: 'EUR',
-        description: 'German Beach Open Spende - ${amount.toStringAsFixed(2)}€',
+        description: 'RHBL Spende - ${amount.toStringAsFixed(2)}€',
       );
       
       if (success) {
@@ -282,7 +282,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                 
                 // Title
                 const Text(
-                  'Unterstütze die\nGerman Beach Open App',
+                  'Unterstütze die\nRHBL App',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
@@ -415,7 +415,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
         const SizedBox(height: 16),
         
         const Text(
-          'Die German Beach Open App wird vollständig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
+          'Die RHBL App wird vollständig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
           'Um die App am Leben zu erhalten und kontinuierlich zu verbessern, entstehen uns laufende Kosten für '
           'Server, Datenbanken, App Store Gebühren und Entwicklungstools.',
           style: TextStyle(

@@ -33,7 +33,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
   void _loadSavedPresets() async {
     try {
       final presetService = PresetService();
-      final presets = await presetService.getPresetsForDivision(widget.divisionName);
+      final presets = await presetService.getPresetsForCategory(widget.divisionName);
       setState(() {
         _savedPresets = presets;
         _isLoading = false;
@@ -88,7 +88,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              'Preset auswählen',
+                              'Preset auswÃ¤hlen',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -386,12 +386,12 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Preset übernehmen'),
+        title: const Text('Preset Ã¼bernehmen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Möchten Sie das Preset "$presetName" laden?'),
+            Text('MÃ¶chten Sie das Preset "$presetName" laden?'),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -410,7 +410,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Dies wird die aktuelle Struktur überschreiben.',
+                      'Dies wird die aktuelle Struktur Ã¼berschreiben.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange.shade700,
@@ -519,7 +519,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                     Icon(Icons.zoom_in, color: Colors.blue.shade700, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      'Scrollen zum Vergrößern/Verkleinern',
+                      'Scrollen zum VergrÃ¶ÃŸern/Verkleinern',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.blue.shade700,
@@ -548,7 +548,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Bewegen Sie den Mauszeiger über ein Preset,\num eine Vorschau zu sehen',
+            'Bewegen Sie den Mauszeiger Ã¼ber ein Preset,\num eine Vorschau zu sehen',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -1009,15 +1009,15 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
 
   Color _getPresetColor(String templateName) {
     if (templateName.contains('Simple')) return Colors.green;
-    if (templateName.contains('Seniors')) return Colors.blue;
-    if (templateName.contains('Fun')) return Colors.orange;
+    if (templateName.contains('Complex')) return Colors.blue;
+    if (templateName.contains('Group')) return Colors.orange;
     return Colors.purple;
   }
 
   IconData _getPresetIcon(String templateName) {
     if (templateName.contains('Simple')) return Icons.account_tree;
-    if (templateName.contains('Seniors')) return Icons.emoji_events;
-    if (templateName.contains('Fun')) return Icons.sports_esports;
+    if (templateName.contains('Complex')) return Icons.emoji_events;
+    if (templateName.contains('Group')) return Icons.sports_esports;
     return Icons.schema;
   }
 
@@ -1025,10 +1025,10 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
     if (templateName.contains('Simple')) {
       return 'Einfaches Turnier mit Gruppenphase und direkten Finalspielen';
     }
-    if (templateName.contains('Seniors')) {
+    if (templateName.contains('Complex')) {
       return 'Komplexes Turnier mit mehreren K.O.-Runden und Platzierungsspielen';
     }
-    if (templateName.contains('Fun')) {
+    if (templateName.contains('Group')) {
       return 'Nur Gruppenphase ohne K.O.-Runden';
     }
     return 'Turnier-Struktur Vorlage';

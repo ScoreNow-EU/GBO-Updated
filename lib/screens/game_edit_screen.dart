@@ -344,7 +344,7 @@ class _GameEditScreenState extends State<GameEditScreen> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '${team.city} • ${team.division}',
+                    team.city,
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
@@ -448,10 +448,11 @@ class _GameEditScreenState extends State<GameEditScreen> {
                     court.name,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    '${court.type} • Capacity: ${court.maxCapacity}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
+                  if (court.description.isNotEmpty)
+                    Text(
+                      court.description,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
                 ],
               ),
             );
