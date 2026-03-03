@@ -66,10 +66,10 @@ class _TournamentAssignmentScreenState
 
     try {
       final results = await Future.wait([
-        _gameService.getGamesForTournament(widget.tournament.id),
+        _gameService.getGamesForTournament(widget.tournament.id).first,
         _refereeService.getAllReferees(),
         _kampfgerichtService.getAllMembers(),
-        _courtService.getCourtsForTournament(widget.tournament.id),
+        _courtService.getCourts().first,
       ]);
 
       final allGames = results[0] as List<Game>;

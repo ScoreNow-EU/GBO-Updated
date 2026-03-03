@@ -19,6 +19,7 @@ import '../services/court_service.dart';
 import '../services/game_service.dart';
 import '../services/auth_service.dart';
 import '../services/player_service.dart';
+import '../services/geocoding_service.dart';
 import '../data/german_cities.dart';
 import 'dart:math' as math;
 import 'package:flutter_map/flutter_map.dart';
@@ -127,7 +128,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   
   // Referee management
   List<Referee> _allReferees = [];
-  List<String> _selectedRefereeIds = [];
+  /// Maps refereeId → RefereeInvitation (replaces simple _selectedRefereeIds list)
+  Map<String, RefereeInvitation> _refereeInvitations = {};
+  /// Cached distances: refereeId → DistanceResult
+  Map<String, DistanceResult?> _refereeDistances = {};
+  bool _isLoadingDistances = false;
   String _refereeSearchQuery = '';
   final _refereeSearchController = TextEditingController();
   String _refereeSubTab = 'selection'; // selection, gespanne, planner
@@ -326,15 +331,16 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _endDate = tournament.endDate;
       _status = tournament.status;
       _selectedTeamIds = List<String>.from(tournament.teamIds); // Explicit type
-      _selectedRefereeIds = List<String>.from(tournament.refereeIds); // Explicit type
+      // Build referee invitations map from existing invitations
+      _refereeInvitations = { for (final inv in tournament.refereeInvitations) inv.refereeId: inv };
       _selectedDelegateIds = List<String>.from(tournament.delegateIds); // Explicit type
       _selectedKampfgerichtIds = tournament.kampfgerichtInvitations.map((k) => k.memberId).toList();
       _refereeGespanne = List<Map<String, dynamic>>.from(tournament.refereeGespanne); // Load existing referee pairs
       
       // Venue address
-      _venueStreetController.text = tournament.venueStreet;
-      _venueHouseNumberController.text = tournament.venueHouseNumber;
-      _venuePlzController.text = tournament.venuePlz;
+      _venueStreetController.text = tournament.venueStreet ?? '';
+      _venueHouseNumberController.text = tournament.venueHouseNumber ?? '';
+      _venuePlzController.text = tournament.venuePlz ?? '';
       
       // Try to find location in German cities
       _selectedLocation = GermanCities.findByDisplayName(tournament.location);
@@ -413,6 +419,10 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           setState(() {
             _allReferees = referees;
           });
+          // Load distances once referees are available
+          if (_refereeInvitations.isNotEmpty && _refereeDistances.isEmpty) {
+            _loadRefereeDistances();
+          }
         }
       });
     } catch (e) {
@@ -447,7 +457,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     } catch (e) {
       print('Error loading kampfgericht members: $e');
     }
-  }
   }
 
   Future<List<app_user.User>> _loadUsers() async {
@@ -989,6 +998,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildKampfgerichtTab();
       case 'delegates':
         return _buildDelegatesTab();
+      case 'assignment':
+        return _buildAssignmentTab();
       case 'stats':
         if (widget.tournament == null) {
           return Center(
@@ -2723,30 +2734,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         endDate: _endDate ?? widget.tournament!.endDate,
         status: _status,
         teamIds: _selectedTeamIds,
-        refereeInvitations: _selectedRefereeIds.map((refereeId) {
-          // Check if this referee already has an invitation
-          RefereeInvitation? existingInvitation;
-          if (widget.tournament != null) {
-            try {
-              existingInvitation = widget.tournament!.refereeInvitations
-                  .firstWhere((inv) => inv.refereeId == refereeId);
-            } catch (e) {
-              // No existing invitation found
-            }
-          }
-
-          // If existing invitation found, keep the same status
-          // Otherwise, create new pending invitation
-          return RefereeInvitation(
-            refereeId: refereeId,
-            status: existingInvitation?.status ?? 'pending',
-            respondedAt: existingInvitation?.respondedAt,
-            notes: existingInvitation?.notes,
-            availableFrom: existingInvitation?.availableFrom,
-            availableUntil: existingInvitation?.availableUntil,
-            isFullDay: existingInvitation?.isFullDay ?? true,
-          );
-        }).toList(),
+        refereeInvitations: _refereeInvitations.values.toList(),
         delegateIds: _selectedDelegateIds,
         refereeGespanne: _refereeGespanne,
         divisionBrackets: categoryBracketsMap,
@@ -2902,30 +2890,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         endDate: _endDate,
         status: _status,
         teamIds: _selectedTeamIds,
-        refereeInvitations: _selectedRefereeIds.map((refereeId) {
-          // Check if this referee already has an invitation
-          RefereeInvitation? existingInvitation;
-          if (widget.tournament != null) {
-            try {
-              existingInvitation = widget.tournament!.refereeInvitations
-                  .firstWhere((inv) => inv.refereeId == refereeId);
-            } catch (e) {
-              // No existing invitation found
-            }
-          }
-
-          // If existing invitation found, keep the same status
-          // Otherwise, create new pending invitation
-          return RefereeInvitation(
-            refereeId: refereeId,
-            status: existingInvitation?.status ?? 'pending',
-            respondedAt: existingInvitation?.respondedAt,
-            notes: existingInvitation?.notes,
-            availableFrom: existingInvitation?.availableFrom,
-            availableUntil: existingInvitation?.availableUntil,
-            isFullDay: existingInvitation?.isFullDay ?? true,
-          );
-        }).toList(),
+        refereeInvitations: _refereeInvitations.values.toList(),
         delegateIds: _selectedDelegateIds,
         refereeGespanne: _refereeGespanne,
         divisionBrackets: widget.tournament?.divisionBrackets ?? {},
@@ -3327,7 +3292,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            'Auswählen (${_selectedRefereeIds.length})',
+                            'Auswählen (${_refereeInvitations.length})',
                             style: TextStyle(
                               color: _refereeSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
                               fontWeight: FontWeight.w500,
@@ -3433,15 +3398,30 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       return referee.firstName.toLowerCase().contains(query) ||
              referee.lastName.toLowerCase().contains(query) ||
              referee.email.toLowerCase().contains(query) ||
-             referee.licenseType.toLowerCase().contains(query);
+             referee.licenseType.toLowerCase().contains(query) ||
+             (referee.city?.toLowerCase().contains(query) ?? false);
     }).toList();
+
+    // Sort: invited referees first, then by name
+    filteredReferees.sort((a, b) {
+      final aInvited = _refereeInvitations.containsKey(a.id);
+      final bInvited = _refereeInvitations.containsKey(b.id);
+      if (aInvited != bInvited) return aInvited ? -1 : 1;
+      return a.fullName.compareTo(b.fullName);
+    });
+
+    // Status summary counts
+    final notContactedCount = _refereeInvitations.values.where((i) => i.isNotContacted).length;
+    final contactedCount = _refereeInvitations.values.where((i) => i.isContacted).length;
+    final acceptedCount = _refereeInvitations.values.where((i) => i.isAccepted).length;
+    final declinedCount = _refereeInvitations.values.where((i) => i.isDeclined).length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -3462,15 +3442,17 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           ),
                         ),
                       ),
+                      if (_isLoadingDistances)
+                        const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Wählen Sie Schiedsrichter für dieses Turnier aus',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    'Klicken Sie auf einen Schiedsrichter um den Status zu ändern',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
                   // Search field
@@ -3483,26 +3465,22 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Selected count
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Ausgewählte Schiedsrichter: ${_selectedRefereeIds.length}',
-                      style: TextStyle(
-                        color: Colors.purple.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                  // Status summary chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildStatusChip('Nicht kontaktiert', notContactedCount, RefereeInvitation.statusColor('not_contacted')),
+                      _buildStatusChip('Kontaktiert', contactedCount, RefereeInvitation.statusColor('contacted')),
+                      _buildStatusChip('Zugesagt', acceptedCount, RefereeInvitation.statusColor('accepted')),
+                      _buildStatusChip('Abgesagt', declinedCount, RefereeInvitation.statusColor('declined')),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           // Referees list
           if (filteredReferees.isEmpty)
             Card(
@@ -3511,18 +3489,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 child: Center(
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.search_off,
-                        size: 48,
-                        color: Colors.grey.shade400,
-                      ),
+                      Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
                       const SizedBox(height: 16),
                       Text(
                         'Keine Schiedsrichter gefunden',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                       ),
                     ],
                   ),
@@ -3531,55 +3502,329 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             )
           else
             ...filteredReferees.map((referee) {
-              final isSelected = _selectedRefereeIds.contains(referee.id);
+              final invitation = _refereeInvitations[referee.id];
+              final isInvited = invitation != null;
+              final currentStatus = invitation?.status ?? 'not_contacted';
+              final statusColor = RefereeInvitation.statusColor(currentStatus);
+              final distance = _refereeDistances[referee.id];
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
-                child: CheckboxListTile(
-                  title: Text(
-                    referee.fullName,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(referee.email, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          referee.licenseType,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.purple[700],
-                            fontWeight: FontWeight.w500,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: isInvited
+                    ? BorderSide(color: statusColor, width: 2)
+                    : BorderSide.none,
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _showRefereeStatusDialog(referee),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Status indicator
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isInvited
+                              ? RefereeInvitation.statusIcon(currentStatus)
+                              : Icons.person_add_alt_1,
+                            color: isInvited ? statusColor : Colors.grey,
+                            size: 20,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        // Name, email, license
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                referee.fullName,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                referee.email,
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  // License badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.purple.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      referee.licenseType,
+                                      style: TextStyle(fontSize: 11, color: Colors.purple[700], fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                  if (referee.city != null && referee.city!.isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.location_on, size: 13, color: Colors.grey.shade500),
+                                    const SizedBox(width: 2),
+                                    Flexible(
+                                      child: Text(
+                                        referee.city!,
+                                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Distance + status badge column
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (isInvited)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  RefereeInvitation.statusLabel(currentStatus),
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            if (isInvited && distance != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.directions_car, size: 14, color: Colors.blue.shade400),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    distance.formattedDistance,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                distance.formattedDuration,
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  value: isSelected,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      if (value == true) {
-                        _selectedRefereeIds.add(referee.id);
-                      } else {
-                        _selectedRefereeIds.remove(referee.id);
-                      }
-                    });
-                  },
-                  contentPadding: const EdgeInsets.all(16),
                 ),
               );
             }).toList(),
         ],
       ),
     );
+  }
+
+  Widget _buildStatusChip(String label, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$count',
+            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRefereeStatusDialog(Referee referee) {
+    final currentInvitation = _refereeInvitations[referee.id];
+    final isCurrentlyInvited = currentInvitation != null;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(referee.fullName),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Show distance if available
+              if (_refereeDistances[referee.id] != null) ...[
+                Row(
+                  children: [
+                    Icon(Icons.directions_car, size: 18, color: Colors.blue.shade400),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_refereeDistances[referee.id]!.formattedDistance} (${_refereeDistances[referee.id]!.formattedDuration})',
+                      style: TextStyle(color: Colors.blue.shade700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+              // Status options
+              ...RefereeInvitation.statusValues.map((status) {
+                final color = RefereeInvitation.statusColor(status);
+                final isSelected = currentInvitation?.status == status;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        setState(() {
+                          _refereeInvitations[referee.id] = RefereeInvitation(
+                            refereeId: referee.id,
+                            status: status,
+                            respondedAt: DateTime.now(),
+                            notes: currentInvitation?.notes,
+                            availableFrom: currentInvitation?.availableFrom,
+                            availableUntil: currentInvitation?.availableUntil,
+                            isFullDay: currentInvitation?.isFullDay ?? true,
+                          );
+                          // Calculate distance for newly added referees
+                          _calculateDistanceForReferee(referee);
+                        });
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Icon(RefereeInvitation.statusIcon(status), color: color, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                RefereeInvitation.statusLabel(status),
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: color,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(Icons.check, color: color, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const Divider(),
+              // Remove option
+              if (isCurrentlyInvited)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      setState(() {
+                        _refereeInvitations.remove(referee.id);
+                        _refereeDistances.remove(referee.id);
+                      });
+                      Navigator.of(ctx).pop();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.remove_circle_outline, color: Colors.red.shade400, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Vom Turnier entfernen',
+                            style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.w500, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Schließen'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Calculate driving distance for a single referee to the tournament venue.
+  Future<void> _calculateDistanceForReferee(Referee referee) async {
+    if (widget.tournament == null || !widget.tournament!.hasVenueCoordinates) return;
+    if (referee.latitude == null || referee.longitude == null) return;
+    if (_refereeDistances.containsKey(referee.id)) return; // already calculated
+
+    try {
+      final result = await GeocodingService().calculateDrivingDistance(
+        referee.latitude!, referee.longitude!,
+        widget.tournament!.venueLatitude!, widget.tournament!.venueLongitude!,
+      );
+      if (mounted) {
+        setState(() {
+          _refereeDistances[referee.id] = result;
+        });
+      }
+    } catch (e) {
+      print('Distance calc error for ${referee.fullName}: $e');
+    }
+  }
+
+  /// Load distances for all invited referees.
+  Future<void> _loadRefereeDistances() async {
+    if (widget.tournament == null || !widget.tournament!.hasVenueCoordinates) return;
+
+    setState(() => _isLoadingDistances = true);
+    
+    for (final refereeId in _refereeInvitations.keys) {
+      final referee = _allReferees.where((r) => r.id == refereeId).firstOrNull;
+      if (referee != null) {
+        await _calculateDistanceForReferee(referee);
+      }
+    }
+
+    if (mounted) {
+      setState(() => _isLoadingDistances = false);
+    }
   }
 
   Widget _buildDelegateSelectionContent() {
@@ -3751,7 +3996,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   Widget _buildRefereeGespanneContent() {
     // Get available referees (those selected for the tournament)
     final availableReferees = _allReferees.where((referee) => 
-      _selectedRefereeIds.contains(referee.id)
+      _refereeInvitations.containsKey(referee.id)
     ).toList();
 
     // Get referees that are already in gespanne
@@ -5484,7 +5729,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 
   void _showCreateGespannDialog() {
     final availableReferees = _allReferees.where((referee) => 
-      _selectedRefereeIds.contains(referee.id)
+      _refereeInvitations.containsKey(referee.id)
     ).toList();
 
     final assignedRefereeIds = <String>{};
@@ -10901,7 +11146,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 

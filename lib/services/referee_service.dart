@@ -183,7 +183,7 @@ class RefereeService {
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final oldLicense = data['licenseType'] as String? ?? '';
-      final newLicense = Referee._migrateLicenseType(oldLicense);
+      final newLicense = Referee.migrateLicenseType(oldLicense);
       
       if (newLicense != oldLicense) {
         batch.update(doc.reference, {

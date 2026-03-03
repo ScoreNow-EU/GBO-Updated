@@ -164,7 +164,7 @@ class _KampfgerichtManagementScreenState
                             m.firstName.toLowerCase().contains(term) ||
                             m.lastName.toLowerCase().contains(term) ||
                             m.email.toLowerCase().contains(term) ||
-                            m.city.toLowerCase().contains(term))
+                            (m.city ?? '').toLowerCase().contains(term))
                         .toList();
                   }
 
@@ -239,10 +239,10 @@ class _KampfgerichtManagementScreenState
                       style:
                           TextStyle(color: Colors.grey[600], fontSize: 13),
                     ),
-                    if (member.city.isNotEmpty) ...[
+                    if ((member.city ?? '').isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        member.city,
+                        member.city ?? '',
                         style: TextStyle(
                             color: Colors.grey[500], fontSize: 12),
                       ),
@@ -364,7 +364,7 @@ class _KampfgerichtManagementScreenState
                   SizedBox(
                     width: (availableWidth - 40) * 0.20,
                     child: Text(
-                      member.city,
+                      member.city ?? '',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: Colors.grey[600]),
                     ),
@@ -423,10 +423,10 @@ class _KampfgerichtManagementScreenState
       _firstNameController.text = member.firstName;
       _lastNameController.text = member.lastName;
       _emailController.text = member.email;
-      _streetController.text = member.street;
-      _houseNumberController.text = member.houseNumber;
-      _plzController.text = member.plz;
-      _cityController.text = member.city;
+      _streetController.text = member.street ?? '';
+      _houseNumberController.text = member.houseNumber ?? '';
+      _plzController.text = member.plz ?? '';
+      _cityController.text = member.city ?? '';
     } else {
       _clearForm();
     }

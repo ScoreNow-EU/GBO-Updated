@@ -385,7 +385,7 @@ class TournamentService {
   // Referee Availability (admin-entered)
   // ──────────────────────────────────────────────────────────────────────────
 
-  /// Add a referee to the tournament's availability list (status: 'pending').
+  /// Add a referee to the tournament's availability list (status: 'not_contacted').
   Future<bool> addRefereeToTournament(String tournamentId, String refereeId) async {
     try {
       final tournament = await getTournamentById(tournamentId);
@@ -398,7 +398,7 @@ class TournamentService {
 
       final newInvitation = RefereeInvitation(
         refereeId: refereeId,
-        status: 'pending',
+        status: 'not_contacted',
       );
 
       final updatedInvitations = [...tournament.refereeInvitations, newInvitation];
@@ -441,7 +441,7 @@ class TournamentService {
   Future<bool> setRefereeAvailability(
     String tournamentId,
     String refereeId,
-    String status, // 'pending', 'accepted', 'declined'
+    String status, // 'not_contacted', 'contacted', 'accepted', 'declined'
     {
     String? notes,
     DateTime? availableFrom,
@@ -460,7 +460,7 @@ class TournamentService {
       final updatedInvitations = List<RefereeInvitation>.from(tournament.refereeInvitations);
       updatedInvitations[invitationIndex] = updatedInvitations[invitationIndex].copyWith(
         status: status,
-        respondedAt: status != 'pending' ? DateTime.now() : null,
+        respondedAt: (status == 'accepted' || status == 'declined') ? DateTime.now() : null,
         notes: notes,
         availableFrom: availableFrom,
         availableUntil: availableUntil,
@@ -859,12 +859,12 @@ class TournamentService {
         ).toList());
   }
 
-  // Get tournaments with pending invitations for a referee
+  // Get tournaments with pending (not_contacted / contacted) invitations for a referee
   Stream<List<Tournament>> getPendingInvitationsForReferee(String refereeId) {
     return getTournamentsWithCache().map((tournaments) => 
         tournaments.where((tournament) => 
             tournament.refereeInvitations.any((invitation) => 
-                invitation.refereeId == refereeId && invitation.isPending)
+                invitation.refereeId == refereeId && (invitation.isNotContacted || invitation.isContacted))
         ).toList());
   }
 

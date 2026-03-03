@@ -108,7 +108,7 @@ class Referee {
   factory Referee.fromMap(Map<String, dynamic> map, String documentId) {
     // Migrate old license types to new ones
     String licenseType = map['licenseType'] ?? 'Entwicklungskader';
-    licenseType = _migrateLicenseType(licenseType);
+    licenseType = migrateLicenseType(licenseType);
 
     return Referee(
       id: documentId,
@@ -128,7 +128,7 @@ class Referee {
   }
 
   /// Migrate old license type values to the new system
-  static String _migrateLicenseType(String license) {
+  static String migrateLicenseType(String license) {
     switch (license) {
       case 'Keine Lizenz':
         return 'Entwicklungskader';

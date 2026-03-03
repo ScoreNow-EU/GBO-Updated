@@ -451,10 +451,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        if (referee.city.isNotEmpty) ...[
+                        if (referee.city?.isNotEmpty == true) ...[
                           const SizedBox(height: 2),
                           Text(
-                            referee.city,
+                            referee.city ?? '',
                             style: TextStyle(
                               color: Colors.grey[500],
                               fontSize: 12,
@@ -642,7 +642,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                   SizedBox(
                     width: (availableWidth - 40) * 0.15,
                     child: Text(
-                      referee.city,
+                      referee.city ?? '',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: isMobile ? 12 : 13,
@@ -754,10 +754,10 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
       _lastNameController.text = referee.lastName;
       _emailController.text = referee.email;
       _selectedLicenseType = referee.licenseType;
-      _streetController.text = referee.street;
-      _houseNumberController.text = referee.houseNumber;
-      _plzController.text = referee.plz;
-      _cityController.text = referee.city;
+      _streetController.text = referee.street ?? '';
+      _houseNumberController.text = referee.houseNumber ?? '';
+      _plzController.text = referee.plz ?? '';
+      _cityController.text = referee.city ?? '';
     } else {
       _clearForm();
     }

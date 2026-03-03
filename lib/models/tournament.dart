@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'court.dart';
 import 'tournament_link.dart';
 
@@ -6,7 +7,8 @@ import 'tournament_link.dart';
 /// Status is entered by the admin after contacting the referee externally (e.g. email).
 class RefereeInvitation {
   final String refereeId;
-  final String status; // 'pending', 'accepted', 'declined'
+  /// Status: 'not_contacted', 'contacted', 'accepted', 'declined'
+  final String status;
   final DateTime? respondedAt; // When admin entered the response
   final String? notes; // Admin notes
   // Availability window for the tournament day(s)
@@ -16,7 +18,7 @@ class RefereeInvitation {
 
   RefereeInvitation({
     required this.refereeId,
-    required this.status,
+    this.status = 'not_contacted',
     this.respondedAt,
     this.notes,
     this.availableFrom,
@@ -24,9 +26,51 @@ class RefereeInvitation {
     this.isFullDay = true,
   });
 
-  bool get isPending => status == 'pending';
+  bool get isNotContacted => status == 'not_contacted';
+  bool get isContacted => status == 'contacted';
   bool get isAccepted => status == 'accepted';
   bool get isDeclined => status == 'declined';
+
+  /// All valid status values
+  static const List<String> statusValues = [
+    'not_contacted',
+    'contacted',
+    'accepted',
+    'declined',
+  ];
+
+  /// German display labels for each status
+  static String statusLabel(String status) {
+    switch (status) {
+      case 'not_contacted': return 'Nicht kontaktiert';
+      case 'contacted': return 'Kontaktiert';
+      case 'accepted': return 'Zugesagt';
+      case 'declined': return 'Abgesagt';
+      default: return status;
+    }
+  }
+
+  /// Icon for each status
+  static IconData statusIcon(String status) {
+    switch (status) {
+      case 'not_contacted': return Icons.person_outline;
+      case 'contacted': return Icons.mail_outline;
+      case 'accepted': return Icons.check_circle;
+      case 'declined': return Icons.cancel;
+      default: return Icons.help_outline;
+    }
+  }
+
+  /// Color for each status
+  static Color statusColor(String status) {
+    switch (status) {
+      case 'not_contacted': return const Color(0xFF9E9E9E); // grey
+      case 'contacted': return const Color(0xFFFFA726); // orange
+      case 'accepted': return const Color(0xFF66BB6A); // green
+      case 'declined': return const Color(0xFFEF5350); // red
+      default: return const Color(0xFF9E9E9E);
+    }
+  }
 
   RefereeInvitation copyWith({
     String? refereeId,
@@ -61,9 +105,12 @@ class RefereeInvitation {
   }
 
   factory RefereeInvitation.fromMap(Map<String, dynamic> map) {
+    // Migrate old 'pending' status to 'not_contacted'
+    String rawStatus = map['status'] ?? 'not_contacted';
+    if (rawStatus == 'pending') rawStatus = 'not_contacted';
     return RefereeInvitation(
       refereeId: map['refereeId'] ?? '',
-      status: map['status'] ?? 'pending',
+      status: rawStatus,
       respondedAt: (map['respondedAt'] as Timestamp?)?.toDate(),
       notes: map['notes'],
       availableFrom: (map['availableFrom'] as Timestamp?)?.toDate(),
