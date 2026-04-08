@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/game.dart';
@@ -17,7 +18,7 @@ class GameService {
 
   // Get games for a specific tournament with real-time updates
   Stream<List<Game>> getGamesForTournament(String tournamentId) {
-    print('🎮 GameService: Creating real-time stream for tournament $tournamentId');
+    debugPrint('ðŸŽ® GameService: Creating real-time stream for tournament $tournamentId');
     
     return _firestore
         .collection(_tournamentsCollection)
@@ -25,22 +26,22 @@ class GameService {
         .collection(_gamesSubcollection)
         .snapshots()
         .map((snapshot) {
-          print('🎮 GameService: Firebase snapshot received - ${snapshot.docs.length} documents');
+          debugPrint('ðŸŽ® GameService: Firebase snapshot received - ${snapshot.docs.length} documents');
           List<Game> games = [];
           
           for (final doc in snapshot.docs) {
             try {
               final gameData = {...doc.data(), 'id': doc.id};
-              print('🎮 GameService: Processing game ${doc.id}');
+              debugPrint('ðŸŽ® GameService: Processing game ${doc.id}');
               final game = Game.fromJson(gameData);
               games.add(game);
             } catch (e) {
-              print('❌ Error parsing game ${doc.id}: $e');
-              print('❌ Game data: ${doc.data()}');
+              debugPrint('âŒ Error parsing game ${doc.id}: $e');
+              debugPrint('âŒ Game data: ${doc.data()}');
             }
           }
           
-          print('🎮 GameService: Successfully processed ${games.length} games from Firebase');
+          debugPrint('ðŸŽ® GameService: Successfully processed ${games.length} games from Firebase');
           
           // Update cache with fresh data
           _cachedGamesByTournament[tournamentId] = games;
@@ -319,7 +320,7 @@ class GameService {
 
   // Add a new game
   Future<void> addGame(Game game) async {
-    print('🎮 GameService: Adding game ${game.id} to tournament ${game.tournamentId}');
+    debugPrint('ðŸŽ® GameService: Adding game ${game.id} to tournament ${game.tournamentId}');
     
     final gameData = game.toJson();
     gameData.remove('id'); // Remove ID from data since it's used as document ID
@@ -333,11 +334,11 @@ class GameService {
       if (game.id.isEmpty) {
         // Create new game with auto-generated ID
         final docRef = await tournamentRef.add(gameData);
-        print('🎮 GameService: Game added with auto-generated ID: ${docRef.id}');
+        debugPrint('ðŸŽ® GameService: Game added with auto-generated ID: ${docRef.id}');
       } else {
         // Create game with specific ID
         await tournamentRef.doc(game.id).set(gameData);
-        print('🎮 GameService: Game added with specific ID: ${game.id}');
+        debugPrint('ðŸŽ® GameService: Game added with specific ID: ${game.id}');
       }
       
       // Force cache invalidation and immediate refresh
@@ -347,14 +348,14 @@ class GameService {
       await preloadGames(game.tournamentId);
       
     } catch (e) {
-      print('❌ Error adding game ${game.id}: $e');
+      debugPrint('âŒ Error adding game ${game.id}: $e');
       throw e;
     }
   }
 
   // Update a game
   Future<void> updateGame(Game game) async {
-    print('🎮 GameService: Updating game ${game.id} in tournament ${game.tournamentId}');
+    debugPrint('ðŸŽ® GameService: Updating game ${game.id} in tournament ${game.tournamentId}');
     
     final gameData = game.toJson();
     gameData.remove('id'); // Remove ID from data since it's used as document ID
@@ -367,7 +368,7 @@ class GameService {
           .doc(game.id)
           .set(gameData);
       
-      print('🎮 GameService: Game ${game.id} updated successfully');
+      debugPrint('ðŸŽ® GameService: Game ${game.id} updated successfully');
       
       // Force cache invalidation and immediate refresh
       _invalidateCache(game.tournamentId);
@@ -376,7 +377,7 @@ class GameService {
       await preloadGames(game.tournamentId);
       
     } catch (e) {
-      print('❌ Error updating game ${game.id}: $e');
+      debugPrint('âŒ Error updating game ${game.id}: $e');
       throw e;
     }
   }
@@ -627,13 +628,13 @@ class GameService {
 
   // Preload games for faster initial access
   Future<void> preloadGames(String tournamentId) async {
-    print('🎮 GameService: Preloading games for tournament $tournamentId');
+    debugPrint('ðŸŽ® GameService: Preloading games for tournament $tournamentId');
     
     if (!_cachedGamesByTournament.containsKey(tournamentId) || 
         (_lastCacheTimeByTournament.containsKey(tournamentId) && 
          DateTime.now().difference(_lastCacheTimeByTournament[tournamentId]!) > _cacheTimeout)) {
       try {
-        print('🎮 GameService: Fetching from Firebase subcollection: tournaments/$tournamentId/games');
+        debugPrint('ðŸŽ® GameService: Fetching from Firebase subcollection: tournaments/$tournamentId/games');
         final snapshot = await _firestore
             .collection(_tournamentsCollection)
             .doc(tournamentId)
@@ -648,26 +649,26 @@ class GameService {
             final game = Game.fromJson(gameData);
             games.add(game);
           } catch (e) {
-            print('❌ Error parsing game ${doc.id} during preload: $e');
-            print('❌ Game data: ${doc.data()}');
+            debugPrint('âŒ Error parsing game ${doc.id} during preload: $e');
+            debugPrint('âŒ Game data: ${doc.data()}');
           }
         }
         
-        print('🎮 GameService: Preloaded ${games.length} games and cached them');
+        debugPrint('ðŸŽ® GameService: Preloaded ${games.length} games and cached them');
         
         _cachedGamesByTournament[tournamentId] = games;
         _lastCacheTimeByTournament[tournamentId] = DateTime.now();
       } catch (e) {
-        print('❌ Error preloading games for tournament $tournamentId: $e');
+        debugPrint('âŒ Error preloading games for tournament $tournamentId: $e');
       }
     } else {
-      print('🎮 GameService: Games already cached for tournament $tournamentId (${_cachedGamesByTournament[tournamentId]?.length ?? 0} games)');
+      debugPrint('ðŸŽ® GameService: Games already cached for tournament $tournamentId (${_cachedGamesByTournament[tournamentId]?.length ?? 0} games)');
     }
   }
 
   // Force refresh games for a tournament
   Future<void> forceRefreshGames(String tournamentId) async {
-    print('🔄 GameService: Force refreshing games for tournament $tournamentId');
+    debugPrint('ðŸ”„ GameService: Force refreshing games for tournament $tournamentId');
     
     // Clear cache
     _invalidateCache(tournamentId);
@@ -675,13 +676,13 @@ class GameService {
     // Preload fresh data
     await preloadGames(tournamentId);
     
-    print('✅ GameService: Force refresh completed for tournament $tournamentId');
+    debugPrint('âœ… GameService: Force refresh completed for tournament $tournamentId');
   }
 
   // Debug method to check Firebase structure
   Future<void> debugFirebaseStructure(String tournamentId) async {
     try {
-      print('🔍 DEBUG: Checking Firebase structure for tournament $tournamentId');
+      debugPrint('ðŸ” DEBUG: Checking Firebase structure for tournament $tournamentId');
       
       // Check if tournament exists
       final tournamentDoc = await _firestore
@@ -689,9 +690,9 @@ class GameService {
           .doc(tournamentId)
           .get();
       
-      print('🔍 Tournament exists: ${tournamentDoc.exists}');
+      debugPrint('ðŸ” Tournament exists: ${tournamentDoc.exists}');
       if (tournamentDoc.exists) {
-        print('🔍 Tournament data: ${tournamentDoc.data()}');
+        debugPrint('ðŸ” Tournament data: ${tournamentDoc.data()}');
       }
       
       // Check games subcollection
@@ -701,14 +702,14 @@ class GameService {
           .collection(_gamesSubcollection)
           .get();
       
-      print('🔍 Games subcollection size: ${gamesSnapshot.docs.length}');
+      debugPrint('ðŸ” Games subcollection size: ${gamesSnapshot.docs.length}');
       
       for (final doc in gamesSnapshot.docs) {
-        print('🔍 Game ${doc.id}: ${doc.data()}');
+        debugPrint('ðŸ” Game ${doc.id}: ${doc.data()}');
       }
       
     } catch (e) {
-      print('❌ DEBUG ERROR: $e');
+      debugPrint('âŒ DEBUG ERROR: $e');
     }
   }
 

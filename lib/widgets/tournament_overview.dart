@@ -41,7 +41,7 @@ class _TournamentOverviewState extends State<TournamentOverview> {
         });
       }
     } catch (e) {
-      print('Error loading user preferences: $e');
+      debugPrint('Error loading user preferences: $e');
       setState(() {
         selectedSeason = '2026';
       });

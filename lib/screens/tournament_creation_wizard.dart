@@ -224,7 +224,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                               );
                             },
                             icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            label: const Text('Zurück', style: TextStyle(color: Colors.white)),
+                            label: const Text('ZurÃ¼ck', style: TextStyle(color: Colors.white)),
                             style: TextButton.styleFrom(
                               backgroundColor: Colors.white.withOpacity(0.2),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -255,7 +255,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                           ),
                           label: Text(
                             _currentPage == 3 ? 'Erstellen' :
-                            _currentPage == 2 ? 'Überprüfen' :
+                            _currentPage == 2 ? 'ÃœberprÃ¼fen' :
                             'Weiter'
                           ),
                           style: ElevatedButton.styleFrom(
@@ -441,7 +441,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                                 ),
                               )
                             : null,
-                        helperText: _citiesLoading ? 'Städte werden geladen...' : null,
+                        helperText: _citiesLoading ? 'StÃ¤dte werden geladen...' : null,
                         helperStyle: const TextStyle(color: Color(0xFFe63946), fontSize: 12),
                       ),
                       validator: (value) {
@@ -525,7 +525,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                 return 'Bitte geben Sie ein Startdatum ein';
               }
               if (_parseDate(value) == null) {
-                return 'Bitte geben Sie ein gültiges Datum ein';
+                return 'Bitte geben Sie ein gÃ¼ltiges Datum ein';
               }
               return null;
             },
@@ -565,7 +565,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                 return 'Bitte geben Sie ein Enddatum ein';
               }
               if (_parseDate(value) == null) {
-                return 'Bitte geben Sie ein gültiges Datum ein';
+                return 'Bitte geben Sie ein gÃ¼ltiges Datum ein';
               }
               final endDate = _parseDate(value);
               final startDate = _startDate;
@@ -685,7 +685,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Konfigurieren Sie die Team-Anmeldungen für das Turnier',
+            'Konfigurieren Sie die Team-Anmeldungen fÃ¼r das Turnier',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -696,8 +696,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
           // Registration Settings
           _buildSectionTitle('Anmeldungseinstellungen'),
           SwitchListTile(
-            title: const Text('Anmeldung geöffnet'),
-            subtitle: const Text('Teams können sich für das Turnier anmelden'),
+            title: const Text('Anmeldung geÃ¶ffnet'),
+            subtitle: const Text('Teams kÃ¶nnen sich fÃ¼r das Turnier anmelden'),
             value: _isRegistrationOpen,
             onChanged: (value) {
               setState(() {
@@ -793,7 +793,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     if (_startDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Bitte wählen Sie zuerst ein Startdatum'),
+          content: Text('Bitte wÃ¤hlen Sie zuerst ein Startdatum'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -830,17 +830,17 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
 
   void _saveTournament() async {
     // Log what fields are missing
-    print('=== TOURNAMENT SAVE ATTEMPT ===');
-    print('Current page: $_currentPage');
+    debugPrint('=== TOURNAMENT SAVE ATTEMPT ===');
+    debugPrint('Current page: $_currentPage');
     
     // Check individual field values
-    print('Name: "${_nameController.text.trim()}"');
-    print('Description: "${_descriptionController.text.trim()}"');
-    print('City: "${_cityController.text.trim()}"');
-    print('Bundesland: "${_bundeslandController.text.trim()}"');
-    print('Start Date: $_startDate');
-    print('End Date: $_endDate');
-    print('Registration Deadline: $_registrationDeadline');
+    debugPrint('Name: "${_nameController.text.trim()}"');
+    debugPrint('Description: "${_descriptionController.text.trim()}"');
+    debugPrint('City: "${_cityController.text.trim()}"');
+    debugPrint('Bundesland: "${_bundeslandController.text.trim()}"');
+    debugPrint('Start Date: $_startDate');
+    debugPrint('End Date: $_endDate');
+    debugPrint('Registration Deadline: $_registrationDeadline');
     
     // Validate required fields manually since we're not on the form page
     final missingFields = <String>[];
@@ -862,7 +862,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     }
     
     if (missingFields.isNotEmpty) {
-      print('❌ Missing required fields: $missingFields');
+      debugPrint('âŒ Missing required fields: $missingFields');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Fehlende Pflichtfelder: ${missingFields.join(', ')}'),
@@ -872,8 +872,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
       return;
     }
     
-    print('✅ All required fields are present');
-    print('================================');
+    debugPrint('âœ… All required fields are present');
+    debugPrint('================================');
 
     setState(() {
       _isLoading = true;
@@ -882,12 +882,12 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     try {
       // Validate required fields
       if (_startDate == null || _endDate == null) {
-        print('=== DATE VALIDATION FAILED ===');
-        print('Start Date: $_startDate');
-        print('End Date: $_endDate');
-        print('Start Date Controller: "${_startDateController.text}"');
-        print('End Date Controller: "${_endDateController.text}"');
-        print('==============================');
+        debugPrint('=== DATE VALIDATION FAILED ===');
+        debugPrint('Start Date: $_startDate');
+        debugPrint('End Date: $_endDate');
+        debugPrint('Start Date Controller: "${_startDateController.text}"');
+        debugPrint('End Date Controller: "${_endDateController.text}"');
+        debugPrint('==============================');
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -899,15 +899,15 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
         return;
       }
 
-      print('=== CREATING TOURNAMENT ===');
-      print('Name: "${_nameController.text.trim()}"');
-      print('Description: "${_descriptionController.text.trim()}"');
-      print('Location: "${_cityController.text.trim()}, ${_bundeslandController.text.trim()}"');
-      print('Start Date: $_startDate');
-      print('End Date: $_endDate');
-      print('Registration Open: $_isRegistrationOpen');
-      print('Registration Deadline: $_registrationDeadline');
-      print('===========================');
+      debugPrint('=== CREATING TOURNAMENT ===');
+      debugPrint('Name: "${_nameController.text.trim()}"');
+      debugPrint('Description: "${_descriptionController.text.trim()}"');
+      debugPrint('Location: "${_cityController.text.trim()}, ${_bundeslandController.text.trim()}"');
+      debugPrint('Start Date: $_startDate');
+      debugPrint('End Date: $_endDate');
+      debugPrint('Registration Open: $_isRegistrationOpen');
+      debugPrint('Registration Deadline: $_registrationDeadline');
+      debugPrint('===========================');
       
       // Get current user to check if they are a Tournament Organizer
       final currentUser = await _authService.currentUser.first;
@@ -915,7 +915,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
       
       if (currentUser != null && currentUser.roles.contains(app_user.UserRole.tournamentOrganizer)) {
         tournamentOrganizerId = currentUser.id;
-        print('🎯 Tournament Organizer creating tournament: ${currentUser.fullName} (${currentUser.id})');
+        debugPrint('ðŸŽ¯ Tournament Organizer creating tournament: ${currentUser.fullName} (${currentUser.id})');
       }
 
       final tournament = Tournament(

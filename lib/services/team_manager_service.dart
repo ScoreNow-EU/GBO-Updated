@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/team_manager.dart';
 import '../models/team.dart';
@@ -14,7 +15,7 @@ class TeamManagerService {
       await _teamManagersCollection.add(teamManager.toFirestore());
       return true;
     } catch (e) {
-      print('Error creating team manager: $e');
+      debugPrint('Error creating team manager: $e');
       return false;
     }
   }
@@ -30,7 +31,7 @@ class TeamManagerService {
           .map((doc) => TeamManager.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Error getting team managers: $e');
+      debugPrint('Error getting team managers: $e');
       return [];
     }
   }
@@ -48,7 +49,7 @@ class TeamManagerService {
       }
       return null;
     } catch (e) {
-      print('Error getting team manager by email: $e');
+      debugPrint('Error getting team manager by email: $e');
       return null;
     }
   }
@@ -56,22 +57,22 @@ class TeamManagerService {
   // Get team manager by name
   Future<TeamManager?> getTeamManagerByName(String name) async {
     try {
-      print('🔍 Looking up team manager by name: $name');
+      debugPrint('ðŸ” Looking up team manager by name: $name');
       final querySnapshot = await _teamManagersCollection
           .where('name', isEqualTo: name)
           .limit(1)
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        print('❌ No team manager found with name: $name');
+        debugPrint('âŒ No team manager found with name: $name');
         return null;
       }
       
       final teamManager = TeamManager.fromFirestore(querySnapshot.docs.first);
-      print('✅ Found team manager: ${teamManager.name} (Email: ${teamManager.email})');
+      debugPrint('âœ… Found team manager: ${teamManager.name} (Email: ${teamManager.email})');
       return teamManager;
     } catch (e) {
-      print('❌ Error getting team manager by name: $e');
+      debugPrint('âŒ Error getting team manager by name: $e');
       return null;
     }
   }
@@ -89,7 +90,7 @@ class TeamManagerService {
       }
       return null;
     } catch (e) {
-      print('Error getting team manager by user ID: $e');
+      debugPrint('Error getting team manager by user ID: $e');
       return null;
     }
   }
@@ -100,7 +101,7 @@ class TeamManagerService {
       await _teamManagersCollection.doc(id).update(teamManager.toFirestore());
       return true;
     } catch (e) {
-      print('Error updating team manager: $e');
+      debugPrint('Error updating team manager: $e');
       return false;
     }
   }
@@ -111,7 +112,7 @@ class TeamManagerService {
       await _teamManagersCollection.doc(id).delete();
       return true;
     } catch (e) {
-      print('Error deleting team manager: $e');
+      debugPrint('Error deleting team manager: $e');
       return false;
     }
   }
@@ -134,7 +135,7 @@ class TeamManagerService {
       }
       return false;
     } catch (e) {
-      print('Error assigning team to manager: $e');
+      debugPrint('Error assigning team to manager: $e');
       return false;
     }
   }
@@ -155,7 +156,7 @@ class TeamManagerService {
       }
       return false;
     } catch (e) {
-      print('Error removing team from manager: $e');
+      debugPrint('Error removing team from manager: $e');
       return false;
     }
   }
@@ -177,7 +178,7 @@ class TeamManagerService {
       }
       return false;
     } catch (e) {
-      print('Error linking user to team manager: $e');
+      debugPrint('Error linking user to team manager: $e');
       return false;
     }
   }
@@ -188,7 +189,7 @@ class TeamManagerService {
       final teamManager = await getTeamManagerByUserId(userId);
       return teamManager != null && teamManager.isActive;
     } catch (e) {
-      print('Error checking if user is team manager: $e');
+      debugPrint('Error checking if user is team manager: $e');
       return false;
     }
   }
@@ -210,7 +211,7 @@ class TeamManagerService {
       }
       return teams;
     } catch (e) {
-      print('Error getting teams managed by user: $e');
+      debugPrint('Error getting teams managed by user: $e');
       return [];
     }
   }
@@ -226,7 +227,7 @@ class TeamManagerService {
           .map((doc) => TeamManager.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Error getting managers for team: $e');
+      debugPrint('Error getting managers for team: $e');
       return [];
     }
   }
@@ -242,7 +243,7 @@ class TeamManagerService {
         await doc.reference.delete();
       }
     } catch (e) {
-      print('Error deleting team manager by user ID: $e');
+      debugPrint('Error deleting team manager by user ID: $e');
       rethrow;
     }
   }
@@ -261,7 +262,7 @@ class TeamManagerService {
         });
       }
     } catch (e) {
-      print('Error updating last login: $e');
+      debugPrint('Error updating last login: $e');
     }
   }
 } 

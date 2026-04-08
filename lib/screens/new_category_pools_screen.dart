@@ -191,7 +191,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
   @override
   void initState() {
     super.initState();
-    print('InitState called');
+    debugPrint('InitState called');
     _loadTeams();
   }
 
@@ -265,7 +265,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
       _loadPoolGameStates();
       
     } catch (e) {
-      print('Error loading saved state: $e');
+      debugPrint('Error loading saved state: $e');
       // If loading fails, start fresh
       _selectedCategory = null;
       _createdNodes = [];
@@ -274,28 +274,28 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
   }
 
   void _loadPoolGameStates() {
-    print('Loading pool game states...');
-    print('Created nodes: ${_createdNodes.length}');
-    print('Tournament pools: ${widget.tournament.pools}');
-    print('Tournament pool metadata: ${widget.tournament.poolMetadata}');
+    debugPrint('Loading pool game states...');
+    debugPrint('Created nodes: ${_createdNodes.length}');
+    debugPrint('Tournament pools: ${widget.tournament.pools}');
+    debugPrint('Tournament pool metadata: ${widget.tournament.poolMetadata}');
     
     if (_createdNodes.isNotEmpty == true) {
       for (final node in _createdNodes) {
         if (node['type'] == 'pool') {
           final poolId = node['id'];
-          print('Checking pool $poolId');
+          debugPrint('Checking pool $poolId');
           
           final metadata = widget.tournament.poolMetadata[poolId];
-          print('Pool metadata for $poolId: $metadata');
+          debugPrint('Pool metadata for $poolId: $metadata');
           
           final isGenerated = metadata?['gamesGenerated'] == true;
           final gameCount = metadata?['gameCount'] as int? ?? 0;
           
-          print('Is generated: $isGenerated');
-          print('Game count: $gameCount');
+          debugPrint('Is generated: $isGenerated');
+          debugPrint('Game count: $gameCount');
           
           if (isGenerated) {
-            print('Setting state for pool $poolId');
+            debugPrint('Setting state for pool $poolId');
             node['gamesGenerated'] = true;
             node['gameCount'] = gameCount;
           }
@@ -345,7 +345,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
           _showTeams = !_isSidebarCollapsed;
       });
     } catch (e) {
-      print('Error loading teams: $e');
+      debugPrint('Error loading teams: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -491,7 +491,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
 
       await _tournamentService.updateTournament(updatedTournament);
     } catch (e) {
-      print('Error saving tournament: $e');
+      debugPrint('Error saving tournament: $e');
       toastification.show(
         context: context,
         type: ToastificationType.error,
@@ -582,7 +582,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                 child: DropdownButtonFormField<String>(
                   value: _selectedCategory,
                   decoration: const InputDecoration(
-                    labelText: 'Kategorie auswÃ¤hlen',
+                    labelText: 'Kategorie auswÃƒÂ¤hlen',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
@@ -1167,7 +1167,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
   Widget _buildPoolWidget(Map<String, dynamic> pool) {
     String gameModeText = pool['gameMode'] == 'single_round_robin' 
         ? 'Einfache Runde' 
-        : 'Hin- und RÃ¼ckspiel';
+        : 'Hin- und RÃƒÂ¼ckspiel';
     
     // Load game generation state from tournament metadata
     final metadata = widget.tournament.poolMetadata[pool['id']] ?? {};
@@ -1233,7 +1233,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                           Icon(Icons.sports_handball, color: Colors.blue[700]),
                           const SizedBox(width: 8),
                           Text(
-                            'Pool MenÃ¼',
+                            'Pool MenÃƒÂ¼',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -1265,7 +1265,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                       // Menu items
                       ListTile(
                         leading: const Icon(Icons.delete_outline, color: Colors.red),
-                        title: const Text('Pool lÃ¶schen'),
+                        title: const Text('Pool lÃƒÂ¶schen'),
                         onTap: () => _deletePool(pool['id']),
                       ),
                       ListTile(
@@ -1350,7 +1350,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                       duration: const Duration(milliseconds: 150),
                       opacity: _showPoolText[pool['id']]! ? 1.0 : 0.0,
                       child: Text(
-            '${pool['teamCount']} Teams â€¢ $gameModeText',
+            '${pool['teamCount']} Teams Ã¢â‚¬Â¢ $gameModeText',
             style: TextStyle(
               fontSize: 12,
               color: Colors.blue[600],
@@ -1648,8 +1648,8 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
       context: context,
       type: ToastificationType.success,
       style: ToastificationStyle.fillColored,
-      title: const Text('Team zur Liste zurÃ¼ckgegeben'),
-      description: Text('${dragData['team'].name} ist wieder verfÃ¼gbar'),
+      title: const Text('Team zur Liste zurÃƒÂ¼ckgegeben'),
+      description: Text('${dragData['team'].name} ist wieder verfÃƒÂ¼gbar'),
       autoCloseDuration: const Duration(seconds: 2),
     );
     
@@ -1682,7 +1682,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'WÃ¤hlen Sie den Typ des Knotens aus:',
+                  'WÃƒÂ¤hlen Sie den Typ des Knotens aus:',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -1840,7 +1840,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Stellen Sie die Parameter fÃ¼r den Pool ein:',
+                      'Stellen Sie die Parameter fÃƒÂ¼r den Pool ein:',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -1913,7 +1913,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Teams automatisch ausfÃ¼llen',
+                            'Teams automatisch ausfÃƒÂ¼llen',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1940,7 +1940,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Warnung: Nur ${_getAvailableTeams().length} Teams verfÃ¼gbar, ${teamCount} benÃ¶tigt.',
+                                'Warnung: Nur ${_getAvailableTeams().length} Teams verfÃƒÂ¼gbar, ${teamCount} benÃƒÂ¶tigt.',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.orange[700],
@@ -1967,7 +1967,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${teamCount} Teams werden zufÃ¤llig ausgewÃ¤hlt.',
+                                '${teamCount} Teams werden zufÃƒÂ¤llig ausgewÃƒÂ¤hlt.',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.green[700],
@@ -2003,7 +2003,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                           },
                         ),
                         RadioListTile<String>(
-                          title: const Text('Hin- und RÃ¼ckspiel (doppelte Runde)'),
+                          title: const Text('Hin- und RÃƒÂ¼ckspiel (doppelte Runde)'),
                           value: 'double_round_robin',
                           groupValue: gameMode,
                           onChanged: (value) {
@@ -2106,7 +2106,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Stellen Sie die Parameter fÃ¼r die KO-Runde ein:',
+                      'Stellen Sie die Parameter fÃƒÂ¼r die KO-Runde ein:',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -2254,7 +2254,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  'WÃ¤hlen Sie den Spielmodus fÃ¼r jede Runde:',
+                                  'WÃƒÂ¤hlen Sie den Spielmodus fÃƒÂ¼r jede Runde:',
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: Colors.grey[600],
@@ -2375,7 +2375,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                               Navigator.of(context).pop();
                               _showKORoundConfigurationDialog(columnIndex);
                             },
-                            child: const Text('ZurÃ¼ck'),
+                            child: const Text('ZurÃƒÂ¼ck'),
                           ),
                           const SizedBox(width: 16),
                           ElevatedButton(
@@ -2450,7 +2450,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,
         title: const Text('1 vs 1 Spiel Knoten erstellt'),
-        description: const Text('Der Knoten wurde erfolgreich hinzugefÃ¼gt'),
+        description: const Text('Der Knoten wurde erfolgreich hinzugefÃƒÂ¼gt'),
         autoCloseDuration: const Duration(seconds: 3),
       );
     }
@@ -2467,12 +2467,12 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
 
   // Add helper method for Berger table generation
   List<List<Map<String, Team>>> generateBergerTable(List<Team> teams) {
-    print('ðŸŽ² Generating Berger table for ${teams.length} teams');
+    debugPrint('Ã°Å¸Å½Â² Generating Berger table for ${teams.length} teams');
     
     // If odd number of teams, add a dummy team for byes
     final List<Team> allTeams = List<Team>.from(teams);
     if (allTeams.length % 2 != 0) {
-      print('ðŸŽ² Adding dummy team for odd number of teams');
+      debugPrint('Ã°Å¸Å½Â² Adding dummy team for odd number of teams');
       allTeams.add(Team(
         id: 'bye',
         name: 'Spielfrei',
@@ -2486,7 +2486,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     final rounds = n - 1;
     final halfSize = n ~/ 2;
     
-    print('ðŸŽ² Teams: $n, Rounds: $rounds, Half size: $halfSize');
+    debugPrint('Ã°Å¸Å½Â² Teams: $n, Rounds: $rounds, Half size: $halfSize');
     
     List<List<Map<String, Team>>> schedule = [];
     
@@ -2494,26 +2494,26 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     List<Team> firstHalf = allTeams.sublist(0, halfSize);
     List<Team> secondHalf = allTeams.sublist(halfSize).reversed.toList();
     
-    print('ðŸŽ² Initial arrangement:');
-    print('   First half: ${firstHalf.map((t) => t.name).join(', ')}');
-    print('   Second half: ${secondHalf.map((t) => t.name).join(', ')}');
+    debugPrint('Ã°Å¸Å½Â² Initial arrangement:');
+    debugPrint('   First half: ${firstHalf.map((t) => t.name).join(', ')}');
+    debugPrint('   Second half: ${secondHalf.map((t) => t.name).join(', ')}');
     
     // Generate games for each round
     for (int round = 0; round < rounds; round++) {
       List<Map<String, Team>> roundGames = [];
-      print('ðŸŽ² Generating round ${round + 1}:');
+      debugPrint('Ã°Å¸Å½Â² Generating round ${round + 1}:');
       
       // Create games between teams in corresponding positions
       for (int i = 0; i < halfSize; i++) {
         // Alternate home/away for better distribution
         if ((round + i) % 2 == 0) {
-          print('   - ${firstHalf[i].name} (H) vs ${secondHalf[i].name} (A)');
+          debugPrint('   - ${firstHalf[i].name} (H) vs ${secondHalf[i].name} (A)');
           roundGames.add({
             'home': firstHalf[i],
             'away': secondHalf[i],
           });
         } else {
-          print('   - ${secondHalf[i].name} (H) vs ${firstHalf[i].name} (A)');
+          debugPrint('   - ${secondHalf[i].name} (H) vs ${firstHalf[i].name} (A)');
           roundGames.add({
             'home': secondHalf[i],
             'away': firstHalf[i],
@@ -2531,15 +2531,15 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
         secondHalf.removeAt(0);
         secondHalf.add(lastTeamFirstHalf);
         
-        print('ðŸŽ² Rotated teams for next round:');
-        print('   First half: ${firstHalf.map((t) => t.name).join(', ')}');
-        print('   Second half: ${secondHalf.map((t) => t.name).join(', ')}');
+        debugPrint('Ã°Å¸Å½Â² Rotated teams for next round:');
+        debugPrint('   First half: ${firstHalf.map((t) => t.name).join(', ')}');
+        debugPrint('   Second half: ${secondHalf.map((t) => t.name).join(', ')}');
       }
     }
     
     // Remove games with dummy team if we added one
     if (teams.length % 2 != 0) {
-      print('ðŸŽ² Removing games with dummy team');
+      debugPrint('Ã°Å¸Å½Â² Removing games with dummy team');
       schedule = schedule.map((round) {
         return round.where((game) =>
           game['home']!.id != 'bye' && game['away']!.id != 'bye'
@@ -2547,11 +2547,11 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
       }).toList();
     }
     
-    print('ðŸŽ² Final schedule has ${schedule.length} rounds with games:');
+    debugPrint('Ã°Å¸Å½Â² Final schedule has ${schedule.length} rounds with games:');
     for (int i = 0; i < schedule.length; i++) {
-      print('   Round ${i + 1}: ${schedule[i].length} games');
+      debugPrint('   Round ${i + 1}: ${schedule[i].length} games');
       for (final game in schedule[i]) {
-        print('     - ${game['home']!.name} vs ${game['away']!.name}');
+        debugPrint('     - ${game['home']!.name} vs ${game['away']!.name}');
       }
     }
     
@@ -2563,20 +2563,20 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     final List<Team> poolTeams = List<Team>.from(pool['teams'] ?? []);
     poolTeams.removeWhere((team) => team == null);
     
-    print('ðŸŽ® Pool teams: ${poolTeams.map((t) => t.name).join(', ')}');
-    print('ðŸŽ® Pool ID: ${pool['id']}');
-    print('ðŸŽ® Pool metadata before: ${widget.tournament.poolMetadata[pool['id']]}');
+    debugPrint('Ã°Å¸Å½Â® Pool teams: ${poolTeams.map((t) => t.name).join(', ')}');
+    debugPrint('Ã°Å¸Å½Â® Pool ID: ${pool['id']}');
+    debugPrint('Ã°Å¸Å½Â® Pool metadata before: ${widget.tournament.poolMetadata[pool['id']]}');
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(hasExistingGames 
-          ? 'Spiele fÃ¼r Pool ${pool['name']} neu generieren?' 
-          : 'Spiele fÃ¼r Pool ${pool['name']} generieren?'
+          ? 'Spiele fÃƒÂ¼r Pool ${pool['name']} neu generieren?' 
+          : 'Spiele fÃƒÂ¼r Pool ${pool['name']} generieren?'
         ),
         content: Text(hasExistingGames
-          ? 'MÃ¶chten Sie die Spiele fÃ¼r diesen Pool neu generieren? Die bestehenden ${pool['gameCount']} Spiele werden gelÃ¶scht.'
-          : 'MÃ¶chten Sie die Spiele fÃ¼r diesen Pool generieren?'
+          ? 'MÃƒÂ¶chten Sie die Spiele fÃƒÂ¼r diesen Pool neu generieren? Die bestehenden ${pool['gameCount']} Spiele werden gelÃƒÂ¶scht.'
+          : 'MÃƒÂ¶chten Sie die Spiele fÃƒÂ¼r diesen Pool generieren?'
         ),
         actions: [
           TextButton(
@@ -2602,7 +2602,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                   context: context,
                   type: ToastificationType.warning,
                   title: const Text('Spiele werden neu generiert'),
-                  description: const Text('Bestehende Spiele werden gelÃ¶scht...'),
+                  description: const Text('Bestehende Spiele werden gelÃƒÂ¶scht...'),
                   autoCloseDuration: const Duration(seconds: 2),
                 );
 
@@ -2611,13 +2611,13 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                     .where('poolId', isEqualTo: pool['id'])
                     .get();
                 
-                print('ðŸŽ® Deleting ${existingGames.docs.length} existing games for pool ${pool['id']}');
+                debugPrint('Ã°Å¸Å½Â® Deleting ${existingGames.docs.length} existing games for pool ${pool['id']}');
                 
                 for (final doc in existingGames.docs) {
                   batch.delete(doc.reference);
                 }
 
-                print('ðŸŽ® Generating games for ${poolTeams.length} teams');
+                debugPrint('Ã°Å¸Å½Â® Generating games for ${poolTeams.length} teams');
                 
                 // Generate Berger table for round-robin games
                 final schedule = generateBergerTable(poolTeams);
@@ -2636,12 +2636,12 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                     
                     // Skip if this game combination already exists in this batch
                     if (createdGameIds.contains(gameId)) {
-                      print('ðŸŽ® Skipping duplicate game: ${homeTeam.name} vs ${awayTeam.name}');
+                      debugPrint('Ã°Å¸Å½Â® Skipping duplicate game: ${homeTeam.name} vs ${awayTeam.name}');
                       continue;
                     }
                     createdGameIds.add(gameId);
                     
-                    print('ðŸŽ® Creating game: ${homeTeam.name} vs ${awayTeam.name} (Round ${roundIndex + 1})');
+                    debugPrint('Ã°Å¸Å½Â® Creating game: ${homeTeam.name} vs ${awayTeam.name} (Round ${roundIndex + 1})');
                     
                     // Create the game
                     final newGame = Game(
@@ -2665,7 +2665,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                   }
                 }
 
-                print('ðŸŽ® Generated ${createdGameIds.length} unique games');
+                debugPrint('Ã°Å¸Å½Â® Generated ${createdGameIds.length} unique games');
 
                 // Close dialog before the long operation
                 navigatorState.pop();
@@ -2692,7 +2692,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                   'gameCount': createdGameIds.length,
                 };
                 
-                print('ðŸŽ® Pool metadata after: ${updatedPoolMetadata[pool['id']]}');
+                debugPrint('Ã°Å¸Å½Â® Pool metadata after: ${updatedPoolMetadata[pool['id']]}');
                 
                 final updatedTournament = widget.tournament.copyWith(
                   poolMetadata: updatedPoolMetadata,
@@ -2721,7 +2721,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                 _saveState();
 
               } catch (e) {
-                print('âŒ Error generating games: $e');
+                debugPrint('Ã¢ÂÅ’ Error generating games: $e');
                 toastification.show(
                   context: context,
                   type: ToastificationType.error,
@@ -2762,8 +2762,8 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
       context: context,
             type: ToastificationType.error,
       style: ToastificationStyle.fillColored,
-            title: const Text('LÃ¶schen nicht mÃ¶glich'),
-            description: const Text('Bitte lÃ¶schen Sie zuerst die abhÃ¤ngigen Knoten in den nachfolgenden Spalten.'),
+            title: const Text('LÃƒÂ¶schen nicht mÃƒÂ¶glich'),
+            description: const Text('Bitte lÃƒÂ¶schen Sie zuerst die abhÃƒÂ¤ngigen Knoten in den nachfolgenden Spalten.'),
       autoCloseDuration: const Duration(seconds: 3),
     );
           return;
@@ -2793,8 +2793,8 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
         context: context,
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,
-          title: Text('${pool['name']} gelÃ¶scht'),
-          description: const Text('Der Pool wurde erfolgreich gelÃ¶scht.'),
+          title: Text('${pool['name']} gelÃƒÂ¶scht'),
+          description: const Text('Der Pool wurde erfolgreich gelÃƒÂ¶scht.'),
           autoCloseDuration: const Duration(seconds: 2),
       );
     }
@@ -2871,7 +2871,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                     children: [
                       ListTile(
                         leading: const Icon(Icons.delete_outline, color: Colors.red),
-                        title: const Text('KO-Runde lÃ¶schen'),
+                        title: const Text('KO-Runde lÃƒÂ¶schen'),
                         onTap: () => _deleteNode(node['id']),
                       ),
                       ListTile(
@@ -2956,7 +2956,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                       duration: const Duration(milliseconds: 150),
                       opacity: _showPoolText[node['id']]! ? 1.0 : 0.0,
                       child: Text(
-                        '${node['teamCount']} Teams â€¢ ${_getBestOfText(node)}',
+                        '${node['teamCount']} Teams Ã¢â‚¬Â¢ ${_getBestOfText(node)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.red[600],
@@ -3218,7 +3218,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                                padding: const EdgeInsets.symmetric(vertical: 8),
                                color: Colors.blue[200],
                                child: Text(
-                                 'Team zur Liste hinzufÃ¼gen',
+                                 'Team zur Liste hinzufÃƒÂ¼gen',
                                  style: TextStyle(
                                    fontSize: 12,
                                    fontWeight: FontWeight.w500,
@@ -3265,7 +3265,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Bitte wÃ¤hlen Sie eine Kategorie aus',
+                                'Bitte wÃƒÂ¤hlen Sie eine Kategorie aus',
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[600],

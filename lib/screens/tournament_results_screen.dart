@@ -31,24 +31,24 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   @override
   void initState() {
     super.initState();
-    print('ðŸ” Init: Tournament ID: ${widget.tournament.id}');
-    print('ðŸ” Init: Tournament results keys: ${widget.tournament.results?.keys}');
+    debugPrint('Ã°Å¸â€Â Init: Tournament ID: ${widget.tournament.id}');
+    debugPrint('Ã°Å¸â€Â Init: Tournament results keys: ${widget.tournament.results?.keys}');
     _currentTournament = widget.tournament;
     _refreshTournamentAndLoadResults();
   }
 
   Future<void> _refreshTournamentAndLoadResults() async {
     try {
-      print('ðŸ” Refresh: Getting latest tournament from database...');
+      debugPrint('Ã°Å¸â€Â Refresh: Getting latest tournament from database...');
       
       // Get the latest tournament data from database
       final latestTournament = await _tournamentService.getTournamentById(widget.tournament.id);
       
       if (latestTournament != null) {
-        print('ðŸ” Refresh: Latest tournament results keys: ${latestTournament.results?.keys}');
+        debugPrint('Ã°Å¸â€Â Refresh: Latest tournament results keys: ${latestTournament.results?.keys}');
         _currentTournament = latestTournament;
       } else {
-        print('âŒ Refresh: Could not load tournament from database');
+        debugPrint('Ã¢ÂÅ’ Refresh: Could not load tournament from database');
         _currentTournament = widget.tournament;
       }
       
@@ -56,7 +56,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       await _loadResults();
       
     } catch (e) {
-      print('âŒ Refresh: Error refreshing tournament: $e');
+      debugPrint('Ã¢ÂÅ’ Refresh: Error refreshing tournament: $e');
       // Fall back to original tournament
       _currentTournament = widget.tournament;
       await _loadResults();
@@ -125,7 +125,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                 });
               }
             } catch (e) {
-              print('Error loading team $teamId: $e');
+              debugPrint('Error loading team $teamId: $e');
               continue;
             }
           }
@@ -290,7 +290,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back),
-          tooltip: 'ZurÃ¼ck',
+          tooltip: 'ZurÃƒÂ¼ck',
           style: IconButton.styleFrom(
             backgroundColor: Colors.grey.shade100,
             padding: const EdgeInsets.all(12),
@@ -333,14 +333,14 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
               Row(
                 children: [
                   Text(
-                    '${widget.tournament.location} â€¢ ',
+                    '${widget.tournament.location} Ã¢â‚¬Â¢ ',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,
                     ),
                   ),
                   Text(
-                    'Teams: ${widget.tournament.teamIds.length} â€¢ 1. Platz = ${widget.tournament.teamIds.length} Pkt',
+                    'Teams: ${widget.tournament.teamIds.length} Ã¢â‚¬Â¢ 1. Platz = ${widget.tournament.teamIds.length} Pkt',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -980,7 +980,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
 
   Future<void> _generatePoints() async {
     if (rankedTeams.isEmpty) {
-      _showErrorToast('Keine Teams in der Platzierung. Bitte Teams hinzufÃ¼gen.');
+      _showErrorToast('Keine Teams in der Platzierung. Bitte Teams hinzufÃƒÂ¼gen.');
       return;
     }
 
@@ -1118,7 +1118,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               labelText: 'Maximale Punkte',
-              hintText: 'z.B. ${widget.tournament.teamIds.length} fÃ¼r dieses Turnier',
+              hintText: 'z.B. ${widget.tournament.teamIds.length} fÃƒÂ¼r dieses Turnier',
             ),
           ),
           actions: [
@@ -1181,7 +1181,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                     }
                   }
                 } else {
-                  _showErrorToast('Bitte gÃ¼ltige Punktzahl eingeben');
+                  _showErrorToast('Bitte gÃƒÂ¼ltige Punktzahl eingeben');
                 }
               },
               child: const Text('Speichern'),

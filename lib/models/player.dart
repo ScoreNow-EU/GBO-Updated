@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class Player {
   final String id;
@@ -9,7 +10,7 @@ class Player {
   final DateTime? birthDate;
   final String? classification; // 'Gruppe A', 'Gruppe B', 'Gruppe C'
   final String? jerseyNumber;
-  final String gender; // 'männlich', 'weiblich', 'divers'
+  final String gender; // 'mÃ¤nnlich', 'weiblich', 'divers'
   final bool isActive;
   final DateTime createdAt;
 
@@ -43,7 +44,7 @@ class Player {
   };
 
   static const List<String> genderOptions = [
-    'männlich',
+    'mÃ¤nnlich',
     'weiblich',
     'divers',
   ];
@@ -74,8 +75,8 @@ class Player {
       }
 
       // Migration: convert old gender values
-      String gender = data['gender'] ?? 'männlich';
-      if (gender == 'male') gender = 'männlich';
+      String gender = data['gender'] ?? 'mÃ¤nnlich';
+      if (gender == 'male') gender = 'mÃ¤nnlich';
       if (gender == 'female') gender = 'weiblich';
       
       return Player(
@@ -96,8 +97,8 @@ class Player {
             : DateTime.now(),
       );
     } catch (e) {
-      print('Error parsing player document ${doc.id}: $e');
-      print('Document data: ${doc.data()}');
+      debugPrint('Error parsing player document ${doc.id}: $e');
+      debugPrint('Document data: ${doc.data()}');
       rethrow;
     }
   }

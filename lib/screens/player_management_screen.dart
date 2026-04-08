@@ -33,7 +33,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   String _searchQuery = '';
   bool _isLoading = false;
 
-  /// playerId → teamName, built once from all teams' rosterPlayerIds
+  /// playerId â†’ teamName, built once from all teams' rosterPlayerIds
   Map<String, String> _playerTeamMap = {};
 
   @override
@@ -53,7 +53,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       }
       if (mounted) setState(() => _playerTeamMap = map);
     } catch (_) {
-      // silently ignore — team column will just show 'Kein Team'
+      // silently ignore â€” team column will just show 'Kein Team'
     }
   }
 
@@ -95,7 +95,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _showDeleteAllPlayersDialog(),
                     icon: const Icon(Icons.delete_forever),
-                    label: const Text('Alle lÃ¶schen'),
+                    label: const Text('Alle lÃƒÂ¶schen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
                       foregroundColor: Colors.white,
@@ -117,7 +117,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ElevatedButton.icon(
                     onPressed: () => _showAddPlayerDialog(),
                     icon: const Icon(Icons.person_add),
-                    label: const Text('Spieler hinzufÃ¼gen'),
+                    label: const Text('Spieler hinzufÃƒÂ¼gen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2D5016),
                       foregroundColor: Colors.white,
@@ -150,7 +150,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Verwalten Sie alle Spieler im System. Diese Spieler kÃ¶nnen von Team-Managern zu ihren Kadern hinzugefÃ¼gt werden.',
+                'Verwalten Sie alle Spieler im System. Diese Spieler kÃƒÂ¶nnen von Team-Managern zu ihren Kadern hinzugefÃƒÂ¼gt werden.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -284,7 +284,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                                 if (_searchQuery.isEmpty) ...[
                                   const SizedBox(height: 8),
                                   const Text(
-                                    'FÃ¼gen Sie Spieler hinzu, um sie hier zu verwalten.',
+                                    'FÃƒÂ¼gen Sie Spieler hinzu, um sie hier zu verwalten.',
                                     style: TextStyle(color: Colors.grey),
                                   ),
                                 ],
@@ -416,7 +416,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                 IconButton(
                   onPressed: () => _deletePlayer(player),
                   icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                  tooltip: 'LÃ¶schen',
+                  tooltip: 'LÃƒÂ¶schen',
                 ),
               ],
             ),
@@ -453,40 +453,40 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           // Check if semicolon is used as delimiter
           if (headerLine.contains(';')) {
             headers = headerLine.split(';').map((h) => h.trim()).toList();
-            print('ðŸ” Detected semicolon delimiter');
+            debugPrint('Ã°Å¸â€Â Detected semicolon delimiter');
           } else {
             headers = headerLine.split(',').map((h) => h.trim()).toList();
-            print('ðŸ” Detected comma delimiter');
+            debugPrint('Ã°Å¸â€Â Detected comma delimiter');
           }
           
           // Log CSV column analysis
-          print('\nðŸ“‹ CSV COLUMN ANALYSIS:');
-          print('ðŸ“¥ Found columns: ${headers.join(', ')}');
-          print('ðŸ“Š Total columns found: ${headers.length}');
+          debugPrint('\nÃ°Å¸â€œâ€¹ CSV COLUMN ANALYSIS:');
+          debugPrint('Ã°Å¸â€œÂ¥ Found columns: ${headers.join(', ')}');
+          debugPrint('Ã°Å¸â€œÅ  Total columns found: ${headers.length}');
           
           // Validate required headers
           final requiredHeaders = ['Firstname', 'Lastname', 'Jersey Number', 'Position', 'Club Name', 'Division'];
           final missingHeaders = requiredHeaders.where((h) => !headers.contains(h)).toList();
           final foundHeaders = requiredHeaders.where((h) => headers.contains(h)).toList();
           
-          print('\nâœ… EXPECTED columns: ${requiredHeaders.join(', ')}');
-          print('âœ… FOUND expected columns: ${foundHeaders.join(', ')}');
+          debugPrint('\nÃ¢Å“â€¦ EXPECTED columns: ${requiredHeaders.join(', ')}');
+          debugPrint('Ã¢Å“â€¦ FOUND expected columns: ${foundHeaders.join(', ')}');
           
           if (missingHeaders.isNotEmpty) {
-            print('âŒ MISSING expected columns: ${missingHeaders.join(', ')}');
-            print('\nðŸ’¡ SUGGESTIONS:');
-            print('   - Check if column names match exactly (case-sensitive)');
-            print('   - Common variations:');
-            print('     * "Firstname" vs "First Name" vs "FirstName"');
-            print('     * "Lastname" vs "Last Name" vs "LastName"');
-            print('     * "Jersey Number" vs "JerseyNumber" vs "Number"');
-            print('     * "Club Name" vs "ClubName" vs "Team"');
-            print('     * "Division" (CSV column name, kept for compatibility)');
+            debugPrint('Ã¢ÂÅ’ MISSING expected columns: ${missingHeaders.join(', ')}');
+            debugPrint('\nÃ°Å¸â€™Â¡ SUGGESTIONS:');
+            debugPrint('   - Check if column names match exactly (case-sensitive)');
+            debugPrint('   - Common variations:');
+            debugPrint('     * "Firstname" vs "First Name" vs "FirstName"');
+            debugPrint('     * "Lastname" vs "Last Name" vs "LastName"');
+            debugPrint('     * "Jersey Number" vs "JerseyNumber" vs "Number"');
+            debugPrint('     * "Club Name" vs "ClubName" vs "Team"');
+            debugPrint('     * "Division" (CSV column name, kept for compatibility)');
             
             _showError('Fehlende Spalten: ${missingHeaders.join(', ')}\n\nGefundene Spalten: ${headers.join(', ')}');
             return;
           } else {
-            print('âœ… All required columns found!');
+            debugPrint('Ã¢Å“â€¦ All required columns found!');
           }
 
           // Parse CSV data - use same delimiter as header
@@ -509,18 +509,18 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           }
 
           if (csvData.isEmpty) {
-            _showError('Keine gÃ¼ltigen Daten in der CSV-Datei gefunden.');
+            _showError('Keine gÃƒÂ¼ltigen Daten in der CSV-Datei gefunden.');
             return;
           }
           
           // Log sample data for debugging
-          print('\nðŸ“Š SAMPLE DATA (first 3 rows):');
+          debugPrint('\nÃ°Å¸â€œÅ  SAMPLE DATA (first 3 rows):');
           for (int i = 0; i < csvData.length && i < 3; i++) {
             final row = csvData[i];
-            print('Row ${i + 1}: ${row.toString()}');
+            debugPrint('Row ${i + 1}: ${row.toString()}');
           }
           if (csvData.length > 3) {
-            print('... and ${csvData.length - 3} more rows');
+            debugPrint('... and ${csvData.length - 3} more rows');
           }
 
           // Navigate to processing screen
@@ -652,7 +652,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(isEdit ? 'Speichern' : 'HinzufÃ¼gen'),
+                : Text(isEdit ? 'Speichern' : 'HinzufÃƒÂ¼gen'),
           ),
         ],
       ),
@@ -667,7 +667,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         context: context,
         type: ToastificationType.error,
         style: ToastificationStyle.fillColored,
-        title: const Text('Bitte fÃ¼llen Sie alle Pflichtfelder aus.'),
+        title: const Text('Bitte fÃƒÂ¼llen Sie alle Pflichtfelder aus.'),
         autoCloseDuration: const Duration(seconds: 3),
       );
       return;
@@ -704,7 +704,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: Text('Spieler ${isEdit ? 'aktualisiert' : 'hinzugefÃ¼gt'}.'),
+          title: Text('Spieler ${isEdit ? 'aktualisiert' : 'hinzugefÃƒÂ¼gt'}.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       } else {
@@ -712,7 +712,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: Text('Fehler beim ${isEdit ? 'Aktualisieren' : 'HinzufÃ¼gen'} des Spielers.'),
+          title: Text('Fehler beim ${isEdit ? 'Aktualisieren' : 'HinzufÃƒÂ¼gen'} des Spielers.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -735,8 +735,8 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Spieler lÃ¶schen'),
-        content: Text('MÃ¶chten Sie ${player.fullName} wirklich lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'),
+        title: const Text('Spieler lÃƒÂ¶schen'),
+        content: Text('MÃƒÂ¶chten Sie ${player.fullName} wirklich lÃƒÂ¶schen? Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -745,7 +745,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
+            child: const Text('LÃƒÂ¶schen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -758,7 +758,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: Text('${player.fullName} wurde gelÃ¶scht.'),
+          title: Text('${player.fullName} wurde gelÃƒÂ¶scht.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       } else {
@@ -766,7 +766,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: const Text('Fehler beim LÃ¶schen des Spielers.'),
+          title: const Text('Fehler beim LÃƒÂ¶schen des Spielers.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -778,22 +778,22 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     final players = await _playerService.getAllPlayers().first;
     
     if (players.isEmpty) {
-      _showError('Keine Spieler zum LÃ¶schen vorhanden.');
+      _showError('Keine Spieler zum LÃƒÂ¶schen vorhanden.');
       return;
     }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Alle Spieler lÃ¶schen'),
+        title: const Text('Alle Spieler lÃƒÂ¶schen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('MÃ¶chten Sie wirklich alle ${players.length} Spieler lÃ¶schen?'),
+            Text('MÃƒÂ¶chten Sie wirklich alle ${players.length} Spieler lÃƒÂ¶schen?'),
             const SizedBox(height: 8),
             const Text(
-              'âš ï¸ Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
+              'Ã¢Å¡Â Ã¯Â¸Â Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden!',
               style: TextStyle(
                 color: Colors.red,
                 fontWeight: FontWeight.bold,
@@ -801,7 +801,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Alle Spielerdaten werden permanent gelÃ¶scht.',
+              'Alle Spielerdaten werden permanent gelÃƒÂ¶scht.',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -817,7 +817,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Alle lÃ¶schen'),
+            child: const Text('Alle lÃƒÂ¶schen'),
           ),
         ],
       ),
@@ -838,7 +838,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       final players = await _playerService.getAllPlayers().first;
       
       if (players.isEmpty) {
-        _showError('Keine Spieler zum LÃ¶schen vorhanden.');
+        _showError('Keine Spieler zum LÃƒÂ¶schen vorhanden.');
         return;
       }
 
@@ -861,7 +861,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             context: context,
             type: ToastificationType.success,
             style: ToastificationStyle.fillColored,
-            title: Text('Alle $successCount Spieler erfolgreich gelÃ¶scht.'),
+            title: Text('Alle $successCount Spieler erfolgreich gelÃƒÂ¶scht.'),
             autoCloseDuration: const Duration(seconds: 4),
           );
         } else {
@@ -869,7 +869,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
             context: context,
             type: ToastificationType.warning,
             style: ToastificationStyle.fillColored,
-            title: Text('$successCount Spieler gelÃ¶scht, $errorCount Fehler aufgetreten.'),
+            title: Text('$successCount Spieler gelÃƒÂ¶scht, $errorCount Fehler aufgetreten.'),
             autoCloseDuration: const Duration(seconds: 4),
           );
         }
@@ -880,7 +880,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           context: context,
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
-          title: Text('Fehler beim LÃ¶schen: $e'),
+          title: Text('Fehler beim LÃƒÂ¶schen: $e'),
           autoCloseDuration: const Duration(seconds: 4),
         );
       }
@@ -926,7 +926,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Team Roster Fix'),
         content: const Text(
-          'Diese Aktion fÃ¼gt alle Spieler mit einem ClubId zu ihrem Team hinzu, falls sie noch nicht dort sind.',
+          'Diese Aktion fÃƒÂ¼gt alle Spieler mit einem ClubId zu ihrem Team hinzu, falls sie noch nicht dort sind.',
         ),
         actions: [
           TextButton(
@@ -961,7 +961,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
           for (final team in teams) {
             if (team.rosterPlayerIds.contains(player.id)) {
               successCount++;
-              print('âœ… Player ${player.fullName} already in team ${team.name}');
+              debugPrint('Ã¢Å“â€¦ Player ${player.fullName} already in team ${team.name}');
               break;
             }
           }
@@ -973,7 +973,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               context: context,
               type: ToastificationType.success,
               style: ToastificationStyle.fillColored,
-              title: Text('Alle $successCount Spieler erfolgreich zum Team hinzugefÃ¼gt.'),
+              title: Text('Alle $successCount Spieler erfolgreich zum Team hinzugefÃƒÂ¼gt.'),
               autoCloseDuration: const Duration(seconds: 4),
             );
           } else {
@@ -981,7 +981,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
               context: context,
               type: ToastificationType.warning,
               style: ToastificationStyle.fillColored,
-              title: Text('$successCount Spieler hinzugefÃ¼gt, $errorCount Fehler aufgetreten.'),
+              title: Text('$successCount Spieler hinzugefÃƒÂ¼gt, $errorCount Fehler aufgetreten.'),
               autoCloseDuration: const Duration(seconds: 4),
             );
           }

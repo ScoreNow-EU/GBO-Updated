@@ -29,7 +29,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teams Bulk Hinzufügen'),
+        title: const Text('Teams Bulk HinzufÃ¼gen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -44,7 +44,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               Row(
                 children: [
                   const Text(
-                    'Teams hinzufügen',
+                    'Teams hinzufÃ¼gen',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -63,7 +63,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Geben Sie für jedes Team individuelle Daten ein.',
+                'Geben Sie fÃ¼r jedes Team individuelle Daten ein.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -169,7 +169,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
           Row(
             children: [
               Text(
-                isLast ? 'Team ${index + 1} hinzufügen' : 'Team ${index + 1}',
+                isLast ? 'Team ${index + 1} hinzufÃ¼gen' : 'Team ${index + 1}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -249,7 +249,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
                             team.cityController!.text = selection.displayName;
                           } catch (e) {
                             // Controller might be disposed, ignore the error
-                            print('Controller disposal error ignored: $e');
+                            debugPrint('Controller disposal error ignored: $e');
                           }
                         }
                       });
@@ -367,7 +367,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     for (TeamFormData teamData in teamsToPreview) {
       // Parse city and state from selection with better error handling
       String city = 'Unknown';
-      String state = 'Baden-Württemberg';
+      String state = 'Baden-WÃ¼rttemberg';
       
       try {
         if (teamData.selectedCity != null) {
@@ -387,9 +387,9 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
         }
       } catch (e) {
         // If there's any error accessing the city data, use defaults
-        print('Error parsing city data: $e');
+        debugPrint('Error parsing city data: $e');
         city = 'Unknown';
-        state = 'Baden-Württemberg';
+        state = 'Baden-WÃ¼rttemberg';
       }
 
       Team team = Team(
@@ -435,7 +435,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
       Navigator.of(context).pop(); // Close bulk add screen
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${teams.length} Teams erfolgreich hinzugefügt'),
+          content: Text('${teams.length} Teams erfolgreich hinzugefÃ¼gt'),
           backgroundColor: Colors.green,
         ),
       );
@@ -465,7 +465,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
         }
       } catch (e) {
         // Ignore disposal errors for individual teams
-        print('Error disposing team $i: $e');
+        debugPrint('Error disposing team $i: $e');
       }
     }
     super.dispose();
@@ -510,7 +510,7 @@ class TeamConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teams Bestätigen'),
+        title: const Text('Teams BestÃ¤tigen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -532,7 +532,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${teams.length} Teams werden hinzugefügt',
+                  '${teams.length} Teams werden hinzugefÃ¼gt',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -542,7 +542,7 @@ class TeamConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Überprüfen Sie die Team-Details bevor Sie sie hinzufügen.',
+              'ÃœberprÃ¼fen Sie die Team-Details bevor Sie sie hinzufÃ¼gen.',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -617,7 +617,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: const Text('Zurück'),
+                  child: const Text('ZurÃ¼ck'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
@@ -627,7 +627,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: Text('${teams.length} Teams Hinzufügen'),
+                  child: Text('${teams.length} Teams HinzufÃ¼gen'),
                 ),
               ],
             ),

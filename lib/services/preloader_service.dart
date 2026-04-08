@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'team_service.dart';
 import 'tournament_service.dart';
@@ -17,7 +18,7 @@ class PreloaderService {
       Firebase.apps.isNotEmpty;
       return true;
     } catch (e) {
-      print('Firebase not available: $e');
+      debugPrint('Firebase not available: $e');
       return false;
     }
   }
@@ -58,14 +59,14 @@ class PreloaderService {
   // Preload essential data in the background
   void preloadEssentialData() {
     if (!isFirebaseAvailable) {
-      print('Firebase not available - skipping preload');
+      debugPrint('Firebase not available - skipping preload');
       return;
     }
 
     // Don't await these - let them run in background
     Timer.run(() async {
       try {
-        print('Starting background preload...');
+        debugPrint('Starting background preload...');
         
         // Preload core data that's commonly used
         final futures = <Future>[];
@@ -86,14 +87,14 @@ class PreloaderService {
         await Future.wait(futures).timeout(
           const Duration(seconds: 30),
           onTimeout: () {
-            print('Preload timeout - some data may not be cached');
+            debugPrint('Preload timeout - some data may not be cached');
             return [];
           },
         );
         
-        print('Background preload completed successfully');
+        debugPrint('Background preload completed successfully');
       } catch (e) {
-        print('Background preload error: $e');
+        debugPrint('Background preload error: $e');
         // Don't throw - this is background loading
       }
     });
@@ -106,9 +107,9 @@ class PreloaderService {
     try {
       teamService?.clearCache();
       // Add other cache clearing methods when implemented
-      print('All caches cleared');
+      debugPrint('All caches cleared');
     } catch (e) {
-      print('Error clearing caches: $e');
+      debugPrint('Error clearing caches: $e');
     }
   }
 } 

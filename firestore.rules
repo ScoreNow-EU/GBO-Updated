@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && role in getUserData().roles;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isAdminOrSeriesOrganizer() {
+      return isAdmin() || hasRole('seriesOrganizer');
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ── Tournaments ───────────────────────────────────────────────────
+    match /tournaments/{tournamentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow update: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow delete: if isAdmin();
+    }
+
+    // ── Teams ─────────────────────────────────────────────────────────
+    match /teams/{teamId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isAdminOrSeriesOrganizer() || hasRole('teamManager'));
+      allow update: if isAuthenticated() && (isAdminOrSeriesOrganizer() || hasRole('teamManager'));
+      allow delete: if isAdmin();
+    }
+
+    // ── Games ─────────────────────────────────────────────────────────
+    match /games/{gameId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Referees ──────────────────────────────────────────────────────
+    match /referees/{refereeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Kampfgericht Members ──────────────────────────────────────────
+    match /kampfgericht_members/{memberId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Delegates ─────────────────────────────────────────────────────
+    match /delegates/{delegateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Donations ─────────────────────────────────────────────────────
+    match /donations/{donationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Coach Auth Requests ───────────────────────────────────────────
+    match /coach_auth_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Ligapunkte (League Points) ────────────────────────────────────
+    match /ligapunkte/{entryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdminOrSeriesOrganizer();
+    }
+
+    // ── App Settings / Config ─────────────────────────────────────────
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Deny all other collections by default ─────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

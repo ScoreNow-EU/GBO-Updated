@@ -448,27 +448,46 @@ class _TournamentManagementScreenState extends State<TournamentManagementScreen>
                             ),
                           ),
                         if (tournament.approvalStatus == 'rejected')
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.shade300, width: 1),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.cancel, size: 14, color: Colors.red.shade700),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Abgelehnt',
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                          Tooltip(
+                            message: tournament.rejectionReason != null && tournament.rejectionReason!.isNotEmpty
+                                ? 'Grund: ${tournament.rejectionReason}'
+                                : 'Kein Grund angegeben',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red.shade300, width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cancel, size: 14, color: Colors.red.shade700),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Abgelehnt',
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (tournament.approvalStatus == 'rejected' && tournament.rejectionReason != null && tournament.rejectionReason!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Grund: ${tournament.rejectionReason}',
+                              style: TextStyle(
+                                color: Colors.red.shade600,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:pay/pay.dart';
 
@@ -24,14 +25,14 @@ class ApplePayService {
   static Future<bool> isApplePaySupported() async {
     try {
       if (!Platform.isIOS) {
-        print('Not iOS platform');
+        debugPrint('Not iOS platform');
         return false;
       }
       
-      print('Assuming Apple Pay is available on iOS');
+      debugPrint('Assuming Apple Pay is available on iOS');
       return true;
     } catch (e) {
-      print('Error checking Apple Pay support: $e');
+      debugPrint('Error checking Apple Pay support: $e');
       return false;
     }
   }
@@ -42,11 +43,11 @@ class ApplePayService {
     String? description,
   }) async {
     try {
-      print('Starting Apple Pay payment: $amount $currency');
+      debugPrint('Starting Apple Pay payment: $amount $currency');
       
       // Check if Apple Pay is supported
       final isSupported = await isApplePaySupported();
-      print('Apple Pay is supported: $isSupported');
+      debugPrint('Apple Pay is supported: $isSupported');
       
       if (!isSupported && Platform.isAndroid) {
         throw Exception('Apple Pay is not supported on Android');
@@ -64,8 +65,8 @@ class ApplePayService {
         ),
       ];
 
-      print('Payment items: $paymentItems');
-      print('Showing Apple Pay payment sheet...');
+      debugPrint('Payment items: $paymentItems');
+      debugPrint('Showing Apple Pay payment sheet...');
 
       // Create Pay instance with configuration and show payment
       final payClient = Pay({PayProvider.apple_pay: paymentConfiguration});
@@ -77,35 +78,35 @@ class ApplePayService {
         );
       } on Exception catch (e) {
         final errorStr = e.toString();
-        print('Exception during payment sheet: $errorStr');
+        debugPrint('Exception during payment sheet: $errorStr');
         
         // If it's a "Failed to present payment controller" error, likely simulator
         if (errorStr.contains('Failed to present payment controller')) {
-          print('ERROR: Apple Pay cannot be presented.');
-          print('This typically happens on:');
-          print('  - iOS Simulator (Apple Pay only works on physical devices)');
-          print('  - Devices without Apple Pay configured');
-          print('  - Missing merchant certificates');
+          debugPrint('ERROR: Apple Pay cannot be presented.');
+          debugPrint('This typically happens on:');
+          debugPrint('  - iOS Simulator (Apple Pay only works on physical devices)');
+          debugPrint('  - Devices without Apple Pay configured');
+          debugPrint('  - Missing merchant certificates');
           throw Exception('Apple Pay payment failed: ${errorStr}. Please ensure you\'re testing on a physical iOS device with Apple Pay configured.');
         }
         rethrow;
       }
 
-      print('Apple Pay payment successful');
+      debugPrint('Apple Pay payment successful');
       
       // If we get here, payment was successful
       return true;
       
     } catch (e) {
       final errorMessage = e.toString();
-      print('Apple Pay error: $errorMessage');
+      debugPrint('Apple Pay error: $errorMessage');
       
       // Check if user cancelled
       if (errorMessage.contains('cancelled') || 
           errorMessage.contains('Cancelled') || 
           errorMessage.contains('user cancelled') ||
           errorMessage.contains('User cancelled')) {
-        print('User cancelled payment');
+        debugPrint('User cancelled payment');
         return false;
       }
       

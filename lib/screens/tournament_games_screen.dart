@@ -91,7 +91,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _showSchedulingSummary(),
-                  child: const Text('Zeitplan Übersicht'),
+                  child: const Text('Zeitplan Ãœbersicht'),
                 ),
               ],
             ),
@@ -166,14 +166,14 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
               child: StreamBuilder<List<Game>>(
                 stream: _gameService.getGamesForTournament(widget.tournament.id),
                 builder: (context, snapshot) {
-                  print('🎮 UI: StreamBuilder state - connection: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, hasError: ${snapshot.hasError}');
+                  debugPrint('ðŸŽ® UI: StreamBuilder state - connection: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, hasError: ${snapshot.hasError}');
                   
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   if (snapshot.hasError) {
-                    print('❌ UI: StreamBuilder error: ${snapshot.error}');
+                    debugPrint('âŒ UI: StreamBuilder error: ${snapshot.error}');
                     return Center(
                       child: Text(
                         'Fehler: ${snapshot.error}',
@@ -184,11 +184,11 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
 
                   // Get games for this tournament directly
                   List<Game> games = snapshot.data ?? [];
-                  print('🎮 UI: Received ${games.length} games from stream');
+                  debugPrint('ðŸŽ® UI: Received ${games.length} games from stream');
 
                   // Apply filters
                   games = _applyFilters(games);
-                  print('🎮 UI: After filtering: ${games.length} games');
+                  debugPrint('ðŸŽ® UI: After filtering: ${games.length} games');
 
                   if (games.isEmpty) {
                     return Center(
@@ -478,7 +478,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                         const SizedBox(height: 8),
                       ] else ...[
                         Text(
-                          game.status == GameStatus.scheduled ? 'vs' : 'Läuft...',
+                          game.status == GameStatus.scheduled ? 'vs' : 'LÃ¤uft...',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey[600],
@@ -725,7 +725,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Ergebnis ${game.result != null ? 'bearbeiten' : 'eingeben'}'),
-        content: const Text('Ergebniseingabe Funktionalität kommt bald...'),
+        content: const Text('Ergebniseingabe FunktionalitÃ¤t kommt bald...'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -782,7 +782,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Zeitplan Übersicht'),
+        title: const Text('Zeitplan Ãœbersicht'),
         content: SizedBox(
           width: 600,
           height: 400,
@@ -823,7 +823,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
+            child: const Text('SchlieÃŸen'),
           ),
         ],
       ),
@@ -870,7 +870,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   leading: const Icon(Icons.calendar_today, color: Colors.blue),
                   title: Text(selectedDate != null
                       ? '${selectedDate!.day.toString().padLeft(2, '0')}.${selectedDate!.month.toString().padLeft(2, '0')}.${selectedDate!.year}'
-                      : 'Datum auswählen'),
+                      : 'Datum auswÃ¤hlen'),
                   trailing: selectedDate != null
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),
@@ -894,7 +894,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   leading: const Icon(Icons.access_time, color: Colors.blue),
                   title: Text(selectedTime != null
                       ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
-                      : 'Uhrzeit auswählen'),
+                      : 'Uhrzeit auswÃ¤hlen'),
                   trailing: selectedTime != null
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),

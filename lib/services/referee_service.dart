@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/referee.dart';
-import 'geocoding_service.dart';
 
 class RefereeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collection = 'referees';
-  final GeocodingService _geocodingService = GeocodingService();
 
   // Get all referees
   Stream<List<Referee>> getReferees() {
@@ -51,7 +50,6 @@ class RefereeService {
     Referee refereeToAdd = referee.copyWith(
       email: referee.email.toLowerCase(),
     );
-    refereeToAdd = await _geocodeIfNeeded(refereeToAdd);
 
     await _firestore.collection(_collection).add(refereeToAdd.toMap());
   }
@@ -70,46 +68,16 @@ class RefereeService {
       }
     }
 
-    // Auto-geocode address and update timestamp
+    // Update timestamp
     Referee refereeToUpdate = updatedReferee.copyWith(
       email: updatedReferee.email.toLowerCase(),
       updatedAt: DateTime.now(),
     );
-    refereeToUpdate = await _geocodeIfNeeded(refereeToUpdate);
 
     await _firestore
         .collection(_collection)
         .doc(updatedReferee.id)
         .update(refereeToUpdate.toMap());
-  }
-
-  /// Auto-geocode the referee's address if street + plz or city are provided
-  /// and coordinates are not yet set.
-  Future<Referee> _geocodeIfNeeded(Referee referee) async {
-    // Only geocode if we have address data but no coordinates
-    final hasAddress = (referee.street != null && referee.street!.isNotEmpty) ||
-                       (referee.plz != null && referee.plz!.isNotEmpty) ||
-                       (referee.city != null && referee.city!.isNotEmpty);
-    
-    if (hasAddress) {
-      try {
-        final coords = await _geocodingService.geocodeAddress(
-          street: referee.street,
-          houseNumber: referee.houseNumber,
-          plz: referee.plz,
-          city: referee.city,
-        );
-        if (coords != null) {
-          return referee.copyWith(
-            latitude: coords['lat'],
-            longitude: coords['lng'],
-          );
-        }
-      } catch (e) {
-        print('Geocoding failed for referee ${referee.fullName}: $e');
-      }
-    }
-    return referee;
   }
 
   // Delete referee
@@ -234,7 +202,7 @@ class RefereeService {
         await doc.reference.delete();
       }
     } catch (e) {
-      print('Error deleting referee by user ID: $e');
+      debugPrint('Error deleting referee by user ID: $e');
       rethrow;
     }
   }

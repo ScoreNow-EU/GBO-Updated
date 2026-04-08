@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/game_squad.dart';
@@ -24,7 +25,7 @@ class GameSquadService {
     try {
       // Validate squad size (max 16 players)
       if (selectedPlayers.length > 16 || selectedPlayers.isEmpty) {
-        print('❌ Invalid squad size: ${selectedPlayers.length}');
+        debugPrint('âŒ Invalid squad size: ${selectedPlayers.length}');
         return false;
       }
 
@@ -67,7 +68,7 @@ class GameSquadService {
         );
         
         await _gameSquadsCollection.doc(existingSquad.id).update(updatedSquad.toFirestore());
-        print('✅ Updated squad for game $gameId, team $teamId');
+        debugPrint('âœ… Updated squad for game $gameId, team $teamId');
       } else {
         // Create new squad
         final newSquad = GameSquad(
@@ -83,12 +84,12 @@ class GameSquadService {
         );
         
         await _gameSquadsCollection.add(newSquad.toFirestore());
-        print('✅ Created new squad for game $gameId, team $teamId');
+        debugPrint('âœ… Created new squad for game $gameId, team $teamId');
       }
       
       return true;
     } catch (e) {
-      print('❌ Error selecting squad: $e');
+      debugPrint('âŒ Error selecting squad: $e');
       return false;
     }
   }
@@ -107,7 +108,7 @@ class GameSquadService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting squad: $e');
+      debugPrint('âŒ Error getting squad: $e');
       return null;
     }
   }
@@ -123,7 +124,7 @@ class GameSquadService {
           .map((doc) => GameSquad.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('❌ Error getting game squads: $e');
+      debugPrint('âŒ Error getting game squads: $e');
       return [];
     }
   }
@@ -161,10 +162,10 @@ class GameSquadService {
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
 
-      print('✅ Squad ${isApproved ? 'approved' : 'rejected'} by $approvedByName');
+      debugPrint('âœ… Squad ${isApproved ? 'approved' : 'rejected'} by $approvedByName');
       return true;
     } catch (e) {
-      print('❌ Error approving squad: $e');
+      debugPrint('âŒ Error approving squad: $e');
       return false;
     }
   }
@@ -181,7 +182,7 @@ class GameSquadService {
           .map((doc) => GameSquad.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('❌ Error getting squads by manager: $e');
+      debugPrint('âŒ Error getting squads by manager: $e');
       return [];
     }
   }
@@ -198,7 +199,7 @@ class GameSquadService {
           .map((doc) => GameSquad.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('❌ Error getting pending squads: $e');
+      debugPrint('âŒ Error getting pending squads: $e');
       return [];
     }
   }
@@ -207,10 +208,10 @@ class GameSquadService {
   Future<bool> deleteSquad(String squadId) async {
     try {
       await _gameSquadsCollection.doc(squadId).delete();
-      print('✅ Deleted squad $squadId');
+      debugPrint('âœ… Deleted squad $squadId');
       return true;
     } catch (e) {
-      print('❌ Error deleting squad: $e');
+      debugPrint('âŒ Error deleting squad: $e');
       return false;
     }
   }
@@ -243,7 +244,7 @@ class GameSquadService {
         'pending': pendingSquads,
       };
     } catch (e) {
-      print('❌ Error getting squad statistics: $e');
+      debugPrint('âŒ Error getting squad statistics: $e');
       return {
         'total': 0,
         'approved': 0,
@@ -277,7 +278,7 @@ class GameSquadService {
       return userDoc.id == userId;
       
     } catch (e) {
-      print('❌ Error checking team manager permissions: $e');
+      debugPrint('âŒ Error checking team manager permissions: $e');
       return false;
     }
   }
@@ -331,7 +332,7 @@ class GameSquadService {
       
       return players;
     } catch (e) {
-      print('❌ Error getting available players: $e');
+      debugPrint('âŒ Error getting available players: $e');
       return [];
     }
   }
@@ -363,7 +364,7 @@ class GameSquadService {
         coachName: coachName,
       );
     } catch (e) {
-      print('❌ Error requesting coach authentication: $e');
+      debugPrint('âŒ Error requesting coach authentication: $e');
       return false;
     }
   }
@@ -377,10 +378,10 @@ class GameSquadService {
           'officials': officials.map((o) => o.toFirestore()).toList(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        print('✅ Updated officials for game $gameId, team $teamId');
+        debugPrint('âœ… Updated officials for game $gameId, team $teamId');
       }
     } catch (e) {
-      print('❌ Error updating squad officials: $e');
+      debugPrint('âŒ Error updating squad officials: $e');
     }
   }
 } 

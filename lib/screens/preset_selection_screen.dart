@@ -39,7 +39,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading saved presets: $e');
+      debugPrint('Error loading saved presets: $e');
       setState(() {
         _isLoading = false;
       });
@@ -88,7 +88,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              'Preset auswÃ¤hlen',
+                              'Preset auswÃƒÂ¤hlen',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -386,12 +386,12 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Preset Ã¼bernehmen'),
+        title: const Text('Preset ÃƒÂ¼bernehmen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('MÃ¶chten Sie das Preset "$presetName" laden?'),
+            Text('MÃƒÂ¶chten Sie das Preset "$presetName" laden?'),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -410,7 +410,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Dies wird die aktuelle Struktur Ã¼berschreiben.',
+                      'Dies wird die aktuelle Struktur ÃƒÂ¼berschreiben.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange.shade700,
@@ -519,7 +519,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
                     Icon(Icons.zoom_in, color: Colors.blue.shade700, size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      'Scrollen zum VergrÃ¶ÃŸern/Verkleinern',
+                      'Scrollen zum VergrÃƒÂ¶ÃƒÅ¸ern/Verkleinern',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.blue.shade700,
@@ -548,7 +548,7 @@ class _PresetSelectionScreenState extends State<PresetSelectionScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Bewegen Sie den Mauszeiger Ã¼ber ein Preset,\num eine Vorschau zu sehen',
+            'Bewegen Sie den Mauszeiger ÃƒÂ¼ber ein Preset,\num eine Vorschau zu sehen',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,

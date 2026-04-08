@@ -43,7 +43,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
       // Now process CSV data after teams are loaded
       _processCSVData();
     } catch (e) {
-      print('Error loading teams: $e');
+      debugPrint('Error loading teams: $e');
       setState(() {
         isLoading = false;
       });
@@ -135,7 +135,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${widget.csvData.length} Spieler gefunden. ÃœberprÃ¼fen Sie die Zuordnungen und bestÃ¤tigen Sie den Upload.',
+                '${widget.csvData.length} Spieler gefunden. ÃƒÅ“berprÃƒÂ¼fen Sie die Zuordnungen und bestÃƒÂ¤tigen Sie den Upload.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
@@ -172,7 +172,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('Upload BestÃ¤tigen'),
+                  child: const Text('Upload BestÃƒÂ¤tigen'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -245,7 +245,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: null,
-                    hint: const Text('Team auswÃ¤hlen...'),
+                    hint: const Text('Team auswÃƒÂ¤hlen...'),
                     items: availableTeams.map((team) {
                       return DropdownMenuItem<String>(
                         value: team.id,
@@ -388,7 +388,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
               final teamUpdateSuccess = await _teamService.updateTeam(assignedTeamId, updatedTeam);
               if (teamUpdateSuccess) {
                 // Single concise log per player as requested
-                print('Added player ${firstName} ${lastName} to team ${team.name} (${team.city})');
+                debugPrint('Added player ${firstName} ${lastName} to team ${team.name} (${team.city})');
               }
             } catch (e) {
               // Suppress verbose error logging
@@ -409,7 +409,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
           context: context,
           type: ToastificationType.success,
           title: const Text('Upload erfolgreich'),
-          description: Text('$successCount Spieler hinzugefÃ¼gt, $discardCount verworfen'),
+          description: Text('$successCount Spieler hinzugefÃƒÂ¼gt, $discardCount verworfen'),
           autoCloseDuration: const Duration(seconds: 4),
         );
       }

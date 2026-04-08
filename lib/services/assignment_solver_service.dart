@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import '../models/assignment_constraints.dart';
@@ -17,12 +18,13 @@ class AssignmentSolverService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// The base URL for the Cloud Function.
-  /// In production, this will be the deployed Cloud Function URL.
-  /// Set via environment config or hardcoded after deployment.
+  static const String _defaultCloudFunctionUrl =
+      'https://us-central1-gbo-updated.cloudfunctions.net/solveGameAssignment';
+
   String? _cloudFunctionUrl;
 
   AssignmentSolverService({String? cloudFunctionUrl})
-      : _cloudFunctionUrl = cloudFunctionUrl;
+      : _cloudFunctionUrl = cloudFunctionUrl ?? _defaultCloudFunctionUrl;
 
   /// Set the Cloud Function URL (call after Firebase init if needed).
   void setCloudFunctionUrl(String url) {
@@ -31,13 +33,13 @@ class AssignmentSolverService {
 
   /// Run the AI solver for a tournament.
   ///
-  /// [games] — all games that need officials assigned (must have scheduledTime).
-  /// [referees] — accepted referees for this tournament (with availability).
-  /// [kampfgerichtMembers] — accepted Kampfgericht members (with availability).
-  /// [refereeInvitations] — to extract availability windows.
-  /// [kampfgerichtInvitations] — to extract availability windows.
-  /// [constraints] — per-game constraints (license levels, manual overrides, exclusions).
-  /// [compatibilities] — who can/can't work together.
+  /// [games] â€” all games that need officials assigned (must have scheduledTime).
+  /// [referees] â€” accepted referees for this tournament (with availability).
+  /// [kampfgerichtMembers] â€” accepted Kampfgericht members (with availability).
+  /// [refereeInvitations] â€” to extract availability windows.
+  /// [kampfgerichtInvitations] â€” to extract availability windows.
+  /// [constraints] â€” per-game constraints (license levels, manual overrides, exclusions).
+  /// [compatibilities] â€” who can/can't work together.
   ///
   /// Returns a [SolverResponse] with assignments and metadata.
   Future<SolverResponse> solveAssignment({
@@ -139,7 +141,7 @@ class AssignmentSolverService {
             'Solver returned status ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('Error calling solver: $e');
+      debugPrint('Error calling solver: $e');
       rethrow;
     }
   }

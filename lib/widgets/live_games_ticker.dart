@@ -60,24 +60,24 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
 
   Future<void> _loadGames() async {
     try {
-      print('🎮 LiveGamesTicker: Loading games...');
+      debugPrint('ðŸŽ® LiveGamesTicker: Loading games...');
       // Get all tournaments
       final tournaments = await _tournamentService.getTournamentsWithCache().first;
-      print('🎮 LiveGamesTicker: Found ${tournaments.length} tournaments');
+      debugPrint('ðŸŽ® LiveGamesTicker: Found ${tournaments.length} tournaments');
       
       // Get ongoing and upcoming tournaments
       final relevantTournaments = tournaments.where((t) => 
         t.approvalStatus == 'approved' &&
         (t.status == 'ongoing' || t.status == 'upcoming')
       ).toList();
-      print('🎮 LiveGamesTicker: ${relevantTournaments.length} relevant tournaments (approved, ongoing/upcoming)');
+      debugPrint('ðŸŽ® LiveGamesTicker: ${relevantTournaments.length} relevant tournaments (approved, ongoing/upcoming)');
 
       List<GameWithTournament> gamesWithTournaments = [];
 
       for (final tournament in relevantTournaments) {
         // Get games for this tournament
         final games = await _gameService.getGamesForTournament(tournament.id).first;
-        print('🎮 LiveGamesTicker: Tournament "${tournament.name}" has ${games.length} games');
+        debugPrint('ðŸŽ® LiveGamesTicker: Tournament "${tournament.name}" has ${games.length} games');
         
         // Filter for live and upcoming games (no time limit)
         final relevantGames = games.where((game) {
@@ -86,14 +86,14 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
           return isLive || isUpcoming;
         }).toList();
         
-        print('🎮 LiveGamesTicker: ${relevantGames.length} live/upcoming games in "${tournament.name}"');
+        debugPrint('ðŸŽ® LiveGamesTicker: ${relevantGames.length} live/upcoming games in "${tournament.name}"');
 
         for (final game in relevantGames) {
           gamesWithTournaments.add(GameWithTournament(
             game: game,
             tournament: tournament,
           ));
-          print('🎮 LiveGamesTicker: Added game: ${game.teamAName} vs ${game.teamBName} (${game.status}, scheduled: ${game.scheduledTime})');
+          debugPrint('ðŸŽ® LiveGamesTicker: Added game: ${game.teamAName} vs ${game.teamBName} (${game.status}, scheduled: ${game.scheduledTime})');
         }
       }
 
@@ -111,7 +111,7 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
         return a.game.scheduledTime!.compareTo(b.game.scheduledTime!);
       });
 
-      print('🎮 LiveGamesTicker: Total games to display: ${gamesWithTournaments.length}');
+      debugPrint('ðŸŽ® LiveGamesTicker: Total games to display: ${gamesWithTournaments.length}');
 
       if (mounted) {
         setState(() {
@@ -119,7 +119,7 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
         });
       }
     } catch (e) {
-      print('❌ LiveGamesTicker: Error loading games: $e');
+      debugPrint('âŒ LiveGamesTicker: Error loading games: $e');
     }
   }
 

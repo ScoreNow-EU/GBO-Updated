@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/team.dart';
 
@@ -56,7 +57,7 @@ class TeamService {
       
       return teams;
     } catch (e) {
-      print('Error fetching all teams: $e');
+      debugPrint('Error fetching all teams: $e');
       rethrow;
     }
   }
@@ -147,12 +148,12 @@ class TeamService {
   // Update team
   Future<bool> updateTeam(String teamId, Team team) async {
     try {
-      print('🏐 TeamService: Updating team $teamId');
-      print('🏐 Team name: ${team.name}');
-      print('🏐 Roster player IDs: ${team.rosterPlayerIds}');
+      debugPrint('ðŸ TeamService: Updating team $teamId');
+      debugPrint('ðŸ Team name: ${team.name}');
+      debugPrint('ðŸ Roster player IDs: ${team.rosterPlayerIds}');
       
       final data = team.toFirestore();
-      print('🏐 Firestore data: $data');
+      debugPrint('ðŸ Firestore data: $data');
       
       await _firestore
           .collection(_collection)
@@ -161,10 +162,10 @@ class TeamService {
       
       // Invalidate cache
       _invalidateCache();
-      print('🏐 TeamService: Team updated successfully');
+      debugPrint('ðŸ TeamService: Team updated successfully');
       return true;
     } catch (e) {
-      print('❌ TeamService: Error updating team: $e');
+      debugPrint('âŒ TeamService: Error updating team: $e');
       return false;
     }
   }
@@ -177,7 +178,7 @@ class TeamService {
     _invalidateCache();
       return true;
     } catch (e) {
-      print('Error deleting team: $e');
+      debugPrint('Error deleting team: $e');
       return false;
     }
   }
@@ -215,7 +216,7 @@ class TeamService {
         _cachedTeams = teams;
         _lastCacheTime = DateTime.now();
       } catch (e) {
-        print('Error preloading teams: $e');
+        debugPrint('Error preloading teams: $e');
       }
     }
   }

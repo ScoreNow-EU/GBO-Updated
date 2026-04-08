@@ -40,7 +40,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
         _recentAccounts = accounts;
       });
     } catch (e) {
-      print('Error loading recent accounts: $e');
+      debugPrint('Error loading recent accounts: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -54,7 +54,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
       await _loadRecentAccounts(); // Reload the list
       widget.onAccountDeleted?.call();
     } catch (e) {
-      print('Error deleting account: $e');
+      debugPrint('Error deleting account: $e');
     }
   }
 
@@ -130,7 +130,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Keine kürzlich verwendeten Konten',
+                  'Keine kÃ¼rzlich verwendeten Konten',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -157,7 +157,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
 
   Widget _buildHeader() {
     return Text(
-      'Kürzlich verwendet',
+      'KÃ¼rzlich verwendet',
       style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
@@ -320,7 +320,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
           ),
         ),
         content: Text(
-          'Möchten Sie das Konto "${account.fullName}" aus der Liste der kürzlich verwendeten Konten entfernen?',
+          'MÃ¶chten Sie das Konto "${account.fullName}" aus der Liste der kÃ¼rzlich verwendeten Konten entfernen?',
         ),
         actions: [
           TextButton(

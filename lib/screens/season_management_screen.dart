@@ -116,7 +116,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
       
       return false;
     } catch (e) {
-      print('Error checking points distribution: $e');
+      debugPrint('Error checking points distribution: $e');
       return false;
     }
   }
@@ -253,7 +253,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Keine Turniere fÃ¼r Saison $selectedSeason gefunden',
+              'Keine Turniere fÃƒÂ¼r Saison $selectedSeason gefunden',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -308,7 +308,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${tournament.location} â€¢ ${tournament.startDate.toString().split(' ')[0]}',
+                      '${tournament.location} Ã¢â‚¬Â¢ ${tournament.startDate.toString().split(' ')[0]}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -419,7 +419,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _overridePoints(tournament),
                   icon: const Icon(Icons.tune, size: 16),
-                  label: const Text('Punkte Ã¼berschreiben'),
+                  label: const Text('Punkte ÃƒÂ¼berschreiben'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.orange,
                     side: const BorderSide(color: Colors.orange),
@@ -505,7 +505,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   int _getMaxPoints(int teamCount) {
-    // RHBL: dynamic placement points â€” 1st place = teamCount pts, 2nd = teamCount-1, etc.
+    // RHBL: dynamic placement points Ã¢â‚¬â€ 1st place = teamCount pts, 2nd = teamCount-1, etc.
     return teamCount;
   }
 
@@ -548,7 +548,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
               Expanded(
                 child: _buildCriteriaItem(
                   icon: Icons.check_circle,
-                  label: 'AusgewÃ¤hlte Teams',
+                  label: 'AusgewÃƒÂ¤hlte Teams',
                   value: _getSelectedTeamsCount(tournament).toString(),
                 ),
               ),
@@ -632,7 +632,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Punkte Ã¼berschreiben - ${tournament.name}'),
+          title: Text('Punkte ÃƒÂ¼berschreiben - ${tournament.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -663,7 +663,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                   border: Border.all(color: Colors.orange.shade200),
                 ),
                 child: Text(
-                  'Hinweis: Diese Ã„nderung Ã¼berschreibt die automatisch berechneten Punkte.',
+                  'Hinweis: Diese Ãƒâ€žnderung ÃƒÂ¼berschreibt die automatisch berechneten Punkte.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.orange.shade700,
@@ -684,7 +684,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
                   _savePointsOverride(tournament, newPoints);
                   Navigator.of(context).pop();
                 } else {
-                  _showErrorToast('Bitte geben Sie eine gÃ¼ltige Zahl ein');
+                  _showErrorToast('Bitte geben Sie eine gÃƒÂ¼ltige Zahl ein');
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -703,7 +703,7 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
     try {
       // TODO: Save the points override to the database
       // For now, just show a success message
-      _showSuccessToast('Punkte fÃ¼r ${tournament.name} auf $newPoints gesetzt');
+      _showSuccessToast('Punkte fÃƒÂ¼r ${tournament.name} auf $newPoints gesetzt');
       
       // Update the local tournament data
       setState(() {

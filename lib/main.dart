@@ -29,14 +29,14 @@ void main() async {
       await Firebase.initializeApp(
         options: FirebaseConfig.currentPlatform,
       );
-      print('Firebase initialized successfully');
+      debugPrint('Firebase initialized successfully');
     } catch (e) {
-      print('Firebase initialization error: $e');
+      debugPrint('Firebase initialization error: $e');
       // For now, continue without Firebase but show error
-      print('App will continue but Firebase features may not work');
+      debugPrint('App will continue but Firebase features may not work');
     }
   } else {
-    print('Firebase initialization skipped for this platform');
+    debugPrint('Firebase initialization skipped for this platform');
   }
   
   // Preload essential data for faster loading (only if Firebase is working)
@@ -44,7 +44,7 @@ void main() async {
     final preloader = PreloaderService();
     preloader.preloadEssentialData(); // Don't await - let it load in background
   } catch (e) {
-    print('Preloader error: $e - continuing without preloading');
+    debugPrint('Preloader error: $e - continuing without preloading');
   }
   
   // Update web version display (only on web platform)
@@ -53,7 +53,7 @@ void main() async {
       final version = await VersionHelper.getAppVersion();
       WebHelper.updateVersionDisplay(version);
     } catch (e) {
-      print('Error updating web version display: $e');
+      debugPrint('Error updating web version display: $e');
     }
   }
   
@@ -72,9 +72,9 @@ class RHBLApp extends StatelessWidget {
     try {
       analytics = FirebaseAnalytics.instance;
       observer = FirebaseAnalyticsObserver(analytics: analytics!);
-      print('Analytics initialized successfully');
+      debugPrint('Analytics initialized successfully');
     } catch (e) {
-      print('Analytics initialization error: $e');
+      debugPrint('Analytics initialization error: $e');
     }
   }
 

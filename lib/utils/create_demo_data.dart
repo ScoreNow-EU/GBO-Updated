@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../models/game.dart';
@@ -9,21 +10,21 @@ class DemoDataCreator {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Future<void> createDemoData() async {
-    print('🎯 Creating demo data...');
+    debugPrint('ðŸŽ¯ Creating demo data...');
     
     // Create demo teams
     final teamIds = await _createDemoTeams();
-    print('✅ Created ${teamIds.length} demo teams');
+    debugPrint('âœ… Created ${teamIds.length} demo teams');
     
     // Create demo tournaments
     final tournamentIds = await _createDemoTournaments(teamIds);
-    print('✅ Created demo tournaments');
+    debugPrint('âœ… Created demo tournaments');
     
     // Create demo games for tournaments
     await _createDemoGames(tournamentIds, teamIds);
-    print('✅ Created demo games');
+    debugPrint('âœ… Created demo games');
     
-    print('🎉 Demo data creation complete!');
+    debugPrint('ðŸŽ‰ Demo data creation complete!');
   }
 
   Future<List<String>> _createDemoTeams() async {
@@ -39,13 +40,13 @@ class DemoDataCreator {
         'bundesland': 'Berlin',
       },
       {
-        'name': 'München Beach Stars',
-        'city': 'München',
+        'name': 'MÃ¼nchen Beach Stars',
+        'city': 'MÃ¼nchen',
         'bundesland': 'Bayern',
       },
       {
-        'name': 'Köln Coastal Crew',
-        'city': 'Köln',
+        'name': 'KÃ¶ln Coastal Crew',
+        'city': 'KÃ¶ln',
         'bundesland': 'Nordrhein-Westfalen',
       },
       {
@@ -56,7 +57,7 @@ class DemoDataCreator {
       {
         'name': 'Stuttgart Beach United',
         'city': 'Stuttgart',
-        'bundesland': 'Baden-Württemberg',
+        'bundesland': 'Baden-WÃ¼rttemberg',
       },
       {
         'name': 'Dresden Dunes',
@@ -79,13 +80,13 @@ class DemoDataCreator {
         'bundesland': 'Sachsen',
       },
       {
-        'name': 'Düsseldorf Divas',
-        'city': 'Düsseldorf',
+        'name': 'DÃ¼sseldorf Divas',
+        'city': 'DÃ¼sseldorf',
         'bundesland': 'Nordrhein-Westfalen',
       },
       {
-        'name': 'Nürnberg Nets',
-        'city': 'Nürnberg',
+        'name': 'NÃ¼rnberg Nets',
+        'city': 'NÃ¼rnberg',
         'bundesland': 'Bayern',
       },
       {
@@ -101,12 +102,12 @@ class DemoDataCreator {
       {
         'name': 'Karlsruhe Kickers',
         'city': 'Karlsruhe',
-        'bundesland': 'Baden-Württemberg',
+        'bundesland': 'Baden-WÃ¼rttemberg',
       },
       {
         'name': 'Mannheim Mavericks',
         'city': 'Mannheim',
-        'bundesland': 'Baden-Württemberg',
+        'bundesland': 'Baden-WÃ¼rttemberg',
       },
     ];
 
@@ -177,7 +178,7 @@ class DemoDataCreator {
       },
       {
         'name': 'RHBL Spieltag 3',
-        'location': 'München',
+        'location': 'MÃ¼nchen',
         'startDate': now.add(Duration(days: 45)),
         'endDate': now.add(Duration(days: 47)),
         'status': 'upcoming',
@@ -185,7 +186,7 @@ class DemoDataCreator {
       },
       {
         'name': 'RHBL Spieltag 4',
-        'location': 'Köln',
+        'location': 'KÃ¶ln',
         'startDate': now.subtract(Duration(days: 10)),
         'endDate': now.subtract(Duration(days: 8)),
         'status': 'finished',

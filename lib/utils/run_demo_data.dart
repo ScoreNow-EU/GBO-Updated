@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase_config.dart';
 import 'create_demo_data.dart';
@@ -8,26 +9,40 @@ import 'create_demo_data.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  print('🚀 Starting demo data creation...');
+  if (!kDebugMode) {
+    runApp(const MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text(
+            'Demo data creation is only available in debug mode.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 24),
+          ),
+        ),
+      ),
+    ));
+    return;
+  }
+  
+  debugPrint('Starting demo data creation...');
   
   // Initialize Firebase
   await Firebase.initializeApp(
     options: FirebaseConfig.currentPlatform,
   );
-  print('✅ Firebase initialized');
+  debugPrint('Firebase initialized');
   
   // Create demo data
   final creator = DemoDataCreator();
   await creator.createDemoData();
   
-  print('✅ All done! Check your Firestore database.');
-  print('   Teams and tournaments should now be visible in the app.');
+  debugPrint('All done! Check your Firestore database.');
   
   runApp(const MaterialApp(
     home: Scaffold(
       body: Center(
         child: Text(
-          '✅ Demo data created!\nCheck the console for details.',
+          'Demo data created!\nCheck the console for details.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 24),
         ),

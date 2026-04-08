@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Game {
   final String id;
   final String tournamentId;
@@ -81,7 +83,7 @@ class Game {
     // Debug logging for scheduling data
     if (scheduledTime != null || courtId != null) {
       final shortId = id.length >= 8 ? id.substring(id.length - 8) : id;
-      print('🎮 Game.toJson: Saving scheduling data for $shortId: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
+      debugPrint('Ã°Å¸Å½Â® Game.toJson: Saving scheduling data for $shortId: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
     }
     
     return json;
@@ -94,7 +96,7 @@ class Game {
     // Debug logging for scheduling data
     if (scheduledTime != null || courtId != null) {
       final gameId = json['id'] ?? 'unknown';
-      print('🎮 Game.fromJson: Loading scheduling data for ${gameId.toString().substring(gameId.toString().length - 8)}: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
+      debugPrint('Ã°Å¸Å½Â® Game.fromJson: Loading scheduling data for ${gameId.toString().substring(gameId.toString().length - 8)}: scheduledTime=${scheduledTime?.toIso8601String()}, courtId=$courtId');
     }
     
     return Game(

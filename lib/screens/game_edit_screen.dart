@@ -824,12 +824,30 @@ class _GameEditScreenState extends State<GameEditScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // TODO: Implement game duplication
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Game duplication will be implemented')),
-              );
+              try {
+                final newGame = _editedGame.copyWith(
+                  id: '',
+                  status: GameStatus.scheduled,
+                  result: null,
+                  createdAt: DateTime.now(),
+                  updatedAt: DateTime.now(),
+                );
+                await _gameService.addGame(newGame);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Spiel wurde dupliziert')),
+                  );
+                  Navigator.of(context).pop(true);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Fehler beim Duplizieren: $e')),
+                  );
+                }
+              }
             },
             child: const Text('Duplicate'),
           ),
@@ -839,9 +857,8 @@ class _GameEditScreenState extends State<GameEditScreen> {
   }
 
   void _openScoring() {
-    // TODO: Navigate to scoring screen
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Scoring screen will be opened')),
+      const SnackBar(content: Text('Bitte verwenden Sie das Scoring Tablet für die Live-Erfassung')),
     );
   }
 
@@ -858,12 +875,26 @@ class _GameEditScreenState extends State<GameEditScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // TODO: Implement game deletion
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Game deletion will be implemented')),
-              );
+              try {
+                await _gameService.deleteGame(
+                  _editedGame.tournamentId,
+                  _editedGame.id,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Spiel wurde gelöscht')),
+                  );
+                  Navigator.of(context).pop(true);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Fehler beim Löschen: $e')),
+                  );
+                }
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),

@@ -54,7 +54,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Stats load error: $e');
+      debugPrint('âŒ Stats load error: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
@@ -122,7 +122,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     value: 'scorers',
                     child: ListTile(
                       leading: Icon(Icons.emoji_events, size: 20),
-                      title: Text('Torschützen (CSV)'),
+                      title: Text('TorschÃ¼tzen (CSV)'),
                       dense: true,
                     ),
                   ),
@@ -212,7 +212,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
     );
   }
 
-  // ── Player Stats Tab (consolidated) ──────────────────────────────
+  // â”€â”€ Player Stats Tab (consolidated) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildTopScorersTab() {
     if (_topScorers.isEmpty) {
@@ -351,7 +351,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
     );
   }
 
-  // ── Team Table Tab ───────────────────────────────────────────────────
+  // â”€â”€ Team Table Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildTeamTableTab() {
     if (_teamStats.isEmpty) {
@@ -446,7 +446,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
     );
   }
 
-  // ── Discipline Tab ───────────────────────────────────────────────────
+  // â”€â”€ Discipline Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildDisciplineTab() {
     if (_disciplineRecords.isEmpty) {
@@ -626,7 +626,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     Icons.timer,
                     record.twoMinuteSuspensions >= 3 ? Colors.red : Colors.orange,
                     '${record.twoMinuteSuspensions}x 2min'
-                        '${record.twoMinuteSuspensions >= 3 ? " → Rote Karte" : ""}',
+                        '${record.twoMinuteSuspensions >= 3 ? " â†’ Rote Karte" : ""}',
                   ),
                 if (record.redCards > 0)
                   _buildPenaltyChip(Icons.square, Colors.red,
@@ -686,7 +686,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
     );
   }
 
-  // ── Empty State ──────────────────────────────────────────────────────
+  // â”€â”€ Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildEmptyState({
     required IconData icon,

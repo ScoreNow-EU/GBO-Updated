@@ -52,7 +52,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
 
   Future<void> _loadTeam() async {
     try {
-      print('🏐 Loading team data for ID: ${widget.teamId}');
+      debugPrint('ðŸ Loading team data for ID: ${widget.teamId}');
       
       final team = await _teamService.getTeamById(widget.teamId);
       if (team != null && mounted) {
@@ -64,13 +64,13 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         });
         
         // Load team players using rosterPlayerIds
-        print('🏐 Loading roster for team: ${team.name}');
-        print('🏐 RosterPlayerIds: ${team.rosterPlayerIds}');
+        debugPrint('ðŸ Loading roster for team: ${team.name}');
+        debugPrint('ðŸ RosterPlayerIds: ${team.rosterPlayerIds}');
         if (team.rosterPlayerIds.isNotEmpty) {
           final players = await _playerService.getPlayersByIds(team.rosterPlayerIds);
-          print('🏐 Loaded ${players.length} players from roster IDs');
+          debugPrint('ðŸ Loaded ${players.length} players from roster IDs');
           for (final player in players) {
-            print('  - ${player.fullName} (ID: ${player.id})');
+            debugPrint('  - ${player.fullName} (ID: ${player.id})');
           }
           if (mounted) {
             setState(() {
@@ -78,7 +78,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             });
           }
         } else {
-          print('🏐 No roster player IDs found');
+          debugPrint('ðŸ No roster player IDs found');
           if (mounted) {
             setState(() {
               _players = [];
@@ -97,7 +97,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         }
         
       } else {
-        print('❌ Team not found or widget disposed');
+        debugPrint('âŒ Team not found or widget disposed');
       }
       
       if (mounted) {
@@ -106,7 +106,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error loading team: $e');
+      debugPrint('âŒ Error loading team: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -284,7 +284,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             child: TextButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('Zurück'),
+              label: const Text('ZurÃ¼ck'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white70,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -358,7 +358,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Bitte wählen Sie ein Bundesland';
+                        return 'Bitte wÃ¤hlen Sie ein Bundesland';
                       }
                       return null;
                     },
@@ -421,7 +421,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _addExistingPlayer,
                   icon: const Icon(Icons.group_add, size: 18),
-                  label: const Text('Vorhandenen Spieler hinzufügen'),
+                  label: const Text('Vorhandenen Spieler hinzufÃ¼gen'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -522,8 +522,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.visibility, color: Colors.blue),
-                    title: const Text('Team öffentlich sichtbar'),
-                    subtitle: const Text('Team wird in öffentlichen Listen angezeigt'),
+                    title: const Text('Team Ã¶ffentlich sichtbar'),
+                    subtitle: const Text('Team wird in Ã¶ffentlichen Listen angezeigt'),
                     trailing: Switch(
                       value: true,
                       onChanged: (value) {
@@ -535,7 +535,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   ListTile(
                     leading: const Icon(Icons.notifications, color: Colors.orange),
                     title: const Text('Benachrichtigungen aktiviert'),
-                    subtitle: const Text('Team erhält E-Mail-Benachrichtigungen'),
+                    subtitle: const Text('Team erhÃ¤lt E-Mail-Benachrichtigungen'),
                     trailing: Switch(
                       value: true,
                       onChanged: (value) {
@@ -546,8 +546,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Team löschen'),
-                    subtitle: const Text('Diese Aktion kann nicht rückgängig gemacht werden'),
+                    title: const Text('Team lÃ¶schen'),
+                    subtitle: const Text('Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden'),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: _deleteTeam,
                   ),
@@ -590,7 +590,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                ),
              ),
              title: Text(player.fullName),
-             subtitle: Text('${player.classification ?? 'Keine Klassifikation'} • Rückennr. ${player.jerseyNumber ?? 'N/A'}'),
+             subtitle: Text('${player.classification ?? 'Keine Klassifikation'} â€¢ RÃ¼ckennr. ${player.jerseyNumber ?? 'N/A'}'),
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
@@ -651,7 +651,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Fügen Sie Spieler zu diesem Team hinzu',
+            'FÃ¼gen Sie Spieler zu diesem Team hinzu',
             style: TextStyle(color: Colors.grey[500]),
           ),
         ],
@@ -709,7 +709,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ),
           TextButton(
             onPressed: _changeTeamManager,
-            child: const Text('Ändern'),
+            child: const Text('Ã„ndern'),
           ),
         ],
       ),
@@ -761,7 +761,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     }
 
     try {
-      print('🏐 Saving team data with roster: ${_team!.rosterPlayerIds}');
+      debugPrint('ðŸ Saving team data with roster: ${_team!.rosterPlayerIds}');
       final updatedTeam = Team(
         id: _team!.id,
         name: _nameController.text.trim(),
@@ -769,7 +769,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         logoUrl: _team!.logoUrl,
         city: _cityController.text.trim(),
         bundesland: _selectedBundesland,
-        rosterPlayerIds: _team!.rosterPlayerIds, // ✅ FIXED: Include roster data!
+        rosterPlayerIds: _team!.rosterPlayerIds, // âœ… FIXED: Include roster data!
         createdAt: _team!.createdAt,
       );
 
@@ -806,7 +806,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Spieler entfernen'),
-        content: Text('Möchten Sie "${player.fullName}" aus dem Team-Kader entfernen?'),
+        content: Text('MÃ¶chten Sie "${player.fullName}" aus dem Team-Kader entfernen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -838,10 +838,10 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           createdAt: _team!.createdAt,
         );
 
-        print('🏐 Removing player from roster: ${player.fullName}');
-        print('🏐 Updated roster IDs: $updatedRosterIds');
+        debugPrint('ðŸ Removing player from roster: ${player.fullName}');
+        debugPrint('ðŸ Updated roster IDs: $updatedRosterIds');
         final success = await _teamService.updateTeam(_team!.id, updatedTeam);
-        print('🏐 Team update success: $success');
+        debugPrint('ðŸ Team update success: $success');
         if (success) {
           if (mounted) {
             setState(() {
@@ -930,7 +930,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       child: TextField(
                         controller: jerseyController,
                         decoration: const InputDecoration(
-                          labelText: 'Rückennummer',
+                          labelText: 'RÃ¼ckennummer',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -949,7 +949,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
+                          DropdownMenuItem(value: 'male', child: Text('MÃ¤nnlich')),
                           DropdownMenuItem(value: 'female', child: Text('Weiblich')),
                         ],
                         onChanged: (value) {
@@ -1002,7 +1002,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Erstellen & Hinzufügen'),
+              child: const Text('Erstellen & HinzufÃ¼gen'),
             ),
           ],
         ),
@@ -1022,7 +1022,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       ).toList();
 
       if (availablePlayers.isEmpty) {
-        _showError('Keine verfügbaren Spieler gefunden. Erstellen Sie zunächst neue Spieler.');
+        _showError('Keine verfÃ¼gbaren Spieler gefunden. Erstellen Sie zunÃ¤chst neue Spieler.');
         return;
       }
 
@@ -1033,7 +1033,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Vorhandenen Spieler hinzufügen'),
+            title: const Text('Vorhandenen Spieler hinzufÃ¼gen'),
             content: SizedBox(
               width: 500,
               height: 400,
@@ -1079,7 +1079,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text((player.email?.contains('@placeholder.com') ?? false) ? 'Keine E-Mail' : (player.email ?? 'Keine E-Mail')),
-                                Text('${player.classification ?? 'Keine Klassifikation'} • ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
+                                Text('${player.classification ?? 'Keine Klassifikation'} â€¢ ${player.gender == 'male' ? 'MÃ¤nnlich' : 'Weiblich'}'),
                               ],
                             ),
                             trailing: ElevatedButton(
@@ -1088,7 +1088,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
                               ),
-                              child: const Text('Hinzufügen'),
+                              child: const Text('HinzufÃ¼gen'),
                             ),
                           ),
                         );
@@ -1101,7 +1101,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Schließen'),
+                child: const Text('SchlieÃŸen'),
               ),
             ],
           ),
@@ -1185,7 +1185,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       child: TextField(
                         controller: jerseyController,
                         decoration: const InputDecoration(
-                          labelText: 'Rückennummer',
+                          labelText: 'RÃ¼ckennummer',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -1204,7 +1204,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
+                          DropdownMenuItem(value: 'male', child: Text('MÃ¤nnlich')),
                           DropdownMenuItem(value: 'female', child: Text('Weiblich')),
                         ],
                         onChanged: (value) {
@@ -1313,10 +1313,10 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           createdAt: _team!.createdAt,
         );
 
-        print('🏐 Adding new player to roster');
-        print('🏐 Updated roster IDs: $updatedRosterIds');
+        debugPrint('ðŸ Adding new player to roster');
+        debugPrint('ðŸ Updated roster IDs: $updatedRosterIds');
         final success = await _teamService.updateTeam(_team!.id, updatedTeam);
-        print('🏐 Team update success: $success');
+        debugPrint('ðŸ Team update success: $success');
         if (success) {
           if (mounted) {
             setState(() {
@@ -1334,9 +1334,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
              ));
             });
           }
-          _showSuccess('Spieler erfolgreich erstellt und zum Kader hinzugefügt!');
+          _showSuccess('Spieler erfolgreich erstellt und zum Kader hinzugefÃ¼gt!');
         } else {
-          _showError('Spieler erstellt, aber Fehler beim Hinzufügen zum Kader');
+          _showError('Spieler erstellt, aber Fehler beim HinzufÃ¼gen zum Kader');
         }
       } else {
         _showError('Fehler beim Erstellen des Spielers');
@@ -1365,10 +1365,10 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         createdAt: _team!.createdAt,
       );
 
-      print('🏐 Adding existing player to roster: ${player.fullName}');
-      print('🏐 Updated roster IDs: $updatedRosterIds');
+      debugPrint('ðŸ Adding existing player to roster: ${player.fullName}');
+      debugPrint('ðŸ Updated roster IDs: $updatedRosterIds');
       final success = await _teamService.updateTeam(_team!.id, updatedTeam);
-      print('🏐 Team update success: $success');
+      debugPrint('ðŸ Team update success: $success');
       if (success) {
         if (mounted) {
           setState(() {
@@ -1376,12 +1376,12 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             _players.add(player);
           });
         }
-        _showSuccess('Spieler erfolgreich zum Kader hinzugefügt!');
+        _showSuccess('Spieler erfolgreich zum Kader hinzugefÃ¼gt!');
       } else {
-        _showError('Fehler beim Hinzufügen zum Kader');
+        _showError('Fehler beim HinzufÃ¼gen zum Kader');
       }
     } catch (e) {
-      _showError('Fehler beim Hinzufügen: $e');
+      _showError('Fehler beim HinzufÃ¼gen: $e');
     }
   }
 
@@ -1457,7 +1457,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       final allManagers = await _teamManagerService.getAllTeamManagers();
       
       if (allManagers.isEmpty) {
-        _showError('Keine Team Manager gefunden. Erstellen Sie zunächst Team Manager.');
+        _showError('Keine Team Manager gefunden. Erstellen Sie zunÃ¤chst Team Manager.');
         return;
       }
 
@@ -1476,7 +1476,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: Text(isChanging ? 'Team Manager ändern' : 'Team Manager zuweisen'),
+            title: Text(isChanging ? 'Team Manager Ã¤ndern' : 'Team Manager zuweisen'),
             content: SizedBox(
               width: 500,
               height: 400,
@@ -1575,7 +1575,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                                       backgroundColor: Colors.blue,
                                       foregroundColor: Colors.white,
                                     ),
-                                    child: Text(isChanging ? 'Ändern zu' : 'Zuweisen'),
+                                    child: Text(isChanging ? 'Ã„ndern zu' : 'Zuweisen'),
                                   ),
                           ),
                         );
@@ -1588,7 +1588,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Schließen'),
+                child: const Text('SchlieÃŸen'),
               ),
             ],
           ),
@@ -1641,7 +1641,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Team Manager entfernen'),
-        content: Text('Möchten Sie "${_teamManager!.name}" als Team Manager entfernen?'),
+        content: Text('MÃ¶chten Sie "${_teamManager!.name}" als Team Manager entfernen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1694,8 +1694,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Team löschen'),
-        content: Text('Möchten Sie das Team "${_team!.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'),
+        title: const Text('Team lÃ¶schen'),
+        content: Text('MÃ¶chten Sie das Team "${_team!.name}" wirklich lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1704,7 +1704,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1715,12 +1715,12 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         final success = await _teamService.deleteTeam(_team!.id);
         if (success) {
           Navigator.of(context).pop(); // Go back to team management
-          _showSuccess('Team erfolgreich gelöscht!');
+          _showSuccess('Team erfolgreich gelÃ¶scht!');
         } else {
-          _showError('Fehler beim Löschen des Teams');
+          _showError('Fehler beim LÃ¶schen des Teams');
         }
       } catch (e) {
-        _showError('Fehler beim Löschen: $e');
+        _showError('Fehler beim LÃ¶schen: $e');
       }
     }
   }

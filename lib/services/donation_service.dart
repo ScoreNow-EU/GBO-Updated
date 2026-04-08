@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/donation.dart';
 import '../models/user.dart' as app_user;
 import 'auth_service.dart';
@@ -16,10 +17,10 @@ class DonationService {
       // Update user's total donations
       await _updateUserDonationTotal(donation.userId, donation.amount);
       
-      print('Donation added successfully with ID: ${docRef.id}');
+      debugPrint('Donation added successfully with ID: ${docRef.id}');
       return true;
     } catch (e) {
-      print('Error adding donation: $e');
+      debugPrint('Error adding donation: $e');
       return false;
     }
   }
@@ -50,7 +51,7 @@ class DonationService {
     try {
       return await _authService.getUserByEmail(email);
     } catch (e) {
-      print('Error finding user by email: $e');
+      debugPrint('Error finding user by email: $e');
       return null;
     }
   }
@@ -74,7 +75,7 @@ class DonationService {
         }
       });
     } catch (e) {
-      print('Error updating user donation total: $e');
+      debugPrint('Error updating user donation total: $e');
     }
   }
 
@@ -100,7 +101,7 @@ class DonationService {
         'averageDonation': totalDonations > 0 ? totalAmount / totalDonations : 0.0,
       };
     } catch (e) {
-      print('Error getting donation stats: $e');
+      debugPrint('Error getting donation stats: $e');
       return {
         'totalAmount': 0.0,
         'totalDonations': 0,
@@ -119,10 +120,10 @@ class DonationService {
       // Update user's total donations (subtract the amount)
       await _updateUserDonationTotal(userId, -amount);
       
-      print('Donation deleted successfully');
+      debugPrint('Donation deleted successfully');
       return true;
     } catch (e) {
-      print('Error deleting donation: $e');
+      debugPrint('Error deleting donation: $e');
       return false;
     }
   }

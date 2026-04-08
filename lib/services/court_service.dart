@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/court.dart';
 
-/// Simplified court service — courts are now just labels embedded in tournaments.
+/// Simplified court service â€” courts are now just labels embedded in tournaments.
 /// This service is kept for any standalone court operations but most court CRUD
 /// happens through the TournamentService (as courts are embedded in the Tournament document).
 class CourtService {
@@ -34,7 +35,7 @@ class CourtService {
       }
       return null;
     } catch (e) {
-      print('Error getting court: $e');
+      debugPrint('Error getting court: $e');
       return null;
     }
   }
@@ -47,7 +48,7 @@ class CourtService {
       await docRef.set(courtWithId.toMap());
       return docRef.id;
     } catch (e) {
-      print('Error creating court: $e');
+      debugPrint('Error creating court: $e');
       return null;
     }
   }
@@ -61,7 +62,7 @@ class CourtService {
           .update(court.toMap());
       return true;
     } catch (e) {
-      print('Error updating court: $e');
+      debugPrint('Error updating court: $e');
       return false;
     }
   }
@@ -72,7 +73,7 @@ class CourtService {
       await _firestore.collection(_collection).doc(courtId).delete();
       return true;
     } catch (e) {
-      print('Error deleting court: $e');
+      debugPrint('Error deleting court: $e');
       return false;
     }
   }

@@ -65,9 +65,6 @@ class _ScoringPickerScreenState extends State<ScoringPickerScreen> {
       MaterialPageRoute(
         builder: (context) => ScoringTabletScreen(
           user: widget.currentUser,
-          tournamentId: tournament.id,
-          courtId: court.id,
-          showBackButton: true,
         ),
       ),
     );

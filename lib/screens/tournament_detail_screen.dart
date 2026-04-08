@@ -120,7 +120,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         _statsLoaded = true;
       });
     } catch (e) {
-      print('\u274c Player stats load error: $e');
+      debugPrint('\u274c Player stats load error: $e');
       if (!mounted) return;
       setState(() => _statsLoading = false);
     }
@@ -172,7 +172,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         _cachedGames = _parseGameDocs(gamesSnapshot.docs);
         _gamesFingerprint = _buildGamesFingerprint(_cachedGames!);
 
-        // Silent background polling every 15 seconds – only setState when data changed
+        // Silent background polling every 15 seconds â€“ only setState when data changed
         _gamesRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
           if (!mounted) return;
           try {
@@ -186,7 +186,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
           } catch (_) {}
         });
       } catch (e) {
-        print('Error preloading games: $e');
+        debugPrint('Error preloading games: $e');
         _cachedGames = [];
       }
       
@@ -196,7 +196,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         });
       }
     } catch (e) {
-      print('Error preloading tournament data: $e');
+      debugPrint('Error preloading tournament data: $e');
       if (mounted) {
         setState(() {
           _isPreloading = false;
@@ -220,7 +220,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       final roles = userDoc.get('roles') as List<dynamic>? ?? [];
       return roles.contains('admin');
     } catch (e) {
-      print('Error checking admin status: $e');
+      debugPrint('Error checking admin status: $e');
       return false;
     }
   }
@@ -433,7 +433,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
     final agbLinks = widget.tournament.links.where((link) => link.type == 'agb').toList();
     final socialLinks = widget.tournament.links.where((link) => link.type == 'social').toList();
     
-    print('Detail screen: Tournament has ${widget.tournament.links.length} total links, ${agbLinks.length} AGBs, ${socialLinks.length} social');
+    debugPrint('Detail screen: Tournament has ${widget.tournament.links.length} total links, ${agbLinks.length} AGBs, ${socialLinks.length} social');
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,7 +562,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         return AlertDialog(
           title: const Text('Ausschreibung / AGBs'),
           content: agbLinks.isEmpty
-              ? const Text('Keine Links verfÃ¼gbar')
+              ? const Text('Keine Links verfÃƒÂ¼gbar')
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: agbLinks.map((link) {
@@ -578,7 +578,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('SchlieÃŸen'),
+              child: const Text('SchlieÃƒÅ¸en'),
             ),
           ],
         );
@@ -814,7 +814,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Noch keine Spiele fÃ¼r dieses Turnier erstellt.',
+                      'Noch keine Spiele fÃƒÂ¼r dieses Turnier erstellt.',
                       style: TextStyle(fontSize: isMobile ? 13 : 14),
                     ),
                   ),
@@ -1133,7 +1133,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               if (game.result!.winnerName.isNotEmpty && game.result!.winnerName != 'Unentschieden')
                 Flexible(
                   child: Text(
-                    '✓ ${game.result!.winnerName}',
+                    'âœ“ ${game.result!.winnerName}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.green.shade700,
@@ -1366,7 +1366,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
   }
 
   /// Returns a zero-padded sort key for natural numeric ordering of court names.
-  /// E.g. "Halle 2" → "Halle 000002", "Halle 10" → "Halle 000010".
+  /// E.g. "Halle 2" â†’ "Halle 000002", "Halle 10" â†’ "Halle 000010".
   String _courtSortKey(String? courtId) {
     if (courtId == null) return 'zzz'; // games without court go last
     try {
@@ -1479,7 +1479,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       return 0; // equal
     }
 
-    // Sort: points desc → head-to-head → goal diff desc → mark tiebreaker
+    // Sort: points desc â†’ head-to-head â†’ goal diff desc â†’ mark tiebreaker
     final sorted = statsMap.values.toList()
       ..sort((a, b) {
         final pCmp = b.points.compareTo(a.points);
@@ -1488,7 +1488,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         if (h2hCmp != 0) return h2hCmp;
         final dCmp = b.goalDiff.compareTo(a.goalDiff);
         if (dCmp != 0) return dCmp;
-        // Same points, same H2H, same goal diff → Entscheidungsspiel
+        // Same points, same H2H, same goal diff â†’ Entscheidungsspiel
         a.needsTiebreaker = true;
         b.needsTiebreaker = true;
         return a.name.compareTo(b.name);
@@ -1640,13 +1640,13 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
   Future<List<Game>> _getGamesWithActiveScoringTablets(List<Game> allGames) async {
     List<Game> gamesWithActiveScoring = [];
     
-    print('ðŸŽ¯ Checking ${allGames.length} games for active scoring tablets...');
+    debugPrint('Ã°Å¸Å½Â¯ Checking ${allGames.length} games for active scoring tablets...');
     
     for (final game in allGames) {
       try {
         // First priority: Games that are currently in progress
         if (game.status == GameStatus.inProgress) {
-          print('âœ… Game ${game.id.substring(game.id.length - 8)} is in progress - adding to live scoring');
+          debugPrint('Ã¢Å“â€¦ Game ${game.id.substring(game.id.length - 8)} is in progress - adding to live scoring');
           gamesWithActiveScoring.add(game);
           continue;
         }
@@ -1658,7 +1658,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
             .get();
         
         if (gameStateDoc.exists) {
-          print('ðŸ“‹ Found gameState for ${game.id.substring(game.id.length - 8)}');
+          debugPrint('Ã°Å¸â€œâ€¹ Found gameState for ${game.id.substring(game.id.length - 8)}');
           final data = gameStateDoc.data()!;
           
           // Check if the game has any scoring activity indicators
@@ -1673,7 +1673,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
           if (lastUpdated != null) {
             final now = DateTime.now();
             final timeDiff = now.difference(lastUpdated).inMinutes;
-            print('â° Game ${game.id.substring(game.id.length - 8)} last updated ${timeDiff} minutes ago');
+            debugPrint('Ã¢ÂÂ° Game ${game.id.substring(game.id.length - 8)} last updated ${timeDiff} minutes ago');
             
             if (timeDiff <= 10) {
               hasActivity = true;
@@ -1704,29 +1704,29 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               if (eventsSnapshot.docs.isNotEmpty) {
                 hasActivity = true;
                 activityReason = 'has game events';
-                print('ðŸ“ Game ${game.id.substring(game.id.length - 8)} has ${eventsSnapshot.docs.length} events');
+                debugPrint('Ã°Å¸â€œÂ Game ${game.id.substring(game.id.length - 8)} has ${eventsSnapshot.docs.length} events');
               }
             } catch (e) {
-              print('âŒ Error checking events for ${game.id.substring(game.id.length - 8)}: $e');
+              debugPrint('Ã¢ÂÅ’ Error checking events for ${game.id.substring(game.id.length - 8)}: $e');
             }
           }
           
           if (hasActivity) {
-            print('âœ… Game ${game.id.substring(game.id.length - 8)} has activity ($activityReason) - adding to live scoring');
+            debugPrint('Ã¢Å“â€¦ Game ${game.id.substring(game.id.length - 8)} has activity ($activityReason) - adding to live scoring');
             gamesWithActiveScoring.add(game);
           } else {
-            print('âš ï¸ Game ${game.id.substring(game.id.length - 8)} has gameState but no detectable activity');
+            debugPrint('Ã¢Å¡Â Ã¯Â¸Â Game ${game.id.substring(game.id.length - 8)} has gameState but no detectable activity');
           }
         } else {
-          print('âŒ No gameState found for ${game.id.substring(game.id.length - 8)}');
+          debugPrint('Ã¢ÂÅ’ No gameState found for ${game.id.substring(game.id.length - 8)}');
         }
       } catch (e) {
         // Skip games with errors
-        print('âŒ Error checking game state for ${game.id.substring(game.id.length - 8)}: $e');
+        debugPrint('Ã¢ÂÅ’ Error checking game state for ${game.id.substring(game.id.length - 8)}: $e');
       }
     }
     
-    print('ðŸŽ¯ Found ${gamesWithActiveScoring.length} games with active scoring tablets');
+    debugPrint('Ã°Å¸Å½Â¯ Found ${gamesWithActiveScoring.length} games with active scoring tablets');
     return gamesWithActiveScoring;
   }
 
@@ -2250,7 +2250,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               // 1. Uhrzeit
               final timeCmp = (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100));
               if (timeCmp != 0) return timeCmp;
-              // 2. Halle (natürliche Sortierung: Halle 1 vor Halle 2)
+              // 2. Halle (natÃ¼rliche Sortierung: Halle 1 vor Halle 2)
               final courtCmp = _courtSortKey(a.courtId).compareTo(_courtSortKey(b.courtId));
               if (courtCmp != 0) return courtCmp;
               // 3. Team A Name (A vor B)
@@ -2314,7 +2314,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         child: Text(
           _statsLoaded
               ? 'Noch keine Spielerstatistiken vorhanden.'
-              : 'Statistiken werden beim Öffnen geladen.',
+              : 'Statistiken werden beim Ã–ffnen geladen.',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
       );
@@ -2543,7 +2543,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
                               ],
                             )
                           : Text(
-                              isLive ? 'läuft' : '- : -',
+                              isLive ? 'lÃ¤uft' : '- : -',
                               style: TextStyle(
                                 fontSize: isLive ? 12 : 15,
                                 fontWeight: FontWeight.bold,
@@ -2712,7 +2712,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       );
     }
     
-    // No organizer assigned — show neutral placeholder
+    // No organizer assigned â€” show neutral placeholder
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(
@@ -3266,7 +3266,7 @@ class _LiveScoringDetailsScreenState extends State<LiveScoringDetailsScreen>
           border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
         child: Text(
-          'Team-IDs nicht verfÃ¼gbar fÃ¼r Anzeigetafel',
+          'Team-IDs nicht verfÃƒÂ¼gbar fÃƒÂ¼r Anzeigetafel',
           style: TextStyle(
             color: Colors.white.withOpacity(0.7),
             fontSize: 16,

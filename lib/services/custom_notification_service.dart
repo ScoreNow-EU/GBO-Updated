@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,13 +16,13 @@ class CustomNotificationService {
   /// Check if time-sensitive notifications are available and request permission if needed
   Future<bool> checkTimeSensitivePermissions() async {
     try {
-      print('📱 Calling native iOS method to check time-sensitive permissions...');
+      debugPrint('ðŸ“± Calling native iOS method to check time-sensitive permissions...');
       // Call iOS native code to check and request time-sensitive permissions
       final bool hasPermission = await _methodChannel.invokeMethod('checkTimeSensitivePermissions');
-      print('📱 Time-sensitive notification permission result: $hasPermission');
+      debugPrint('ðŸ“± Time-sensitive notification permission result: $hasPermission');
       return hasPermission;
     } catch (e) {
-      print('❌ Error checking time-sensitive permissions: $e');
+      debugPrint('âŒ Error checking time-sensitive permissions: $e');
       // If the native method fails, fall back to regular notifications
       return false;
     }
@@ -30,12 +31,12 @@ class CustomNotificationService {
   /// Request time-sensitive notification permission explicitly
   Future<bool> requestTimeSensitivePermission() async {
     try {
-      print('📱 Requesting time-sensitive notification permission...');
+      debugPrint('ðŸ“± Requesting time-sensitive notification permission...');
       final bool hasPermission = await _methodChannel.invokeMethod('requestTimeSensitivePermission');
-      print('📱 Time-sensitive permission request result: $hasPermission');
+      debugPrint('ðŸ“± Time-sensitive permission request result: $hasPermission');
       return hasPermission;
     } catch (e) {
-      print('❌ Error requesting time-sensitive permission: $e');
+      debugPrint('âŒ Error requesting time-sensitive permission: $e');
       return false;
     }
   }
@@ -48,14 +49,14 @@ class CustomNotificationService {
     bool isTimeSensitive = false,
   }) async {
     try {
-      print('📬 Sending notification: "$title" to ${userEmail ?? "all users"}');
+      debugPrint('ðŸ“¬ Sending notification: "$title" to ${userEmail ?? "all users"}');
       
       // Check time-sensitive permissions if needed
       if (isTimeSensitive) {
-        print('📱 Checking time-sensitive notification permissions...');
+        debugPrint('ðŸ“± Checking time-sensitive notification permissions...');
         final hasPermission = await checkTimeSensitivePermissions();
         if (!hasPermission) {
-          print('❌ Time-sensitive notification permission denied');
+          debugPrint('âŒ Time-sensitive notification permission denied');
           return false;
         }
       }
@@ -65,18 +66,18 @@ class CustomNotificationService {
       
       // Get the user by email if targeting specific user
       if (userEmail != null) {
-        print('🔍 Looking up user by email: $userEmail');
+        debugPrint('ðŸ” Looking up user by email: $userEmail');
         final user = await _authService.getUserByEmail(userEmail);
         if (user == null) {
-          print('❌ User not found for email: $userEmail');
+          debugPrint('âŒ User not found for email: $userEmail');
           return false;
         }
         userId = user.id;
-        print('✅ Found user: ${user.fullName} (ID: ${user.id})');
+        debugPrint('âœ… Found user: ${user.fullName} (ID: ${user.id})');
       }
       
       // Save notification to Firestore for tracking
-      print('💾 Saving notification to Firestore...');
+      debugPrint('ðŸ’¾ Saving notification to Firestore...');
       await _saveNotificationToFirestore(
         title: title,
         message: message,
@@ -86,7 +87,7 @@ class CustomNotificationService {
       );
       
       // Send push notification via iOS
-      print('📱 Sending push notification...');
+      debugPrint('ðŸ“± Sending push notification...');
       await _sendPushNotification(
         title: title,
         message: message,
@@ -94,10 +95,10 @@ class CustomNotificationService {
         isTimeSensitive: isTimeSensitive,
       );
       
-      print('✅ Custom notification sent successfully to: $targetEmail');
+      debugPrint('âœ… Custom notification sent successfully to: $targetEmail');
       return true;
     } catch (e) {
-      print('❌ Error sending custom notification: $e');
+      debugPrint('âŒ Error sending custom notification: $e');
       return false;
     }
   }
@@ -122,9 +123,9 @@ class CustomNotificationService {
         'isTimeSensitive': isTimeSensitive,
       });
       
-      print('📝 Notification saved to Firestore');
+      debugPrint('ðŸ“ Notification saved to Firestore');
     } catch (e) {
-      print('❌ Error saving notification to Firestore: $e');
+      debugPrint('âŒ Error saving notification to Firestore: $e');
       rethrow;
     }
   }
@@ -137,7 +138,7 @@ class CustomNotificationService {
     required bool isTimeSensitive,
   }) async {
     try {
-      print('📱 Attempting to send push notification - Time Sensitive: $isTimeSensitive');
+      debugPrint('ðŸ“± Attempting to send push notification - Time Sensitive: $isTimeSensitive');
       
       // Call iOS native code to send push notification
       await _methodChannel.invokeMethod('sendCustomNotification', {
@@ -148,10 +149,10 @@ class CustomNotificationService {
         'timestamp': DateTime.now().millisecondsSinceEpoch, // Add timestamp in milliseconds for iOS
       });
       
-      print('📱 Custom push notification sent via iOS (Time Sensitive: $isTimeSensitive)');
+      debugPrint('ðŸ“± Custom push notification sent via iOS (Time Sensitive: $isTimeSensitive)');
     } catch (e) {
-      print('❌ Error sending push notification: $e');
-      print('🔄 Falling back to local notification (Time Sensitive: $isTimeSensitive)');
+      debugPrint('âŒ Error sending push notification: $e');
+      debugPrint('ðŸ”„ Falling back to local notification (Time Sensitive: $isTimeSensitive)');
       // Fall back to local notification
       await _showLocalNotification(title, message, isTimeSensitive: isTimeSensitive);
     }
@@ -160,7 +161,7 @@ class CustomNotificationService {
   /// Show local notification as fallback
   Future<void> _showLocalNotification(String title, String message, {bool isTimeSensitive = false, String? payload}) async {
     try {
-      print('📱 Creating local notification - Time Sensitive: $isTimeSensitive');
+      debugPrint('ðŸ“± Creating local notification - Time Sensitive: $isTimeSensitive');
       
       final notificationDetails = NotificationDetails(
         android: AndroidNotificationDetails(
@@ -186,15 +187,15 @@ class CustomNotificationService {
       
       await _localNotifications.show(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        isTimeSensitive ? "⚠️ $title" : title,
+        isTimeSensitive ? "âš ï¸ $title" : title,
         message,
         notificationDetails,
         payload: payload ?? 'custom_notification',
       );
       
-      print('📱 Local notification shown as fallback (Time Sensitive: $isTimeSensitive)');
+      debugPrint('ðŸ“± Local notification shown as fallback (Time Sensitive: $isTimeSensitive)');
     } catch (e) {
-      print('❌ Error showing local notification: $e');
+      debugPrint('âŒ Error showing local notification: $e');
     }
   }
   
@@ -210,7 +211,7 @@ class CustomNotificationService {
     String? userEmail,
   }) async {
     try {
-      print('📬 Sending game notification ($notificationType): "$title" to ${userEmail ?? userId ?? "unknown"}');
+      debugPrint('ðŸ“¬ Sending game notification ($notificationType): "$title" to ${userEmail ?? userId ?? "unknown"}');
 
       String targetEmail = userEmail ?? 'all';
 
@@ -259,15 +260,15 @@ class CustomNotificationService {
           'teamName': teamName,
         });
       } catch (e) {
-        print('🔄 Native push failed, using local notification');
+        debugPrint('ðŸ”„ Native push failed, using local notification');
         await _showLocalNotification(title, message,
             isTimeSensitive: true, payload: payload);
       }
 
-      print('✅ Game notification sent: $notificationType');
+      debugPrint('âœ… Game notification sent: $notificationType');
       return true;
     } catch (e) {
-      print('❌ Error sending game notification: $e');
+      debugPrint('âŒ Error sending game notification: $e');
       return false;
     }
   }
@@ -302,7 +303,7 @@ class CustomNotificationService {
                 try {
                   sentAt = DateTime.parse(data['sentAt']);
                 } catch (e) {
-                  print('❌ Error parsing date string: ${data['sentAt']}');
+                  debugPrint('âŒ Error parsing date string: ${data['sentAt']}');
                 }
               } else if (data['sentAt'] is Timestamp) {
                 sentAt = (data['sentAt'] as Timestamp).toDate();

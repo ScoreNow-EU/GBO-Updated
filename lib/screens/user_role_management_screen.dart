@@ -36,7 +36,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     'Team Manager',
     'Delegate',
     'Scoring Tablet',
-    'Sanitäter',
+    'SanitÃ¤ter',
     'Series Organizer',
     'Spieler',
   ];
@@ -66,11 +66,11 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       // Auto-assign roles based on existing referee and team manager emails
       final rolesAdded = await _autoAssignRoles();
       if (rolesAdded > 0) {
-        print('🔄 Auto-assigned $rolesAdded roles during initial load');
+        debugPrint('ðŸ”„ Auto-assigned $rolesAdded roles during initial load');
       }
       
     } catch (e) {
-      print('Error loading data: $e');
+      debugPrint('Error loading data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -144,7 +144,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           if (success) {
             rolesAdded++;
             userUpdated = true;
-            print('✅ Auto-assigned referee role to ${user.fullName} (${user.email}) with refereeId: ${referee.id}');
+            debugPrint('âœ… Auto-assigned referee role to ${user.fullName} (${user.email}) with refereeId: ${referee.id}');
           }
         }
         
@@ -159,7 +159,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           if (success) {
             rolesAdded++;
             userUpdated = true;
-            print('✅ Auto-assigned team manager role to ${user.fullName} (${user.email}) with teamManagerId: ${teamManager.id}');
+            debugPrint('âœ… Auto-assigned team manager role to ${user.fullName} (${user.email}) with teamManagerId: ${teamManager.id}');
           }
         }
       }
@@ -173,13 +173,13 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             _users = users;
           });
         }
-        print('🔄 Auto-assigned $rolesAdded roles during refresh');
+        debugPrint('ðŸ”„ Auto-assigned $rolesAdded roles during refresh');
       }
       
       return rolesAdded;
       
     } catch (e) {
-      print('❌ Error during auto-role assignment: $e');
+      debugPrint('âŒ Error during auto-role assignment: $e');
       return 0;
     }
   }
@@ -188,7 +188,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Rolle hinzufügen für ${user.fullName}'),
+        title: Text('Rolle hinzufÃ¼gen fÃ¼r ${user.fullName}'),
         content: SizedBox(
           width: 300,
           child: Column(
@@ -704,7 +704,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Rollen hinzufügen:',
+          'Rollen hinzufÃ¼gen:',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -744,7 +744,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           ElevatedButton.icon(
             onPressed: () => _showAddRoleDialog(user, availableRoles),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Rolle hinzufügen'),
+            label: const Text('Rolle hinzufÃ¼gen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -755,7 +755,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         OutlinedButton.icon(
           onPressed: () => _showResetPasswordDialog(user),
           icon: const Icon(Icons.lock_reset, size: 16),
-          label: const Text('Passwort zurücksetzen'),
+          label: const Text('Passwort zurÃ¼cksetzen'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.orange,
             side: const BorderSide(color: Colors.orange),
@@ -765,7 +765,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         OutlinedButton.icon(
           onPressed: () => _showDeleteAccountDialog(user),
           icon: const Icon(Icons.delete, size: 16),
-          label: const Text('Konto löschen'),
+          label: const Text('Konto lÃ¶schen'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.red,
             side: const BorderSide(color: Colors.red),
@@ -858,7 +858,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
       case app_user.UserRole.sanitater:
-        return 'Sanitäter';
+        return 'SanitÃ¤ter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:
@@ -906,7 +906,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         case 'Scoring Tablet':
           filterRole = app_user.UserRole.scoringTablet;
           break;
-        case 'Sanitäter':
+        case 'SanitÃ¤ter':
           filterRole = app_user.UserRole.sanitater;
           break;
         case 'Series Organizer':
@@ -979,7 +979,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Referee erstellt'),
-                description: Text('${user.fullName} wurde als Referee hinzugefügt.'),
+                description: Text('${user.fullName} wurde als Referee hinzugefÃ¼gt.'),
                 autoCloseDuration: const Duration(seconds: 3),
               );
             }
@@ -1038,7 +1038,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Team Manager erstellt'),
-                description: Text('${user.fullName} wurde als Team Manager hinzugefügt.'),
+                description: Text('${user.fullName} wurde als Team Manager hinzugefÃ¼gt.'),
                 autoCloseDuration: const Duration(seconds: 3),
               );
             }
@@ -1149,9 +1149,9 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Passwort zurücksetzen'),
+        title: const Text('Passwort zurÃ¼cksetzen'),
         content: Text(
-          'Möchten Sie wirklich eine Passwort-Zurücksetzen-E-Mail an ${user.email} senden?',
+          'MÃ¶chten Sie wirklich eine Passwort-ZurÃ¼cksetzen-E-Mail an ${user.email} senden?',
         ),
         actions: [
           TextButton(
@@ -1166,7 +1166,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
             ),
-            child: const Text('Passwort zurücksetzen'),
+            child: const Text('Passwort zurÃ¼cksetzen'),
           ),
         ],
       ),
@@ -1183,7 +1183,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
           title: const Text('E-Mail versendet'),
-          description: Text('Passwort-Zurücksetzen-E-Mail wurde an ${user.email} versendet.'),
+          description: Text('Passwort-ZurÃ¼cksetzen-E-Mail wurde an ${user.email} versendet.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1205,13 +1205,13 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Konto löschen'),
+        title: const Text('Konto lÃ¶schen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Möchten Sie wirklich das Konto von ${user.fullName} (${user.email}) dauerhaft löschen?',
+              'MÃ¶chten Sie wirklich das Konto von ${user.fullName} (${user.email}) dauerhaft lÃ¶schen?',
             ),
             const SizedBox(height: 12),
             Container(
@@ -1227,7 +1227,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Diese Aktion kann nicht rückgängig gemacht werden!',
+                      'Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.red.shade700,
@@ -1253,7 +1253,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Konto löschen'),
+            child: const Text('Konto lÃ¶schen'),
           ),
         ],
       ),
@@ -1270,8 +1270,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: const Text('Konto gelöscht'),
-          description: Text('Das Konto von ${user.fullName} wurde erfolgreich gelöscht.'),
+          title: const Text('Konto gelÃ¶scht'),
+          description: Text('Das Konto von ${user.fullName} wurde erfolgreich gelÃ¶scht.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1282,7 +1282,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Fehler beim Löschen des Kontos: $e'),
+          description: Text('Fehler beim LÃ¶schen des Kontos: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1330,7 +1330,7 @@ class _RefereeCreationDialogState extends State<_RefereeCreationDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Erstelle einen Referee-Eintrag für ${widget.user.fullName}',
+                'Erstelle einen Referee-Eintrag fÃ¼r ${widget.user.fullName}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -1448,7 +1448,7 @@ class _TeamManagerCreationDialogState extends State<_TeamManagerCreationDialog> 
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Erstelle einen Team Manager-Eintrag für ${widget.user.fullName}',
+                'Erstelle einen Team Manager-Eintrag fÃ¼r ${widget.user.fullName}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,

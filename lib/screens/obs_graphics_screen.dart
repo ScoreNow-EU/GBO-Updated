@@ -124,7 +124,7 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
         _lastUpdate = DateTime.now();
       });
     } catch (e) {
-      print('Error loading OBS graphics data: $e');
+      debugPrint('Error loading OBS graphics data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -501,7 +501,7 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
           ),
           const SizedBox(width: 16),
           Text(
-            '${tournament!.location} • ${_formatDate(tournament!.startDate!)}',
+            '${tournament!.location} â€¢ ${_formatDate(tournament!.startDate!)}',
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
               fontSize: 14,
@@ -744,7 +744,7 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
                 ),
               ),
               Text(
-                '${tournament!.location} • ${_formatDateRange(tournament!.startDate!, tournament!.endDate!)}',
+                '${tournament!.location} â€¢ ${_formatDateRange(tournament!.startDate!, tournament!.endDate!)}',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.9),
                   fontSize: 16,

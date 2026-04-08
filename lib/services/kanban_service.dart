@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/kanban_board.dart';
 import '../models/kanban_task.dart';
 
@@ -19,7 +20,7 @@ class KanbanService {
         final defaultBoard = KanbanBoard(
           id: _defaultBoardId,
           name: 'RHBL - Aufgaben',
-          description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
+          description: 'Hauptboard fÃ¼r die Verwaltung aller RHBL-Aufgaben',
           projectKey: 'RHBL',
           adminIds: [],
           memberIds: [],
@@ -33,12 +34,12 @@ class KanbanService {
         return defaultBoard;
       }
     } catch (e) {
-      print('Error getting default board: $e');
+      debugPrint('Error getting default board: $e');
       // Return a fallback board
       return KanbanBoard(
         id: _defaultBoardId,
         name: 'RHBL - Aufgaben',
-        description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
+        description: 'Hauptboard fÃ¼r die Verwaltung aller RHBL-Aufgaben',
         projectKey: 'RHBL',
         adminIds: [],
         memberIds: [],
@@ -81,7 +82,7 @@ class KanbanService {
       tasks.sort((a, b) => a.position.compareTo(b.position));
       return tasks;
     } catch (e) {
-      print('Error getting tasks: $e');
+      debugPrint('Error getting tasks: $e');
       return [];
     }
   }
@@ -93,7 +94,7 @@ class KanbanService {
         return KanbanTask.fromFirestore(doc);
       }
     } catch (e) {
-      print('Error getting task: $e');
+      debugPrint('Error getting task: $e');
     }
     return null;
   }
@@ -132,7 +133,7 @@ class KanbanService {
       final docRef = await _firestore.collection(_tasksCollection).add(taskWithBoard.toFirestore());
       return docRef.id;
     } catch (e) {
-      print('Error creating task: $e');
+      debugPrint('Error creating task: $e');
       return null;
     }
   }
@@ -145,7 +146,7 @@ class KanbanService {
           .update(task.toFirestore());
       return true;
     } catch (e) {
-      print('Error updating task: $e');
+      debugPrint('Error updating task: $e');
       return false;
     }
   }
@@ -155,7 +156,7 @@ class KanbanService {
       await _firestore.collection(_tasksCollection).doc(taskId).delete();
       return true;
     } catch (e) {
-      print('Error deleting task: $e');
+      debugPrint('Error deleting task: $e');
       return false;
     }
   }
@@ -169,7 +170,7 @@ class KanbanService {
       });
       return true;
     } catch (e) {
-      print('Error moving task: $e');
+      debugPrint('Error moving task: $e');
       return false;
     }
   }
@@ -184,7 +185,7 @@ class KanbanService {
       });
       return true;
     } catch (e) {
-      print('Error assigning task: $e');
+      debugPrint('Error assigning task: $e');
       return false;
     }
   }
@@ -202,7 +203,7 @@ class KanbanService {
       }
       return false;
     } catch (e) {
-      print('Error adding comment: $e');
+      debugPrint('Error adding comment: $e');
       return false;
     }
   }
@@ -215,7 +216,7 @@ class KanbanService {
       });
       return true;
     } catch (e) {
-      print('Error updating task priority: $e');
+      debugPrint('Error updating task priority: $e');
       return false;
     }
   }
@@ -228,7 +229,7 @@ class KanbanService {
       });
       return true;
     } catch (e) {
-      print('Error updating task labels: $e');
+      debugPrint('Error updating task labels: $e');
       return false;
     }
   }
@@ -241,7 +242,7 @@ class KanbanService {
       });
       return true;
     } catch (e) {
-      print('Error updating task due date: $e');
+      debugPrint('Error updating task due date: $e');
       return false;
     }
   }
@@ -263,7 +264,7 @@ class KanbanService {
       await _firestore.collection(_tasksCollection).doc(taskId).update(updateData);
       return true;
     } catch (e) {
-      print('Error updating task time tracking: $e');
+      debugPrint('Error updating task time tracking: $e');
       return false;
     }
   }
@@ -290,7 +291,7 @@ class KanbanService {
           task.labels.any((label) => label.toLowerCase().contains(lowercaseQuery))
       ).toList();
     } catch (e) {
-      print('Error searching tasks: $e');
+      debugPrint('Error searching tasks: $e');
       return [];
     }
   }
@@ -311,7 +312,7 @@ class KanbanService {
       tasks.sort((a, b) => a.position.compareTo(b.position));
       return tasks;
     } catch (e) {
-      print('Error getting tasks by status: $e');
+      debugPrint('Error getting tasks by status: $e');
       return [];
     }
   }
@@ -332,7 +333,7 @@ class KanbanService {
       tasks.sort((a, b) => a.position.compareTo(b.position));
       return tasks;
     } catch (e) {
-      print('Error getting tasks by assignee: $e');
+      debugPrint('Error getting tasks by assignee: $e');
       return [];
     }
   }
@@ -370,7 +371,7 @@ class KanbanService {
       
       return stats;
     } catch (e) {
-      print('Error getting statistics: $e');
+      debugPrint('Error getting statistics: $e');
       return {};
     }
   }

@@ -82,7 +82,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
         });
       }
     } catch (e) {
-      print('Error loading current user: $e');
+      debugPrint('Error loading current user: $e');
     }
   }
 
@@ -96,7 +96,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
         });
       }
     } catch (e) {
-      print('Error checking Apple Pay availability: $e');
+      debugPrint('Error checking Apple Pay availability: $e');
       if (mounted) {
         setState(() {
           _isApplePayAvailable = false;
@@ -114,7 +114,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
 
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
-      _showErrorToast('Bitte geben Sie einen gültigen Betrag ein');
+      _showErrorToast('Bitte geben Sie einen gÃ¼ltigen Betrag ein');
       return;
     }
 
@@ -126,16 +126,16 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       final success = await ApplePayService.processApplePayPayment(
         amount: amount,
         currency: 'EUR',
-        description: 'RHBL Spende - ${amount.toStringAsFixed(2)}€',
+        description: 'RHBL Spende - ${amount.toStringAsFixed(2)}â‚¬',
       );
       
       if (success) {
-        _showSuccessToast('Vielen Dank für deine Spende! 🎉');
+        _showSuccessToast('Vielen Dank fÃ¼r deine Spende! ðŸŽ‰');
         _clearForm();
       }
     } catch (e) {
       final errorMessage = e.toString().replaceAll('Exception: ', '');
-      print('Apple Pay error details: $errorMessage');
+      debugPrint('Apple Pay error details: $errorMessage');
       _showErrorToast(errorMessage.isNotEmpty ? errorMessage : 'Ein unerwarteter Fehler ist aufgetreten');
     } finally {
       setState(() {
@@ -282,7 +282,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                 
                 // Title
                 const Text(
-                  'Unterstütze die\nRHBL App',
+                  'UnterstÃ¼tze die\nRHBL App',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
@@ -401,7 +401,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             const SizedBox(width: 16),
             const Expanded(
               child: Text(
-                'Warum deine Unterstützung wichtig ist',
+                'Warum deine UnterstÃ¼tzung wichtig ist',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -415,9 +415,9 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
         const SizedBox(height: 16),
         
         const Text(
-          'Die RHBL App wird vollständig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
-          'Um die App am Leben zu erhalten und kontinuierlich zu verbessern, entstehen uns laufende Kosten für '
-          'Server, Datenbanken, App Store Gebühren und Entwicklungstools.',
+          'Die RHBL App wird vollstÃ¤ndig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
+          'Um die App am Leben zu erhalten und kontinuierlich zu verbessern, entstehen uns laufende Kosten fÃ¼r '
+          'Server, Datenbanken, App Store GebÃ¼hren und Entwicklungstools.',
           style: TextStyle(
             fontSize: 16,
             color: Colors.black87,
@@ -444,7 +444,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Ohne ausreichende Unterstützung müssen wir eventuell Werbung einblenden, um die Kosten zu decken.',
+                  'Ohne ausreichende UnterstÃ¼tzung mÃ¼ssen wir eventuell Werbung einblenden, um die Kosten zu decken.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.orange.shade800,
@@ -464,7 +464,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Spendenbetrag wählen',
+          'Spendenbetrag wÃ¤hlen',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -494,7 +494,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
           decoration: InputDecoration(
             labelText: 'Oder eigenen Betrag eingeben',
             hintText: '0.00',
-            prefixText: '€ ',
+            prefixText: 'â‚¬ ',
             prefixStyle: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -546,7 +546,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
           ] : null,
         ),
         child: Text(
-          '$amount €',
+          '$amount â‚¬',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -565,7 +565,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Spende abschließen',
+          'Spende abschlieÃŸen',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -645,7 +645,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                   ),
                 ),
                 Text(
-                  'Deine Zahlungsdaten werden verschlüsselt übertragen und nicht gespeichert.',
+                  'Deine Zahlungsdaten werden verschlÃ¼sselt Ã¼bertragen und nicht gespeichert.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.green.shade700,
@@ -710,11 +710,11 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             const SizedBox(height: 16),
             
             ...[
-              {'item': 'Firebase Hosting & Database', 'cost': '45€'},
-              {'item': 'App Store & Play Store Gebühren', 'cost': '35€'},
-              {'item': 'Domain & SSL Zertifikat', 'cost': '25€'},
-              {'item': 'Entwicklungstools & Services', 'cost': '135€'},
-              {'item': 'Backup & Monitoring', 'cost': '20€'},
+              {'item': 'Firebase Hosting & Database', 'cost': '45â‚¬'},
+              {'item': 'App Store & Play Store GebÃ¼hren', 'cost': '35â‚¬'},
+              {'item': 'Domain & SSL Zertifikat', 'cost': '25â‚¬'},
+              {'item': 'Entwicklungstools & Services', 'cost': '135â‚¬'},
+              {'item': 'Backup & Monitoring', 'cost': '20â‚¬'},
             ].map((cost) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
@@ -753,7 +753,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                   ),
                 ),
                 Text(
-                  '260€',
+                  '260â‚¬',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -820,7 +820,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             
             const Text(
               'Dieses Projekt wird in unserer Freizeit entwickelt und betrieben. Alle Projektmitglieder Arbeiten nebenbei noch Vollzeit. '
-              'Wir investieren unzählige Stunden, um den Beach-Handball in Deutschland zu fördern. Ohne deine Unterstützung wäre das nicht möglich.',
+              'Wir investieren unzÃ¤hlige Stunden, um den Beach-Handball in Deutschland zu fÃ¶rdern. Ohne deine UnterstÃ¼tzung wÃ¤re das nicht mÃ¶glich.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -840,13 +840,13 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                   height: 40,
                   color: Colors.purple.shade200,
                 ),
-                _buildVolunteerStat('0€', 'Gehalt\noder Lohn'),
+                _buildVolunteerStat('0â‚¬', 'Gehalt\noder Lohn'),
                 Container(
                   width: 1,
                   height: 40,
                   color: Colors.purple.shade200,
                 ),
-                _buildVolunteerStat('❤️', 'Leidenschaft\nfür den Sport'),
+                _buildVolunteerStat('â¤ï¸', 'Leidenschaft\nfÃ¼r den Sport'),
               ],
             ),
           ],

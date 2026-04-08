@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/game_event.dart';
 import '../models/player.dart';
@@ -82,7 +83,7 @@ class LiveScoringService {
         events: events,
       );
     } catch (e) {
-      print('❌ Error loading game state: $e');
+      debugPrint('âŒ Error loading game state: $e');
       return GameState(
         gameId: gameId,
         gameTime: GameTime(),
@@ -105,7 +106,7 @@ class LiveScoringService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Error saving game state: $e');
+      debugPrint('âŒ Error saving game state: $e');
     }
   }
 
@@ -130,7 +131,7 @@ class LiveScoringService {
 
     _gameTimer?.cancel();
     _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      // Read directly from cache — no Firestore round-trip per tick
+      // Read directly from cache â€” no Firestore round-trip per tick
       final state = _stateCache[gameId];
       if (state == null || !state.isRunning) {
         timer.cancel();
@@ -238,9 +239,9 @@ class LiveScoringService {
       await _saveGameState(updatedState);
       _updateGameState(gameId, updatedState);
       
-      print('✅ Game event added: ${eventType.toString()} by $playerName');
+      debugPrint('âœ… Game event added: ${eventType.toString()} by $playerName');
     } catch (e) {
-      print('❌ Error adding game event: $e');
+      debugPrint('âŒ Error adding game event: $e');
       throw e;
     }
   }
@@ -285,9 +286,9 @@ class LiveScoringService {
       await _saveGameState(updatedState);
       _updateGameState(gameId, updatedState);
       
-      print('✅ Last event removed: ${lastEvent.eventType.toString()}');
+      debugPrint('âœ… Last event removed: ${lastEvent.eventType.toString()}');
     } catch (e) {
-      print('❌ Error removing last event: $e');
+      debugPrint('âŒ Error removing last event: $e');
       throw e;
     }
   }
@@ -331,9 +332,9 @@ class LiveScoringService {
         _updateGameState(gameId, updatedState);
       }
       
-      print('✅ Half ${currentState.currentHalf} completed');
+      debugPrint('âœ… Half ${currentState.currentHalf} completed');
     } catch (e) {
-      print('❌ Error completing half: $e');
+      debugPrint('âŒ Error completing half: $e');
       throw e;
     }
   }
@@ -373,9 +374,9 @@ class LiveScoringService {
       
       _updateGameState(gameId, resetState);
       
-      print('✅ All game data cleared for game: $gameId');
+      debugPrint('âœ… All game data cleared for game: $gameId');
     } catch (e) {
-      print('❌ Error clearing all game data: $e');
+      debugPrint('âŒ Error clearing all game data: $e');
       throw e;
     }
   }
@@ -400,9 +401,9 @@ class LiveScoringService {
       final updatedState = await _loadGameState(gameId);
       _updateGameState(gameId, updatedState);
       
-      print('✅ Current half data cleared for game: $gameId, half: $currentHalf');
+      debugPrint('âœ… Current half data cleared for game: $gameId, half: $currentHalf');
     } catch (e) {
-      print('❌ Error clearing current half data: $e');
+      debugPrint('âŒ Error clearing current half data: $e');
       throw e;
     }
   }

@@ -305,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
       currentUser: _currentUser,
       onUserUpdated: () {
         // Refresh current user after auto-linking
-        print('🔄 User updated, refreshing current user...');
+        debugPrint('ðŸ”„ User updated, refreshing current user...');
         _loadCurrentUser();
       },
       hideAppBar: selectedSection == 'rangliste', // Hide AppBar for rangliste since it has its own
@@ -357,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'season_management':
         return 'Saison Management';
       case 'city_migration':
-        return 'Städte Migration';
+        return 'StÃ¤dte Migration';
       case 'new_tournament':
         return 'Neues Turnier';
       case 'generate_sign_in_codes':
@@ -446,19 +446,19 @@ class _HomeScreenState extends State<HomeScreen> {
         !selectedSection.startsWith('team_management') && 
         !selectedSection.startsWith('team_manager_management')) {
       final parts = selectedSection.split('_');
-      print('🏠 HomeScreen - selectedSection: $selectedSection');
-      print('🏠 HomeScreen - parts: $parts');
+      debugPrint('ðŸ  HomeScreen - selectedSection: $selectedSection');
+      debugPrint('ðŸ  HomeScreen - parts: $parts');
       if (parts.length >= 2) {
         final teamId = parts[1];
         final subSection = parts.length > 2 ? parts[2] : 'overview';
-        print('🏠 HomeScreen - teamId: $teamId, subSection: $subSection');
+        debugPrint('ðŸ  HomeScreen - teamId: $teamId, subSection: $subSection');
         return TeamDetailContent(teamId: teamId, subSection: subSection);
       }
     }
 
     // Handle organizer tournament sections
     if (selectedSection.startsWith('organizer_tournament_')) {
-      print('Handling organizer tournament section: $selectedSection');
+      debugPrint('Handling organizer tournament section: $selectedSection');
       
       // More robust parsing that handles special characters in tournament ID
       final prefix = 'organizer_tournament_';
@@ -478,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (tournamentId != null && subSection != null) {
         
-        print('Tournament ID: $tournamentId, SubSection: $subSection');
+        debugPrint('Tournament ID: $tournamentId, SubSection: $subSection');
         
         if (subSection == 'edit') {
           // Navigate to tournament edit screen as full screen
@@ -490,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text('Weiterleitung zum Turnier Editor...'),
           );
         } else if (subSection == 'to_software') {
-          print('Navigating to TO Software for tournament: $tournamentId');
+          debugPrint('Navigating to TO Software for tournament: $tournamentId');
           // Navigate to TO Software screen as full screen
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _navigateToTOSoftware(tournamentId!);
@@ -540,10 +540,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToTOSoftware(String tournamentId) async {
-    print('_navigateToTOSoftware called with tournamentId: $tournamentId');
+    debugPrint('_navigateToTOSoftware called with tournamentId: $tournamentId');
     try {
       final tournament = await _tournamentService.getTournamentById(tournamentId);
-      print('Tournament found: ${tournament?.name}');
+      debugPrint('Tournament found: ${tournament?.name}');
       if (tournament != null && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -552,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       } else {
-        print('Tournament not found for ID: $tournamentId');
+        debugPrint('Tournament not found for ID: $tournamentId');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -563,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      print('Error in _navigateToTOSoftware: $e');
+      debugPrint('Error in _navigateToTOSoftware: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

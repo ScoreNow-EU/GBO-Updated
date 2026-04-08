@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/tournament.dart';
 import '../models/referee.dart';
 import '../models/team.dart';
 import '../services/referee_service.dart';
-import '../services/geocoding_service.dart';
 import '../services/team_manager_service.dart';
 import '../services/custom_notification_service.dart';
 
 class TournamentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final RefereeService _refereeService = RefereeService();
-  final GeocodingService _geocodingService = GeocodingService();
   final String _collection = 'tournaments';
 
   // Cache for faster subsequent loads
@@ -147,7 +146,7 @@ class TournamentService {
       // Return the original tournament (with dynamically set season)
       return tournament;
     } catch (e) {
-      print('Error updating tournament: $e');
+      debugPrint('Error updating tournament: $e');
       rethrow;
     }
   }
@@ -200,14 +199,14 @@ class TournamentService {
         results: tournament.results,
       );
     } catch (e) {
-      print('Error creating tournament: $e');
+      debugPrint('Error creating tournament: $e');
       rethrow;
     }
   }
 
   /// Notify team managers about their teams being added to the tournament
   Future<void> _notifyTeamManagers(List<String> teamIds, Tournament tournament) async {
-    print('ðŸ“¬ Sending notifications to team managers...');
+    debugPrint('Ã°Å¸â€œÂ¬ Sending notifications to team managers...');
     
     // Fetch all teams in parallel
     final teamFutures = teamIds.map((teamId) => 
@@ -241,38 +240,38 @@ class TournamentService {
       final managerName = entry.key;
       final teamNames = entry.value;
       
-      print('ðŸ” Looking up team manager: $managerName');
+      debugPrint('Ã°Å¸â€Â Looking up team manager: $managerName');
       final manager = await teamManagerService.getTeamManagerByName(managerName);
       
       if (manager != null) {
-        print('âœ‰ï¸ Sending notification to ${manager.name} (${manager.email})');
+        debugPrint('Ã¢Å“â€°Ã¯Â¸Â Sending notification to ${manager.name} (${manager.email})');
         
         String message;
         if (teamNames.length == 1) {
-          message = '${teamNames[0]} wurde zu ${tournament.name} hinzugefÃ¼gt.';
+          message = '${teamNames[0]} wurde zu ${tournament.name} hinzugefÃƒÂ¼gt.';
         } else {
-          message = 'Ihre Teams (${teamNames.join(", ")}) wurden zu ${tournament.name} hinzugefÃ¼gt.';
+          message = 'Ihre Teams (${teamNames.join(", ")}) wurden zu ${tournament.name} hinzugefÃƒÂ¼gt.';
         }
         
         await notificationService.sendCustomNotification(
-          title: 'Teams zum Turnier hinzugefÃ¼gt',
+          title: 'Teams zum Turnier hinzugefÃƒÂ¼gt',
           message: message,
           userEmail: manager.email,
         );
       } else {
-        print('âŒ Team manager not found: $managerName');
+        debugPrint('Ã¢ÂÅ’ Team manager not found: $managerName');
       }
     }
   }
 
   /// Log all teams and their managers in the tournament
   Future<void> _logTeamsAndManagers(Tournament tournament) async {
-    print('\nðŸ‘¥ Teams in Tournament:');
+    debugPrint('\nÃ°Å¸â€˜Â¥ Teams in Tournament:');
     
     final teamIds = tournament.teamIds;
     
     if (teamIds.isEmpty) {
-      print('   No teams registered yet');
+      debugPrint('   No teams registered yet');
       return;
     }
 
@@ -285,7 +284,7 @@ class TournamentService {
     // Process each team
     for (final teamDoc in teamDocs) {
       if (!teamDoc.exists) {
-        print('   âŒ Team ${teamDoc.id} not found');
+        debugPrint('   Ã¢ÂÅ’ Team ${teamDoc.id} not found');
         continue;
       }
 
@@ -294,10 +293,10 @@ class TournamentService {
       final teamManager = teamData['teamManager'] as String?;
       final division = teamData['division'] as String;
 
-      print('   ðŸ“‹ Team: $teamName');
-      print('      Team Manager: ${teamManager ?? "none"}');
+      debugPrint('   Ã°Å¸â€œâ€¹ Team: $teamName');
+      debugPrint('      Team Manager: ${teamManager ?? "none"}');
     }
-    print(''); // Empty line for better readability
+    debugPrint(''); // Empty line for better readability
   }
   
   // Auto-update tournament statuses based on current date
@@ -352,7 +351,7 @@ class TournamentService {
         _invalidateCache();
       }
     } catch (e) {
-      print('Error updating tournament statuses: $e');
+      debugPrint('Error updating tournament statuses: $e');
     }
   }
 
@@ -381,9 +380,9 @@ class TournamentService {
     return null;
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Referee Availability (admin-entered)
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Add a referee to the tournament's availability list (status: 'not_contacted').
   Future<bool> addRefereeToTournament(String tournamentId, String refereeId) async {
@@ -410,7 +409,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error adding referee to tournament: $e');
+      debugPrint('Error adding referee to tournament: $e');
       return false;
     }
   }
@@ -432,7 +431,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error removing referee from tournament: $e');
+      debugPrint('Error removing referee from tournament: $e');
       return false;
     }
   }
@@ -474,17 +473,17 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error setting referee availability: $e');
+      debugPrint('Error setting referee availability: $e');
       return false;
     }
   }
 
-  // Legacy method — kept for backward compat but simplified
+  // Legacy method â€” kept for backward compat but simplified
   Future<bool> inviteRefereeToTournament(String tournamentId, String refereeId) async {
     return addRefereeToTournament(tournamentId, refereeId);
   }
 
-  // Legacy method — kept for backward compat but simplified
+  // Legacy method â€” kept for backward compat but simplified
   Future<bool> respondToRefereeInvitation(
     String tournamentId,
     String refereeId,
@@ -494,9 +493,9 @@ class TournamentService {
     return setRefereeAvailability(tournamentId, refereeId, response, notes: notes);
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Kampfgericht Availability (admin-entered)
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /// Add a Kampfgericht member to the tournament's availability list.
   Future<bool> addKampfgerichtToTournament(String tournamentId, String memberId) async {
@@ -522,7 +521,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error adding Kampfgericht member to tournament: $e');
+      debugPrint('Error adding Kampfgericht member to tournament: $e');
       return false;
     }
   }
@@ -544,7 +543,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error removing Kampfgericht member from tournament: $e');
+      debugPrint('Error removing Kampfgericht member from tournament: $e');
       return false;
     }
   }
@@ -586,16 +585,16 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error setting Kampfgericht availability: $e');
+      debugPrint('Error setting Kampfgericht availability: $e');
       return false;
     }
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Venue address and geocoding
-  // ──────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  /// Update venue address and auto-geocode coordinates.
+  /// Update venue address fields.
   Future<bool> updateVenueAddress(
     String tournamentId, {
     String? venueStreet,
@@ -610,50 +609,13 @@ class TournamentService {
       if (venuePlz != null) updates['venuePlz'] = venuePlz;
       if (location != null) updates['location'] = location;
 
-      // Auto-geocode
-      final coords = await _geocodingService.geocodeAddress(
-        street: venueStreet,
-        houseNumber: venueHouseNumber,
-        plz: venuePlz,
-        city: location,
-      );
-      if (coords != null) {
-        updates['venueLatitude'] = coords['lat'];
-        updates['venueLongitude'] = coords['lng'];
-      }
-
       await _firestore.collection(_collection).doc(tournamentId).update(updates);
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error updating venue address: $e');
+      debugPrint('Error updating venue address: $e');
       return false;
     }
-  }
-
-  /// Calculate distances between venue and all accepted referees/Kampfgericht.
-  /// Returns a map of officialId → DistanceResult.
-  Future<Map<String, DistanceResult>> getDistancesToVenue(Tournament tournament) async {
-    final distances = <String, DistanceResult>{};
-    if (!tournament.hasVenueCoordinates) return distances;
-
-    final venueLat = tournament.venueLatitude!;
-    final venueLng = tournament.venueLongitude!;
-
-    // Get all accepted referees
-    for (final invitation in tournament.refereeInvitations) {
-      final referee = await _refereeService.getRefereeById(invitation.refereeId);
-      if (referee != null && referee.hasCoordinates) {
-        final result = await _geocodingService.calculateDrivingDistance(
-          referee.latitude!, referee.longitude!, venueLat, venueLng,
-        );
-        if (result != null) {
-          distances[referee.id] = result;
-        }
-      }
-    }
-
-    return distances;
   }
 
   // Preload tournaments for faster initial access
@@ -671,7 +633,7 @@ class TournamentService {
         _cachedTournaments = tournaments;
         _lastCacheTime = DateTime.now();
       } catch (e) {
-        print('Error preloading tournaments: $e');
+        debugPrint('Error preloading tournaments: $e');
       }
     }
   }
@@ -722,29 +684,29 @@ class TournamentService {
   // Register a team for a tournament
   Future<bool> registerTeamForTournament(String tournamentId, String teamId, String category, {List<Map<String, String>>? roster}) async {
     try {
-      print('ðŸ† Registering team $teamId for tournament $tournamentId');
+      debugPrint('Ã°Å¸Ââ€  Registering team $teamId for tournament $tournamentId');
       
       final tournament = await getTournamentById(tournamentId);
       if (tournament == null) {
-        print('âŒ Tournament not found: $tournamentId');
+        debugPrint('Ã¢ÂÅ’ Tournament not found: $tournamentId');
         return false;
       }
-      print('ðŸ“… Found tournament: ${tournament.name}');
+      debugPrint('Ã°Å¸â€œâ€¦ Found tournament: ${tournament.name}');
 
       // Check if team exists
       final team = await FirebaseFirestore.instance.collection('teams').doc(teamId).get();
       if (!team.exists) {
-        print('âŒ Team not found: $teamId');
+        debugPrint('Ã¢ÂÅ’ Team not found: $teamId');
         return false;
       }
       
       final teamData = team.data() as Map<String, dynamic>;
       final teamName = teamData['name'] as String;
-      print('ðŸ‘¥ Found team: $teamName');
+      debugPrint('Ã°Å¸â€˜Â¥ Found team: $teamName');
 
       // Check if team is already registered
       if (tournament.isTeamRegistered(teamId)) {
-        print('âŒ Team is already registered');
+        debugPrint('Ã¢ÂÅ’ Team is already registered');
         return false;
       }
 
@@ -763,16 +725,16 @@ class TournamentService {
           ...tournament.toMap()['rosters'] ?? {},
           teamId: roster,
         };
-        print('ðŸ“‹ Added roster information for team');
+        debugPrint('Ã°Å¸â€œâ€¹ Added roster information for team');
       }
 
       await _firestore.collection(_collection).doc(tournamentId).update(updateData);
-      print('ðŸ’¾ Tournament updated with new team registration');
+      debugPrint('Ã°Å¸â€™Â¾ Tournament updated with new team registration');
 
       _invalidateCache();
       return true;
     } catch (e) {
-      print('âŒ Error registering team for tournament: $e');
+      debugPrint('Ã¢ÂÅ’ Error registering team for tournament: $e');
       return false;
     }
   }
@@ -795,7 +757,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error unregistering team from tournament: $e');
+      debugPrint('Error unregistering team from tournament: $e');
       return false;
     }
   }
@@ -817,7 +779,7 @@ class TournamentService {
       _invalidateCache();
       return true;
     } catch (e) {
-      print('Error updating tournament registration: $e');
+      debugPrint('Error updating tournament registration: $e');
       return false;
     }
   }
@@ -907,10 +869,10 @@ class TournamentService {
       // Invalidate cache
       _invalidateCache();
       
-      print('âœ… Successfully migrated $count tournaments to 2025 season');
+      debugPrint('Ã¢Å“â€¦ Successfully migrated $count tournaments to 2025 season');
       return count;
     } catch (e) {
-      print('âŒ Error migrating tournaments: $e');
+      debugPrint('Ã¢ÂÅ’ Error migrating tournaments: $e');
       rethrow;
     }
   }

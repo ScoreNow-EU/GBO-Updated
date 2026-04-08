@@ -9,9 +9,9 @@ class WebHelper {
       try {
         // For now, just log the version. 
         // The actual web implementation can be added later if needed.
-        print('App version: $version');
+        debugPrint('App version: $version');
       } catch (e) {
-        print('Error updating web version display: $e');
+        debugPrint('Error updating web version display: $e');
       }
     }
   }

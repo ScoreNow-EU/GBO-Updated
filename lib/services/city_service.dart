@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/city.dart';
 import '../models/state.dart';
@@ -45,7 +46,7 @@ class CityService {
       
       return cities;
     } catch (e) {
-      print('Error fetching cities: $e');
+      debugPrint('Error fetching cities: $e');
       return [];
     }
   }
@@ -76,7 +77,7 @@ class CityService {
       
       return states;
     } catch (e) {
-      print('Error fetching states: $e');
+      debugPrint('Error fetching states: $e');
       return [];
     }
   }
@@ -88,7 +89,7 @@ class CityService {
       final allCities = await getAllCities();
       return allCities.where((city) => city.state == stateName).toList();
     } catch (e) {
-      print('Error fetching cities for state $stateName: $e');
+      debugPrint('Error fetching cities for state $stateName: $e');
       return [];
     }
   }
@@ -99,7 +100,7 @@ class CityService {
       final allCities = await getAllCities();
       return allCities.where((city) => city.country == countryName).toList();
     } catch (e) {
-      print('Error fetching cities for country $countryName: $e');
+      debugPrint('Error fetching cities for country $countryName: $e');
       return [];
     }
   }
@@ -118,7 +119,7 @@ class CityService {
                city.stateAbbreviation.toLowerCase().contains(lowercaseQuery);
       }).toList();
     } catch (e) {
-      print('Error searching cities: $e');
+      debugPrint('Error searching cities: $e');
       return [];
     }
   }
@@ -133,7 +134,7 @@ class CityService {
       );
       return matches.isNotEmpty ? matches.first : null;
     } catch (e) {
-      print('Error finding city $cityName in $stateName: $e');
+      debugPrint('Error finding city $cityName in $stateName: $e');
       return null;
     }
   }
@@ -150,7 +151,7 @@ class CityService {
       
       return docRef.id;
     } catch (e) {
-      print('Error adding state: $e');
+      debugPrint('Error adding state: $e');
       return null;
     }
   }
@@ -167,7 +168,7 @@ class CityService {
       
       return docRef.id;
     } catch (e) {
-      print('Error adding city: $e');
+      debugPrint('Error adding city: $e');
       return null;
     }
   }
@@ -188,7 +189,7 @@ class CityService {
         }
         
         await batch.commit();
-        print('Added cities batch ${i ~/ batchSize + 1} (${endIndex - i} cities)');
+        debugPrint('Added cities batch ${i ~/ batchSize + 1} (${endIndex - i} cities)');
       }
       
       // Invalidate cache
@@ -196,7 +197,7 @@ class CityService {
       
       return true;
     } catch (e) {
-      print('Error batch adding cities: $e');
+      debugPrint('Error batch adding cities: $e');
       return false;
     }
   }
@@ -218,7 +219,7 @@ class CityService {
       
       return true;
     } catch (e) {
-      print('Error batch adding states: $e');
+      debugPrint('Error batch adding states: $e');
       return false;
     }
   }
@@ -245,7 +246,7 @@ class CityService {
       
       return true;
     } catch (e) {
-      print('Error clearing cities: $e');
+      debugPrint('Error clearing cities: $e');
       return false;
     }
   }
@@ -267,7 +268,7 @@ class CityService {
       
       return true;
     } catch (e) {
-      print('Error clearing states: $e');
+      debugPrint('Error clearing states: $e');
       return false;
     }
   }
@@ -309,10 +310,10 @@ class CityService {
         }
       }
       
-      print('Parsed ${cities.length} cities from CSV');
+      debugPrint('Parsed ${cities.length} cities from CSV');
       return cities;
     } catch (e) {
-      print('Error parsing CSV: $e');
+      debugPrint('Error parsing CSV: $e');
       return [];
     }
   }
@@ -347,14 +348,14 @@ class CityService {
     try {
       final cities = await parseCitiesFromCsv(csvContent);
       if (cities.isEmpty) {
-        print('No cities to import');
+        debugPrint('No cities to import');
         return false;
       }
       
-      print('Importing ${cities.length} cities to Firebase...');
+      debugPrint('Importing ${cities.length} cities to Firebase...');
       return await batchAddCities(cities);
     } catch (e) {
-      print('Error importing cities from CSV: $e');
+      debugPrint('Error importing cities from CSV: $e');
       return false;
     }
   }
@@ -388,10 +389,10 @@ class CityService {
         }
       }
       
-      print('Matched ${matches.length} out of ${teams.length} teams to cities');
+      debugPrint('Matched ${matches.length} out of ${teams.length} teams to cities');
       return matches;
     } catch (e) {
-      print('Error matching teams to cities: $e');
+      debugPrint('Error matching teams to cities: $e');
       return {};
     }
   }
@@ -413,12 +414,12 @@ class CityService {
         }
         
         await batch.commit();
-        print('Updated teams batch ${i ~/ batchSize + 1}');
+        debugPrint('Updated teams batch ${i ~/ batchSize + 1}');
       }
       
       return true;
     } catch (e) {
-      print('Error updating teams with city IDs: $e');
+      debugPrint('Error updating teams with city IDs: $e');
       return false;
     }
   }
@@ -434,7 +435,7 @@ class CityService {
         'states': statesSnapshot.docs.length,
       };
     } catch (e) {
-      print('Error getting statistics: $e');
+      debugPrint('Error getting statistics: $e');
       return {'cities': 0, 'states': 0};
     }
   }

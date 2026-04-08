@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/coach_auth_request.dart';
 
 class CoachAuthMonitoringService {
@@ -28,9 +29,9 @@ class CoachAuthMonitoringService {
       await _initializeLocalNotifications();
       
       _isInitialized = true;
-      print('✅ Coach auth monitoring service initialized');
+      debugPrint('âœ… Coach auth monitoring service initialized');
     } catch (e) {
-      print('❌ Error initializing coach auth monitoring service: $e');
+      debugPrint('âŒ Error initializing coach auth monitoring service: $e');
     }
   }
   
@@ -46,9 +47,9 @@ class CoachAuthMonitoringService {
       // Start foreground periodic check (no native background needed)
       _startPeriodicCheck();
       
-      print('🔔 Started coach auth monitoring for: $coachEmail');
+      debugPrint('ðŸ”” Started coach auth monitoring for: $coachEmail');
     } catch (e) {
-      print('❌ Error starting coach auth monitoring: $e');
+      debugPrint('âŒ Error starting coach auth monitoring: $e');
     }
   }
   
@@ -65,9 +66,9 @@ class CoachAuthMonitoringService {
       await prefs.remove(_prefKeyPendingRequests);
       await prefs.remove(_prefKeyLastCheck);
       
-      print('🔴 Stopped coach auth monitoring');
+      debugPrint('ðŸ”´ Stopped coach auth monitoring');
     } catch (e) {
-      print('❌ Error stopping coach auth monitoring: $e');
+      debugPrint('âŒ Error stopping coach auth monitoring: $e');
     }
   }
   
@@ -94,7 +95,7 @@ class CoachAuthMonitoringService {
     const androidChannel = AndroidNotificationChannel(
       _channelId,
       'Trainer Freigabe Anfragen',
-      description: 'Benachrichtigungen für Trainer Kader-Freigabe Anfragen',
+      description: 'Benachrichtigungen fÃ¼r Trainer Kader-Freigabe Anfragen',
       importance: Importance.high,
       playSound: true,
       enableVibration: true,
@@ -107,8 +108,26 @@ class CoachAuthMonitoringService {
   
   /// Handle notification tap
   static void _onNotificationTapped(NotificationResponse response) {
-    print('🔔 Coach auth notification tapped: ${response.payload}');
-    // TODO: Navigate to appropriate screen or show overlay
+    debugPrint('Coach auth notification tapped: ${response.payload}');
+    if (response.payload != null) {
+      try {
+        final data = jsonDecode(response.payload!);
+        final requestId = data['requestId'] as String?;
+        if (requestId != null && _onRequestTapped != null) {
+          _onRequestTapped!(requestId);
+        }
+      } catch (e) {
+        debugPrint('Error parsing notification payload: $e');
+      }
+    }
+  }
+
+  /// Callback for when a notification is tapped
+  static void Function(String requestId)? _onRequestTapped;
+
+  /// Set the callback for notification taps
+  static void setOnRequestTapped(void Function(String requestId) callback) {
+    _onRequestTapped = callback;
   }
   
   /// Start periodic check for pending requests
@@ -154,14 +173,14 @@ class CoachAuthMonitoringService {
         return b.requestTime.compareTo(a.requestTime);
       });
       
-      print('🔍 Found ${requests.length} pending coach auth requests for $coachEmail');
+      debugPrint('ðŸ” Found ${requests.length} pending coach auth requests for $coachEmail');
       
       // Check for new requests
       await _checkForNewRequests(requests);
       
       return requests;
     } catch (e) {
-      print('❌ Error checking for pending coach auth requests: $e');
+      debugPrint('âŒ Error checking for pending coach auth requests: $e');
       return [];
     }
   }
@@ -179,7 +198,7 @@ class CoachAuthMonitoringService {
       ).toList();
       
       if (newRequests.isNotEmpty) {
-        print('🆕 Found ${newRequests.length} new coach auth requests');
+        debugPrint('ðŸ†• Found ${newRequests.length} new coach auth requests');
         
         // Send notifications for new requests
         for (final request in newRequests) {
@@ -190,7 +209,7 @@ class CoachAuthMonitoringService {
       // Update last check time
       await prefs.setInt(_prefKeyLastCheck, DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
-      print('❌ Error checking for new coach auth requests: $e');
+      debugPrint('âŒ Error checking for new coach auth requests: $e');
     }
   }
   
@@ -200,7 +219,7 @@ class CoachAuthMonitoringService {
       final androidDetails = AndroidNotificationDetails(
         _channelId,
         'Trainer Freigabe Anfragen',
-        channelDescription: 'Benachrichtigungen für Trainer Kader-Freigabe Anfragen',
+        channelDescription: 'Benachrichtigungen fÃ¼r Trainer Kader-Freigabe Anfragen',
         importance: Importance.high,
         priority: Priority.high,
         ticker: 'Trainer Freigabe erforderlich',
@@ -231,7 +250,7 @@ class CoachAuthMonitoringService {
       
       await _localNotifications.show(
         request.hashCode,
-        '⚠️ Kader-Freigabe erforderlich',
+        'âš ï¸ Kader-Freigabe erforderlich',
         '${request.teamName} - ${request.gameTitle}\nVerbleibt: ${minutesRemaining}min',
         details,
         payload: jsonEncode({
@@ -240,9 +259,9 @@ class CoachAuthMonitoringService {
         }),
       );
       
-      print('📱 Sent coach auth notification: ${request.teamName}');
+      debugPrint('ðŸ“± Sent coach auth notification: ${request.teamName}');
     } catch (e) {
-      print('❌ Error sending coach auth notification: $e');
+      debugPrint('âŒ Error sending coach auth notification: $e');
     }
   }
   
@@ -274,15 +293,15 @@ class CoachAuthMonitoringService {
       await firestore.collection('coach_auth_requests').doc(requestId).update({
         'status': status.toString().split('.').last,
         'responseTime': Timestamp.fromDate(DateTime.now()),
-        'responseByUserId': 'system', // TODO: Get actual coach user ID
+        'responseByUserId': FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
         'responseByName': coachEmail.split('@').first,
         'responseMethod': 'biometric',
       });
       
-      print('✅ Updated coach auth request $requestId with response: $response');
+      debugPrint('âœ… Updated coach auth request $requestId with response: $response');
       return true;
     } catch (e) {
-      print('❌ Error responding to coach auth request: $e');
+      debugPrint('âŒ Error responding to coach auth request: $e');
       return false;
     }
   }
@@ -341,10 +360,10 @@ class CoachAuthMonitoringService {
       
       await firestore.collection('coach_auth_requests').add(request.toFirestore());
       
-      print('✅ Created coach auth request for $teamName');
+      debugPrint('âœ… Created coach auth request for $teamName');
       return true;
     } catch (e) {
-      print('❌ Error creating coach auth request: $e');
+      debugPrint('âŒ Error creating coach auth request: $e');
       return false;
     }
   }

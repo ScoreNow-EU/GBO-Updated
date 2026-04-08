@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/player.dart';
 
 class PlayerService {
@@ -35,7 +36,7 @@ class PlayerService {
       });
       return docRef.id;
     } catch (e) {
-      print('Error adding player: $e');
+      debugPrint('Error adding player: $e');
       return null;
     }
   }
@@ -71,7 +72,7 @@ class PlayerService {
       });
       return true;
     } catch (e) {
-      print('Error updating player: $e');
+      debugPrint('Error updating player: $e');
       return false;
     }
   }
@@ -82,7 +83,7 @@ class PlayerService {
       await _firestore.collection(_collection).doc(playerId).delete();
       return true;
     } catch (e) {
-      print('Error deleting player: $e');
+      debugPrint('Error deleting player: $e');
       return false;
     }
   }
@@ -96,7 +97,7 @@ class PlayerService {
       }
       return null;
     } catch (e) {
-      print('Error getting player: $e');
+      debugPrint('Error getting player: $e');
       return null;
     }
   }
@@ -117,12 +118,12 @@ class PlayerService {
             });
             return players;
           } catch (e) {
-            print('Error mapping players from snapshot: $e');
+            debugPrint('Error mapping players from snapshot: $e');
             throw e;
           }
         })
         .handleError((error) {
-          print('Error in getAllPlayers stream: $error');
+          debugPrint('Error in getAllPlayers stream: $error');
           throw error;
         });
   }
@@ -163,7 +164,7 @@ class PlayerService {
       
       return players;
     } catch (e) {
-      print('Error getting players by IDs: $e');
+      debugPrint('Error getting players by IDs: $e');
       return [];
     }
   }
@@ -221,7 +222,7 @@ class PlayerService {
         phone: '+49 123 456789',
         classification: 'Gruppe A',
         jerseyNumber: '1',
-        gender: 'männlich',
+        gender: 'mÃ¤nnlich',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -242,7 +243,7 @@ class PlayerService {
         email: 'thomas.weber@example.com',
         classification: 'Gruppe C',
         jerseyNumber: '3',
-        gender: 'männlich',
+        gender: 'mÃ¤nnlich',
         createdAt: DateTime.now(),
       ),
       Player(

@@ -27,7 +27,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Schiedsrichter Bulk Hinzufügen'),
+        title: const Text('Schiedsrichter Bulk HinzufÃ¼gen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -42,7 +42,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
               Row(
                 children: [
                   const Text(
-                    'Schiedsrichter hinzufügen',
+                    'Schiedsrichter hinzufÃ¼gen',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -61,7 +61,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Geben Sie für jeden Schiedsrichter individuelle Daten ein. Alle Schiedsrichter werden mit der gleichen Lizenz erstellt.',
+                'Geben Sie fÃ¼r jeden Schiedsrichter individuelle Daten ein. Alle Schiedsrichter werden mit der gleichen Lizenz erstellt.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -82,7 +82,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
                     const Icon(Icons.sports_hockey, color: Colors.blue),
                     const SizedBox(width: 12),
                     const Text(
-                      'Lizenz für alle Schiedsrichter:',
+                      'Lizenz fÃ¼r alle Schiedsrichter:',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -190,7 +190,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
           Row(
             children: [
               Text(
-                isLast ? 'Schiedsrichter ${index + 1} hinzufügen' : 'Schiedsrichter ${index + 1}',
+                isLast ? 'Schiedsrichter ${index + 1} hinzufÃ¼gen' : 'Schiedsrichter ${index + 1}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -269,7 +269,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
                       return 'E-Mail eingeben';
                     }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
-                      return 'Gültige E-Mail eingeben';
+                      return 'GÃ¼ltige E-Mail eingeben';
                     }
                     return null;
                   },
@@ -397,7 +397,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,
         title: const Text('Erfolg'),
-        description: Text('${referees.length} Schiedsrichter erfolgreich hinzugefügt'),
+        description: Text('${referees.length} Schiedsrichter erfolgreich hinzugefÃ¼gt'),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 3),
         showProgressBar: false,
@@ -432,7 +432,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
         }
       } catch (e) {
         // Ignore disposal errors for individual referees
-        print('Error disposing referee $i: $e');
+        debugPrint('Error disposing referee $i: $e');
       }
     }
     super.dispose();
@@ -474,7 +474,7 @@ class RefereeConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Schiedsrichter Bestätigen'),
+        title: const Text('Schiedsrichter BestÃ¤tigen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -496,7 +496,7 @@ class RefereeConfirmationScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${referees.length} Schiedsrichter werden hinzugefügt',
+                  '${referees.length} Schiedsrichter werden hinzugefÃ¼gt',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -506,7 +506,7 @@ class RefereeConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Überprüfen Sie die Schiedsrichter-Details bevor Sie sie hinzufügen.',
+              'ÃœberprÃ¼fen Sie die Schiedsrichter-Details bevor Sie sie hinzufÃ¼gen.',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -583,7 +583,7 @@ class RefereeConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: const Text('Zurück'),
+                  child: const Text('ZurÃ¼ck'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
@@ -593,7 +593,7 @@ class RefereeConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: Text('${referees.length} Schiedsrichter Hinzufügen'),
+                  child: Text('${referees.length} Schiedsrichter HinzufÃ¼gen'),
                 ),
               ],
             ),

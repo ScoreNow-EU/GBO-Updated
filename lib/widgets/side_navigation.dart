@@ -6,7 +6,6 @@ import 'dart:math';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/tournament_service.dart';
-import '../services/managed_account_service.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
@@ -81,9 +80,6 @@ class _SideNavigationState extends State<SideNavigation> {
     // Load app user data
     if (_currentUser != null) {
       try {
-        // Ensure managed accounts have a users doc (self-healing migration)
-        await ManagedAccountService().ensureUserDocForCurrentUser(_currentUser!.uid);
-        
         final appUser = await _authService.getUserById(_currentUser!.uid);
         if (mounted) {
           setState(() {
@@ -143,13 +139,13 @@ class _SideNavigationState extends State<SideNavigation> {
     }
 
     try {
-      print('🔄 Nav: Loading tournaments for organizer: ${_currentAppUser!.fullName}');
+      debugPrint('ðŸ”„ Nav: Loading tournaments for organizer: ${_currentAppUser!.fullName}');
       final allTournaments = await _tournamentService.getTournaments().first;
       final organizerTournaments = allTournaments.where((tournament) => 
         tournament.tournamentOrganizerId == _currentAppUser!.id
       ).toList();
       
-      print('✅ Nav: Loaded ${organizerTournaments.length} organizer tournaments');
+      debugPrint('âœ… Nav: Loaded ${organizerTournaments.length} organizer tournaments');
       if (mounted) {
         setState(() {
           _organizerTournaments = organizerTournaments;
@@ -157,7 +153,7 @@ class _SideNavigationState extends State<SideNavigation> {
         });
       }
     } catch (e) {
-      print('❌ Nav: Error loading organizer tournaments: $e');
+      debugPrint('âŒ Nav: Error loading organizer tournaments: $e');
       if (mounted) {
         setState(() {
           _organizerTournaments = [];
@@ -187,23 +183,23 @@ class _SideNavigationState extends State<SideNavigation> {
     try {
       // Debug: Check if team manager exists by email
       final teamManagerByEmail = await _teamManagerService.getTeamManagerByEmail(_currentUser!.email ?? '');
-      print('Team manager by email: ${teamManagerByEmail?.name}');
+      debugPrint('Team manager by email: ${teamManagerByEmail?.name}');
       
       // If team manager exists by email but not linked, try to link
       if (teamManagerByEmail != null && teamManagerByEmail.userId == null) {
-        print('Attempting to link user to team manager...');
+        debugPrint('Attempting to link user to team manager...');
         final linked = await _teamManagerService.linkUserToTeamManager(_currentUser!.email!, _currentUser!.uid);
-        print('Link successful: $linked');
+        debugPrint('Link successful: $linked');
       }
       
       final isManager = await _teamManagerService.isUserTeamManager(_currentUser!.uid);
-      print('Is user team manager: $isManager');
+      debugPrint('Is user team manager: $isManager');
       
       if (isManager) {
         final teams = await _teamManagerService.getTeamsManagedByUser(_currentUser!.uid);
-        print('Managed teams: ${teams.length}');
+        debugPrint('Managed teams: ${teams.length}');
         for (final team in teams) {
-          print('Team: ${team.name} - ${team.city}');
+          debugPrint('Team: ${team.name} - ${team.city}');
         }
         if (mounted) {
           setState(() {
@@ -220,7 +216,7 @@ class _SideNavigationState extends State<SideNavigation> {
         }
       }
     } catch (e) {
-      print('Error loading team manager data: $e');
+      debugPrint('Error loading team manager data: $e');
       if (mounted) {
         setState(() {
           _isTeamManager = false;
@@ -315,15 +311,6 @@ class _SideNavigationState extends State<SideNavigation> {
                 if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   const SizedBox(height: 16),
                 
-                // Scoring Tablet Section - Show for admin users and scoring tablet managed accounts
-                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
-                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
-                  _buildScoringTabletSection(),
-                
-                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
-                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
-                  const SizedBox(height: 16),
-                
                 // Tournament Organizer Section - Only show if user has tournament organizer role
                 if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
                   _buildTournamentOrganizerSection(),
@@ -383,7 +370,7 @@ class _SideNavigationState extends State<SideNavigation> {
           //                 crossAxisAlignment: CrossAxisAlignment.start,
           //                 children: [
           //                   const Text(
-          //                     'Unterstützen',
+          //                     'UnterstÃ¼tzen',
           //                     style: TextStyle(
           //                       color: Colors.white,
           //                       fontSize: 14,
@@ -408,7 +395,7 @@ class _SideNavigationState extends State<SideNavigation> {
           //                 borderRadius: BorderRadius.circular(12),
           //               ),
           //               child: const Text(
-          //                 '💝',
+          //                 'ðŸ’',
           //                 style: TextStyle(fontSize: 16),
           //               ),
           //             ),
@@ -498,7 +485,7 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
             // Sub-items always visible
             _buildTeamSubItem(
-              title: 'Übersicht',
+              title: 'Ãœbersicht',
               key: 'team_${team.id}_overview',
               icon: Icons.dashboard,
               isSelected: widget.selectedSection == 'team_${team.id}_overview' || widget.selectedSection == 'team_${team.id}',
@@ -763,7 +750,7 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
             _buildAdminItem(
               icon: Icons.location_city,
-              title: 'Städte Migration',
+              title: 'StÃ¤dte Migration',
               key: 'city_migration',
               isSelected: widget.selectedSection == 'city_migration',
             ),
@@ -884,7 +871,7 @@ class _SideNavigationState extends State<SideNavigation> {
                 ),
                 // Sub-items for tournament details
                 _buildRefereeSubItem(
-                  title: 'Übersicht',
+                  title: 'Ãœbersicht',
                   key: 'referee_tournament_${tournament.id}_overview',
                   icon: Icons.info_outline,
                   isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_overview' || widget.selectedSection == 'referee_tournament_${tournament.id}',
@@ -898,83 +885,6 @@ class _SideNavigationState extends State<SideNavigation> {
               ]).expand((x) => x).toList(),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildScoringTabletSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.teal.shade700,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          // Scoring Section Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.scoreboard,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'KAMPFGERICHT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Scoring System Item
-          _buildScoringTabletItem(
-            icon: Icons.tablet_mac,
-            title: 'Scoring System',
-            key: 'scoring_system',
-            isSelected: widget.selectedSection == 'scoring_system',
-          ),
-          
-          const SizedBox(height: 4),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoringTabletItem({
-    required IconData icon,
-    required String title,
-    required String key,
-    required bool isSelected,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Icon(icon, color: Colors.white, size: 18),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-        onTap: () => widget.onSectionChanged(key),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
     );
   }
@@ -1092,7 +1002,7 @@ class _SideNavigationState extends State<SideNavigation> {
                 ),
                 // Debug: Print tournament info
                 Builder(builder: (context) {
-                  print('Creating TO Software button for tournament: ${tournament.id}');
+                  debugPrint('Creating TO Software button for tournament: ${tournament.id}');
                   return _buildOrganizerTournamentSubItem(
                     title: 'TO Software',
                     key: 'organizer_tournament_${tournament.id}_to_software',
@@ -1171,6 +1081,9 @@ class _SideNavigationState extends State<SideNavigation> {
     required bool isSelected,
     required Tournament tournament,
   }) {
+    final isPending = tournament.approvalStatus == 'pending_approval';
+    final isRejected = tournament.approvalStatus == 'rejected';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
@@ -1195,15 +1108,39 @@ class _SideNavigationState extends State<SideNavigation> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              tournament.name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tournament.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isPending)
+                  Container(
+                    width: 8, height: 8,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                if (isRejected)
+                  Container(
+                    width: 8, height: 8,
+                    margin: const EdgeInsets.only(left: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
             ),
             Text(
               tournament.location,
@@ -1278,7 +1215,7 @@ class _SideNavigationState extends State<SideNavigation> {
           ],
         ),
         onTap: isComingSoon ? null : () {
-          print('TO Software clicked with key: $key');
+          debugPrint('TO Software clicked with key: $key');
           widget.onSectionChanged(key);
         },
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),

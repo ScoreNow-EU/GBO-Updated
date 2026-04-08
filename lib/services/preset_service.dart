@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tournament.dart';
 
@@ -69,7 +70,7 @@ class PresetService {
           .map((presetJson) => BracketPreset.fromJson(presetJson))
           .toList();
     } catch (e) {
-      print('Error loading presets: $e');
+      debugPrint('Error loading presets: $e');
       return [];
     }
   }
@@ -94,7 +95,7 @@ class PresetService {
       final presetsJson = json.encode(presets.map((p) => p.toJson()).toList());
       await prefs.setString(_presetsKey, presetsJson);
     } catch (e) {
-      print('Error saving preset: $e');
+      debugPrint('Error saving preset: $e');
       throw Exception('Failed to save preset');
     }
   }
@@ -109,7 +110,7 @@ class PresetService {
       final presetsJson = json.encode(presets.map((p) => p.toJson()).toList());
       await prefs.setString(_presetsKey, presetsJson);
     } catch (e) {
-      print('Error deleting preset: $e');
+      debugPrint('Error deleting preset: $e');
       throw Exception('Failed to delete preset');
     }
   }

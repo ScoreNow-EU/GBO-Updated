@@ -87,7 +87,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
         }
       } catch (_) {}
     } catch (e) {
-      print('Error loading game report data: $e');
+      debugPrint('Error loading game report data: $e');
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -408,7 +408,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
     );
   }
 
-  // ── Events Table ────────────────────────────────────────────────
+  // â”€â”€ Events Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildEventsTable() {
     // sort: half then minute
@@ -446,7 +446,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                   ElevatedButton.icon(
                     onPressed: _showAddEventDialog,
                     icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Ereignis hinzufügen'),
+                    label: const Text('Ereignis hinzufÃ¼gen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
@@ -470,7 +470,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Fügen Sie Ereignisse über den Button oben oder unten rechts hinzu.',
+                        'FÃ¼gen Sie Ereignisse Ã¼ber den Button oben oder unten rechts hinzu.',
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                         textAlign: TextAlign.center,
                       ),
@@ -582,7 +582,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   )
                 : Text(
-                    '—',
+                    'â€”',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                   ),
@@ -606,7 +606,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
           // Person
           Expanded(
             child: Text(
-              event.playerName.isNotEmpty ? event.playerName : '—',
+              event.playerName.isNotEmpty ? event.playerName : 'â€”',
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
@@ -619,7 +619,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
               onPressed: () => _showDeleteConfirmation(event),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              tooltip: 'Löschen',
+              tooltip: 'LÃ¶schen',
             ),
           ),
         ],
@@ -627,7 +627,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
     );
   }
 
-  // ── Event Entry Dialog ──────────────────────────────────────────
+  // â”€â”€ Event Entry Dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   void _showAddEventDialog() {
     String selectedTeam = 'A';
@@ -640,7 +640,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          title: const Text('Ereignis hinzufügen'),
+          title: const Text('Ereignis hinzufÃ¼gen'),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -662,7 +662,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                           children: [
                             Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
                             const SizedBox(width: 8),
-                            Flexible(child: Text('Heim – ${widget.game.teamAName}', overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text('Heim â€“ ${widget.game.teamAName}', overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ),
@@ -672,7 +672,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                           children: [
                             Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
                             const SizedBox(width: 8),
-                            Flexible(child: Text('Gast – ${widget.game.teamBName}', overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text('Gast â€“ ${widget.game.teamBName}', overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ),
@@ -757,7 +757,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('Hinzufügen'),
+              label: const Text('HinzufÃ¼gen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
@@ -792,11 +792,11 @@ class _GameReportScreenState extends State<GameReportScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ereignis löschen'),
+        title: const Text('Ereignis lÃ¶schen'),
         content: Text(
-          'Möchten Sie das Ereignis "${cfg.label}"'
+          'MÃ¶chten Sie das Ereignis "${cfg.label}"'
           '${event.playerName.isNotEmpty ? ' von ${event.playerName}' : ''}'
-          ' wirklich löschen?',
+          ' wirklich lÃ¶schen?',
         ),
         actions: [
           TextButton(
@@ -812,14 +812,14 @@ class _GameReportScreenState extends State<GameReportScreen> {
               Navigator.of(ctx).pop();
               _deleteEvent(event);
             },
-            child: const Text('Löschen'),
+            child: const Text('LÃ¶schen'),
           ),
         ],
       ),
     );
   }
 
-  // ── Event CRUD ─────────────────────────────────────────────────
+  // â”€â”€ Event CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _addEvent({
     required String teamId,
@@ -848,7 +848,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ereignis hinzugefügt'),
+            content: Text('Ereignis hinzugefÃ¼gt'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -874,7 +874,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ereignis gelöscht'),
+            content: Text('Ereignis gelÃ¶scht'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -888,7 +888,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
     }
   }
 
-  // ── Auto Score Calculation ─────────────────────────────────────
+  // â”€â”€ Auto Score Calculation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<void> _recalculateAndSaveScore() async {
     final teamAId = widget.game.teamAId;
@@ -930,7 +930,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       halfTimeScoreB: halfTimeB,
     );
 
-    // Persist updated result → also marks the game as completed
+    // Persist updated result â†’ also marks the game as completed
     final updatedGame = widget.game.copyWith(
       result: result,
       status: GameStatus.completed,
@@ -1071,7 +1071,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Offizielle Bestätigung',
+              'Offizielle BestÃ¤tigung',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
@@ -1139,12 +1139,12 @@ class _GameReportScreenState extends State<GameReportScreen> {
                 ),
                 if (isConfirmed && confirmedAt != null)
                   Text(
-                    'Bestätigt am ${_formatDate(confirmedAt)} um ${_formatTime(confirmedAt)}',
+                    'BestÃ¤tigt am ${_formatDate(confirmedAt)} um ${_formatTime(confirmedAt)}',
                     style: TextStyle(fontSize: 12, color: Colors.green.shade600),
                   )
                 else
                   Text(
-                    'Noch nicht bestätigt',
+                    'Noch nicht bestÃ¤tigt',
                     style: TextStyle(fontSize: 12, color: Colors.orange.shade600),
                   ),
               ],
@@ -1162,7 +1162,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Bestätigen'),
+              child: const Text('BestÃ¤tigen'),
             ),
         ],
       ),
@@ -1244,11 +1244,11 @@ class _GameReportScreenState extends State<GameReportScreen> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('${role == 'referee' ? 'Schiedsrichter' : 'Delegierter'}-Bestätigung'),
+        title: Text('${role == 'referee' ? 'Schiedsrichter' : 'Delegierter'}-BestÃ¤tigung'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Bitte geben Sie Ihren PIN-Code ein, um den Spielbericht zu bestätigen.'),
+            const Text('Bitte geben Sie Ihren PIN-Code ein, um den Spielbericht zu bestÃ¤tigen.'),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
@@ -1273,7 +1273,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                 Navigator.of(ctx).pop(controller.text);
               }
             },
-            child: const Text('Bestätigen'),
+            child: const Text('BestÃ¤tigen'),
           ),
         ],
       ),
@@ -1346,7 +1346,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       case GameStatus.scheduled:
         return 'Geplant';
       case GameStatus.inProgress:
-        return 'Läuft';
+        return 'LÃ¤uft';
       case GameStatus.completed:
         return 'Beendet';
       case GameStatus.cancelled:

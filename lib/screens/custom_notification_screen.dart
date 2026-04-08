@@ -64,7 +64,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
               userTeamNames[user.email] = teams.map((team) => team.name).toList();
             }
           } catch (e) {
-            print('Error loading teams for team manager ${user.email}: $e');
+            debugPrint('Error loading teams for team manager ${user.email}: $e');
             userTeamNames[user.email] = [];
           }
         }
@@ -105,7 +105,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
         title: const Text('Warnung'),
-        description: const Text('Bitte wählen Sie einen Benutzer aus.'),
+        description: const Text('Bitte wÃ¤hlen Sie einen Benutzer aus.'),
         autoCloseDuration: const Duration(seconds: 3),
       );
       return;
@@ -134,12 +134,12 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
             type: ToastificationType.info,
             style: ToastificationStyle.fillColored,
             title: const Text('Berechtigung erforderlich'),
-            description: const Text('Prüfe Berechtigung für zeitkritische Benachrichtigungen...'),
+            description: const Text('PrÃ¼fe Berechtigung fÃ¼r zeitkritische Benachrichtigungen...'),
             autoCloseDuration: const Duration(seconds: 2),
           );
         }
         
-        print('📱 Requesting time-sensitive notification permission...');
+        debugPrint('ðŸ“± Requesting time-sensitive notification permission...');
         final hasPermission = await _notificationService.requestTimeSensitivePermission();
         
         // Reset requesting permission state only if mounted
@@ -156,7 +156,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
               type: ToastificationType.error,
               style: ToastificationStyle.fillColored,
               title: const Text('Berechtigung verweigert'),
-              description: const Text('Zeitkritische Benachrichtigungen sind nicht verfügbar. Bitte prüfen Sie die Einstellungen.'),
+              description: const Text('Zeitkritische Benachrichtigungen sind nicht verfÃ¼gbar. Bitte prÃ¼fen Sie die Einstellungen.'),
               autoCloseDuration: const Duration(seconds: 5),
             );
           }
@@ -176,7 +176,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
             type: ToastificationType.success,
             style: ToastificationStyle.fillColored,
             title: const Text('Berechtigung erteilt'),
-            description: const Text('Zeitkritische Benachrichtigungen sind jetzt verfügbar.'),
+            description: const Text('Zeitkritische Benachrichtigungen sind jetzt verfÃ¼gbar.'),
             autoCloseDuration: const Duration(seconds: 2),
           );
         }
@@ -354,13 +354,13 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                                    () => _showMatchResultDialog(),
                                  ),
                                  _buildPresetChip(
-                                   'Platz geändert',
+                                   'Platz geÃ¤ndert',
                                    Icons.location_on,
                                    Colors.orange,
                                    () => _showCourtChangeDialog(),
                                  ),
                                  _buildPresetChip(
-                                   'Verzögerung',
+                                   'VerzÃ¶gerung',
                                    Icons.access_time,
                                    Colors.purple,
                                    () => _showDelayDialog(),
@@ -442,8 +442,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                             DropdownButtonFormField<String>(
                               value: _selectedUserEmail,
                               decoration: const InputDecoration(
-                                labelText: 'Empfänger',
-                                hintText: 'Wählen',
+                                labelText: 'EmpfÃ¤nger',
+                                hintText: 'WÃ¤hlen',
                                 border: OutlineInputBorder(),
                                 isDense: false,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 30),
@@ -497,7 +497,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                               },
                               validator: (value) {
                                 if (value == null) {
-                                  return 'Bitte wählen Sie einen Empfänger aus';
+                                  return 'Bitte wÃ¤hlen Sie einen EmpfÃ¤nger aus';
                                 }
                                 return null;
                               },
@@ -530,7 +530,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                                         ),
                                       ),
                                       Text(
-                                        'Durchbricht "Nicht stören" und wird als zeitkritisch markiert',
+                                        'Durchbricht "Nicht stÃ¶ren" und wird als zeitkritisch markiert',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey,
@@ -612,14 +612,14 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            '• Benachrichtigungen werden als iOS Push-Benachrichtigungen gesendet\n'
-                            '• Nur Benutzer, die in der App angemeldet sind, erhalten Benachrichtigungen\n'
-                            '• Der Titel darf maximal 50 Zeichen haben\n'
-                            '• Die Nachricht darf maximal 200 Zeichen haben\n'
-                            '• Zeitkritische Benachrichtigungen können "Nicht stören" durchbrechen\n'
-                            '• Beim ersten Versuch wird nach Berechtigung für zeitkritische Benachrichtigungen gefragt\n'
-                            '• Berechtigungen können in iOS-Einstellungen → Benachrichtigungen → App geändert werden\n'
-                            '• Benachrichtigungen werden sofort versendet',
+                            'â€¢ Benachrichtigungen werden als iOS Push-Benachrichtigungen gesendet\n'
+                            'â€¢ Nur Benutzer, die in der App angemeldet sind, erhalten Benachrichtigungen\n'
+                            'â€¢ Der Titel darf maximal 50 Zeichen haben\n'
+                            'â€¢ Die Nachricht darf maximal 200 Zeichen haben\n'
+                            'â€¢ Zeitkritische Benachrichtigungen kÃ¶nnen "Nicht stÃ¶ren" durchbrechen\n'
+                            'â€¢ Beim ersten Versuch wird nach Berechtigung fÃ¼r zeitkritische Benachrichtigungen gefragt\n'
+                            'â€¢ Berechtigungen kÃ¶nnen in iOS-Einstellungen â†’ Benachrichtigungen â†’ App geÃ¤ndert werden\n'
+                            'â€¢ Benachrichtigungen werden sofort versendet',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.blue.shade800,
@@ -700,7 +700,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
       case app_user.UserRole.scoringTablet:
         return 'SCORING TABLET';
       case app_user.UserRole.sanitater:
-        return 'SANITÄTER';
+        return 'SANITÃ„TER';
       case app_user.UserRole.seriesOrganizer:
         return 'SERIES ORGANIZER';
       case app_user.UserRole.spieler:
@@ -873,13 +873,13 @@ class _MissingTeamDialogState extends State<_MissingTeamDialog> {
                          if (_formKey.currentState!.validate()) {
                final title = 'Mannschaft fehlt auf Platz ${_courtController.text}';
                final message = _detailsController.text.isEmpty 
-                   ? 'Eine Mannschaft fehlt auf Platz ${_courtController.text}.\n\nBitte überprüfen Sie die Anwesenheit und informieren Sie das Team über die Spielzeit.'
-                   : 'Eine Mannschaft fehlt auf Platz ${_courtController.text}.\n\nDetails: ${_detailsController.text}\n\nBitte überprüfen Sie die Anwesenheit und informieren Sie das Team über die Spielzeit.';
+                   ? 'Eine Mannschaft fehlt auf Platz ${_courtController.text}.\n\nBitte Ã¼berprÃ¼fen Sie die Anwesenheit und informieren Sie das Team Ã¼ber die Spielzeit.'
+                   : 'Eine Mannschaft fehlt auf Platz ${_courtController.text}.\n\nDetails: ${_detailsController.text}\n\nBitte Ã¼berprÃ¼fen Sie die Anwesenheit und informieren Sie das Team Ã¼ber die Spielzeit.';
                widget.onFillForm(title, message);
                Navigator.of(context).pop();
              }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );
@@ -968,12 +968,12 @@ class _UpcomingGameDialogState extends State<_UpcomingGameDialog> {
           onPressed: () {
                          if (_formKey.currentState!.validate()) {
                final title = 'Anstehendes Spiel: ${_timeController.text}';
-               final message = 'Ihr nächstes Spiel steht bevor:\n\n${_team1Controller.text} vs ${_team2Controller.text}\nPlatz: ${_courtController.text}\nUhrzeit: ${_timeController.text}\n\nBitte seien Sie rechtzeitig vor Ort!';
+               final message = 'Ihr nÃ¤chstes Spiel steht bevor:\n\n${_team1Controller.text} vs ${_team2Controller.text}\nPlatz: ${_courtController.text}\nUhrzeit: ${_timeController.text}\n\nBitte seien Sie rechtzeitig vor Ort!';
                widget.onFillForm(title, message);
                Navigator.of(context).pop();
              }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );
@@ -1234,7 +1234,7 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
                Navigator.of(context).pop();
              }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );
@@ -1270,7 +1270,7 @@ class _CourtChangeDialogState extends State<_CourtChangeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Platz geändert'),
+      title: const Text('Platz geÃ¤ndert'),
       content: Form(
         key: _formKey,
         child: Column(
@@ -1322,15 +1322,15 @@ class _CourtChangeDialogState extends State<_CourtChangeDialog> {
         ElevatedButton(
           onPressed: () {
                          if (_formKey.currentState!.validate()) {
-               final title = 'Platz geändert: ${_oldCourtController.text} → ${_newCourtController.text}';
+               final title = 'Platz geÃ¤ndert: ${_oldCourtController.text} â†’ ${_newCourtController.text}';
                final message = _reasonController.text.isEmpty 
-                   ? 'Wichtige Information: Ihr Spielplatz wurde geändert.\n\nVon: ${_oldCourtController.text}\nZu: ${_newCourtController.text}\nUhrzeit: ${_timeController.text}\n\nBitte begeben Sie sich zum neuen Platz.'
-                   : 'Wichtige Information: Ihr Spielplatz wurde geändert.\n\nVon: ${_oldCourtController.text}\nZu: ${_newCourtController.text}\nUhrzeit: ${_timeController.text}\n\nGrund: ${_reasonController.text}\n\nBitte begeben Sie sich zum neuen Platz.';
+                   ? 'Wichtige Information: Ihr Spielplatz wurde geÃ¤ndert.\n\nVon: ${_oldCourtController.text}\nZu: ${_newCourtController.text}\nUhrzeit: ${_timeController.text}\n\nBitte begeben Sie sich zum neuen Platz.'
+                   : 'Wichtige Information: Ihr Spielplatz wurde geÃ¤ndert.\n\nVon: ${_oldCourtController.text}\nZu: ${_newCourtController.text}\nUhrzeit: ${_timeController.text}\n\nGrund: ${_reasonController.text}\n\nBitte begeben Sie sich zum neuen Platz.';
                widget.onFillForm(title, message);
                Navigator.of(context).pop();
              }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );
@@ -1364,7 +1364,7 @@ class _DelayDialogState extends State<_DelayDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Verzögerung'),
+      title: const Text('VerzÃ¶gerung'),
       content: Form(
         key: _formKey,
         child: Column(
@@ -1373,10 +1373,10 @@ class _DelayDialogState extends State<_DelayDialog> {
                          TextFormField(
                controller: _delayController,
                decoration: const InputDecoration(
-                 labelText: 'Verzögerung (z.B. 15 Minuten)',
+                 labelText: 'VerzÃ¶gerung (z.B. 15 Minuten)',
                  border: OutlineInputBorder(),
                ),
-               validator: (value) => value?.isEmpty == true ? 'Bitte geben Sie die Verzögerung an' : null,
+               validator: (value) => value?.isEmpty == true ? 'Bitte geben Sie die VerzÃ¶gerung an' : null,
              ),
              const SizedBox(height: 16),
              TextFormField(
@@ -1407,15 +1407,15 @@ class _DelayDialogState extends State<_DelayDialog> {
         ElevatedButton(
           onPressed: () {
                          if (_formKey.currentState!.validate()) {
-               final title = 'Verzögerung: ${_delayController.text}';
+               final title = 'VerzÃ¶gerung: ${_delayController.text}';
                final message = _reasonController.text.isEmpty 
-                   ? 'Ihr Spiel verzögert sich um ${_delayController.text}.\n\nNeue Spielzeit: ${_timeController.text}\n\nVielen Dank für Ihr Verständnis!'
-                   : 'Ihr Spiel verzögert sich um ${_delayController.text}.\n\nGrund: ${_reasonController.text}\nNeue Spielzeit: ${_timeController.text}\n\nVielen Dank für Ihr Verständnis!';
+                   ? 'Ihr Spiel verzÃ¶gert sich um ${_delayController.text}.\n\nNeue Spielzeit: ${_timeController.text}\n\nVielen Dank fÃ¼r Ihr VerstÃ¤ndnis!'
+                   : 'Ihr Spiel verzÃ¶gert sich um ${_delayController.text}.\n\nGrund: ${_reasonController.text}\nNeue Spielzeit: ${_timeController.text}\n\nVielen Dank fÃ¼r Ihr VerstÃ¤ndnis!';
                widget.onFillForm(title, message);
                Navigator.of(context).pop();
              }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );
@@ -1483,12 +1483,12 @@ class _TournamentUpdateDialogState extends State<_TournamentUpdateDialog> {
           onPressed: () {
             if (_formKey.currentState!.validate()) {
               final title = 'Turnier-Update: ${_updateTypeController.text}';
-              final message = 'Wichtiges Update zum Turnier:\n\n${_updateTypeController.text}\n\nDetails:\n${_detailsController.text}\n\nBitte beachten Sie diese Änderungen für den weiteren Turnierverlauf.';
+              final message = 'Wichtiges Update zum Turnier:\n\n${_updateTypeController.text}\n\nDetails:\n${_detailsController.text}\n\nBitte beachten Sie diese Ã„nderungen fÃ¼r den weiteren Turnierverlauf.';
               widget.onFillForm(title, message);
               Navigator.of(context).pop();
             }
           },
-          child: const Text('Übernehmen'),
+          child: const Text('Ãœbernehmen'),
         ),
       ],
     );

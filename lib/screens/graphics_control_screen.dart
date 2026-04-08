@@ -495,7 +495,8 @@ class _GraphicsControlScreenState extends State<GraphicsControlScreen> {
 
   // Helper methods
   String _generateOverlayUrl() {
-    final baseUrl = 'http://localhost:8080/#/obs-graphics';
+    final baseUrl = Uri.base.toString().replaceAll(RegExp(r'[#?].*'), '');
+    final overlayBase = '${baseUrl}#/obs-graphics';
     final params = <String, String>{
       'tournamentId': widget.tournament.id,
       'overlayType': selectedOverlayType,
@@ -506,11 +507,11 @@ class _GraphicsControlScreenState extends State<GraphicsControlScreen> {
     }
     
     final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
-    return '$baseUrl?$query';
+    return '$overlayBase?$query';
   }
 
   String _generateMobileUrl() {
-    return _generateOverlayUrl().replaceFirst('localhost:8080', 'your-domain.com');
+    return _generateOverlayUrl();
   }
 
   String _formatDateRange() {

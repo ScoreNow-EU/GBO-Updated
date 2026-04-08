@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart' as firebase_core;
 import '../models/managed_account.dart';
@@ -72,7 +73,7 @@ class ManagedAccountService {
       }
       return null;
     } catch (e) {
-      print('Error getting managed account: $e');
+      debugPrint('Error getting managed account: $e');
       return null;
     }
   }
@@ -103,9 +104,9 @@ class ManagedAccountService {
         createdAt: DateTime.now(),
       );
       await _firestore.collection('users').doc(uid).set(newUser.toFirestore());
-      print('✅ Created missing users doc for managed account $uid');
+      debugPrint('âœ… Created missing users doc for managed account $uid');
     } catch (e) {
-      print('⚠️ ensureUserDocForCurrentUser error: $e');
+      debugPrint('âš ï¸ ensureUserDocForCurrentUser error: $e');
     }
   }
   Future<ManagedAccount?> createManagedAccount(ManagedAccount account) async {
@@ -119,7 +120,7 @@ class ManagedAccountService {
       // Validate court assignment for scoring tablets
       if (account.type == ManagedAccountType.scoringTablet) {
         if (account.tournamentId == null || account.courtId == null) {
-          throw Exception('Scoring Tablets müssen einem Turnier und einem Court zugewiesen werden');
+          throw Exception('Scoring Tablets mÃ¼ssen einem Turnier und einem Court zugewiesen werden');
         }
 
         // Check if court is already assigned to another tablet in the same tournament
@@ -170,7 +171,7 @@ class ManagedAccountService {
         throw Exception('Firebase Auth Account konnte nicht erstellt werden');
       }
     } catch (e) {
-      print('Error creating managed account: $e');
+      debugPrint('Error creating managed account: $e');
       rethrow;
     }
   }
@@ -181,7 +182,7 @@ class ManagedAccountService {
       // Validate court assignment for scoring tablets
       if (account.type == ManagedAccountType.scoringTablet) {
         if (account.tournamentId == null || account.courtId == null) {
-          throw Exception('Scoring Tablets müssen einem Turnier und einem Court zugewiesen werden');
+          throw Exception('Scoring Tablets mÃ¼ssen einem Turnier und einem Court zugewiesen werden');
         }
 
         // Check if court is already assigned to another tablet (excluding current account)
@@ -197,7 +198,7 @@ class ManagedAccountService {
       await _firestore.collection(_collection).doc(account.id).update(data);
       return true;
     } catch (e) {
-      print('Error updating managed account: $e');
+      debugPrint('Error updating managed account: $e');
       rethrow;
     }
   }
@@ -208,7 +209,7 @@ class ManagedAccountService {
       // Fetch credentials before deletion so we can remove the Firebase Auth user
       final accountDoc = await _firestore.collection(_collection).doc(id).get();
       if (!accountDoc.exists) {
-        print('Managed account not found: $id');
+        debugPrint('Managed account not found: $id');
         return false;
       }
       final data = accountDoc.data() as Map<String, dynamic>;
@@ -231,9 +232,9 @@ class ManagedAccountService {
             password: password,
           );
           await credential.user?.delete();
-          print('Firebase Auth user deleted for managed account $id');
+          debugPrint('Firebase Auth user deleted for managed account $id');
         } catch (e) {
-          print('Warning: Could not delete Firebase Auth user for managed account $id: $e');
+          debugPrint('Warning: Could not delete Firebase Auth user for managed account $id: $e');
           // Continue with Firestore deletion even if Auth deletion fails
         } finally {
           await secondaryApp?.delete();
@@ -243,18 +244,18 @@ class ManagedAccountService {
       // Delete the users collection document
       try {
         await _firestore.collection('users').doc(id).delete();
-        print('Users doc deleted for managed account $id');
+        debugPrint('Users doc deleted for managed account $id');
       } catch (e) {
-        print('Warning: Could not delete users doc for managed account $id: $e');
+        debugPrint('Warning: Could not delete users doc for managed account $id: $e');
       }
 
       // Delete the managed_accounts Firestore document
       await _firestore.collection(_collection).doc(id).delete();
-      print('Managed account $id deleted successfully');
+      debugPrint('Managed account $id deleted successfully');
       return true;
 
     } catch (e) {
-      print('Error deleting managed account: $e');
+      debugPrint('Error deleting managed account: $e');
       return false;
     }
   }
@@ -268,7 +269,7 @@ class ManagedAccountService {
       });
       return true;
     } catch (e) {
-      print('Error deactivating managed account: $e');
+      debugPrint('Error deactivating managed account: $e');
       return false;
     }
   }
@@ -282,7 +283,7 @@ class ManagedAccountService {
       });
       return true;
     } catch (e) {
-      print('Error activating managed account: $e');
+      debugPrint('Error activating managed account: $e');
       return false;
     }
   }
@@ -317,7 +318,7 @@ class ManagedAccountService {
 
       return availableCourts;
     } catch (e) {
-      print('Error getting available courts: $e');
+      debugPrint('Error getting available courts: $e');
       return [];
     }
   }
@@ -336,7 +337,7 @@ class ManagedAccountService {
       }
       return null;
     } catch (e) {
-      print('Error getting managed account by email: $e');
+      debugPrint('Error getting managed account by email: $e');
       return null;
     }
   }
@@ -358,7 +359,7 @@ class ManagedAccountService {
       }
       return null;
     } catch (e) {
-      print('Error getting tablet for court: $e');
+      debugPrint('Error getting tablet for court: $e');
       return null;
     }
   }
@@ -384,7 +385,7 @@ class ManagedAccountService {
       await batch.commit();
       return true;
     } catch (e) {
-      print('Error clearing tournament assignments: $e');
+      debugPrint('Error clearing tournament assignments: $e');
       return false;
     }
   }
@@ -460,7 +461,7 @@ class ManagedAccountService {
         oneTimeCodeUsedAt: DateTime.now(),
       );
     } catch (e) {
-      print('Error validating one-time code: $e');
+      debugPrint('Error validating one-time code: $e');
       return null;
     }
   }
@@ -479,7 +480,7 @@ class ManagedAccountService {
 
       return newCode;
     } catch (e) {
-      print('Error generating new one-time code: $e');
+      debugPrint('Error generating new one-time code: $e');
       return null;
     }
   }
@@ -493,7 +494,7 @@ class ManagedAccountService {
       final account = ManagedAccount.fromFirestore(doc);
       return account.hasValidOneTimeCode;
     } catch (e) {
-      print('Error checking one-time code validity: $e');
+      debugPrint('Error checking one-time code validity: $e');
       return false;
     }
   }
@@ -512,12 +513,12 @@ class ManagedAccountService {
   }) async {
     try {
       // DISABLED: Prevent null errors on web/desktop platforms
-      print('📱 Tablet status tracking disabled to prevent null errors');
+      debugPrint('ðŸ“± Tablet status tracking disabled to prevent null errors');
       return true;
       
       // Validate required fields to prevent null errors
       if (courtId.isEmpty || tabletId.isEmpty) {
-        print('❌ Cannot update tablet status: courtId or tabletId is empty');
+        debugPrint('âŒ Cannot update tablet status: courtId or tabletId is empty');
         return false;
       }
 
@@ -536,10 +537,10 @@ class ManagedAccountService {
           .doc(courtId)
           .set(tabletStatus.toMap(), SetOptions(merge: true));
 
-      print('✅ Tablet status updated for court $courtId: ${connectionStatus.name}');
+      debugPrint('âœ… Tablet status updated for court $courtId: ${connectionStatus.name}');
       return true;
     } catch (e) {
-      print('❌ Error updating tablet status: $e');
+      debugPrint('âŒ Error updating tablet status: $e');
       return false;
     }
   }
@@ -559,7 +560,7 @@ class ManagedAccountService {
 
       return TabletStatus.fromMap({...doc.data()!, 'id': doc.id});
     } catch (e) {
-      print('Error getting tablet status for court: $e');
+      debugPrint('Error getting tablet status for court: $e');
       return null;
     }
   }
@@ -580,18 +581,18 @@ class ManagedAccountService {
   Future<Map<String, TabletStatus>> getTabletStatusForTournament(String tournamentId) async {
     try {
       // DISABLED: Prevent null errors on web/desktop platforms
-      print('📱 Tournament tablet status tracking disabled to prevent null errors');
+      debugPrint('ðŸ“± Tournament tablet status tracking disabled to prevent null errors');
       return {};
       
       if (tournamentId.isEmpty) {
-        print('❌ Cannot get tablet status: tournamentId is empty');
+        debugPrint('âŒ Cannot get tablet status: tournamentId is empty');
         return {};
       }
 
       // Get tournament to get its courts
       final tournament = await _tournamentService.getTournamentById(tournamentId);
       if (tournament == null) {
-        print('❌ Tournament not found: $tournamentId');
+        debugPrint('âŒ Tournament not found: $tournamentId');
         return {};
       }
 
@@ -603,15 +604,15 @@ class ManagedAccountService {
           final status = await getTabletStatusForCourt(court.id);
           if (status != null) {
             statusMap[court.id] = status;
-            print('📱 Found tablet status for court ${court.name}: ${status.connectionStatus.name}');
+            debugPrint('ðŸ“± Found tablet status for court ${court.name}: ${status.connectionStatus.name}');
           }
         }
       }
 
-      print('📱 Loaded tablet statuses for ${statusMap.length} courts');
+      debugPrint('ðŸ“± Loaded tablet statuses for ${statusMap.length} courts');
       return statusMap;
     } catch (e) {
-      print('❌ Error getting tablet status for tournament: $e');
+      debugPrint('âŒ Error getting tablet status for tournament: $e');
       return {};
     }
   }
@@ -620,7 +621,7 @@ class ManagedAccountService {
   Future<bool> markTabletDisconnected(String courtId) async {
     try {
       // DISABLED: Prevent null errors on web/desktop platforms
-      print('📱 Tablet disconnect tracking disabled to prevent null errors');
+      debugPrint('ðŸ“± Tablet disconnect tracking disabled to prevent null errors');
       return true;
       
       final existingStatus = await getTabletStatusForCourt(courtId);
@@ -638,7 +639,7 @@ class ManagedAccountService {
 
       return true;
     } catch (e) {
-      print('Error marking tablet as disconnected: $e');
+      debugPrint('Error marking tablet as disconnected: $e');
       return false;
     }
   }
@@ -652,7 +653,7 @@ class ManagedAccountService {
           .delete();
       return true;
     } catch (e) {
-      print('Error removing tablet status: $e');
+      debugPrint('Error removing tablet status: $e');
       return false;
     }
   }

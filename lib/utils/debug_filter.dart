@@ -19,7 +19,7 @@ class DebugFilter {
         debugPrintThrottled(message, wrapWidth: wrapWidth);
       };
       
-      print('🔇 Debug filter initialized for web platform');
+      debugPrint('ðŸ”‡ Debug filter initialized for web platform');
     }
   }
 }

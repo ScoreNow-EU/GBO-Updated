@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:toastification/toastification.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/game.dart';
 import '../models/tournament.dart';
@@ -24,27 +23,13 @@ import '../services/game_squad_service.dart';
 import '../services/live_scoring_service.dart';
 import '../models/game_event.dart';
 import '../models/player.dart';
-import '../services/player_service.dart';
-import '../models/referee.dart';
-import '../services/referee_service.dart';
-import '../services/custom_notification_service.dart';
-import '../services/team_manager_service.dart';
 import '../utils/responsive_helper.dart';
 import 'dart:math' as math;
 
 class ScoringTabletScreen extends StatefulWidget {
   final app_user.User user;
-  final String? tournamentId;
-  final String? courtId;
-  final bool showBackButton;
   
-  const ScoringTabletScreen({
-    super.key,
-    required this.user,
-    this.tournamentId,
-    this.courtId,
-    this.showBackButton = false,
-  });
+  const ScoringTabletScreen({super.key, required this.user});
 
   @override
   State<ScoringTabletScreen> createState() => _ScoringTabletScreenState();
@@ -58,17 +43,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   final TeamService _teamService = TeamService();
 
   final GameSquadService _gameSquadService = GameSquadService();
-  final RefereeService _refereeService = RefereeService();
   final LiveScoringService _liveScoringService = LiveScoringService();
-
-  /// Whether we're running on a desktop/PC (compact layout) vs iPad/tablet (touch layout)
-  bool get _isDesktopLayout => ResponsiveHelper.isScoringDesktop(context);
-
-  /// Scaling factors for compact desktop layout
-  double get _paddingScale => _isDesktopLayout ? 0.65 : 1.0;
-  double get _fontScale => _isDesktopLayout ? 0.85 : 1.0;
-  double get _iconScale => _isDesktopLayout ? 0.85 : 1.0;
-  double get _buttonScale => _isDesktopLayout ? 0.8 : 1.0;
   
   // Navigation state
   String _selectedTab = 'main'; // main, squad, referees, scoring, statistics, completion
@@ -78,7 +53,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // Live scoring state
   Player? _selectedPlayer;
   String? _selectedPlayerTeamId;
-  GameState? _currentGameState; // Cached for keyboard handler
   
   // Player color coding state
   Color _teamAShooterColor = Colors.orange;
@@ -139,57 +113,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // Track players who have been used as Werfer to prevent reuse (Shooter and Goalkeeper can be reused)
   Set<String> _usedPlayerIds = {};
 
-  // Game officials state (referees, timekeeper, scorekeeper, delegates)
-  final TextEditingController _referee1Controller = TextEditingController();
-  final TextEditingController _referee2Controller = TextEditingController();
-  final TextEditingController _timekeeperController = TextEditingController();
-  final TextEditingController _scorekeeperController = TextEditingController();
-  final TextEditingController _delegate1Controller = TextEditingController();
-  final TextEditingController _delegate2Controller = TextEditingController();
-
-  // Cached referee list for autocomplete
-  List<Referee> _allReferees = [];
-
-  // All system users for the team manager autocomplete
-  List<app_user.User> _allUsers = [];
-
-  // Per-game team managers (stored in gameStates)
-  String? _teamAManagerId;
-  String? _teamAManagerName;
-  String? _teamBManagerId;
-  String? _teamBManagerName;
-  bool _teamAManagerSigned = false;
-  bool _teamBManagerSigned = false;
-
-  // Track auto-send of sign-off notifications (prevent re-send on every build)
-  bool _signRequestSentA = false;
-  bool _signRequestSentB = false;
-
-  // Keyboard shortcuts state
-  final FocusNode _scoringFocusNode = FocusNode();
-  bool _keyboardFocusTeamA = true; // Which team keyboard actions target
-  bool _showShortcutsLegend = false;
-
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    // Register global keyboard handler so shortcuts work regardless of focus
-    HardwareKeyboard.instance.addHandler(_globalKeyHandler);
-    // If tournamentId and courtId are provided directly, load them directly
-    if (widget.tournamentId != null && widget.courtId != null) {
-      _loadDirectTournamentData();
-    } else {
-      _loadManagedAccountData();
-    }
+    _loadManagedAccountData();
     _startAutoRefresh();
-  }
-
-  /// Global hardware keyboard handler — fires even when text fields have focus.
-  bool _globalKeyHandler(KeyEvent event) {
-    if (!mounted || !_isInScoringMode) return false;
-    final result = _handleKeyEvent(_scoringFocusNode, event);
-    return result == KeyEventResult.handled;
   }
 
   void _initializeAnimations() {
@@ -223,16 +152,16 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     setState(() => _isRefreshing = true);
     
     try {
-      print('ðŸ”„ ScoringTablet: Starting comprehensive Firebase refresh...');
+      debugPrint('Ã°Å¸â€â€ž ScoringTablet: Starting comprehensive Firebase refresh...');
       
       // Force refresh games data from Firebase
       if (_assignedTournament != null) {
-        print('ðŸ”„ Force refreshing games for tournament: ${_assignedTournament!.name}');
+        debugPrint('Ã°Å¸â€â€ž Force refreshing games for tournament: ${_assignedTournament!.name}');
         await _gameService.forceRefreshGames(_assignedTournament!.id);
       }
       
       // Force refresh team data (clear cache)
-      print('ðŸ”„ Clearing team cache...');
+      debugPrint('Ã°Å¸â€â€ž Clearing team cache...');
       _teamService.clearCache();
       
       // Reload games with fresh data
@@ -240,7 +169,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // Refresh team data for selected game
       if (_selectedGame != null) {
-        print('ðŸ”„ Refreshing team data for selected game...');
+        debugPrint('Ã°Å¸â€â€ž Refreshing team data for selected game...');
         if (_selectedGame!.teamAId?.isNotEmpty == true) {
           final freshTeamA = await _teamService.getTeamById(_selectedGame!.teamAId!);
           if (mounted && freshTeamA != null) {
@@ -256,7 +185,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         
         // Also refresh squad data if in scoring mode
         if (_isInScoringMode) {
-          print('ðŸ”„ Refreshing squad data...');
+          debugPrint('Ã°Å¸â€â€ž Refreshing squad data...');
           setState(() => _squadsLoading = true);
           await _loadGameSquads();
           if (mounted) {
@@ -266,100 +195,68 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       }
       
       setState(() => _lastRefresh = DateTime.now());
-      print('âœ… ScoringTablet: Comprehensive refresh complete');
+      debugPrint('Ã¢Å“â€¦ ScoringTablet: Comprehensive refresh complete');
       
       // Show success feedback
       _showSuccessToast('Daten erfolgreich von Firebase aktualisiert');
       
     } catch (e) {
-      print('âŒ Error during comprehensive refresh: $e');
+      debugPrint('Ã¢ÂÅ’ Error during comprehensive refresh: $e');
       _showErrorToast('Fehler beim Aktualisieren der Daten: $e');
     } finally {
       setState(() => _isRefreshing = false);
     }
   }
 
-  /// Load tournament and court directly from provided IDs (used when accessed via scoring picker)
-  Future<void> _loadDirectTournamentData() async {
-    try {
-      print('📱 ScoringTablet: Loading directly with tournamentId: ${widget.tournamentId}, courtId: ${widget.courtId}');
-      
-      _assignedTournament = await _tournamentService.getTournamentById(widget.tournamentId!);
-      
-      if (_assignedTournament != null) {
-        print('📱 Tournament loaded: ${_assignedTournament!.name}');
-        
-        try {
-          _assignedCourt = _assignedTournament!.courts.firstWhere(
-            (court) => court.id == widget.courtId,
-          );
-          print('📱 Court found: ${_assignedCourt!.name}');
-          
-          await _loadGames();
-        } catch (e) {
-          print('❌ Court not found: $e');
-          _showErrorToast('Feld "${widget.courtId}" nicht im Turnier gefunden');
-        }
-      } else {
-        _showErrorToast('Turnier nicht gefunden');
-      }
-    } catch (e) {
-      print('❌ Error loading direct tournament data: $e');
-      _showErrorToast('Fehler beim Laden der Turnierdaten: ${e.toString()}');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
   Future<void> _loadManagedAccountData() async {
     try {
-      print('ðŸ” ScoringTablet: Loading managed account data for user: ${widget.user.email}');
+      debugPrint('Ã°Å¸â€Â ScoringTablet: Loading managed account data for user: ${widget.user.email}');
       
       final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-      print('ðŸ” Found ${allAccounts.length} managed accounts total');
+      debugPrint('Ã°Å¸â€Â Found ${allAccounts.length} managed accounts total');
       
       _managedAccount = allAccounts.firstWhere(
         (account) => account.email == widget.user.email,
         orElse: () => throw Exception('Managed account not found for email: ${widget.user.email}'),
       );
 
-      print('ðŸ” Managed account found:');
-      print('   - Email: ${_managedAccount!.email}');
-      print('   - Tournament ID: ${_managedAccount!.tournamentId}');
-      print('   - Court ID: ${_managedAccount!.courtId}');
-      print('   - Type: ${_managedAccount!.type}');
+      debugPrint('Ã°Å¸â€Â Managed account found:');
+      debugPrint('   - Email: ${_managedAccount!.email}');
+      debugPrint('   - Tournament ID: ${_managedAccount!.tournamentId}');
+      debugPrint('   - Court ID: ${_managedAccount!.courtId}');
+      debugPrint('   - Type: ${_managedAccount!.type}');
 
       if (_managedAccount != null && _managedAccount!.tournamentId != null) {
         _assignedTournament = await _tournamentService.getTournamentById(_managedAccount!.tournamentId!);
-        print('ðŸ” Tournament loaded: ${_assignedTournament?.name}');
-        print('ðŸ” Tournament has ${_assignedTournament?.courts.length} courts');
+        debugPrint('Ã°Å¸â€Â Tournament loaded: ${_assignedTournament?.name}');
+        debugPrint('Ã°Å¸â€Â Tournament has ${_assignedTournament?.courts.length} courts');
         
         if (_assignedTournament != null && _managedAccount!.courtId != null) {
           try {
             // Debug: Show all available courts
-            print('ðŸ” Available courts in tournament:');
+            debugPrint('Ã°Å¸â€Â Available courts in tournament:');
             for (final court in _assignedTournament!.courts) {
-              print('   - Court ID: "${court.id}", Name: "${court.name}"');
+              debugPrint('   - Court ID: "${court.id}", Name: "${court.name}"');
             }
             
             _assignedCourt = _assignedTournament!.courts.firstWhere(
               (court) => court.id == _managedAccount!.courtId,
             );
             
-            print('ðŸ” Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
+            debugPrint('Ã°Å¸â€Â Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
             
             await _loadGames();
             
             // Update tablet status to indicate it's connected (disabled to prevent null errors)
             // _updateTabletStatus();
           } catch (e) {
-            print('âŒ Court not found: $e');
+            debugPrint('Ã¢ÂÅ’ Court not found: $e');
             _showErrorToast('Court "${_managedAccount!.courtId}" nicht im Turnier gefunden');
           }
         }
       }
     } catch (e) {
-      print('âŒ Error loading managed account data: $e');
+      debugPrint('Ã¢ÂÅ’ Error loading managed account data: $e');
       _showErrorToast('Fehler beim Laden der Account-Daten: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
@@ -373,16 +270,16 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show all game court IDs and assigned court ID
-      print('ðŸ ScoringTablet: Debug court ID matching');
-      print('ðŸ Assigned court ID: "${_assignedCourt!.id}"');
-      print('ðŸ Found ${allGames.length} total games for tournament');
+      debugPrint('Ã°Å¸ÂÂ ScoringTablet: Debug court ID matching');
+      debugPrint('Ã°Å¸ÂÂ Assigned court ID: "${_assignedCourt!.id}"');
+      debugPrint('Ã°Å¸ÂÂ Found ${allGames.length} total games for tournament');
       
       for (final game in allGames) {
-        print('ðŸ Game: ${game.teamAName} vs ${game.teamBName}');
-        print('   - Game court ID: "${game.courtId}"');
-        print('   - Matches assigned court: ${game.courtId == _assignedCourt!.id}');
-        print('   - Game status: ${game.status}');
-        print('   - Scheduled time: ${game.scheduledTime}');
+        debugPrint('Ã°Å¸ÂÂ Game: ${game.teamAName} vs ${game.teamBName}');
+        debugPrint('   - Game court ID: "${game.courtId}"');
+        debugPrint('   - Matches assigned court: ${game.courtId == _assignedCourt!.id}');
+        debugPrint('   - Game status: ${game.status}');
+        debugPrint('   - Scheduled time: ${game.scheduledTime}');
       }
       
       // Try multiple matching strategies for court assignment
@@ -390,7 +287,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If no exact matches, try matching by court name
       if (courtGames.isEmpty) {
-        print('ðŸ No exact court ID matches, trying to match by court name...');
+        debugPrint('Ã°Å¸ÂÂ No exact court ID matches, trying to match by court name...');
         
         // Get all courts from the tournament
         final allTournamentCourts = _assignedTournament!.courts;
@@ -409,7 +306,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             // If we found a matching court and it has the same name as our assigned court
             if (gamesCourt.id.isNotEmpty && gamesCourt.name == _assignedCourt!.name) {
               courtGames.add(game);
-              print('ðŸ Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
+              debugPrint('Ã°Å¸ÂÂ Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
             }
           }
         }
@@ -417,12 +314,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If still no matches, show ALL games for debugging (remove this in production)
       if (courtGames.isEmpty) {
-        print('âš ï¸ Still no court matches found. For debugging, showing all games:');
+        debugPrint('Ã¢Å¡Â Ã¯Â¸Â Still no court matches found. For debugging, showing all games:');
         courtGames = allGames;
-        print('âš ï¸ DEBUG MODE: Showing all ${courtGames.length} games');
+        debugPrint('Ã¢Å¡Â Ã¯Â¸Â DEBUG MODE: Showing all ${courtGames.length} games');
       }
       
-      print('ðŸ Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
+      debugPrint('Ã°Å¸ÂÂ Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
       
       final now = DateTime.now();
       
@@ -462,7 +359,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       });
       
     } catch (e) {
-      print('âŒ Error loading games: $e');
+      debugPrint('Ã¢ÂÅ’ Error loading games: $e');
     }
   }
 
@@ -473,9 +370,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show court ID matching (same as _loadGames)
-      print('ðŸ”„ ScoringTablet: Refreshing games with animation');
-      print('ðŸ”„ Assigned court ID: "${_assignedCourt!.id}"');
-      print('ðŸ”„ Found ${allGames.length} total games');
+      debugPrint('Ã°Å¸â€â€ž ScoringTablet: Refreshing games with animation');
+      debugPrint('Ã°Å¸â€â€ž Assigned court ID: "${_assignedCourt!.id}"');
+      debugPrint('Ã°Å¸â€â€ž Found ${allGames.length} total games');
       
       // Try multiple matching strategies for court assignment (same as _loadGames)
       var courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
@@ -506,7 +403,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         courtGames = allGames;
       }
       
-      print('ðŸ”„ Found ${courtGames.length} games for assigned court');
+      debugPrint('Ã°Å¸â€â€ž Found ${courtGames.length} games for assigned court');
       
       final now = DateTime.now();
       
@@ -545,7 +442,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       await _animateGameListChanges(_upcomingGames, newUpcomingGames, _upcomingGamesListKey, false);
       
     } catch (e) {
-      print('âŒ Error loading games with animation: $e');
+      debugPrint('Ã¢ÂÅ’ Error loading games with animation: $e');
     }
   }
 
@@ -632,17 +529,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     //   _managedAccountService.markTabletDisconnected(_assignedCourt!.id);
     // }
     
-    HardwareKeyboard.instance.removeHandler(_globalKeyHandler);
     _refreshTimer?.cancel();
     _fadeController.dispose();
     _liveScoringService.dispose();
-    _scoringFocusNode.dispose();
-    _referee1Controller.dispose();
-    _referee2Controller.dispose();
-    _timekeeperController.dispose();
-    _scorekeeperController.dispose();
-    _delegate1Controller.dispose();
-    _delegate2Controller.dispose();
     super.dispose();
   }
 
@@ -656,53 +545,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     if (!_isInScoringMode) {
       return _buildGamesListInterface();
     } else {
-      return Focus(
-        focusNode: _scoringFocusNode,
-        autofocus: true,
-        // onKeyEvent removed — handled globally via HardwareKeyboard.instance
-        child: Stack(
-          children: [
-            _buildScoringInterface(),
-            if (_showShortcutsLegend) _buildShortcutsLegend(),
-            // Keyboard focus indicator
-            Positioned(
-              right: 16,
-              top: 16,
-              child: GestureDetector(
-                onTap: () => setState(() => _showShortcutsLegend = !_showShortcutsLegend),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.keyboard,
-                        size: 14,
-                        color: _keyboardFocusTeamA ? Colors.blue.shade300 : Colors.red.shade300,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _keyboardFocusTeamA ? 'Team A' : 'Team B',
-                        style: TextStyle(
-                          color: _keyboardFocusTeamA ? Colors.blue.shade300 : Colors.red.shade300,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text('(?)', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildScoringInterface();
     }
   }
 
@@ -722,236 +565,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Handle keyboard events for the scoring interface.
-  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    
-    final key = event.logicalKey;
-    
-    // Toggle shortcuts legend with '?'
-    if (key == LogicalKeyboardKey.slash && HardwareKeyboard.instance.isShiftPressed) {
-      setState(() => _showShortcutsLegend = !_showShortcutsLegend);
-      return KeyEventResult.handled;
-    }
-
-    // Escape — deselect player or close legend
-    if (key == LogicalKeyboardKey.escape) {
-      setState(() {
-        if (_showShortcutsLegend) {
-          _showShortcutsLegend = false;
-        } else {
-          _selectedPlayer = null;
-          _selectedPlayerTeamId = null;
-        }
-      });
-      return KeyEventResult.handled;
-    }
-    
-    // Tab — switch keyboard focus team
-    if (key == LogicalKeyboardKey.tab) {
-      setState(() => _keyboardFocusTeamA = !_keyboardFocusTeamA);
-      return KeyEventResult.handled;
-    }
-    
-    // F1–F6 — switch tabs
-    final tabKeys = {
-      LogicalKeyboardKey.f1: 'main',
-      LogicalKeyboardKey.f2: 'squad',
-      LogicalKeyboardKey.f3: 'referees',
-      LogicalKeyboardKey.f4: 'scoring',
-      LogicalKeyboardKey.f5: 'statistics',
-      LogicalKeyboardKey.f6: 'completion',
-    };
-    if (tabKeys.containsKey(key)) {
-      setState(() => _selectedTab = tabKeys[key]!);
-      return KeyEventResult.handled;
-    }
-
-    // Spacebar — toggle timer (works on scoring tab)
-    if (key == LogicalKeyboardKey.space && _selectedTab == 'scoring' && _selectedGame != null && _currentGameState != null) {
-      if (_currentGameState!.isRunning) {
-        _liveScoringService.pauseGameTimer(_selectedGame!.id);
-      } else {
-        _liveScoringService.startGameTimer(_selectedGame!.id);
-      }
-      return KeyEventResult.handled;
-    }
-
-    // Only process scoring shortcuts when on the scoring tab and a game is active
-    if (_selectedTab != 'scoring' || _selectedGame == null || _currentGameState == null) {
-      return KeyEventResult.ignored;
-    }
-
-    final targetTeamId = _keyboardFocusTeamA
-        ? (_selectedGame!.teamAId ?? '')
-        : (_selectedGame!.teamBId ?? '');
-
-    // Number keys 0–9 — select player by jersey number
-    final digitKeys = {
-      LogicalKeyboardKey.digit1: '1', LogicalKeyboardKey.digit2: '2',
-      LogicalKeyboardKey.digit3: '3', LogicalKeyboardKey.digit4: '4',
-      LogicalKeyboardKey.digit5: '5', LogicalKeyboardKey.digit6: '6',
-      LogicalKeyboardKey.digit7: '7', LogicalKeyboardKey.digit8: '8',
-      LogicalKeyboardKey.digit9: '9', LogicalKeyboardKey.digit0: '0',
-      LogicalKeyboardKey.numpad1: '1', LogicalKeyboardKey.numpad2: '2',
-      LogicalKeyboardKey.numpad3: '3', LogicalKeyboardKey.numpad4: '4',
-      LogicalKeyboardKey.numpad5: '5', LogicalKeyboardKey.numpad6: '6',
-      LogicalKeyboardKey.numpad7: '7', LogicalKeyboardKey.numpad8: '8',
-      LogicalKeyboardKey.numpad9: '9', LogicalKeyboardKey.numpad0: '0',
-    };
-    if (digitKeys.containsKey(key)) {
-      final digit = digitKeys[key]!;
-      final squad = _gameSquads[targetTeamId];
-      if (squad != null) {
-        final match = squad.selectedPlayers.where(
-          (p) => p.jerseyNumber == digit,
-        ).firstOrNull;
-        if (match != null) {
-          setState(() {
-            _selectedPlayer = Player(
-              id: match.playerId,
-              firstName: match.firstName,
-              lastName: match.lastName,
-              email: '${match.playerId}@team.com',
-              jerseyNumber: match.jerseyNumber,
-              gender: 'unknown',
-              createdAt: DateTime.now(),
-            );
-            _selectedPlayerTeamId = targetTeamId;
-          });
-          return KeyEventResult.handled;
-        }
-      }
-      return KeyEventResult.ignored;
-    }
-
-    // G — goal
-    if (key == LogicalKeyboardKey.keyG && _selectedPlayer != null) {
-      _addPlayerEvent(
-        _currentGameState!,
-        _selectedPlayerTeamId!,
-        _keyboardFocusTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName,
-        _selectedPlayer!,
-        GameEventType.goal,
-      );
-      return KeyEventResult.handled;
-    }
-    
-    // S — 2-minute suspension
-    if (key == LogicalKeyboardKey.keyS && _selectedPlayer != null) {
-      _addPlayerEvent(
-        _currentGameState!,
-        _selectedPlayerTeamId!,
-        _keyboardFocusTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName,
-        _selectedPlayer!,
-        GameEventType.twoMinuteSuspension,
-      );
-      return KeyEventResult.handled;
-    }
-    
-    // Y — yellow card
-    if (key == LogicalKeyboardKey.keyY && _selectedPlayer != null) {
-      _addPlayerEvent(
-        _currentGameState!,
-        _selectedPlayerTeamId!,
-        _keyboardFocusTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName,
-        _selectedPlayer!,
-        GameEventType.yellowCard,
-      );
-      return KeyEventResult.handled;
-    }
-    
-    // R — red card
-    if (key == LogicalKeyboardKey.keyR && _selectedPlayer != null) {
-      _addPlayerEvent(
-        _currentGameState!,
-        _selectedPlayerTeamId!,
-        _keyboardFocusTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName,
-        _selectedPlayer!,
-        GameEventType.redCard,
-      );
-      return KeyEventResult.handled;
-    }
-
-    // Z / Ctrl+Z — undo last action
-    if (key == LogicalKeyboardKey.keyZ) {
-      _undoLastAction(targetTeamId);
-      return KeyEventResult.handled;
-    }
-
-    return KeyEventResult.ignored;
-  }
-
-  Widget _buildShortcutsLegend() {
-    return Positioned(
-      right: 16,
-      bottom: 16,
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 280,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade900,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.keyboard, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  const Text('Tastenkürzel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => setState(() => _showShortcutsLegend = false),
-                    child: const Icon(Icons.close, color: Colors.white54, size: 18),
-                  ),
-                ],
-              ),
-              const Divider(color: Colors.white24, height: 16),
-              _shortcutRow('Tab', 'Team wechseln'),
-              _shortcutRow('0-9', 'Spieler auswählen (Trikot)'),
-              _shortcutRow('G', 'Tor'),
-              _shortcutRow('S', '2-Min. Strafe'),
-              _shortcutRow('Y', 'Gelbe Karte'),
-              _shortcutRow('R', 'Rote Karte'),
-              _shortcutRow('Z', 'Rückgängig'),
-              _shortcutRow('Space', 'Timer Start/Stopp'),
-              _shortcutRow('Esc', 'Auswahl aufheben'),
-              _shortcutRow('F1-F6', 'Tab wechseln'),
-              _shortcutRow('?', 'Hilfe ein/aus'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _shortcutRow(String key, String desc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white12,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: Text(key, style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12)),
-          ),
-          const SizedBox(width: 10),
-          Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        ],
       ),
     );
   }
@@ -1017,7 +630,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Widget _buildGamesHeader() {
     return Container(
-      padding: EdgeInsets.all(20 * _paddingScale),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1032,19 +645,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         bottom: false,
         child: Row(
           children: [
-            // Back button (when accessed via scoring picker, not as managed tablet)
-            if (widget.showBackButton) ...[
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back, size: 24),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.grey.shade100,
-                  foregroundColor: Colors.black87,
-                ),
-                tooltip: 'Zurück',
-              ),
-              const SizedBox(width: 12),
-            ],
             // Tournament and Court Info
             Expanded(
               child: Column(
@@ -1052,8 +652,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 children: [
                   Text(
                     _assignedTournament?.name ?? 'Kein Turnier zugewiesen',
-                    style: TextStyle(
-                      fontSize: 24 * _fontScale,
+                    style: const TextStyle(
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
@@ -1245,7 +845,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Widget _buildCurrentGamesSection() {
     return Container(
-      padding: EdgeInsets.all(20 * _paddingScale),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1264,10 +864,10 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
+              const Text(
                 'Aktuelle Spiele',
                 style: TextStyle(
-                  fontSize: 20 * _fontScale,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
@@ -1291,7 +891,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Widget _buildUpcomingGamesSection() {
     return Container(
-      padding: EdgeInsets.all(20 * _paddingScale),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1310,10 +910,10 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
+              const Text(
                 'Kommende Spiele',
                 style: TextStyle(
-                  fontSize: 20 * _fontScale,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
@@ -1364,7 +964,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     final isLive = game.status == GameStatus.inProgress;
     
     return Container(
-      margin: EdgeInsets.only(bottom: 12 * _paddingScale),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1383,7 +983,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         onTap: () => _startScoring(game),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: EdgeInsets.all(16 * _paddingScale),
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
               // Game Header
@@ -1391,7 +991,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 children: [
                   // Time
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10 * _paddingScale, vertical: 6 * _paddingScale),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: isLive ? Colors.green.shade100 : Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(8),
@@ -1512,7 +1112,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isLive ? Colors.green.shade600 : const Color(0xFFffd665),
                     foregroundColor: isLive ? Colors.white : Colors.black87,
-                    padding: EdgeInsets.symmetric(vertical: 12 * _paddingScale),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1542,9 +1142,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _teamB = null;
       _gameSquads.clear(); // Clear squad data
       _squadsLoading = true;
-      // Reset sign-off notification tracking for new game
-      _signRequestSentA = false;
-      _signRequestSentB = false;
     });
 
     // Load actual team data
@@ -1557,16 +1154,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     
     // Load squad data for this game
     await _loadGameSquads();
-    
-    // Set half duration from tournament settings
-    final halfDuration = _assignedTournament?.halfDurationMinutes ?? 15;
-    await _liveScoringService.setHalfDuration(game.id, halfDuration);
-    
-    // Load officials data
-    _loadOfficials();
-
-    // Load all referees for autocomplete
-    _loadAllReferees();
     
     // Update UI with loaded team and squad data
     if (mounted) {
@@ -1585,17 +1172,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Find squads for each team
       for (final squad in squads) {
         _gameSquads[squad.teamId] = squad;
-        print('âœ… Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
+        debugPrint('Ã¢Å“â€¦ Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
       }
       
-      print('âœ… Total squads loaded: ${_gameSquads.length}');
+      debugPrint('Ã¢Å“â€¦ Total squads loaded: ${_gameSquads.length}');
     } catch (e) {
-      print('âŒ Error loading game squads: $e');
+      debugPrint('Ã¢ÂÅ’ Error loading game squads: $e');
     }
   }
 
   Widget _buildNavigation() {
-    final double sidebarWidth = _isSidebarExpanded ? (_isDesktopLayout ? 220 : 280) : (_isDesktopLayout ? 60 : 80);
+    final double sidebarWidth = _isSidebarExpanded ? 280 : 80;
     
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -1703,7 +1290,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: TextButton.icon(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 20),
-                      label: const Text('ZurÃ¼ck zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      label: const Text('ZurÃƒÂ¼ck zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1714,7 +1301,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: IconButton(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 22),
-                      tooltip: 'ZurÃ¼ck zu Spielen',
+                      tooltip: 'ZurÃƒÂ¼ck zu Spielen',
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                       padding: const EdgeInsets.all(12),
                       style: IconButton.styleFrom(
@@ -1796,7 +1383,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 child: TextButton.icon(
                   onPressed: _backToGames,
                   icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                  label: const Text('ZurÃ¼ck zu Spielen', style: TextStyle(color: Colors.white70)),
+                  label: const Text('ZurÃƒÂ¼ck zu Spielen', style: TextStyle(color: Colors.white70)),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white70,
                   ),
@@ -1844,7 +1431,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           IconButton(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back, color: Color(0xFF4A5568)),
-            tooltip: 'ZurÃ¼ck zu Spielen',
+            tooltip: 'ZurÃƒÂ¼ck zu Spielen',
           ),
         ],
       ),
@@ -2018,7 +1605,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Padding(
-        padding: EdgeInsets.all(24 * _paddingScale),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             // Tournament and Court Info
@@ -2393,7 +1980,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 24),
           Text(
-            'Kein Spiel ausgewÃ¤hlt',
+            'Kein Spiel ausgewÃƒÂ¤hlt',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -2402,7 +1989,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 12),
           Text(
-            'WÃ¤hlen Sie ein Spiel aus der Liste aus.',
+            'WÃƒÂ¤hlen Sie ein Spiel aus der Liste aus.',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade500,
@@ -2413,7 +2000,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ElevatedButton.icon(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back),
-            label: const Text('ZurÃ¼ck zu Spielen'),
+            label: const Text('ZurÃƒÂ¼ck zu Spielen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFffd665),
               foregroundColor: Colors.black87,
@@ -2487,7 +2074,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   // Team A Squad
                   Expanded(
                     child: _buildTeamSquadCard(
-                      teamId: _selectedGame!.teamAId ?? '',
                       teamName: _selectedGame!.teamAName,
                       team: _teamA,
                       squad: teamASquad,
@@ -2499,7 +2085,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   // Team B Squad  
                   Expanded(
                     child: _buildTeamSquadCard(
-                      teamId: _selectedGame!.teamBId ?? '',
                       teamName: _selectedGame!.teamBName,
                       team: _teamB,
                       squad: teamBSquad,
@@ -2516,419 +2101,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   }
 
   Widget _buildRefereesAndOfficials() {
-    if (_selectedGame == null) return _buildNoGameView();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildGameHeader(),
-          const SizedBox(height: 24),
-
-          // Pre-assigned referees from database
-          if (_selectedGame!.referee1Id != null || _selectedGame!.referee2Id != null)
-            _buildAssignedRefereesCard(),
-
-          if (_selectedGame!.referee1Id != null || _selectedGame!.referee2Id != null)
-            const SizedBox(height: 20),
-
-          // Editable match officials
-          _buildOfficialsSection(
-            'Schiedsrichter',
-            Icons.sports,
-            Colors.purple,
-            [
-              _buildOfficialField('Schiedsrichter 1', _referee1Controller),
-              const SizedBox(height: 12),
-              _buildOfficialField('Schiedsrichter 2', _referee2Controller),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildOfficialsSection(
-            'Zeitnehmer / Sekretär',
-            Icons.timer,
-            Colors.teal,
-            [
-              _buildOfficialField('Zeitnehmer', _timekeeperController),
-              const SizedBox(height: 12),
-              _buildOfficialField('Sekretär', _scorekeeperController),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildOfficialsSection(
-            'Delegierte',
-            Icons.badge,
-            Colors.indigo,
-            [
-              _buildOfficialField('Delegierter 1', _delegate1Controller),
-              const SizedBox(height: 12),
-              _buildOfficialField('Delegierter 2', _delegate2Controller),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Center(
-            child: FilledButton.icon(
-              onPressed: _saveOfficials,
-              icon: const Icon(Icons.save),
-              label: const Text('Spieloffizielle speichern'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.purple,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return _buildPlaceholderScreen(
+      'Schiedsrichter und Offizielle',
+      Icons.sports_handball,
+      'Hier kÃƒÂ¶nnen Sie Schiedsrichter und Spieloffizielle verwalten.',
+      Colors.purple,
     );
-  }
-
-  Widget _buildAssignedRefereesCard() {
-    return FutureBuilder<List<String>>(
-      future: _loadAssignedRefereeNames(),
-      builder: (context, snapshot) {
-        final names = snapshot.data ?? [];
-        if (names.isEmpty) return const SizedBox.shrink();
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade800,
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.verified, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Zugewiesene Schiedsrichter (Datenbank)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  children: names.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Icon(Icons.sports, size: 16, color: Colors.purple.shade400),
-                        const SizedBox(width: 8),
-                        Text('SR ${e.key + 1}: ', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-                        Text(e.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  )).toList(),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<List<String>> _loadAssignedRefereeNames() async {
-    final names = <String>[];
-    try {
-      if (_selectedGame!.referee1Id != null) {
-        final ref = await _refereeService.getRefereeById(_selectedGame!.referee1Id!);
-        names.add(ref?.fullName ?? _selectedGame!.referee1Id!);
-      }
-      if (_selectedGame!.referee2Id != null) {
-        final ref = await _refereeService.getRefereeById(_selectedGame!.referee2Id!);
-        names.add(ref?.fullName ?? _selectedGame!.referee2Id!);
-      }
-    } catch (_) {}
-    return names;
-  }
-
-  Widget _buildOfficialsSection(String title, IconData icon, Color color, List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(children: children),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOfficialField(String label, TextEditingController controller) {
-    return Autocomplete<Referee>(
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text.isEmpty) {
-          return _allReferees;
-        }
-        final query = textEditingValue.text.toLowerCase();
-        return _allReferees.where((r) =>
-          r.fullName.toLowerCase().contains(query) ||
-          r.email.toLowerCase().contains(query)
-        );
-      },
-      displayStringForOption: (Referee r) => r.fullName,
-      fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-        // Sync initial value from the external controller
-        if (textController.text.isEmpty && controller.text.isNotEmpty) {
-          textController.text = controller.text;
-        }
-        // Keep controllers in sync
-        textController.addListener(() {
-          if (controller.text != textController.text) {
-            controller.text = textController.text;
-          }
-        });
-        return TextFormField(
-          controller: textController,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: label,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            prefixIcon: const Icon(Icons.person_outline, size: 20),
-            suffixIcon: textController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      textController.clear();
-                      controller.clear();
-                    },
-                  )
-                : const Icon(Icons.arrow_drop_down, size: 20),
-          ),
-          style: const TextStyle(fontSize: 14),
-          onFieldSubmitted: (_) => onFieldSubmitted(),
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250, maxWidth: 400),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final referee = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.person, size: 18),
-                    title: Text(referee.fullName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      [if (referee.licenseType.isNotEmpty) referee.licenseType, if (referee.email.isNotEmpty) referee.email].join(' · '),
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                    ),
-                    onTap: () => onSelected(referee),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      onSelected: (Referee referee) {
-        controller.text = referee.fullName;
-      },
-    );
-  }
-
-  Future<void> _loadAllReferees() async {
-    try {
-      final results = await Future.wait([
-        _refereeService.getAllReferees(),
-        _authService.getAllUsers(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _allReferees = results[0] as List<Referee>;
-          _allUsers = (results[1] as List<app_user.User>)
-              ..sort((a, b) => a.fullName.compareTo(b.fullName));
-        });
-      }
-    } catch (_) {}
-  }
-
-  void _showAddOfficialDialog(String teamId, String teamName, bool isTeamA) {
-    final nameCtrl = TextEditingController();
-    String selectedRole = 'Trainer';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Offiziellen hinzufügen – $teamName', style: const TextStyle(fontSize: 16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedRole,
-                decoration: InputDecoration(
-                  labelText: 'Rolle',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                items: TeamOfficial.roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
-                onChanged: (v) => setDialogState(() => selectedRole = v ?? 'Trainer'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Abbrechen')),
-            FilledButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty) return;
-                Navigator.pop(ctx);
-                final squad = _gameSquads[teamId];
-                final currentOfficials = List<TeamOfficial>.from(squad?.officials ?? []);
-                if (currentOfficials.length >= 5) {
-                  _showErrorToast('Maximal 5 Offizielle pro Team');
-                  return;
-                }
-                currentOfficials.add(TeamOfficial(name: nameCtrl.text.trim(), role: selectedRole));
-                
-                if (squad != null) {
-                  final updated = squad.copyWith(officials: currentOfficials, updatedAt: DateTime.now());
-                  await _gameSquadService.updateSquadOfficials(
-                    _selectedGame!.id, teamId, currentOfficials);
-                  setState(() => _gameSquads[teamId] = updated);
-                }
-                _showSuccessToast('Offizieller hinzugefügt');
-              },
-              child: const Text('Hinzufügen'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _saveOfficials() async {
-    if (_selectedGame == null) return;
-    try {
-      await FirebaseFirestore.instance.collection('gameStates').doc(_selectedGame!.id).set({
-        'referee1': _referee1Controller.text.trim(),
-        'referee2': _referee2Controller.text.trim(),
-        'timekeeper': _timekeeperController.text.trim(),
-        'scorekeeper': _scorekeeperController.text.trim(),
-        'delegate1': _delegate1Controller.text.trim(),
-        'delegate2': _delegate2Controller.text.trim(),
-        // team managers
-        'teamAManagerId': _teamAManagerId ?? '',
-        'teamAManagerName': _teamAManagerName ?? '',
-        'teamBManagerId': _teamBManagerId ?? '',
-        'teamBManagerName': _teamBManagerName ?? '',
-        'teamAManagerSigned': _teamAManagerSigned,
-        'teamBManagerSigned': _teamBManagerSigned,
-      }, SetOptions(merge: true));
-      _showSuccessToast('Offizielle gespeichert');
-    } catch (e) {
-      _showErrorToast('Fehler: $e');
-    }
-  }
-
-  void _loadOfficials() async {
-    if (_selectedGame == null) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('gameStates')
-          .doc(_selectedGame!.id)
-          .get();
-
-      String? teamAMgrId, teamAMgrName, teamBMgrId, teamBMgrName;
-      bool teamASigned = false, teamBSigned = false;
-
-      if (doc.exists) {
-        final data = doc.data()!;
-        _referee1Controller.text = data['referee1'] ?? '';
-        _referee2Controller.text = data['referee2'] ?? '';
-        _timekeeperController.text = data['timekeeper'] ?? '';
-        _scorekeeperController.text = data['scorekeeper'] ?? '';
-        _delegate1Controller.text = data['delegate1'] ?? '';
-        _delegate2Controller.text = data['delegate2'] ?? '';
-        teamAMgrId   = (data['teamAManagerId']   as String?)?.isNotEmpty == true ? data['teamAManagerId']   : null;
-        teamAMgrName = (data['teamAManagerName'] as String?)?.isNotEmpty == true ? data['teamAManagerName'] : null;
-        teamBMgrId   = (data['teamBManagerId']   as String?)?.isNotEmpty == true ? data['teamBManagerId']   : null;
-        teamBMgrName = (data['teamBManagerName'] as String?)?.isNotEmpty == true ? data['teamBManagerName'] : null;
-        teamASigned  = data['teamAManagerSigned'] ?? false;
-        teamBSigned  = data['teamBManagerSigned'] ?? false;
-      }
-
-      // Auto-populate from team_managers if not already set
-      final service = TeamManagerService();
-      if (teamAMgrId == null && _selectedGame!.teamAId != null) {
-        final managers = await service.getManagersForTeam(_selectedGame!.teamAId!);
-        final active = managers.where((m) => m.isActive && m.userId != null).toList();
-        if (active.isNotEmpty) {
-          teamAMgrId   = active.first.userId;
-          teamAMgrName = active.first.name;
-        }
-      }
-      if (teamBMgrId == null && _selectedGame!.teamBId != null) {
-        final managers = await service.getManagersForTeam(_selectedGame!.teamBId!);
-        final active = managers.where((m) => m.isActive && m.userId != null).toList();
-        if (active.isNotEmpty) {
-          teamBMgrId   = active.first.userId;
-          teamBMgrName = active.first.name;
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _teamAManagerId     = teamAMgrId;
-          _teamAManagerName   = teamAMgrName;
-          _teamBManagerId     = teamBMgrId;
-          _teamBManagerName   = teamBMgrName;
-          _teamAManagerSigned = teamASigned;
-          _teamBManagerSigned = teamBSigned;
-        });
-        // Persist auto-populated managers so they are saved for next load
-        if (teamAMgrId != null || teamBMgrId != null) {
-          _saveOfficials();
-        }
-      }
-    } catch (e) {
-      print('❌ Error loading officials: $e');
-    }
   }
 
   Widget _buildLiveScoring() {
@@ -2948,9 +2126,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           gameTime: GameTime(),
         );
 
-        // Cache for keyboard handler
-        _currentGameState = gameState;
-
         // Check for set completion (defer to avoid setState during build)
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _checkForSetCompletion(gameState);
@@ -2963,15 +2138,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
         return Stack(
           children: [
-            _isDesktopLayout 
-              ? _buildDesktopLiveScoring(gameState)
-              : Padding(
-          padding: EdgeInsets.all(16 * _paddingScale),
+            Padding(
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
               // Game Header
               _buildLiveScoringHeader(gameState),
-              SizedBox(height: 16 * _paddingScale),
+              const SizedBox(height: 16),
               
               // Main Scoring Area
               Expanded(
@@ -3035,689 +2208,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _buildPlaceholderScreen(
       'Live-Statistiken',
       Icons.analytics,
-      'Hier kÃ¶nnen Sie Live-Statistiken und Spielanalysen einsehen.',
+      'Hier kÃƒÂ¶nnen Sie Live-Statistiken und Spielanalysen einsehen.',
       Colors.blue,
-    );
-  }
-
-  /// Desktop layout: Left=Event History | Right=Column[Top=Controls, Bottom=Players]
-  Widget _buildDesktopLiveScoring(GameState gameState) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // LEFT: Event History Sidebar
-          SizedBox(
-            width: 260,
-            child: _buildDesktopEventHistory(gameState),
-          ),
-          const SizedBox(width: 8),
-          // RIGHT: Controls + Players
-          Expanded(
-            child: Column(
-              children: [
-                // TOP: Score Header + Action Buttons
-                _buildDesktopControlPanel(gameState),
-                const SizedBox(height: 8),
-                // BOTTOM: Player Grids side by side
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: _buildDesktopPlayerGrid(
-                          gameState,
-                          _selectedGame!.teamAId ?? '',
-                          _selectedGame!.teamAName,
-                          _teamA,
-                          true,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildDesktopPlayerGrid(
-                          gameState,
-                          _selectedGame!.teamBId ?? '',
-                          _selectedGame!.teamBName,
-                          _teamB,
-                          false,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Desktop event history sidebar
-  Widget _buildDesktopEventHistory(GameState gameState) {
-    final events = List<GameEvent>.from(gameState.events)
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade800,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.history, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  'Spielverlauf',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${events.length}',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: events.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.inbox, size: 36, color: Colors.grey.shade300),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Noch keine Ereignisse',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: events.length,
-                    itemBuilder: (context, index) => _buildEventItem(events[index]),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Desktop control panel: compact score header + action buttons in a horizontal row
-  Widget _buildDesktopControlPanel(GameState gameState) {
-    final teamAScore = gameState.getTeamScore(_selectedGame!.teamAId ?? '');
-    final teamBScore = gameState.getTeamScore(_selectedGame!.teamBId ?? '');
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Timer row
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade900,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  gameState.gameTime.periodDisplay,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  gameState.gameTime.displayTime,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  height: 28,
-                  child: ElevatedButton(
-                    onPressed: gameState.isRunning
-                        ? () => _liveScoringService.pauseGameTimer(_selectedGame!.id)
-                        : () => _liveScoringService.startGameTimer(_selectedGame!.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: gameState.isRunning ? Colors.orange : Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      minimumSize: Size.zero,
-                    ),
-                    child: Icon(
-                      gameState.isRunning ? Icons.pause : Icons.play_arrow,
-                      size: 16,
-                    ),
-                  ),
-                ),
-                if (gameState.gameTime.minutes >= 10) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    height: 28,
-                    child: ElevatedButton(
-                      onPressed: () => _showEndSetDialog(gameState),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade600,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        minimumSize: Size.zero,
-                      ),
-                      child: const Text('Satz beenden', style: TextStyle(fontSize: 10)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // Score Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [_teamASpielerColor, Colors.grey.shade800, _teamBSpielerColor],
-              ),
-            ),
-            child: Row(
-              children: [
-                // Team A
-                Expanded(
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => _showRosterOverrideDialog(
-                          _selectedGame!.teamAId ?? '',
-                          _selectedGame!.teamAName,
-                          _teamA,
-                        ),
-                        icon: const Icon(Icons.edit_note, color: Colors.white, size: 16),
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Kader bearbeiten',
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          _selectedGame!.teamAName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Score
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black38,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$teamAScore',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                        ),
-                      ),
-                      const Text(
-                        ' : ',
-                        style: TextStyle(color: Colors.white70, fontSize: 20),
-                      ),
-                      Text(
-                        '$teamBScore',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Team B
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _selectedGame!.teamBName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.end,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        onPressed: () => _showRosterOverrideDialog(
-                          _selectedGame!.teamBId ?? '',
-                          _selectedGame!.teamBName,
-                          _teamB,
-                        ),
-                        icon: const Icon(Icons.edit_note, color: Colors.white, size: 16),
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Kader bearbeiten',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Selected player indicator + Action buttons row
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.person,
-                  size: 16,
-                  color: _selectedPlayer != null ? Colors.green : Colors.grey.shade400,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    _selectedPlayer != null
-                        ? '#${_selectedPlayer!.jerseyNumber ?? "?"} ${_selectedPlayer!.fullName}'
-                        : 'Spieler auswählen...',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: _selectedPlayer != null ? FontWeight.bold : FontWeight.normal,
-                      color: _selectedPlayer != null
-                          ? (_hasRedCard(gameState, _selectedPlayer!.id)
-                              ? Colors.red
-                              : Colors.green.shade700)
-                          : Colors.grey,
-                    ),
-                  ),
-                ),
-                if (_selectedPlayer != null)
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _selectedPlayer = null;
-                      _selectedPlayerTeamId = null;
-                    }),
-                    child: Icon(Icons.clear, size: 14, color: Colors.grey.shade500),
-                  ),
-              ],
-            ),
-          ),
-          // Action buttons — compact horizontal row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                _buildDesktopActionChip('Tor', Icons.sports_handball, Colors.green, GameEventType.goal, gameState),
-                _buildDesktopActionChip('7m ✓', Icons.my_location, Colors.indigo, GameEventType.sevenMeterHit, gameState),
-                _buildDesktopActionChip('7m ✗', Icons.location_off, Colors.grey, GameEventType.sevenMeterMiss, gameState),
-                _buildDesktopActionChip('Gelb', Icons.square, Colors.yellow.shade700, GameEventType.yellowCard, gameState),
-                _buildDesktopActionChip('2 Min', Icons.access_time, Colors.orange, GameEventType.twoMinuteSuspension, gameState),
-                _buildDesktopActionChip('Rot', Icons.cancel, Colors.red, GameEventType.redCard, gameState),
-                _buildDesktopActionChip('Blau', Icons.report, Colors.blue.shade800, GameEventType.blueCard, gameState),
-                // Undo buttons
-                ActionChip(
-                  avatar: const Icon(Icons.undo, size: 14),
-                  label: const Text('Undo A', style: TextStyle(fontSize: 11)),
-                  onPressed: () => _undoLastAction(_selectedGame!.teamAId ?? ''),
-                  backgroundColor: Colors.grey.shade200,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                ActionChip(
-                  avatar: const Icon(Icons.undo, size: 14),
-                  label: const Text('Undo B', style: TextStyle(fontSize: 11)),
-                  onPressed: () => _undoLastAction(_selectedGame!.teamBId ?? ''),
-                  backgroundColor: Colors.grey.shade200,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Desktop action chip for a scoring event
-  Widget _buildDesktopActionChip(
-    String label,
-    IconData icon,
-    Color color,
-    GameEventType eventType,
-    GameState gameState,
-  ) {
-    final isEnabled = _selectedPlayer != null &&
-        _selectedPlayerTeamId != null &&
-        !_hasRedCard(gameState, _selectedPlayer!.id);
-
-    return ActionChip(
-      avatar: Icon(icon, size: 14, color: isEnabled ? color : Colors.grey),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: isEnabled ? color : Colors.grey,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      onPressed: isEnabled
-          ? () => _addPlayerEvent(
-                gameState,
-                _selectedPlayerTeamId!,
-                _selectedPlayerTeamId == _selectedGame!.teamAId
-                    ? _selectedGame!.teamAName
-                    : _selectedGame!.teamBName,
-                _selectedPlayer!,
-                eventType,
-              )
-          : null,
-      backgroundColor: isEnabled ? color.withOpacity(0.1) : Colors.grey.shade100,
-      side: BorderSide(color: isEnabled ? color.withOpacity(0.3) : Colors.grey.shade300),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  /// Desktop player grid — a compact grid of player cards for one team
-  Widget _buildDesktopPlayerGrid(
-    GameState gameState,
-    String teamId,
-    String teamName,
-    Team? team,
-    bool isTeamA,
-  ) {
-    final squad = _gameSquads[teamId];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Team header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isTeamA ? _teamASpielerColor : _teamBSpielerColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: isTeamA ? _teamAShooterColor : _teamBShooterColor,
-                  width: 4,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    teamName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '${gameState.getTeamScore(teamId)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Player grid
-          Expanded(
-            child: squad == null || squad.selectedPlayers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group_off, size: 28, color: Colors.grey.shade300),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Kein Kader',
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: () => _showRosterOverrideDialog(teamId, teamName, team),
-                          icon: const Icon(Icons.add, size: 14),
-                          label: const Text('Kader erstellen', style: TextStyle(fontSize: 11)),
-                        ),
-                      ],
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(6),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      childAspectRatio: 1.4,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
-                    ),
-                    itemCount: squad.selectedPlayers.length,
-                    itemBuilder: (context, index) {
-                      final sp = squad.selectedPlayers[index];
-                      final isSelected = _selectedPlayer?.id == sp.playerId;
-                      final hasRed = _hasRedCard(gameState, sp.playerId);
-                      final suspensions = _getPlayerSuspensionCount(gameState, sp.playerId);
-                      final goals = gameState.events
-                          .where((e) =>
-                              e.playerId == sp.playerId &&
-                              (e.eventType == GameEventType.goal ||
-                               e.eventType == GameEventType.sevenMeterHit))
-                          .length;
-                      final specialColors = _getPlayerBorderColors(sp);
-                      final hasPinkBorder = specialColors.contains(Colors.pink);
-                      final hasYellowBorder = specialColors.any((c) => c == Colors.amber.shade600);
-
-                      // Determine desktop tile border
-                      Color tileBorderColor;
-                      double tileBorderWidth;
-                      if (isSelected) {
-                        tileBorderColor = isTeamA ? _teamAShooterColor : _teamBShooterColor;
-                        tileBorderWidth = 2;
-                      } else if (hasRed) {
-                        tileBorderColor = Colors.red.shade300;
-                        tileBorderWidth = 1.5;
-                      } else if (specialColors.isNotEmpty) {
-                        tileBorderColor = specialColors.first;
-                        tileBorderWidth = 2;
-                      } else {
-                        tileBorderColor = Colors.grey.shade200;
-                        tileBorderWidth = 1;
-                      }
-
-                      Widget tile = Container(
-                          decoration: BoxDecoration(
-                            color: hasRed
-                                ? Colors.red.shade50
-                                : isSelected
-                                    ? (isTeamA ? _teamAShooterColor : _teamBShooterColor).withOpacity(0.15)
-                                    : Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: tileBorderColor, width: tileBorderWidth),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                          child: Row(
-                            children: [
-                              // Jersey number
-                              Container(
-                                width: 26,
-                                height: 26,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: isTeamA ? _teamAShooterColor : _teamBShooterColor,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  sp.jerseyNumber ?? '?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      sp.lastName,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: hasRed ? Colors.red : null,
-                                        decoration: hasRed ? TextDecoration.lineThrough : null,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Row(
-                                      children: [
-                                        if (goals > 0) ...[
-                                          Icon(Icons.sports_handball, size: 10, color: Colors.green.shade600),
-                                          Text('$goals', style: TextStyle(fontSize: 9, color: Colors.green.shade600)),
-                                          const SizedBox(width: 3),
-                                        ],
-                                        if (suspensions > 0) ...[
-                                          Icon(Icons.access_time, size: 10, color: Colors.orange.shade700),
-                                          Text('$suspensions', style: TextStyle(fontSize: 9, color: Colors.orange.shade700)),
-                                        ],
-                                        if (hasRed) ...[
-                                          const Icon(Icons.cancel, size: 10, color: Colors.red),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-
-                      // Wrap with second border if both pink AND yellow
-                      if (hasPinkBorder && hasYellowBorder) {
-                        tile = Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.amber.shade600, width: 2),
-                          ),
-                          child: tile,
-                        );
-                      }
-
-                      return GestureDetector(
-                        onTap: hasRed
-                            ? null
-                            : () {
-                                setState(() {
-                                  _selectedPlayer = Player(
-                                    id: sp.playerId,
-                                    firstName: sp.firstName,
-                                    lastName: sp.lastName,
-                                    email: '${sp.playerId}@team.com',
-                                    jerseyNumber: sp.jerseyNumber,
-                                    gender: sp.gender ?? 'unknown',
-                                    createdAt: DateTime.now(),
-                                  );
-                                  _selectedPlayerTeamId = teamId;
-                                });
-                              },
-                        child: tile,
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -3804,14 +2296,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               
               // Game Summary
               _buildGameSummaryCard(gameState),
-
+              
               const SizedBox(height: 24),
-
-              // Manager sign-off
-              _buildManagerSignOffCard(),
-
-              const SizedBox(height: 24),
-
+              
               // Reset Options
               _buildResetOptionsCard(gameState),
             ],
@@ -4085,225 +2572,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     );
   }
 
-  Widget _buildManagerSignOffCard() {
-    final teamAName = _selectedGame?.teamAName ?? 'Team A';
-    final teamBName = _selectedGame?.teamBName ?? 'Team B';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF455A64),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.draw, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Text('Unterschriften der Spielverantwortlichen',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _buildSignOffRow(
-                  teamName: teamAName,
-                  managerId: _teamAManagerId,
-                  managerName: _teamAManagerName,
-                  isSigned: _teamAManagerSigned,
-                  accentColor: Colors.blue,
-                  onSign: () => _confirmSignOff(teamAName, isTeamA: true),
-                  isTeamA: true,
-                  onRequestSign: () => _sendSignOffNotification(isTeamA: true),
-                ),
-                const Divider(height: 24),
-                _buildSignOffRow(
-                  teamName: teamBName,
-                  managerId: _teamBManagerId,
-                  managerName: _teamBManagerName,
-                  isSigned: _teamBManagerSigned,
-                  accentColor: Colors.red,
-                  onSign: () => _confirmSignOff(teamBName, isTeamA: false),
-                  isTeamA: false,
-                  onRequestSign: () => _sendSignOffNotification(isTeamA: false),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignOffRow({
-    required String teamName,
-    required String? managerId,
-    required String? managerName,
-    required bool isSigned,
-    required MaterialColor accentColor,
-    required VoidCallback onSign,
-    required bool isTeamA,
-    required VoidCallback onRequestSign,
-  }) {
-    // Auto-send sign-off notification on first build when manager is assigned but hasn't signed
-    if (managerId != null && !isSigned) {
-      final alreadySent = isTeamA ? _signRequestSentA : _signRequestSentB;
-      if (!alreadySent) {
-        // Schedule after build to avoid setState-during-build
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (isTeamA) { _signRequestSentA = true; }
-          else         { _signRequestSentB = true; }
-          onRequestSign();
-        });
-      }
-    }
-
-    return Row(
-      children: [
-        Container(
-          width: 6, height: 44,
-          decoration: BoxDecoration(color: accentColor.shade400, borderRadius: BorderRadius.circular(3)),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(teamName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accentColor.shade700)),
-              const SizedBox(height: 2),
-              managerId == null
-                  ? Text('Kein Spielverantwortlicher zugewiesen',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic))
-                  : Text(managerName ?? managerId,
-                      style: const TextStyle(fontSize: 12, color: Colors.black87)),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        if (isSigned)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.green.shade300)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.check_circle, size: 14, color: Colors.green.shade600),
-              const SizedBox(width: 6),
-              Text('Unterschrieben', style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600)),
-            ]),
-          )
-        else if (managerId == null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(20)),
-            child: Text('Nicht verfügbar', style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
-          )
-        else
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              OutlinedButton.icon(
-                onPressed: onSign,
-                icon: Icon(Icons.draw_outlined, size: 14, color: accentColor.shade600),
-                label: Text('Bestätigen', style: TextStyle(fontSize: 12, color: accentColor.shade700)),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: accentColor.shade300),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: onRequestSign,
-                icon: const Icon(Icons.send, size: 16),
-                tooltip: 'Unterschrift anfordern',
-                style: IconButton.styleFrom(
-                  foregroundColor: accentColor.shade600,
-                  padding: const EdgeInsets.all(6),
-                  minimumSize: const Size(32, 32),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Future<void> _confirmSignOff(String teamName, {required bool isTeamA}) async {
-    final managerName = isTeamA ? _teamAManagerName : _teamBManagerName;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Spielprotokoll bestätigen'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Spielverantwortlicher von $teamName:', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-            const SizedBox(height: 4),
-            Text(managerName ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text('Ich bestätige hiermit die Richtigkeit des Spielprotokolls.',
-                style: TextStyle(fontSize: 13)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.green.shade600),
-            child: const Text('Bestätigen'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
-      setState(() {
-        if (isTeamA) _teamAManagerSigned = true;
-        else         _teamBManagerSigned = true;
-      });
-      await _saveOfficials();
-      _showSuccessToast('${isTeamA ? _selectedGame?.teamAName : _selectedGame?.teamBName}: Protokoll bestätigt');
-    }
-  }
-
-  /// Send a sign-off request notification to the team manager
-  void _sendSignOffNotification({required bool isTeamA}) {
-    if (_selectedGame == null) return;
-    final managerId = isTeamA ? _teamAManagerId : _teamBManagerId;
-    final teamName = isTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName;
-    final teamId = isTeamA ? _selectedGame!.teamAId : _selectedGame!.teamBId;
-    if (managerId == null || teamId == null) return;
-
-    // Look up user email from _allUsers
-    final user = _allUsers.where((u) => u.id == managerId).firstOrNull;
-    final userEmail = user?.email;
-
-    CustomNotificationService().sendGameNotification(
-      title: 'Spielprotokoll unterschreiben',
-      message: 'Bitte unterschreibe das Spielprotokoll für $teamName.',
-      notificationType: 'sign_off_request',
-      gameId: _selectedGame!.id,
-      teamId: teamId,
-      teamName: teamName,
-      userId: managerId,
-      userEmail: userEmail,
-    );
-
-    _showSuccessToast('Unterschrift-Anforderung an ${user?.fullName ?? managerId} gesendet');
-  }
-
   Widget _buildResetOptionsCard(GameState gameState) {
     final hasData = gameState.events.isNotEmpty;
     
@@ -4332,7 +2600,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
               const SizedBox(width: 12),
               const Text(
-                'Spiel zurÃ¼cksetzen',
+                'Spiel zurÃƒÂ¼cksetzen',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -4345,8 +2613,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           
           Text(
             hasData 
-                ? 'Alle Punkte, Ereignisse und SÃ¤tze lÃ¶schen. Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'
-                : 'Aktuell sind keine Daten zum ZurÃ¼cksetzen vorhanden.',
+                ? 'Alle Punkte, Ereignisse und SÃƒÂ¤tze lÃƒÂ¶schen. Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden.'
+                : 'Aktuell sind keine Daten zum ZurÃƒÂ¼cksetzen vorhanden.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -4374,7 +2642,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelÃ¶scht!',
+                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelÃƒÂ¶scht!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -4394,7 +2662,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, false),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Aktuellen Satz zurÃ¼cksetzen'),
+                    label: const Text('Aktuellen Satz zurÃƒÂ¼cksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange.shade600,
                       foregroundColor: Colors.white,
@@ -4410,7 +2678,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, true),
                     icon: const Icon(Icons.delete_forever),
-                    label: const Text('Gesamtes Spiel zurÃ¼cksetzen'),
+                    label: const Text('Gesamtes Spiel zurÃƒÂ¼cksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
                       foregroundColor: Colors.white,
@@ -4512,7 +2780,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'Diese FunktionalitÃ¤t wird in einer zukÃ¼nftigen Version implementiert.',
+                'Diese FunktionalitÃƒÂ¤t wird in einer zukÃƒÂ¼nftigen Version implementiert.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -4584,7 +2852,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Abmelden'),
-        content: const Text('MÃ¶chten Sie sich wirklich abmelden?'),
+        content: const Text('MÃƒÂ¶chten Sie sich wirklich abmelden?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -4709,7 +2977,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 8),
           Text(
-            _selectedGame?.displayName ?? 'Kein Spiel ausgewÃ¤hlt',
+            _selectedGame?.displayName ?? 'Kein Spiel ausgewÃƒÂ¤hlt',
             style: const TextStyle(
               fontSize: 18,
               color: Colors.black54,
@@ -4731,7 +2999,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   }
 
   Widget _buildTeamSquadCard({
-    required String teamId,
     required String teamName,
     required Team? team,
     required GameSquad? squad,
@@ -4783,7 +3050,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${squad.playerCount}/16',
+                      '${squad.playerCount}/10',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -4792,16 +3059,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     ),
                   ),
                 ],
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => _showRosterOverrideDialog(teamId, teamName, team),
-                  icon: const Icon(Icons.edit_note, color: Colors.white, size: 20),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    padding: const EdgeInsets.all(6),
-                  ),
-                  tooltip: 'Kader bearbeiten',
-                ),
               ],
             ),
           ),
@@ -4828,7 +3085,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 12),
         Text(
-          'Kein Kader ausgewÃ¤hlt',
+          'Kein Kader ausgewÃƒÂ¤hlt',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey[600],
@@ -4837,7 +3094,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 8),
         Text(
-          'Der Trainer muss noch den Kader fÃ¼r dieses Spiel auswÃ¤hlen.',
+          'Der Trainer muss noch den Kader fÃƒÂ¼r dieses Spiel auswÃƒÂ¤hlen.',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[500],
@@ -4858,10 +3115,6 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         
         // Players List
         _buildPlayersList(squad),
-        const SizedBox(height: 16),
-
-        // Team Officials
-        _buildSquadOfficialsList(squad),
       ],
     );
   }
@@ -4873,7 +3126,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
     if (squad.isApproved) {
       statusColor = Colors.green;
-      statusText = 'Vom Trainer bestÃ¤tigt';
+      statusText = 'Vom Trainer bestÃƒÂ¤tigt';
       statusIcon = Icons.check_circle;
     } else if (squad.isRejected) {
       statusColor = Colors.red;
@@ -4881,7 +3134,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       statusIcon = Icons.cancel;
     } else {
       statusColor = Colors.orange;
-      statusText = 'Wartet auf Trainer-BestÃ¤tigung';
+      statusText = 'Wartet auf Trainer-BestÃƒÂ¤tigung';
       statusIcon = Icons.hourglass_empty;
     }
 
@@ -4909,7 +3162,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   ),
                 ),
                 Text(
-                  'AusgewÃ¤hlt von ${squad.selectedByName}',
+                  'AusgewÃƒÂ¤hlt von ${squad.selectedByName}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -4933,7 +3186,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         Row(
           children: [
             Text(
-              'AusgewÃ¤hlte Spieler (${squad.playerCount})',
+              'AusgewÃƒÂ¤hlte Spieler (${squad.playerCount})',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -5043,255 +3296,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     );
   }
 
-  Widget _buildSquadOfficialsList(GameSquad squad) {
-    final officials = squad.officials;
-    final teamId = squad.teamId;
-    final isTeamA = teamId == _selectedGame?.teamAId;
-    final teamName = isTeamA ? _selectedGame!.teamAName : _selectedGame!.teamBName;
-    final accentColor = isTeamA ? Colors.blue : Colors.red;
-
-    final managerId = isTeamA ? _teamAManagerId : _teamBManagerId;
-    final managerName = isTeamA ? _teamAManagerName : _teamBManagerName;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Spielverantwortlicher ──────────────────────────────────────
-        Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: accentColor.shade200),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: accentColor.shade600,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.manage_accounts, color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text('Spielverantwortlicher', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                    ),
-                    if (managerId != null)
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isTeamA) { _teamAManagerId = null; _teamAManagerName = null; }
-                            else         { _teamBManagerId = null; _teamBManagerName = null; }
-                          });
-                          _saveOfficials();
-                        },
-                        child: const Icon(Icons.close, color: Colors.white70, size: 16),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: managerId != null
-                    ? Row(
-                        children: [
-                          Icon(Icons.person, size: 18, color: accentColor.shade400),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(managerName ?? managerId, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(20)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.check_circle, size: 12, color: Colors.green.shade700),
-                              const SizedBox(width: 4),
-                              Text('Zugewiesen', style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w600)),
-                            ]),
-                          ),
-                        ],
-                      )
-                    : _buildUserAutocomplete(
-                        label: 'Person suchen…',
-                        accentColor: accentColor,
-                        onSelected: (user) {
-                          setState(() {
-                            if (isTeamA) { _teamAManagerId = user.id; _teamAManagerName = user.fullName; }
-                            else         { _teamBManagerId = user.id; _teamBManagerName = user.fullName; }
-                          });
-                          _saveOfficials();
-                          // Send roster confirmation notification to the assigned manager
-                          if (_selectedGame != null) {
-                            CustomNotificationService().sendGameNotification(
-                              title: 'Kaderbestätigung angefordert',
-                              message: 'Du wurdest als Spielverantwortlicher für $teamName eingetragen. Bitte bestätige den Kader.',
-                              notificationType: 'roster_confirmation',
-                              gameId: _selectedGame!.id,
-                              teamId: teamId,
-                              teamName: teamName,
-                              userId: user.id,
-                              userEmail: user.email,
-                            );
-                          }
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
-
-        // ── Team-Offizielle ───────────────────────────────────────────
-        Row(
-          children: [
-            Text(
-              'Team-Offizielle (${officials.length}/5)',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const Spacer(),
-            if (officials.length < 5)
-              TextButton.icon(
-                onPressed: () => _showAddOfficialDialog(teamId, teamName, isTeamA),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Hinzufügen', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  foregroundColor: isTeamA ? Colors.blue.shade700 : Colors.red.shade700,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (officials.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
-                const SizedBox(width: 8),
-                Text('Keine Team-Offiziellen eingetragen',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-              ],
-            ),
-          )
-        else
-          ...officials.asMap().entries.map((entry) {
-            final i = entry.key;
-            final o = entry.value;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.purple.shade100),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.badge, size: 16, color: Colors.purple.shade400),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(o.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(o.role, style: TextStyle(fontSize: 10, color: Colors.purple.shade700)),
-                    ),
-                    const SizedBox(width: 4),
-                    InkWell(
-                      onTap: () async {
-                        final updated = List<TeamOfficial>.from(officials)..removeAt(i);
-                        await _gameSquadService.updateSquadOfficials(
-                          _selectedGame!.id, teamId, updated);
-                        final sq = _gameSquads[teamId];
-                        if (sq != null) {
-                          setState(() => _gameSquads[teamId] = sq.copyWith(officials: updated));
-                        }
-                      },
-                      child: Icon(Icons.close, size: 14, color: Colors.red.shade300),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-      ],
-    );
-  }
-
-  /// Generic user autocomplete picker (for team manager assignment).
-  Widget _buildUserAutocomplete({
-    required String label,
-    required MaterialColor accentColor,
-    required void Function(app_user.User) onSelected,
-  }) {
-    return Autocomplete<app_user.User>(
-      optionsBuilder: (TextEditingValue value) {
-        if (value.text.isEmpty) return _allUsers;
-        final q = value.text.toLowerCase();
-        return _allUsers.where((u) =>
-          u.fullName.toLowerCase().contains(q) ||
-          u.email.toLowerCase().contains(q));
-      },
-      displayStringForOption: (u) => u.fullName,
-      fieldViewBuilder: (ctx, textCtrl, focusNode, onSubmitted) => TextFormField(
-        controller: textCtrl,
-        focusNode: focusNode,
-        style: const TextStyle(fontSize: 13),
-        decoration: InputDecoration(
-          hintText: label,
-          isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          prefixIcon: Icon(Icons.search, size: 18, color: accentColor.shade400),
-          suffixIcon: textCtrl.text.isNotEmpty
-              ? IconButton(icon: const Icon(Icons.clear, size: 16), onPressed: textCtrl.clear)
-              : null,
-        ),
-        onFieldSubmitted: (_) => onSubmitted(),
-      ),
-      optionsViewBuilder: (ctx, onSelect, options) => Align(
-        alignment: Alignment.topLeft,
-        child: Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220, maxWidth: 380),
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              itemCount: options.length,
-              itemBuilder: (_, i) {
-                final u = options.elementAt(i);
-                return ListTile(
-                  dense: true,
-                  leading: CircleAvatar(radius: 14, backgroundColor: accentColor.shade100,
-                    child: Text(u.firstName.isNotEmpty ? u.firstName[0] : '?',
-                      style: TextStyle(fontSize: 12, color: accentColor.shade700, fontWeight: FontWeight.bold))),
-                  title: Text(u.fullName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  subtitle: Text(u.email, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                  onTap: () => onSelect(u),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-      onSelected: onSelected,
-    );
-  }
+  
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day.toString().padLeft(2, '0')}.${dateTime.month.toString().padLeft(2, '0')}.${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
@@ -5323,7 +3328,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 16),
           const Text(
-            'WÃ¤hlen Sie Farben fÃ¼r Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
+            'WÃƒÂ¤hlen Sie Farben fÃƒÂ¼r Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
@@ -5474,7 +3479,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Widget _buildLiveScoringHeader(GameState gameState) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20 * _paddingScale, vertical: 12 * _paddingScale),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -5490,7 +3495,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         children: [
           // Left: Game Time + Controls
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16 * _paddingScale, vertical: 8 * _paddingScale),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.grey.shade900,
               borderRadius: BorderRadius.circular(6),
@@ -5500,9 +3505,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               children: [
                 Text(
                   gameState.gameTime.displayTime,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20 * _fontScale,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
@@ -5708,24 +3713,14 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     Expanded(
                       child: Text(
                         teamName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18 * _fontScale,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => _showRosterOverrideDialog(teamId, teamName, team),
-                      icon: const Icon(Icons.edit_note, color: Colors.white, size: 20),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        padding: const EdgeInsets.all(8),
-                      ),
-                      tooltip: 'Kader bearbeiten',
-                    ),
-                    const SizedBox(width: 4),
                     IconButton(
                       onPressed: () => _undoLastAction(teamId),
                       icon: const Icon(Icons.undo, color: Colors.white, size: 20),
@@ -5733,7 +3728,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                         backgroundColor: Colors.white.withOpacity(0.2),
                         padding: const EdgeInsets.all(8),
                       ),
-                      tooltip: 'Letzte Aktion rÃ¼ckgÃ¤ngig',
+                      tooltip: 'Letzte Aktion rÃƒÂ¼ckgÃƒÂ¤ngig',
                     ),
                   ],
                 ),
@@ -5971,7 +3966,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleMakeChanges,
                       icon: const Icon(Icons.edit),
-                      label: const Text('Ã„nderungen vornehmen'),
+                      label: const Text('Ãƒâ€žnderungen vornehmen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange.shade600,
                         foregroundColor: Colors.white,
@@ -5990,7 +3985,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleConfirmSet,
                       icon: const Icon(Icons.check_circle),
-                      label: const Text('BestÃ¤tigen'),
+                      label: const Text('BestÃƒÂ¤tigen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade600,
                         foregroundColor: Colors.white,
@@ -6641,7 +4636,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         child: Center(
           child: Text(
-            'Kein Kader fÃ¼r $teamName',
+            'Kein Kader fÃƒÂ¼r $teamName',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -6802,7 +4797,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   void _recordShootoutScore(int points) {
     // Validate that all positions are assigned
     if (_assignedShooter == null || _assignedPlayer == null || _assignedGoalkeeper == null) {
-      _showErrorToast('Alle Positionen mÃ¼ssen besetzt sein!');
+      _showErrorToast('Alle Positionen mÃƒÂ¼ssen besetzt sein!');
       return;
     }
 
@@ -6825,7 +4820,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         if (teamATotal == teamBTotal) {
           // It's a draw after 5 throws each - reset used players for sudden death
           _usedPlayerIds.clear();
-          _showSuccessToast('Unentschieden nach 5 WÃ¼rfen - Sudden Death! Alle Spieler wieder verfÃ¼gbar.');
+          _showSuccessToast('Unentschieden nach 5 WÃƒÂ¼rfen - Sudden Death! Alle Spieler wieder verfÃƒÂ¼gbar.');
         }
       }
       
@@ -6865,7 +4860,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _halfCompleted = false;
     });
     
-    _showSuccessToast('Halbzeit bestÃ¤tigt und weiter');
+    _showSuccessToast('Halbzeit bestÃƒÂ¤tigt und weiter');
   }
 
   // Handle make changes to set
@@ -6875,8 +4870,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _halfCompleted = false;
     });
     
-    // TODO: Implement score editing functionality
-    _showErrorToast('Funktion "Ã„nderungen vornehmen" wird in einer zukÃ¼nftigen Version implementiert');
+    _showSuccessToast('Ergebnis kann jetzt bearbeitet werden');
   }
 
   // Show end set dialog for beach handball
@@ -7022,7 +5016,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             // Winner/Tie indicator
             if (teamAScore > teamBScore) ...[
               Text(
-                '${_selectedGame!.teamAName} fÃ¼hrt',
+                '${_selectedGame!.teamAName} fÃƒÂ¼hrt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -7031,7 +5025,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else if (teamBScore > teamAScore) ...[
               Text(
-                '${_selectedGame!.teamBName} fÃ¼hrt',
+                '${_selectedGame!.teamBName} fÃƒÂ¼hrt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -7081,7 +5075,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _showSuccessToast('Halbzeit wurde erfolgreich beendet');
       
     } catch (e) {
-      print('âŒ Error ending set by time: $e');
+      debugPrint('Ã¢ÂÅ’ Error ending set by time: $e');
       _showErrorToast('Fehler beim Beenden des Satzes: $e');
     }
   }
@@ -7100,7 +5094,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(width: 12),
             Text(
-              resetFullGame ? 'Gesamtes Spiel zurÃ¼cksetzen?' : 'Aktuellen Satz zurÃ¼cksetzen?',
+              resetFullGame ? 'Gesamtes Spiel zurÃƒÂ¼cksetzen?' : 'Aktuellen Satz zurÃƒÂ¼cksetzen?',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -7114,8 +5108,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           children: [
             Text(
               resetFullGame 
-                  ? 'Alle Punkte, Ereignisse, SÃ¤tze und Spielzeit werden dauerhaft gelÃ¶scht!'
-                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelÃ¶scht!',
+                  ? 'Alle Punkte, Ereignisse, SÃƒÂ¤tze und Spielzeit werden dauerhaft gelÃƒÂ¶scht!'
+                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelÃƒÂ¶scht!',
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
@@ -7136,7 +5130,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
+                      'Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -7167,7 +5161,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: Text(resetFullGame ? 'Gesamtes Spiel zurÃ¼cksetzen' : 'Satz zurÃ¼cksetzen'),
+            child: Text(resetFullGame ? 'Gesamtes Spiel zurÃƒÂ¼cksetzen' : 'Satz zurÃƒÂ¼cksetzen'),
           ),
         ],
       ),
@@ -7208,7 +5202,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Rote Karte bestÃ¤tigen',
+                    'Rote Karte bestÃƒÂ¤tigen',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -7319,7 +5313,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else ...[
               Text(
-                'MÃ¶chten Sie eine direkte Rote Karte fÃ¼r diesen Spieler vergeben?',
+                'MÃƒÂ¶chten Sie eine direkte Rote Karte fÃƒÂ¼r diesen Spieler vergeben?',
                 style: const TextStyle(fontSize: 16),
               ),
             ],
@@ -7349,7 +5343,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Rote Karte bestÃ¤tigen'),
+            child: const Text('Rote Karte bestÃƒÂ¤tigen'),
           ),
         ],
       ),
@@ -7362,7 +5356,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Delete all game events
       await _liveScoringService.clearAllGameData(_selectedGame!.id);
       
-      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurÃ¼ckgesetzt');
+      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurÃƒÂ¼ckgesetzt');
       
       // Clear local overlay state
       setState(() {
@@ -7372,8 +5366,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       });
       
     } catch (e) {
-      print('âŒ Error resetting full game: $e');
-      _showErrorToast('Fehler beim ZurÃ¼cksetzen des Spiels: $e');
+      debugPrint('Ã¢ÂÅ’ Error resetting full game: $e');
+      _showErrorToast('Fehler beim ZurÃƒÂ¼cksetzen des Spiels: $e');
     }
   }
 
@@ -7383,167 +5377,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Delete events from current half only
       await _liveScoringService.clearCurrentHalfData(_selectedGame!.id, gameState.currentHalf);
       
-      _showSuccessToast('Aktueller Satz wurde erfolgreich zurÃ¼ckgesetzt');
+      _showSuccessToast('Aktueller Satz wurde erfolgreich zurÃƒÂ¼ckgesetzt');
       
     } catch (e) {
-      print('âŒ Error resetting current set: $e');
-      _showErrorToast('Fehler beim ZurÃ¼cksetzen des Satzes: $e');
+      debugPrint('Ã¢ÂÅ’ Error resetting current set: $e');
+      _showErrorToast('Fehler beim ZurÃƒÂ¼cksetzen des Satzes: $e');
     }
-  }
-
-  /// Show a dialog to manually override the roster (add/remove players from the game squad).
-  Future<void> _showRosterOverrideDialog(String teamId, String teamName, Team? team) async {
-    if (_selectedGame == null || team == null) return;
-
-    // Load available players from the team roster
-    final availablePlayers = await _gameSquadService.getAvailablePlayersForTeam(teamId);
-    if (availablePlayers.isEmpty) {
-      _showErrorToast('Keine Spieler im Kader von $teamName vorhanden');
-      return;
-    }
-
-    // Get currently selected player IDs
-    final currentSquad = _gameSquads[teamId];
-    final selectedIds = Set<String>.from(
-      currentSquad?.selectedPlayers.map((p) => p.playerId) ?? [],
-    );
-
-    if (!mounted) return;
-    
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.edit_note, color: Colors.teal.shade700),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Kader bearbeiten – $teamName',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: selectedIds.length > 16 ? Colors.red.shade100 : Colors.teal.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${selectedIds.length}/16',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: selectedIds.length > 16 ? Colors.red : Colors.teal.shade700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: 500,
-                height: 400,
-                child: ListView.builder(
-                  itemCount: availablePlayers.length,
-                  itemBuilder: (_, index) {
-                    final player = availablePlayers[index];
-                    final isSelected = selectedIds.contains(player.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          if (val == true) {
-                            if (selectedIds.length < 16) {
-                              selectedIds.add(player.id);
-                            } else {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Maximal 16 Spieler erlaubt')),
-                              );
-                            }
-                          } else {
-                            selectedIds.remove(player.id);
-                          }
-                        });
-                      },
-                      title: Text(
-                        player.fullName,
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Trikot: ${player.jerseyNumber ?? '–'}  •  ${player.classification ?? '–'}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                      secondary: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.teal : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Center(
-                          child: Text(
-                            player.jerseyNumber ?? '?',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey.shade600,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                      activeColor: Colors.teal,
-                      dense: true,
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Abbrechen'),
-                ),
-                FilledButton.icon(
-                  onPressed: selectedIds.isEmpty
-                      ? null
-                      : () async {
-                          Navigator.pop(dialogContext);
-                          // Save the updated squad
-                          final selectedPlayers = availablePlayers
-                              .where((p) => selectedIds.contains(p.id))
-                              .toList();
-                          final success = await _gameSquadService.selectSquadForGame(
-                            gameId: _selectedGame!.id,
-                            teamId: teamId,
-                            selectedPlayers: selectedPlayers,
-                            selectedByUserId: widget.user.id,
-                            selectedByName: widget.user.fullName,
-                          );
-                          if (success) {
-                            _showSuccessToast('Kader für $teamName aktualisiert');
-                            setState(() => _squadsLoading = true);
-                            await _loadGameSquads();
-                            setState(() => _squadsLoading = false);
-                          } else {
-                            _showErrorToast('Fehler beim Aktualisieren des Kaders');
-                          }
-                        },
-                  icon: const Icon(Icons.save, size: 18),
-                  label: Text('Speichern (${selectedIds.length})'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildPlayerActions(GameState gameState, String teamId, String teamName, Team? team) {
@@ -7583,7 +5422,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 16),
             Text(
-              'Kein Kader ausgewÃ¤hlt',
+              'Kein Kader ausgewÃƒÂ¤hlt',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -7592,7 +5431,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'Der Trainer muss noch den Kader fÃ¼r dieses Spiel auswÃ¤hlen.',
+              'Der Trainer muss noch den Kader fÃƒÂ¼r dieses Spiel auswÃƒÂ¤hlen.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -7600,33 +5439,18 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    setState(() => _squadsLoading = true);
-                    await _loadGameSquads();
-                    setState(() => _squadsLoading = false);
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Neu laden'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: () => _showRosterOverrideDialog(teamId, teamName, team),
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text('Kader erstellen'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
+            ElevatedButton.icon(
+              onPressed: () async {
+                setState(() => _squadsLoading = true);
+                await _loadGameSquads();
+                setState(() => _squadsLoading = false);
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Neu laden'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -7657,7 +5481,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'FÃ¼r dieses Spiel wurden noch keine Spieler ausgewÃ¤hlt.',
+              'FÃƒÂ¼r dieses Spiel wurden noch keine Spieler ausgewÃƒÂ¤hlt.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -7685,14 +5509,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       return jerseyA.compareTo(jerseyB);
     });
 
-    return GridView.builder(
-      padding: EdgeInsets.all(6 * _paddingScale),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 1.6,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: sortedPlayers.length,
       itemBuilder: (context, index) {
         final squadPlayer = sortedPlayers[index];
@@ -7790,168 +5608,227 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     );
   }
 
-  // Determine special border colors for classification/gender
-  List<Color> _getPlayerBorderColors(SquadPlayer sp) {
-    final colors = <Color>[];
-    if (sp.gender == 'weiblich') colors.add(Colors.pink);
-    final cls = sp.classification;
-    if (cls == 'Gruppe A' || cls == 'Gruppe B') colors.add(Colors.amber.shade600);
-    return colors;
-  }
-
   Widget _buildSquadPlayerCard(GameState gameState, String teamId, String teamName, SquadPlayer squadPlayer) {
     final bool isSelected = _selectedPlayer?.id == squadPlayer.playerId;
     final bool isTeamA = teamId == _selectedGame?.teamAId;
     final bool hasRedCard = _hasRedCard(gameState, squadPlayer.playerId);
     final int suspensionCount = _getPlayerSuspensionCount(gameState, squadPlayer.playerId);
     final bool hasSuspensions = suspensionCount > 0;
-    final goals = gameState.events
-        .where((e) => e.playerId == squadPlayer.playerId &&
-            (e.eventType == GameEventType.goal || e.eventType == GameEventType.sevenMeterHit))
-        .length;
     
+    // Get player type and color
     final isShooter = _playerTypes[squadPlayer.playerId] ?? false;
     final basePlayerColor = isShooter 
         ? (isTeamA ? _teamAShooterColor : _teamBShooterColor)
         : (isTeamA ? _teamASpielerColor : _teamBSpielerColor);
-    final playerColor = hasRedCard ? Colors.grey.shade400 : basePlayerColor;
-
-    final specialColors = _getPlayerBorderColors(squadPlayer);
-    final bool hasPink = specialColors.contains(Colors.pink);
-    final bool hasYellow = specialColors.any((c) => c == Colors.amber.shade600);
     
-    Color borderColor;
-    double borderWidth;
-    if (hasRedCard) {
-      borderColor = Colors.red.shade300;
-      borderWidth = 2;
-    } else if (isSelected) {
-      borderColor = playerColor;
-      borderWidth = 2.5;
-    } else if (specialColors.isNotEmpty) {
-      borderColor = specialColors.first;
-      borderWidth = 2;
-    } else {
-      borderColor = playerColor.withOpacity(0.3);
-      borderWidth = 1;
-    }
-
-    Widget tile = GestureDetector(
-      onTap: hasRedCard ? null : () {
-        setState(() {
-          if (isSelected) {
-            _selectedPlayer = null;
-            _selectedPlayerTeamId = null;
-          } else {
-            _selectedPlayer = Player(
-              id: squadPlayer.playerId,
-              firstName: squadPlayer.firstName,
-              lastName: squadPlayer.lastName,
-              email: '${squadPlayer.playerId}@team.com',
-              jerseyNumber: squadPlayer.jerseyNumber,
-              gender: squadPlayer.gender ?? 'unknown',
-              createdAt: DateTime.now(),
-            );
-            _selectedPlayerTeamId = teamId;
-          }
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: hasRedCard
-              ? Colors.red.shade50
-              : isSelected
-                  ? playerColor.withOpacity(0.2)
-                  : playerColor.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: borderColor, width: borderWidth),
-        ),
-        padding: const EdgeInsets.all(4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Top row: jersey number + indicators
-            Row(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: hasRedCard ? Colors.grey.shade400 : playerColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+    // If player has red card, use muted colors
+    final playerColor = hasRedCard ? Colors.grey.shade400 : basePlayerColor;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: hasRedCard ? null : () {
+          setState(() {
+            if (isSelected) {
+              // Deselect if already selected
+              _selectedPlayer = null;
+              _selectedPlayerTeamId = null;
+            } else {
+              // Select this player - create a minimal Player object for compatibility
+              _selectedPlayer = Player(
+                id: squadPlayer.playerId,
+                firstName: squadPlayer.firstName,
+                lastName: squadPlayer.lastName,
+                jerseyNumber: squadPlayer.jerseyNumber,
+                gender: 'unknown', // We don't have this info in SquadPlayer
+                createdAt: DateTime.now(),
+              );
+              _selectedPlayerTeamId = teamId;
+            }
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: hasRedCard 
+                ? Colors.red.shade50.withOpacity(0.5)
+                : (isSelected 
+                    ? playerColor.withOpacity(0.2)
+                    : playerColor.withOpacity(0.05)),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: hasRedCard 
+                  ? Colors.red.shade300
+                  : (isSelected 
+                      ? playerColor
+                      : playerColor.withOpacity(0.3)),
+              width: hasRedCard ? 2 : (isSelected ? 2 : 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Jersey Number Square
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: hasRedCard ? Colors.grey.shade400 : playerColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
                   child: Text(
                     squadPlayer.jerseyNumber ?? '?',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const Spacer(),
-                if (hasPink)
-                  Container(
-                    width: 8, height: 8, margin: const EdgeInsets.only(right: 2),
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.pink, border: Border.all(color: Colors.pink.shade700, width: 1)),
-                  ),
-                if (hasYellow)
-                  Container(
-                    width: 8, height: 8, margin: const EdgeInsets.only(right: 2),
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.amber, border: Border.all(color: Colors.amber.shade800, width: 1)),
-                  ),
-                if (goals > 0)
-                  Text('⚽$goals', style: TextStyle(fontSize: 8, color: Colors.green.shade700)),
-                if (hasSuspensions && !hasRedCard)
-                  Container(
-                    margin: const EdgeInsets.only(left: 2),
-                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                    decoration: BoxDecoration(color: Colors.orange.shade600, borderRadius: BorderRadius.circular(3)),
-                    child: Text('$suspensionCount', style: const TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Colors.white)),
-                  ),
-                if (hasRedCard)
-                  const Icon(Icons.cancel, size: 12, color: Colors.red),
-              ],
-            ),
-            const SizedBox(height: 2),
-            // Name (last name bold, first name small)
-            Text(
-              squadPlayer.lastName,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: hasRedCard ? Colors.grey.shade500 : Colors.black87,
-                decoration: hasRedCard ? TextDecoration.lineThrough : null,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              squadPlayer.firstName,
-              style: TextStyle(
-                fontSize: 8,
-                color: hasRedCard ? Colors.grey.shade400 : Colors.grey.shade600,
-                decoration: hasRedCard ? TextDecoration.lineThrough : null,
+              const SizedBox(width: 12),
+              
+              // Player Name and Position
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                                         Text.rich(
+                       TextSpan(
+                         children: [
+                           TextSpan(
+                             text: squadPlayer.firstName,
+                             style: TextStyle(
+                               fontSize: 15,
+                               fontStyle: FontStyle.italic,
+                               color: hasRedCard ? Colors.grey.shade500 : Colors.black87,
+                               decoration: hasRedCard ? TextDecoration.lineThrough : null,
+                             ),
+                           ),
+                           const TextSpan(text: ' '),
+                           TextSpan(
+                             text: squadPlayer.lastName,
+                             style: TextStyle(
+                               fontSize: 15,
+                               fontWeight: FontWeight.bold,
+                               color: hasRedCard ? Colors.grey.shade500 : Colors.black87,
+                               decoration: hasRedCard ? TextDecoration.lineThrough : null,
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
+                                         if (squadPlayer.classification != null) ...[
+                       const SizedBox(height: 2),
+                       Text(
+                         squadPlayer.classification!,
+                         style: TextStyle(
+                           fontSize: 12,
+                           color: hasRedCard ? Colors.grey.shade400 : Colors.grey.shade600,
+                           fontStyle: FontStyle.italic,
+                           decoration: hasRedCard ? TextDecoration.lineThrough : null,
+                         ),
+                       ),
+                     ],
+                  ],
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
+              
+              // Starter indicator
+              if (squadPlayer.isStarter) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade300),
+                  ),
+                  child: Text(
+                    'START',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                             ],
+               
+               // Suspension warning indicator
+               if (hasSuspensions && !hasRedCard) ...[
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                   decoration: BoxDecoration(
+                     color: Colors.orange.shade600,
+                     borderRadius: BorderRadius.circular(8),
+                   ),
+                   child: Row(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       const Icon(
+                         Icons.warning,
+                         color: Colors.white,
+                         size: 12,
+                       ),
+                       const SizedBox(width: 4),
+                       Text(
+                         '$suspensionCount HINAUSSTELLUNG${suspensionCount > 1 ? 'EN' : ''}',
+                         style: const TextStyle(
+                           fontSize: 9,
+                           fontWeight: FontWeight.bold,
+                           color: Colors.white,
+                         ),
+                       ),
+                     ],
+                   ),
+                 ),
+                 const SizedBox(width: 8),
+               ],
+               
+               // Red card indicator
+               if (hasRedCard) ...[
+                 Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                   decoration: BoxDecoration(
+                     color: Colors.red.shade600,
+                     borderRadius: BorderRadius.circular(8),
+                   ),
+                   child: Row(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       const Icon(
+                         Icons.cancel,
+                         color: Colors.white,
+                         size: 12,
+                       ),
+                       const SizedBox(width: 4),
+                       const Text(
+                         'ROTE KARTE',
+                         style: TextStyle(
+                           fontSize: 9,
+                           fontWeight: FontWeight.bold,
+                           color: Colors.white,
+                         ),
+                       ),
+                     ],
+                   ),
+                 ),
+                 const SizedBox(width: 8),
+               ],
+               
+               // Player type indicator (grayed out if red card)
+               Icon(
+                 isShooter ? Icons.sports_basketball : Icons.person,
+                 size: 16,
+                 color: hasRedCard ? Colors.grey.shade400 : playerColor,
+              ),
+            ],
+          ),
         ),
       ),
     );
-
-    // Wrap with second border if both pink AND yellow
-    if (hasPink && hasYellow) {
-      tile = Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.amber.shade600, width: 2),
-        ),
-        child: tile,
-      );
-    }
-
-    return tile;
   }
 
   Widget _buildActionButton({
@@ -8046,8 +5923,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     _selectedPlayer != null 
                       ? (_hasRedCard(gameState, _selectedPlayer!.id)
                           ? 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) - ROTE KARTE (nicht spielberechtigt)'
-                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewÃ¤hlt')
-                        : 'WÃ¤hlen Sie zuerst einen Spieler aus',
+                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewÃƒÂ¤hlt')
+                        : 'WÃƒÂ¤hlen Sie zuerst einen Spieler aus',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: _selectedPlayer != null ? FontWeight.bold : FontWeight.normal,
@@ -8289,17 +6166,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         _selectedPlayerTeamId = null;
       });
       
-      _showSuccessToast('${_getEventTypeDisplayName(eventType)} fÃ¼r ${player.fullName} hinzugefÃ¼gt');
+      _showSuccessToast('${_getEventTypeDisplayName(eventType)} fÃƒÂ¼r ${player.fullName} hinzugefÃƒÂ¼gt');
     }).catchError((error) {
-      _showErrorToast('Fehler beim HinzufÃ¼gen des Ereignisses: $error');
+      _showErrorToast('Fehler beim HinzufÃƒÂ¼gen des Ereignisses: $error');
     });
   }
 
   void _undoLastAction(String teamId) {
     _liveScoringService.removeLastEvent(_selectedGame!.id, teamId).then((_) {
-      _showSuccessToast('Letzte Aktion rÃ¼ckgÃ¤ngig gemacht');
+      _showSuccessToast('Letzte Aktion rÃƒÂ¼ckgÃƒÂ¤ngig gemacht');
     }).catchError((error) {
-      _showErrorToast('Fehler beim RÃ¼ckgÃ¤ngigmachen: $error');
+      _showErrorToast('Fehler beim RÃƒÂ¼ckgÃƒÂ¤ngigmachen: $error');
     });
   }
 
@@ -8443,7 +6320,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               onAccept: (player) {
                 // Check if player was already used as Werfer
                 if (_usedPlayerIds.contains(player.playerId)) {
-                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wÃ¤hle einen anderen Spieler');
+                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wÃƒÂ¤hle einen anderen Spieler');
                   return;
                 }
                 setState(() {
@@ -8532,17 +6409,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // Update tablet status when tablet is connected
   Future<void> _updateTabletStatus() async {
     if (_managedAccount == null || _assignedCourt == null) {
-      print('âš ï¸ ScoringTablet: Cannot update tablet status - missing managed account or court');
+      debugPrint('Ã¢Å¡Â Ã¯Â¸Â ScoringTablet: Cannot update tablet status - missing managed account or court');
       return;
     }
     
     if (_managedAccount!.id.isEmpty || _assignedCourt!.id.isEmpty) {
-      print('âš ï¸ ScoringTablet: Cannot update tablet status - empty IDs');
+      debugPrint('Ã¢Å¡Â Ã¯Â¸Â ScoringTablet: Cannot update tablet status - empty IDs');
       return;
     }
     
     try {
-      print('ðŸ“± ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
+      debugPrint('Ã°Å¸â€œÂ± ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
       
       // Simulate battery level (in a real implementation, this would come from device info)
       final batteryLevel = _getBatteryLevel();
@@ -8556,12 +6433,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       );
       
       if (success) {
-        print('âœ… ScoringTablet: Tablet status updated successfully');
+        debugPrint('Ã¢Å“â€¦ ScoringTablet: Tablet status updated successfully');
       } else {
-        print('âŒ ScoringTablet: Failed to update tablet status');
+        debugPrint('Ã¢ÂÅ’ ScoringTablet: Failed to update tablet status');
       }
     } catch (e) {
-      print('âŒ ScoringTablet: Error updating tablet status: $e');
+      debugPrint('Ã¢ÂÅ’ ScoringTablet: Error updating tablet status: $e');
     }
   }
 

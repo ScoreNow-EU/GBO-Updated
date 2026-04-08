@@ -477,8 +477,7 @@ class Tournament {
   final String? venuePlz;
   final double? venueLatitude;
   final double? venueLongitude;
-  // Game settings
-  final int halfDurationMinutes; // Default 15 min per half (2x15 = 30 min total)
+  final int halfDurationMinutes;
 
   static String determineSeason(DateTime startDate) {
     return startDate.year.toString();
@@ -644,9 +643,7 @@ class Tournament {
             .toList()
         : [],
       delegateIds: List<String>.from(map['delegateIds'] ?? []),
-      refereeGespanne: map['refereeGespanne'] != null
-        ? (map['refereeGespanne'] as List).map((g) => Map<String, dynamic>.from(g)).toList()
-        : [],
+      refereeGespanne: List<Map<String, dynamic>>.from(map['refereeGespanne'] ?? []),
       divisionBrackets: map['divisionBrackets'] != null
         ? Map<String, TournamentBracket>.from(
             map['divisionBrackets'].map((key, value) => 
@@ -675,14 +672,10 @@ class Tournament {
         ? _convertToDateTime(map['registrationDeadline'])
         : null,
       pools: map['pools'] != null
-        ? Map<String, dynamic>.from(map['pools']).map(
-            (key, value) => MapEntry(key, List<String>.from(value ?? []))
-          )
+        ? Map<String, List<String>>.from(map['pools'])
         : {},
       poolMetadata: map['poolMetadata'] != null
-        ? Map<String, dynamic>.from(map['poolMetadata']).map(
-            (key, value) => MapEntry(key, Map<String, dynamic>.from(value ?? {}))
-          )
+        ? Map<String, Map<String, dynamic>>.from(map['poolMetadata'])
         : {},
       results: map['results'] != null
         ? _parseResults(map['results'])
@@ -694,7 +687,7 @@ class Tournament {
       venuePlz: map['venuePlz'],
       venueLatitude: map['venueLatitude']?.toDouble(),
       venueLongitude: map['venueLongitude']?.toDouble(),
-      halfDurationMinutes: map['halfDurationMinutes'] ?? 15,
+      halfDurationMinutes: map['halfDurationMinutes'] is int ? map['halfDurationMinutes'] : (map['halfDurationMinutes'] != null ? (map['halfDurationMinutes'] as num).toInt() : 15),
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],

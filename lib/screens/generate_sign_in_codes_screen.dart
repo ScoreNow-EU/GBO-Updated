@@ -47,10 +47,10 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
             _selectedTeam = teams.first;
           }
         });
-        print('Teams loaded: ${teams.length} teams');
+        debugPrint('Teams loaded: ${teams.length} teams');
       }
     } catch (e) {
-      print('Error loading teams: $e');
+      debugPrint('Error loading teams: $e');
       if (mounted) {
         _showErrorToast('Fehler beim Laden der Teams: ${e.toString()}');
       }
@@ -74,7 +74,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
 
   Future<void> _generateCode() async {
     if (_selectedTeam == null) {
-      _showErrorToast('Bitte wählen Sie ein Team aus');
+      _showErrorToast('Bitte wÃ¤hlen Sie ein Team aus');
       return;
     }
 
@@ -85,7 +85,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
 
     // Basic email validation
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
-      _showErrorToast('Bitte geben Sie eine gültige Email-Adresse ein');
+      _showErrorToast('Bitte geben Sie eine gÃ¼ltige Email-Adresse ein');
       return;
     }
 
@@ -138,7 +138,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
       case app_user.UserRole.sanitater:
-        return 'Sanitäter';
+        return 'SanitÃ¤ter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:
@@ -214,7 +214,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                           controller: textEditingController,
                           focusNode: focusNode,
                           decoration: InputDecoration(
-                            labelText: 'Team auswählen',
+                            labelText: 'Team auswÃ¤hlen',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.groups),
                             suffixIcon: _selectedTeam != null
@@ -270,7 +270,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
-                          'Ausgewähltes Team: ${_selectedTeam!.name}',
+                          'AusgewÃ¤hltes Team: ${_selectedTeam!.name}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
@@ -299,7 +299,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                         }
                       },
                       decoration: const InputDecoration(
-                        labelText: 'Rolle auswählen',
+                        labelText: 'Rolle auswÃ¤hlen',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.assignment_ind),
                       ),
@@ -323,7 +323,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Gültig für (Tage): $_validityDays',
+                          'GÃ¼ltig fÃ¼r (Tage): $_validityDays',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -507,7 +507,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Gültig bis: ${expiresAt.day}.${expiresAt.month}.${expiresAt.year}',
+                                'GÃ¼ltig bis: ${expiresAt.day}.${expiresAt.month}.${expiresAt.year}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],

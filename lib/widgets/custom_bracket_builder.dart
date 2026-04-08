@@ -110,9 +110,9 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   void _preloadGames() async {
     try {
       await _gameService.preloadGames(widget.tournament.id);
-      print('ðŸŽ® Custom Bracket: Games preloaded for tournament ${widget.tournament.id}');
+      debugPrint('Ã°Å¸Å½Â® Custom Bracket: Games preloaded for tournament ${widget.tournament.id}');
     } catch (e) {
-      print('âŒ Error preloading games in custom bracket: $e');
+      debugPrint('Ã¢ÂÅ’ Error preloading games in custom bracket: $e');
     }
   }
 
@@ -167,7 +167,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       });
       
     } catch (e) {
-      print('Error auto-saving bracket: $e');
+      debugPrint('Error auto-saving bracket: $e');
       setState(() {
         _isAutoSaving = false;
         _autoSaveStatus = 'Fehler beim Speichern';
@@ -1018,7 +1018,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Erfolg'),
-                description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
+                description: Text('${team.name} zu ${node.title} hinzugefÃƒÂ¼gt'),
                 alignment: Alignment.topRight,
                 autoCloseDuration: const Duration(seconds: 2),
                 showProgressBar: false,
@@ -1136,7 +1136,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   type: ToastificationType.success,
                   style: ToastificationStyle.fillColored,
                   title: const Text('Erfolg'),
-                  description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
+                  description: Text('${team.name} zu ${node.title} hinzugefÃƒÂ¼gt'),
                   alignment: Alignment.topRight,
                   autoCloseDuration: const Duration(seconds: 2),
                   showProgressBar: false,
@@ -1382,7 +1382,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
                   type: ToastificationType.success,
                   style: ToastificationStyle.fillColored,
                   title: const Text('Erfolg'),
-                  description: Text('${team.name} zu ${node.title} hinzugefÃ¼gt'),
+                  description: Text('${team.name} zu ${node.title} hinzugefÃƒÂ¼gt'),
                   alignment: Alignment.topRight,
                   autoCloseDuration: const Duration(seconds: 2),
                   showProgressBar: false,
@@ -1835,7 +1835,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Keine Spiele mÃ¶glich',
+          'Keine Spiele mÃƒÂ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1864,7 +1864,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Keine Spiele mÃ¶glich',
+          'Keine Spiele mÃƒÂ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1897,7 +1897,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       return Container(
         padding: const EdgeInsets.all(8),
         child: Text(
-          'Kein Spiel mÃ¶glich',
+          'Kein Spiel mÃƒÂ¶glich',
           style: TextStyle(
             color: Colors.grey[600],
             fontSize: 11,
@@ -1934,7 +1934,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     } else if (team1Name.isNotEmpty) {
       gameText = '$team1Name vs Wartend...';
     } else {
-      gameText = 'Bereit fÃ¼r Planung';
+      gameText = 'Bereit fÃƒÂ¼r Planung';
     }
 
     // Smaller constraints for match tooltips since they only show one game
@@ -2048,18 +2048,18 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     final allGames = _gameService.getGamesForTournamentSync(widget.tournament.id);
     
     // Debug logging
-    print('Checking for games for node: ${node.title}');
-    print('Total games in tournament: ${allGames.length}');
+    debugPrint('Checking for games for node: ${node.title}');
+    debugPrint('Total games in tournament: ${allGames.length}');
     
     for (final game in allGames) {
-      print('Game ID: ${game.id}');
+      debugPrint('Game ID: ${game.id}');
       if (game.gameType == GameType.elimination && game.id.contains('_match_${node.title}_')) {
-        print('Found matching game for ${node.title}');
+        debugPrint('Found matching game for ${node.title}');
         return true;
       }
     }
     
-    print('No games found for ${node.title}');
+    debugPrint('No games found for ${node.title}');
     return false;
   }
 
@@ -2072,7 +2072,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
   // Generate pool games
   Future<void> _generatePoolGames(CustomBracketNode node, List<String> assignedTeams) async {
     if (assignedTeams.length < 2) {
-      _showError('Pool "${node.title}" benÃ¶tigt mindestens 2 Teams fÃ¼r Spiele');
+      _showError('Pool "${node.title}" benÃƒÂ¶tigt mindestens 2 Teams fÃƒÂ¼r Spiele');
       return;
     }
 
@@ -2116,7 +2116,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     }
     
     if (totalTeams < 2) {
-      _showError('Match "${node.title}" benÃ¶tigt 2 Teams fÃ¼r ein Spiel');
+      _showError('Match "${node.title}" benÃƒÂ¶tigt 2 Teams fÃƒÂ¼r ein Spiel');
       return;
     }
 
@@ -2168,7 +2168,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
       await _gameService.addGame(game);
 
       _showSuccess(
-        'Match "${node.title}" generiert:\n\n$team1Name\nvs\n$team2Name\n\nSpiel erfolgreich erstellt!\n${team1Id == null || team2Id == null ? '\n(Mit Platzhaltern fÃ¼r Planung)' : ''}'
+        'Match "${node.title}" generiert:\n\n$team1Name\nvs\n$team2Name\n\nSpiel erfolgreich erstellt!\n${team1Id == null || team2Id == null ? '\n(Mit Platzhaltern fÃƒÂ¼r Planung)' : ''}'
       );
       
       // Refresh the UI to update button states
@@ -2708,7 +2708,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
               ),
               TextButton(
                 onPressed: () => _deleteNode(node),
-                child: const Text('LÃ¶schen', style: TextStyle(color: Colors.red)),
+                child: const Text('LÃƒÂ¶schen', style: TextStyle(color: Colors.red)),
               ),
               ElevatedButton(
                 onPressed: () {

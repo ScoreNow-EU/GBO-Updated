@@ -26,14 +26,14 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   final _teamManagerController = TextEditingController();
 
   static const List<String> _countries = [
-    'Deutschland', 'Österreich', 'Niederlande',
-    'Dänemark', 'Norwegen', 'Serbien', 'Frankreich',
+    'Deutschland', 'Ã–sterreich', 'Niederlande',
+    'DÃ¤nemark', 'Norwegen', 'Serbien', 'Frankreich',
   ];
   static const Set<String> _germanStates = {
-    'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
+    'Baden-WÃ¼rttemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
     'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen',
     'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen',
-    'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen',
+    'Sachsen-Anhalt', 'Schleswig-Holstein', 'ThÃ¼ringen',
   };
 
   String _selectedCountry = 'Deutschland';
@@ -78,7 +78,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
       final cities = await _cityService.getCitiesByCountry(country);
       if (mounted) setState(() => _stateCities = cities);
     } catch (e) {
-      print('Error loading cities for $country: $e');
+      debugPrint('Error loading cities for $country: $e');
     } finally {
       if (mounted) setState(() => _citiesLoading = false);
     }
@@ -105,7 +105,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
         }
       });
     } catch (e) {
-      print('Error loading team managers: $e');
+      debugPrint('Error loading team managers: $e');
     }
   }
 
@@ -199,7 +199,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // 1. Land auswählen (lädt nur Städte dieses Landes)
+                      // 1. Land auswÃ¤hlen (lÃ¤dt nur StÃ¤dte dieses Landes)
                       DropdownButtonFormField<String>(
                         value: _selectedCountry,
                         decoration: const InputDecoration(
@@ -225,13 +225,13 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Bitte wählen Sie ein Land';
+                            return 'Bitte wÃ¤hlen Sie ein Land';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      // 2. Stadt aus dem gewählten Land
+                      // 2. Stadt aus dem gewÃ¤hlten Land
                       Autocomplete<City>(
                         displayStringForOption: (City city) => city.name,
                         optionsBuilder: (TextEditingValue textEditingValue) {
@@ -263,9 +263,9 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                               border: const OutlineInputBorder(),
                               prefixIcon: const Icon(Icons.location_city),
                               hintText: _citiesLoading
-                                  ? 'Städte werden geladen...'
+                                  ? 'StÃ¤dte werden geladen...'
                                   : 'Stadt eingeben...',
-                              helperText: _citiesLoading ? 'Städte werden geladen...' : null,
+                              helperText: _citiesLoading ? 'StÃ¤dte werden geladen...' : null,
                               suffixIcon: _citiesLoading
                                   ? const SizedBox(
                                       width: 20,
@@ -338,7 +338,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      // 3. Bundesland / Region – automatisch aus gewählter Stadt
+                      // 3. Bundesland / Region â€“ automatisch aus gewÃ¤hlter Stadt
                       TextFormField(
                         controller: _bundeslandController,
                         readOnly: true,
@@ -349,7 +349,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                           fillColor: Colors.grey.shade100,
                           filled: true,
                           helperText: _selectedCity == null
-                              ? 'Wird automatisch aus der Stadt übernommen'
+                              ? 'Wird automatisch aus der Stadt Ã¼bernommen'
                               : null,
                         ),
                       ),
@@ -571,7 +571,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ausgewählt: ${_selectedTeamManager!.name}',
+                        'AusgewÃ¤hlt: ${_selectedTeamManager!.name}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
@@ -663,30 +663,30 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
       
       if (widget.team == null) {
         // Creating new team
-        print('Creating team: ${team.name} with manager: ${team.teamManager}');
+        debugPrint('Creating team: ${team.name} with manager: ${team.teamManager}');
         await _teamService.addTeam(team);
         success = true;
-        print('Team creation success: $success');
+        debugPrint('Team creation success: $success');
         
         // Get the created team ID by finding the team with matching name and manager
         if (success) {
-          print('Looking for created team...');
+          debugPrint('Looking for created team...');
           final teams = await _teamService.getTeams().first;
-          print('Found ${teams.length} total teams');
+          debugPrint('Found ${teams.length} total teams');
           
           final createdTeam = teams.firstWhere(
             (t) => t.name == team.name && t.teamManager == team.teamManager,
             orElse: () => Team(id: '', name: '', city: '', bundesland: '', createdAt: DateTime.now()),
           );
           teamId = createdTeam.id;
-          print('Found team ID: $teamId');
+          debugPrint('Found team ID: $teamId');
         }
         
         // If team was created and assigned to a team manager, add team to manager
         if (success && _selectedTeamManager != null && teamId != null && teamId.isNotEmpty) {
-          print('Assigning team to manager: ${_selectedTeamManager!.name} (ID: ${_selectedTeamManager!.id})');
+          debugPrint('Assigning team to manager: ${_selectedTeamManager!.name} (ID: ${_selectedTeamManager!.id})');
           final assignSuccess = await _teamManagerService.assignTeamToManager(_selectedTeamManager!.id, teamId);
-          print('Team assignment to manager success: $assignSuccess');
+          debugPrint('Team assignment to manager success: $assignSuccess');
         }
       } else {
         // Updating existing team

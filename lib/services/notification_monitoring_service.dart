@@ -41,9 +41,9 @@ class NotificationMonitoringService {
       await _handleAppLaunchNotification();
       
       _isInitialized = true;
-      print('✅ Notification monitoring service initialized');
+      debugPrint('âœ… Notification monitoring service initialized');
     } catch (e) {
-      print('❌ Error initializing notification monitoring service: $e');
+      debugPrint('âŒ Error initializing notification monitoring service: $e');
     }
   }
   
@@ -52,11 +52,11 @@ class NotificationMonitoringService {
     try {
       final details = await _localNotifications.getNotificationAppLaunchDetails();
       if (details != null && details.didNotificationLaunchApp && details.notificationResponse != null) {
-        print('🚀 App launched from notification tap — handling...');
+        debugPrint('ðŸš€ App launched from notification tap â€” handling...');
         await _onNotificationResponse(details.notificationResponse!);
       }
     } catch (e) {
-      print('❌ Error handling app launch notification: $e');
+      debugPrint('âŒ Error handling app launch notification: $e');
     }
   }
   
@@ -101,9 +101,9 @@ class NotificationMonitoringService {
       // Start foreground periodic check
       _startPeriodicCheck();
       
-      print('🔔 Started notification monitoring for user: $userEmail');
+      debugPrint('ðŸ”” Started notification monitoring for user: $userEmail');
     } catch (e) {
-      print('❌ Error starting notification monitoring: $e');
+      debugPrint('âŒ Error starting notification monitoring: $e');
     }
   }
   
@@ -121,9 +121,9 @@ class NotificationMonitoringService {
       // Notify native iOS code to stop monitoring
       await _methodChannel.invokeMethod('stopBackgroundMonitoring');
       
-      print('🛑 Stopped notification monitoring');
+      debugPrint('ðŸ›‘ Stopped notification monitoring');
     } catch (e) {
-      print('❌ Error stopping notification monitoring: $e');
+      debugPrint('âŒ Error stopping notification monitoring: $e');
     }
   }
   
@@ -143,7 +143,7 @@ class NotificationMonitoringService {
   /// Check for notifications (main logic)
   static Future<Map<String, dynamic>> _checkForNotifications(String userEmail) async {
     try {
-      print('🔍 Checking notifications for user: $userEmail');
+      debugPrint('ðŸ” Checking notifications for user: $userEmail');
       
       final prefs = await SharedPreferences.getInstance();
       final lastCheckStr = prefs.getString(_prefKeyLastCheck);
@@ -165,7 +165,7 @@ class NotificationMonitoringService {
               try {
                 sentAt = DateTime.parse(notification['sentAt']);
               } catch (e) {
-                print('❌ Error parsing notification date: ${notification['sentAt']}');
+                debugPrint('âŒ Error parsing notification date: ${notification['sentAt']}');
                 return false;
               }
             }
@@ -181,14 +181,14 @@ class NotificationMonitoringService {
           })
           .toList();
       
-      print('📊 Found ${allNotifications.length} new notifications');
+      debugPrint('ðŸ“Š Found ${allNotifications.length} new notifications');
       
       // Update last check time
       await prefs.setString(_prefKeyLastCheck, DateTime.now().toIso8601String());
       
       // Send push notifications for new notifications
       if (allNotifications.isNotEmpty) {
-        print('🔔 Sending push notifications for ${allNotifications.length} notifications');
+        debugPrint('ðŸ”” Sending push notifications for ${allNotifications.length} notifications');
         await _sendPushNotifications(allNotifications);
         
         // Auto-navigate for game-related notifications (sign_off_request, roster_confirmation)
@@ -199,7 +199,7 @@ class NotificationMonitoringService {
         'newNotifications': allNotifications,
       };
     } catch (e) {
-      print('❌ Error checking for notifications: $e');
+      debugPrint('âŒ Error checking for notifications: $e');
       return {
         'newNotifications': [],
         'error': e.toString(),
@@ -221,12 +221,12 @@ class NotificationMonitoringService {
 
         final navigator = RHBLApp.navigatorKey.currentState;
         if (navigator == null) {
-          print('⚠️ Navigator not available for auto-navigation');
+          debugPrint('âš ï¸ Navigator not available for auto-navigation');
           return;
         }
 
         if (type == 'sign_off_request') {
-          print('🖊️ Auto-navigating to sign-off screen for game $gameId');
+          debugPrint('ðŸ–Šï¸ Auto-navigating to sign-off screen for game $gameId');
           navigator.push(MaterialPageRoute(
             builder: (_) => GameSignOffScreen(
               gameId: gameId,
@@ -236,7 +236,7 @@ class NotificationMonitoringService {
           ));
           return; // Only navigate to one screen at a time
         } else if (type == 'roster_confirmation') {
-          print('📋 Auto-navigating to roster confirmation for game $gameId');
+          debugPrint('ðŸ“‹ Auto-navigating to roster confirmation for game $gameId');
           navigator.push(MaterialPageRoute(
             builder: (_) => RosterConfirmationScreen(
               gameId: gameId,
@@ -248,7 +248,7 @@ class NotificationMonitoringService {
         }
       }
     } catch (e) {
-      print('❌ Error auto-navigating for game notifications: $e');
+      debugPrint('âŒ Error auto-navigating for game notifications: $e');
     }
   }
 
@@ -260,10 +260,10 @@ class NotificationMonitoringService {
         'notifications': notifications,
       });
       
-      print('📱 Push notifications sent');
+      debugPrint('ðŸ“± Push notifications sent');
     } catch (e) {
-      print('❌ Error sending push notifications: $e');
-      print('🔄 Falling back to local notifications');
+      debugPrint('âŒ Error sending push notifications: $e');
+      debugPrint('ðŸ”„ Falling back to local notifications');
       
       // Fall back to local notifications
       for (final notification in notifications) {
@@ -322,15 +322,15 @@ class NotificationMonitoringService {
       
       await _localNotifications.show(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        isTimeSensitive ? "⚠️ $title" : title,
+        isTimeSensitive ? "âš ï¸ $title" : title,
         message,
         notificationDetails,
         payload: jsonEncode(payloadMap),
       );
       
-      print('📱 Local notification shown');
+      debugPrint('ðŸ“± Local notification shown');
     } catch (e) {
-      print('❌ Error showing local notification: $e');
+      debugPrint('âŒ Error showing local notification: $e');
     }
   }
   
@@ -354,7 +354,7 @@ class NotificationMonitoringService {
               ),
               DarwinNotificationAction.plain(
                 'dismiss',
-                'Später',
+                'SpÃ¤ter',
                 options: {},
               ),
             ],
@@ -385,9 +385,9 @@ class NotificationMonitoringService {
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
       
-      print('📱 Local notifications initialized');
+      debugPrint('ðŸ“± Local notifications initialized');
     } catch (e) {
-      print('❌ Error initializing local notifications: $e');
+      debugPrint('âŒ Error initializing local notifications: $e');
     }
   }
   
@@ -408,7 +408,7 @@ class NotificationMonitoringService {
       final actionId = response.actionId ?? 'view';
       await _handleNotificationAction(actionId, data);
     } catch (e) {
-      print('❌ Error handling notification response: $e');
+      debugPrint('âŒ Error handling notification response: $e');
     }
   }
   
@@ -425,7 +425,7 @@ class NotificationMonitoringService {
           final teamName = data['teamName'] as String? ?? '';
 
           if (gameId == null || teamId == null) {
-            print('⚠️ Cannot navigate: gameId=$gameId, teamId=$teamId');
+            debugPrint('âš ï¸ Cannot navigate: gameId=$gameId, teamId=$teamId');
             return;
           }
 
@@ -439,7 +439,7 @@ class NotificationMonitoringService {
             }
           }
           if (navigator == null) {
-            print('⚠️ Navigator not available after waiting');
+            debugPrint('âš ï¸ Navigator not available after waiting');
             return;
           }
 
@@ -460,15 +460,15 @@ class NotificationMonitoringService {
               ),
             ));
           } else {
-            print('📋 Generic notification view: $type');
+            debugPrint('ðŸ“‹ Generic notification view: $type');
           }
           break;
         case 'dismiss':
-          print('Notification dismissed');
+          debugPrint('Notification dismissed');
           break;
       }
     } catch (e) {
-      print('❌ Error handling notification action: $e');
+      debugPrint('âŒ Error handling notification action: $e');
     }
   }
   

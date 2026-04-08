@@ -55,7 +55,7 @@ class RecentAccountsService {
       
       return utf8.decode(decrypted);
     } catch (e) {
-      print('Error decrypting password: $e');
+      debugPrint('Error decrypting password: $e');
       return '';
     }
   }
@@ -87,7 +87,7 @@ class RecentAccountsService {
       
       return accounts;
     } catch (e) {
-      print('Error loading recent accounts: $e');
+      debugPrint('Error loading recent accounts: $e');
       return [];
     }
   }
@@ -130,9 +130,9 @@ class RecentAccountsService {
       final accountsJson = json.encode(currentAccounts.map((account) => account.toJson()).toList());
       await _saveData(accountsJson);
       
-      print('✅ Added recent account: ${user.email}');
+      debugPrint('âœ… Added recent account: ${user.email}');
     } catch (e) {
-      print('❌ Error adding recent account: $e');
+      debugPrint('âŒ Error adding recent account: $e');
     }
   }
 
@@ -148,9 +148,9 @@ class RecentAccountsService {
       final accountsJson = json.encode(currentAccounts.map((account) => account.toJson()).toList());
       await _saveData(accountsJson);
       
-      print('✅ Removed recent account: $email');
+      debugPrint('âœ… Removed recent account: $email');
     } catch (e) {
-      print('❌ Error removing recent account: $e');
+      debugPrint('âŒ Error removing recent account: $e');
     }
   }
 
@@ -158,9 +158,9 @@ class RecentAccountsService {
   Future<void> clearAllRecentAccounts() async {
     try {
       await _removeData();
-      print('✅ Cleared all recent accounts');
+      debugPrint('âœ… Cleared all recent accounts');
     } catch (e) {
-      print('❌ Error clearing recent accounts: $e');
+      debugPrint('âŒ Error clearing recent accounts: $e');
     }
   }
 

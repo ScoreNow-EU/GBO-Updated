@@ -4,18 +4,18 @@ import 'package:flutter/material.dart';
 /// Gibt bei jedem Screen-Wechsel die .dart-Datei in der Konsole aus
 /// 
 /// VERWENDUNG:
-/// Bei der Navigation einfach `settings` hinzufügen:
+/// Bei der Navigation einfach `settings` hinzufÃ¼gen:
 /// ```dart
 /// Navigator.of(context).push(
 ///   MaterialPageRoute(
 ///     builder: (context) => MeinScreen(),
-///     settings: const RouteSettings(name: 'MeinScreen'),  // <- Diese Zeile hinzufügen
+///     settings: const RouteSettings(name: 'MeinScreen'),  // <- Diese Zeile hinzufÃ¼gen
 ///   ),
 /// );
 /// ```
 /// 
 /// Die Ausgabe erscheint dann in der Konsole als:
-/// 🧭 [PUSH] MeinScreen → screens/mein_screen.dart
+/// ðŸ§­ [PUSH] MeinScreen â†’ screens/mein_screen.dart
 class RouteLogger extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -50,11 +50,11 @@ class RouteLogger extends NavigatorObserver {
     final routeName = route.settings.name ?? 'unnamed';
     final widgetInfo = _getWidgetInfo(route);
     
-    // Ausgabe in Konsole mit Emoji für bessere Sichtbarkeit
+    // Ausgabe in Konsole mit Emoji fÃ¼r bessere Sichtbarkeit
     final display = widgetInfo.isNotEmpty ? widgetInfo : routeName;
-    print('🧭 [$action] $display');
+    debugPrint('ðŸ§­ [$action] $display');
     
-    // Zusätzlich: Title des Browser-Tabs aktualisieren (nur für Web)
+    // ZusÃ¤tzlich: Title des Browser-Tabs aktualisieren (nur fÃ¼r Web)
     // Dies erscheint auch in den Browser DevTools
   }
 
@@ -65,12 +65,12 @@ class RouteLogger extends NavigatorObserver {
         final name = route.settings.name!;
         // Konvertiere zu Dateiname
         final fileName = _camelToSnake(name);
-        return '$name → screens/$fileName.dart';
+        return '$name â†’ screens/$fileName.dart';
       }
       
-      // Fallback für unnamed routes
+      // Fallback fÃ¼r unnamed routes
       if (route is MaterialPageRoute) {
-        return 'MaterialPageRoute (unnamed - Hinweis: settings: RouteSettings(name: "ScreenName") hinzufügen)';
+        return 'MaterialPageRoute (unnamed - Hinweis: settings: RouteSettings(name: "ScreenName") hinzufÃ¼gen)';
       }
       
       return 'Route: ${route.runtimeType}';

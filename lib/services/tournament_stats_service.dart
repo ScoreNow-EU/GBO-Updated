@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
 import '../services/game_service.dart';
@@ -83,7 +84,7 @@ class TournamentStatsService {
     // Firestore 'in' queries max 30 items at a time
     final List<GameEvent> allEvents = [];
     final idList = gameIds.toList();
-    print('📊 Stats: Loading events for ${idList.length} games in tournament $tournamentId');
+    debugPrint('ðŸ“Š Stats: Loading events for ${idList.length} games in tournament $tournamentId');
     for (int i = 0; i < idList.length; i += 30) {
       final batch = idList.sublist(i, i + 30 > idList.length ? idList.length : i + 30);
       final snapshot = await _firestore
@@ -94,11 +95,11 @@ class TournamentStatsService {
         try {
           allEvents.add(GameEvent.fromJson({...doc.data(), 'id': doc.id}));
         } catch (e) {
-          print('⚠️ Stats: Skipping bad event doc ${doc.id}: $e');
+          debugPrint('âš ï¸ Stats: Skipping bad event doc ${doc.id}: $e');
         }
       }
     }
-    print('📊 Stats: Loaded ${allEvents.length} events total');
+    debugPrint('ðŸ“Š Stats: Loaded ${allEvents.length} events total');
     return allEvents;
   }
 

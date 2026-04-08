@@ -35,7 +35,7 @@ class _NotificationStatusWidgetState extends State<NotificationStatusWidget> {
       
       setState(() {});
     } catch (e) {
-      print('Error loading notification status: $e');
+      debugPrint('Error loading notification status: $e');
     }
   }
 
@@ -78,10 +78,10 @@ class _NotificationStatusWidgetState extends State<NotificationStatusWidget> {
             
             // Last check time
             _buildStatusRow(
-              'Letzte Überprüfung',
+              'Letzte ÃœberprÃ¼fung',
               _lastCheck != null 
                   ? _formatDateTime(_lastCheck!)
-                  : 'Noch nicht überprüft',
+                  : 'Noch nicht Ã¼berprÃ¼ft',
               _lastCheck != null ? Colors.green : Colors.orange,
             ),
             
@@ -102,7 +102,7 @@ class _NotificationStatusWidgetState extends State<NotificationStatusWidget> {
               ..._pendingInvitations.map((id) => Padding(
                 padding: const EdgeInsets.only(left: 16, top: 2),
                 child: Text(
-                  '• $id',
+                  'â€¢ $id',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.grey,

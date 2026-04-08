@@ -40,64 +40,64 @@ class _TeamGamesViewState extends State<TeamGamesView> {
     setState(() => _isLoading = true);
 
     try {
-      print('🎯 Loading games for team: ${widget.team.name} (ID: ${widget.team.id})');
+      debugPrint('ðŸŽ¯ Loading games for team: ${widget.team.name} (ID: ${widget.team.id})');
       
       // Load tournaments
       final tournaments = await _tournamentService.getTournamentsWithCache().first;
-      print('📅 Found ${tournaments.length} total tournaments');
+      debugPrint('ðŸ“… Found ${tournaments.length} total tournaments');
       
       final activeTournaments = tournaments.where((t) => 
         t.status == 'upcoming' || t.status == 'ongoing'
       ).toList();
-      print('📅 Found ${activeTournaments.length} active tournaments (upcoming or ongoing)');
+      debugPrint('ðŸ“… Found ${activeTournaments.length} active tournaments (upcoming or ongoing)');
       
       // Show all tournament statuses for debugging
       final tournamentsByStatus = <String, int>{};
       for (final tournament in tournaments) {
         tournamentsByStatus[tournament.status] = (tournamentsByStatus[tournament.status] ?? 0) + 1;
       }
-      print('📅 Tournament statuses: $tournamentsByStatus');
+      debugPrint('ðŸ“… Tournament statuses: $tournamentsByStatus');
       
       for (final tournament in activeTournaments) {
-        print('  - ${tournament.name} (${tournament.status})');
+        debugPrint('  - ${tournament.name} (${tournament.status})');
       }
 
       // Load games for this team across all active tournaments
       final allGames = <Game>[];
       for (final tournament in activeTournaments) {
-        print('🔄 Force refreshing cache for tournament: ${tournament.name}');
+        debugPrint('ðŸ”„ Force refreshing cache for tournament: ${tournament.name}');
         
         // Force clear cache and get fresh data from Firebase
         await _gameService.forceRefreshGames(tournament.id);
         
-        print('🔄 Fetching fresh games for tournament: ${tournament.name}');
+        debugPrint('ðŸ”„ Fetching fresh games for tournament: ${tournament.name}');
         final tournamentGames = await _gameService.getGamesForTournament(tournament.id).first;
-        print('🎮 Tournament "${tournament.name}": ${tournamentGames.length} total games');
+        debugPrint('ðŸŽ® Tournament "${tournament.name}": ${tournamentGames.length} total games');
         
         // Debug: Show what we're looking for vs what we find
-        print('🔍 Looking for team ID: "${widget.team.id}"');
-        print('🔍 Checking ${tournamentGames.length} games in tournament...');
+        debugPrint('ðŸ” Looking for team ID: "${widget.team.id}"');
+        debugPrint('ðŸ” Checking ${tournamentGames.length} games in tournament...');
         
         for (int i = 0; i < tournamentGames.length; i++) {
           final game = tournamentGames[i];
           final matchesA = game.teamAId == widget.team.id;
           final matchesB = game.teamBId == widget.team.id;
-          print('🔍 Game ${i+1}: ${game.displayName}');
-          print('    TeamA ID: "${game.teamAId}" (matches: $matchesA)');
-          print('    TeamB ID: "${game.teamBId}" (matches: $matchesB)');
-          print('    Status: ${game.status}');
+          debugPrint('ðŸ” Game ${i+1}: ${game.displayName}');
+          debugPrint('    TeamA ID: "${game.teamAId}" (matches: $matchesA)');
+          debugPrint('    TeamB ID: "${game.teamBId}" (matches: $matchesB)');
+          debugPrint('    Status: ${game.status}');
           if (matchesA || matchesB) {
-            print('    ✅ MATCH FOUND!');
+            debugPrint('    âœ… MATCH FOUND!');
           }
         }
         
         final teamGames = tournamentGames.where((game) => 
           game.teamAId == widget.team.id || game.teamBId == widget.team.id
         ).toList();
-        print('🎮 Found ${teamGames.length} games for team "${widget.team.name}"');
+        debugPrint('ðŸŽ® Found ${teamGames.length} games for team "${widget.team.name}"');
         
         for (final game in teamGames) {
-          print('  - ${game.displayName} (Status: ${game.status}, TeamA: ${game.teamAId}, TeamB: ${game.teamBId})');
+          debugPrint('  - ${game.displayName} (Status: ${game.status}, TeamA: ${game.teamAId}, TeamB: ${game.teamBId})');
         }
         
         allGames.addAll(teamGames);
@@ -111,13 +111,13 @@ class _TeamGamesViewState extends State<TeamGamesView> {
         return a.scheduledTime!.compareTo(b.scheduledTime!);
       });
 
-      print('🎮 Total games found across all tournaments: ${allGames.length}');
+      debugPrint('ðŸŽ® Total games found across all tournaments: ${allGames.length}');
 
       // Filter out completed games  
       final upcomingGames = allGames.where((game) => 
         game.status != GameStatus.completed
       ).toList();
-      print('🎮 Games after filtering out completed: ${upcomingGames.length}');
+      debugPrint('ðŸŽ® Games after filtering out completed: ${upcomingGames.length}');
 
       // Load squad data for each game
       final gameSquads = <String, GameSquad>{};
@@ -125,11 +125,11 @@ class _TeamGamesViewState extends State<TeamGamesView> {
         final squad = await _gameSquadService.getSquadForGame(game.id, widget.team.id);
         if (squad != null) {
           gameSquads[game.id] = squad;
-          print('👥 Found existing squad for game: ${game.displayName}');
+          debugPrint('ðŸ‘¥ Found existing squad for game: ${game.displayName}');
         }
       }
 
-      print('🎯 Final result: ${upcomingGames.length} upcoming games for team "${widget.team.name}"');
+      debugPrint('ðŸŽ¯ Final result: ${upcomingGames.length} upcoming games for team "${widget.team.name}"');
 
       setState(() {
         _tournaments = activeTournaments;
@@ -200,7 +200,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Wählen Sie für jedes Spiel Ihren Kader aus (max. 10 Spieler)',
+            'WÃ¤hlen Sie fÃ¼r jedes Spiel Ihren Kader aus (max. 10 Spieler)',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -289,7 +289,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             Icon(Icons.group, size: 16, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
-                              '${squad.playerCount}/10 Spieler ausgewählt',
+                              '${squad.playerCount}/10 Spieler ausgewÃ¤hlt',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
@@ -313,7 +313,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             Icon(Icons.group_off, size: 16, color: Colors.orange[600]),
                             const SizedBox(width: 4),
                             Text(
-                              'Kein Kader ausgewählt',
+                              'Kein Kader ausgewÃ¤hlt',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.orange[600],
@@ -322,7 +322,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             ),
                             const Spacer(),
                             Text(
-                              'Tippen zum Auswählen',
+                              'Tippen zum AuswÃ¤hlen',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue[600],
@@ -403,7 +403,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          '✓ Bestätigt',
+          'âœ“ BestÃ¤tigt',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 12,
@@ -421,7 +421,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          '✗ Abgelehnt',
+          'âœ— Abgelehnt',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 12,
@@ -438,7 +438,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        '⏳ Wartet',
+        'â³ Wartet',
         style: const TextStyle(
           color: Colors.white,
           fontSize: 12,
