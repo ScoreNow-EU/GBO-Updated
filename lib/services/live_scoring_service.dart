@@ -6,6 +6,7 @@ import '../models/player.dart';
 class LiveScoringService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Map<String, StreamController<GameState>> _gameStateControllers = {};
+  final Map<String, GameState> _stateCache = {}; // in-memory cache to avoid per-tick Firestore reads
   Timer? _gameTimer;
 
   // Get or create a game state controller for a specific game
@@ -21,6 +22,7 @@ class LiveScoringService {
     final controller = _getGameStateController(gameId);
     
     _loadGameState(gameId).then((state) {
+      _stateCache[gameId] = state; // seed cache on initial load
       if (!controller.isClosed) {
         controller.add(state);
       }
@@ -62,6 +64,7 @@ class LiveScoringService {
           minutes: data['minutes'] ?? 0,
           seconds: data['seconds'] ?? 0,
           currentPeriod: data['currentPeriod'] ?? 1,
+          halfDurationMinutes: data['halfDurationMinutes'] ?? 15,
         );
         isRunning = data['isRunning'] ?? false;
         currentHalf = data['currentHalf'] ?? data['currentSet'] ?? 1;
@@ -94,6 +97,7 @@ class LiveScoringService {
         'minutes': state.gameTime.minutes,
         'seconds': state.gameTime.seconds,
         'currentPeriod': state.gameTime.currentPeriod,
+        'halfDurationMinutes': state.gameTime.halfDurationMinutes,
         'isRunning': state.isRunning,
         'currentHalf': state.currentHalf,
         'teamAScore': state.teamAScore,
@@ -105,33 +109,45 @@ class LiveScoringService {
     }
   }
 
-  // Start game timer
-  void startGameTimer(String gameId) async {
+  /// Set the half duration for a game (from tournament settings).
+  Future<void> setHalfDuration(String gameId, int minutes) async {
     final currentState = await _loadGameState(gameId);
-    final updatedState = currentState.copyWith(isRunning: true);
-    
+    final newTime = currentState.gameTime.copyWith(halfDurationMinutes: minutes);
+    final updatedState = currentState.copyWith(gameTime: newTime);
     await _saveGameState(updatedState);
     _updateGameState(gameId, updatedState);
-    
+  }
+
+  // Start game timer
+  void startGameTimer(String gameId) async {
+    // Use cached state if available for instant response; otherwise load once from Firestore
+    final currentState = _stateCache[gameId] ?? await _loadGameState(gameId);
+    final updatedState = currentState.copyWith(isRunning: true);
+
+    // Update UI immediately (no await) then persist in background
+    _updateGameState(gameId, updatedState);
+    _saveGameState(updatedState); // fire-and-forget
+
     _gameTimer?.cancel();
-    _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      final state = await _loadGameState(gameId);
-      if (!state.isRunning) {
+    _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      // Read directly from cache — no Firestore round-trip per tick
+      final state = _stateCache[gameId];
+      if (state == null || !state.isRunning) {
         timer.cancel();
         return;
       }
-      
+
       final newGameTime = state.gameTime.addSecond();
       final newState = state.copyWith(gameTime: newGameTime);
-      
-      await _saveGameState(newState);
-      _updateGameState(gameId, newState);
-      
-      // Auto-pause at half time (15:00) and full time
+
+      _updateGameState(gameId, newState); // instant stream update
+      _saveGameState(newState); // fire-and-forget background persist
+
+      // Auto-pause at half time or full time
       if (newGameTime.isHalfTime && state.gameTime.currentPeriod == 1) {
-        await pauseGameTimer(gameId);
+        pauseGameTimer(gameId);
       } else if (newGameTime.isFullTime) {
-        await pauseGameTimer(gameId);
+        pauseGameTimer(gameId);
       }
     });
   }
@@ -139,11 +155,12 @@ class LiveScoringService {
   // Pause game timer
   Future<void> pauseGameTimer(String gameId) async {
     _gameTimer?.cancel();
-    final currentState = await _loadGameState(gameId);
+    // Use cache for instant response; fall back to Firestore if cache is cold
+    final currentState = _stateCache[gameId] ?? await _loadGameState(gameId);
     final updatedState = currentState.copyWith(isRunning: false);
-    
-    await _saveGameState(updatedState);
+
     _updateGameState(gameId, updatedState);
+    await _saveGameState(updatedState);
   }
 
   // Start second half
@@ -153,6 +170,7 @@ class LiveScoringService {
       minutes: 0,
       seconds: 0,
       currentPeriod: 2,
+      halfDurationMinutes: currentState.gameTime.halfDurationMinutes,
     );
     final updatedState = currentState.copyWith(
       currentHalf: 2,
@@ -391,6 +409,7 @@ class LiveScoringService {
 
   // Update game state and notify listeners
   void _updateGameState(String gameId, GameState state) {
+    _stateCache[gameId] = state; // always keep cache in sync
     final controller = _getGameStateController(gameId);
     if (!controller.isClosed) {
       controller.add(state);

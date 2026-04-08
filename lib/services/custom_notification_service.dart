@@ -1,9 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
-import '../services/notification_monitoring_service.dart';
 
 class CustomNotificationService {
   static const MethodChannel _methodChannel = MethodChannel('referee_invitation_monitoring');
@@ -159,7 +158,7 @@ class CustomNotificationService {
   }
   
   /// Show local notification as fallback
-  Future<void> _showLocalNotification(String title, String message, {bool isTimeSensitive = false}) async {
+  Future<void> _showLocalNotification(String title, String message, {bool isTimeSensitive = false, String? payload}) async {
     try {
       print('📱 Creating local notification - Time Sensitive: $isTimeSensitive');
       
@@ -190,7 +189,7 @@ class CustomNotificationService {
         isTimeSensitive ? "⚠️ $title" : title,
         message,
         notificationDetails,
-        payload: 'custom_notification',
+        payload: payload ?? 'custom_notification',
       );
       
       print('📱 Local notification shown as fallback (Time Sensitive: $isTimeSensitive)');
@@ -199,6 +198,80 @@ class CustomNotificationService {
     }
   }
   
+  /// Send a game-related notification (roster confirmation, sign-off request)
+  Future<bool> sendGameNotification({
+    required String title,
+    required String message,
+    required String notificationType, // 'roster_confirmation' or 'sign_off_request'
+    required String gameId,
+    required String teamId,
+    required String teamName,
+    String? userId,
+    String? userEmail,
+  }) async {
+    try {
+      print('📬 Sending game notification ($notificationType): "$title" to ${userEmail ?? userId ?? "unknown"}');
+
+      String targetEmail = userEmail ?? 'all';
+
+      // If we have userId but no email, look up the user
+      if (userEmail == null && userId != null) {
+        final user = await _authService.getUserById(userId);
+        if (user != null) {
+          targetEmail = user.email;
+        }
+      }
+
+      // Save to Firestore with game metadata
+      await _firestore.collection('custom_notifications').add({
+        'title': title,
+        'message': message,
+        'userEmail': targetEmail,
+        'userId': userId,
+        'sentAt': FieldValue.serverTimestamp(),
+        'type': notificationType,
+        'status': 'sent',
+        'isTimeSensitive': true,
+        'gameId': gameId,
+        'teamId': teamId,
+        'teamName': teamName,
+      });
+
+      // Build payload with metadata for navigation on tap
+      final payload = jsonEncode({
+        'type': notificationType,
+        'gameId': gameId,
+        'teamId': teamId,
+        'teamName': teamName,
+      });
+
+      // Try native push, fallback to local
+      try {
+        await _methodChannel.invokeMethod('sendCustomNotification', {
+          'title': title,
+          'message': message,
+          'userEmail': targetEmail,
+          'isTimeSensitive': true,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'type': notificationType,
+          'gameId': gameId,
+          'teamId': teamId,
+          'teamName': teamName,
+        });
+      } catch (e) {
+        print('🔄 Native push failed, using local notification');
+        await _showLocalNotification(title, message,
+            isTimeSensitive: true, payload: payload);
+      }
+
+      print('✅ Game notification sent: $notificationType');
+      return true;
+    } catch (e) {
+      print('❌ Error sending game notification: $e');
+      return false;
+    }
+  }
+
   /// Get all custom notifications sent (for admin dashboard)
   Stream<List<Map<String, dynamic>>> getCustomNotifications() {
     return _firestore

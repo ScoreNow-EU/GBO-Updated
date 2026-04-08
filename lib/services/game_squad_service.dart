@@ -22,8 +22,8 @@ class GameSquadService {
     bool shouldSign = false,
   }) async {
     try {
-      // Validate squad size
-      if (selectedPlayers.length > 10 || selectedPlayers.isEmpty) {
+      // Validate squad size (max 16 players)
+      if (selectedPlayers.length > 16 || selectedPlayers.isEmpty) {
         print('❌ Invalid squad size: ${selectedPlayers.length}');
         return false;
       }
@@ -284,8 +284,8 @@ class GameSquadService {
 
   // Validate squad selection rules
   bool validateSquadSelection(List<Player> selectedPlayers) {
-    // Check maximum 10 players
-    if (selectedPlayers.length > 10) return false;
+    // Check maximum 16 players
+    if (selectedPlayers.length > 16) return false;
     
     // Check minimum 1 player
     if (selectedPlayers.isEmpty) return false;
@@ -365,6 +365,22 @@ class GameSquadService {
     } catch (e) {
       print('❌ Error requesting coach authentication: $e');
       return false;
+    }
+  }
+
+  // Update team officials for a squad
+  Future<void> updateSquadOfficials(String gameId, String teamId, List<TeamOfficial> officials) async {
+    try {
+      final squad = await getSquadForGame(gameId, teamId);
+      if (squad != null) {
+        await _gameSquadsCollection.doc(squad.id).update({
+          'officials': officials.map((o) => o.toFirestore()).toList(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print('✅ Updated officials for game $gameId, team $teamId');
+      }
+    } catch (e) {
+      print('❌ Error updating squad officials: $e');
     }
   }
 } 

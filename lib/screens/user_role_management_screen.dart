@@ -871,10 +871,11 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
   List<app_user.User> _getFilteredUsers() {
     List<app_user.User> filtered = _users;
     
-    // Filter out system and managed accounts
+    // Filter out system accounts (but keep managed scoring/medic accounts visible)
     filtered = filtered.where((user) {
       final email = user.email.toLowerCase();
-      return !email.endsWith('@rollstuhlhandball.de') && !email.endsWith('@managed.rollstuhlhandball.de');
+      // Only hide the internal system accounts, not managed devices
+      return !email.endsWith('@rollstuhlhandball.de');
     }).toList();
     
     // Filter by search query

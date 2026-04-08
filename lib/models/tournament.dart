@@ -477,6 +477,8 @@ class Tournament {
   final String? venuePlz;
   final double? venueLatitude;
   final double? venueLongitude;
+  // Game settings
+  final int halfDurationMinutes; // Default 15 min per half (2x15 = 30 min total)
 
   static String determineSeason(DateTime startDate) {
     return startDate.year.toString();
@@ -517,6 +519,7 @@ class Tournament {
     this.venuePlz,
     this.venueLatitude,
     this.venueLongitude,
+    this.halfDurationMinutes = 15,
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -601,6 +604,7 @@ class Tournament {
       'venuePlz': venuePlz,
       'venueLatitude': venueLatitude,
       'venueLongitude': venueLongitude,
+      'halfDurationMinutes': halfDurationMinutes,
     };
   }
 
@@ -640,7 +644,9 @@ class Tournament {
             .toList()
         : [],
       delegateIds: List<String>.from(map['delegateIds'] ?? []),
-      refereeGespanne: List<Map<String, dynamic>>.from(map['refereeGespanne'] ?? []),
+      refereeGespanne: map['refereeGespanne'] != null
+        ? (map['refereeGespanne'] as List).map((g) => Map<String, dynamic>.from(g)).toList()
+        : [],
       divisionBrackets: map['divisionBrackets'] != null
         ? Map<String, TournamentBracket>.from(
             map['divisionBrackets'].map((key, value) => 
@@ -669,10 +675,14 @@ class Tournament {
         ? _convertToDateTime(map['registrationDeadline'])
         : null,
       pools: map['pools'] != null
-        ? Map<String, List<String>>.from(map['pools'])
+        ? Map<String, dynamic>.from(map['pools']).map(
+            (key, value) => MapEntry(key, List<String>.from(value ?? []))
+          )
         : {},
       poolMetadata: map['poolMetadata'] != null
-        ? Map<String, Map<String, dynamic>>.from(map['poolMetadata'])
+        ? Map<String, dynamic>.from(map['poolMetadata']).map(
+            (key, value) => MapEntry(key, Map<String, dynamic>.from(value ?? {}))
+          )
         : {},
       results: map['results'] != null
         ? _parseResults(map['results'])
@@ -684,6 +694,7 @@ class Tournament {
       venuePlz: map['venuePlz'],
       venueLatitude: map['venueLatitude']?.toDouble(),
       venueLongitude: map['venueLongitude']?.toDouble(),
+      halfDurationMinutes: map['halfDurationMinutes'] ?? 15,
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],
@@ -750,6 +761,7 @@ class Tournament {
     String? venuePlz,
     double? venueLatitude,
     double? venueLongitude,
+    int? halfDurationMinutes,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -786,6 +798,7 @@ class Tournament {
       venuePlz: venuePlz ?? this.venuePlz,
       venueLatitude: venueLatitude ?? this.venueLatitude,
       venueLongitude: venueLongitude ?? this.venueLongitude,
+      halfDurationMinutes: halfDurationMinutes ?? this.halfDurationMinutes,
     );
   }
 } 

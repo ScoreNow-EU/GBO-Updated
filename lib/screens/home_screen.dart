@@ -25,6 +25,7 @@ import '../screens/user_role_management_screen.dart';
 import '../screens/managed_account_screen.dart';
 import '../screens/profile_settings_screen.dart';
 import '../screens/scoring_tablet_screen.dart';
+import '../screens/scoring_picker_screen.dart';
 import '../screens/season_management_screen.dart';
 import '../screens/rangliste_screen.dart';
 import '../screens/city_migration_screen.dart';
@@ -79,11 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedSection = 'turniere';
         });
       } else {
-        // User logged in, check if scoring tablet and update current user
+        // User logged in, check if scoring tablet and navigate to scoring picker
         bool isScoringTablet = false;
         try {
           final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-          final managedAccount = allAccounts.firstWhere(
+          allAccounts.firstWhere(
             (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
             orElse: () => throw Exception('Not a managed account'),
           );
@@ -96,6 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentUser = user;
           _isScoringTablet = isScoringTablet;
+          // Auto-navigate scoring tablet users to the scoring picker
+          if (isScoringTablet) {
+            selectedSection = 'scoring_system';
+          }
         });
       }
     });
@@ -111,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (user != null) {
         try {
           final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-          final managedAccount = allAccounts.firstWhere(
+          allAccounts.firstWhere(
             (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
             orElse: () => throw Exception('Not a managed account'),
           );
@@ -125,6 +130,10 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentUser = user;
         _isScoringTablet = isScoringTablet;
+        // Auto-navigate scoring tablet users to the scoring picker
+        if (isScoringTablet) {
+          selectedSection = 'scoring_system';
+        }
       });
     } else {
       // No user, ensure we're on the default section
@@ -170,11 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show specialized scoring tablet interface if user is a scoring tablet
-    if (_isScoringTablet && _currentUser != null) {
-      return ScoringTabletScreen(user: _currentUser!);
-    }
-    
     // Handle login screen specially to preserve its blue background
     if (selectedSection == 'login') {
       return LoginScreen(
@@ -360,6 +364,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Einmalige Anmeldecodes erstellen';
       case 'demo_data':
         return 'Demo Daten Erstellen';
+      case 'scoring_system':
+        return 'Scoring System';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -429,6 +435,10 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 'demo_data':
         return const DemoDataScreen();
+      case 'scoring_system':
+        return _currentUser != null
+            ? ScoringPickerScreen(currentUser: _currentUser!)
+            : const Center(child: Text('Bitte melden Sie sich an.'));
     }
 
     // Handle team detail sections (after specific admin sections)

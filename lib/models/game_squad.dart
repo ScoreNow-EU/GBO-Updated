@@ -4,7 +4,8 @@ class GameSquad {
   final String id;
   final String gameId;
   final String teamId;
-  final List<SquadPlayer> selectedPlayers; // Max 10 players
+  final List<SquadPlayer> selectedPlayers; // Max 16 players
+  final List<TeamOfficial> officials; // Max 5 officials (coaches, physios, etc.)
   final DateTime selectionTime;
   final String selectedByUserId; // Team manager who selected
   final String selectedByName;
@@ -16,6 +17,7 @@ class GameSquad {
     required this.gameId,
     required this.teamId,
     required this.selectedPlayers,
+    this.officials = const [],
     required this.selectionTime,
     required this.selectedByUserId,
     required this.selectedByName,
@@ -27,13 +29,14 @@ class GameSquad {
   bool get isRejected => coachApproval != null && !coachApproval!.isApproved;
   bool get isPending => coachApproval == null;
   int get playerCount => selectedPlayers.length;
-  bool get isValidSquad => selectedPlayers.length <= 10 && selectedPlayers.isNotEmpty;
+  bool get isValidSquad => selectedPlayers.length <= 16 && selectedPlayers.isNotEmpty;
 
   Map<String, dynamic> toFirestore() {
     return {
       'gameId': gameId,
       'teamId': teamId,
       'selectedPlayers': selectedPlayers.map((p) => p.toFirestore()).toList(),
+      'officials': officials.map((o) => o.toFirestore()).toList(),
       'selectionTime': Timestamp.fromDate(selectionTime),
       'selectedByUserId': selectedByUserId,
       'selectedByName': selectedByName,
@@ -51,6 +54,9 @@ class GameSquad {
       teamId: data['teamId'] ?? '',
       selectedPlayers: (data['selectedPlayers'] as List? ?? [])
           .map((p) => SquadPlayer.fromFirestore(p))
+          .toList(),
+      officials: (data['officials'] as List? ?? [])
+          .map((o) => TeamOfficial.fromFirestore(o))
           .toList(),
       selectionTime: data['selectionTime'] != null 
           ? (data['selectionTime'] as Timestamp).toDate() 
@@ -70,6 +76,7 @@ class GameSquad {
     String? gameId,
     String? teamId,
     List<SquadPlayer>? selectedPlayers,
+    List<TeamOfficial>? officials,
     DateTime? selectionTime,
     String? selectedByUserId,
     String? selectedByName,
@@ -81,6 +88,7 @@ class GameSquad {
       gameId: gameId ?? this.gameId,
       teamId: teamId ?? this.teamId,
       selectedPlayers: selectedPlayers ?? this.selectedPlayers,
+      officials: officials ?? this.officials,
       selectionTime: selectionTime ?? this.selectionTime,
       selectedByUserId: selectedByUserId ?? this.selectedByUserId,
       selectedByName: selectedByName ?? this.selectedByName,
@@ -203,6 +211,37 @@ class CoachApproval {
       approvedByName: data['approvedByName'] ?? '',
       approvalMethod: data['approvalMethod'] ?? 'biometric',
       notes: data['notes'],
+    );
+  }
+}
+
+/// An official on the team bench (coach, assistant coach, physio, etc.)
+class TeamOfficial {
+  final String name;
+  final String role; // 'coach', 'assistantCoach', 'physio', 'teamManager', 'other'
+  final String? licenseNumber;
+
+  static const List<String> roles = ['Trainer', 'Co-Trainer', 'Physiotherapeut', 'Betreuer', 'Sonstige'];
+
+  TeamOfficial({
+    required this.name,
+    required this.role,
+    this.licenseNumber,
+  });
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'role': role,
+      'licenseNumber': licenseNumber,
+    };
+  }
+
+  static TeamOfficial fromFirestore(Map<String, dynamic> data) {
+    return TeamOfficial(
+      name: data['name'] ?? '',
+      role: data['role'] ?? 'Sonstige',
+      licenseNumber: data['licenseNumber'],
     );
   }
 } 

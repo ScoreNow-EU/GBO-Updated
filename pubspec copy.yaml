@@ -1,0 +1,14 @@
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - logo.png
+
+  fonts:
+    - family: CasanovaScotia
+      fonts:
+        - asset: assets/fonts/Casanova Scotia.otf
+    - family: MyriadPro
+      fonts:
+        - asset: assets/fonts/MYRIADPRO-BOLD.OTF
+          weight: 700 

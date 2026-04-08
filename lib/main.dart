@@ -63,6 +63,8 @@ void main() async {
 class RHBLApp extends StatelessWidget {
   const RHBLApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static FirebaseAnalytics? analytics;
   static FirebaseAnalyticsObserver? observer;
 
@@ -85,6 +87,7 @@ class RHBLApp extends StatelessWidget {
 
     return ToastificationWrapper(
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'Rollstuhlhandball Bundesliga',
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [

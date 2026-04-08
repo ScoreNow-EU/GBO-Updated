@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user.dart' as app_user;
-import '../services/auth_service.dart';
+import '../main.dart';
+import '../screens/roster_confirmation_screen.dart';
+import '../screens/game_sign_off_screen.dart';
 
 class NotificationMonitoringService {
   static const String _prefKeyLastCheck = 'lastNotificationCheck';
@@ -21,7 +22,6 @@ class NotificationMonitoringService {
   static bool _isInitialized = false;
   
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final AuthService _authService = AuthService();
   
   /// Method channel for communicating with native iOS code
   static const MethodChannel _methodChannel = MethodChannel('notification_monitoring');
@@ -37,10 +37,26 @@ class NotificationMonitoringService {
       // Set up method channel for iOS communication
       _methodChannel.setMethodCallHandler(_handleMethodCall);
       
+      // Handle notification that launched the app (cold start)
+      await _handleAppLaunchNotification();
+      
       _isInitialized = true;
       print('✅ Notification monitoring service initialized');
     } catch (e) {
       print('❌ Error initializing notification monitoring service: $e');
+    }
+  }
+  
+  /// Check if the app was launched by tapping a notification and handle it
+  static Future<void> _handleAppLaunchNotification() async {
+    try {
+      final details = await _localNotifications.getNotificationAppLaunchDetails();
+      if (details != null && details.didNotificationLaunchApp && details.notificationResponse != null) {
+        print('🚀 App launched from notification tap — handling...');
+        await _onNotificationResponse(details.notificationResponse!);
+      }
+    } catch (e) {
+      print('❌ Error handling app launch notification: $e');
     }
   }
   
@@ -51,6 +67,15 @@ class NotificationMonitoringService {
         final userEmail = call.arguments as String?;
         if (userEmail != null) {
           return await _checkForNotifications(userEmail);
+        }
+        break;
+      case 'handleNotificationResponse':
+        // iOS sends this when user taps a notification
+        final args = call.arguments as Map<dynamic, dynamic>?;
+        if (args != null) {
+          final data = Map<String, dynamic>.from(args);
+          final actionId = data['actionId'] as String? ?? 'view';
+          await _handleNotificationAction(actionId, data);
         }
         break;
       default:
@@ -165,6 +190,9 @@ class NotificationMonitoringService {
       if (allNotifications.isNotEmpty) {
         print('🔔 Sending push notifications for ${allNotifications.length} notifications');
         await _sendPushNotifications(allNotifications);
+        
+        // Auto-navigate for game-related notifications (sign_off_request, roster_confirmation)
+        await _autoNavigateForGameNotifications(allNotifications);
       }
       
       return {
@@ -179,6 +207,51 @@ class NotificationMonitoringService {
     }
   }
   
+  /// Auto-navigate to the appropriate screen for game-related notifications
+  static Future<void> _autoNavigateForGameNotifications(List<Map<String, dynamic>> notifications) async {
+    try {
+      // Find the most recent game notification that needs action
+      for (final notification in notifications) {
+        final type = notification['type'] as String? ?? '';
+        final gameId = notification['gameId'] as String?;
+        final teamId = notification['teamId'] as String?;
+        final teamName = notification['teamName'] as String? ?? '';
+
+        if (gameId == null || teamId == null) continue;
+
+        final navigator = RHBLApp.navigatorKey.currentState;
+        if (navigator == null) {
+          print('⚠️ Navigator not available for auto-navigation');
+          return;
+        }
+
+        if (type == 'sign_off_request') {
+          print('🖊️ Auto-navigating to sign-off screen for game $gameId');
+          navigator.push(MaterialPageRoute(
+            builder: (_) => GameSignOffScreen(
+              gameId: gameId,
+              teamId: teamId,
+              teamName: teamName,
+            ),
+          ));
+          return; // Only navigate to one screen at a time
+        } else if (type == 'roster_confirmation') {
+          print('📋 Auto-navigating to roster confirmation for game $gameId');
+          navigator.push(MaterialPageRoute(
+            builder: (_) => RosterConfirmationScreen(
+              gameId: gameId,
+              teamId: teamId,
+              teamName: teamName,
+            ),
+          ));
+          return; // Only navigate to one screen at a time
+        }
+      }
+    } catch (e) {
+      print('❌ Error auto-navigating for game notifications: $e');
+    }
+  }
+
   /// Send push notifications through iOS native code
   static Future<void> _sendPushNotifications(List<Map<String, dynamic>> notifications) async {
     try {
@@ -198,13 +271,23 @@ class NotificationMonitoringService {
           notification['title'] as String,
           notification['message'] as String,
           isTimeSensitive: notification['isTimeSensitive'] as bool? ?? false,
+          type: notification['type'] as String? ?? 'custom_notification',
+          gameId: notification['gameId'] as String?,
+          teamId: notification['teamId'] as String?,
+          teamName: notification['teamName'] as String?,
         );
       }
     }
   }
   
   /// Show local notification
-  static Future<void> _showLocalNotification(String title, String message, {bool isTimeSensitive = false}) async {
+  static Future<void> _showLocalNotification(String title, String message, {
+    bool isTimeSensitive = false,
+    String type = 'custom_notification',
+    String? gameId,
+    String? teamId,
+    String? teamName,
+  }) async {
     try {
       final notificationDetails = NotificationDetails(
         android: AndroidNotificationDetails(
@@ -226,18 +309,23 @@ class NotificationMonitoringService {
           threadIdentifier: isTimeSensitive ? 'time_sensitive' : null,
         ),
       );
+
+      final payloadMap = <String, dynamic>{
+        'type': type,
+        'title': title,
+        'message': message,
+        'isTimeSensitive': isTimeSensitive,
+      };
+      if (gameId != null) payloadMap['gameId'] = gameId;
+      if (teamId != null) payloadMap['teamId'] = teamId;
+      if (teamName != null) payloadMap['teamName'] = teamName;
       
       await _localNotifications.show(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
         isTimeSensitive ? "⚠️ $title" : title,
         message,
         notificationDetails,
-        payload: jsonEncode({
-          'type': 'custom_notification',
-          'title': title,
-          'message': message,
-          'isTimeSensitive': isTimeSensitive,
-        }),
+        payload: jsonEncode(payloadMap),
       );
       
       print('📱 Local notification shown');
@@ -309,13 +397,16 @@ class NotificationMonitoringService {
       final payload = response.payload;
       if (payload == null) return;
       
-      final data = jsonDecode(payload);
-      if (data['type'] == 'custom_notification') {
-        final actionId = response.actionId;
-        if (actionId != null) {
-          await _handleNotificationAction(actionId, data);
-        }
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(payload) as Map<String, dynamic>;
+      } catch (_) {
+        // Legacy plain-text payload
+        data = {'type': payload};
       }
+      
+      final actionId = response.actionId ?? 'view';
+      await _handleNotificationAction(actionId, data);
     } catch (e) {
       print('❌ Error handling notification response: $e');
     }
@@ -326,8 +417,51 @@ class NotificationMonitoringService {
     try {
       switch (actionId) {
         case 'view':
-          // TODO: Navigate to notification details or relevant screen
-          print('View notification action triggered');
+        case '':  // Default tap (no explicit action)
+        case 'com.apple.UNNotificationDefaultActionIdentifier': // iOS default tap action
+          final type = data['type'] as String? ?? '';
+          final gameId = data['gameId'] as String?;
+          final teamId = data['teamId'] as String?;
+          final teamName = data['teamName'] as String? ?? '';
+
+          if (gameId == null || teamId == null) {
+            print('⚠️ Cannot navigate: gameId=$gameId, teamId=$teamId');
+            return;
+          }
+
+          // Wait for navigator to be ready (cold start may need a moment)
+          NavigatorState? navigator = RHBLApp.navigatorKey.currentState;
+          if (navigator == null) {
+            for (int i = 0; i < 20; i++) {
+              await Future.delayed(const Duration(milliseconds: 250));
+              navigator = RHBLApp.navigatorKey.currentState;
+              if (navigator != null) break;
+            }
+          }
+          if (navigator == null) {
+            print('⚠️ Navigator not available after waiting');
+            return;
+          }
+
+          if (type == 'roster_confirmation') {
+            navigator.push(MaterialPageRoute(
+              builder: (_) => RosterConfirmationScreen(
+                gameId: gameId,
+                teamId: teamId,
+                teamName: teamName,
+              ),
+            ));
+          } else if (type == 'sign_off_request') {
+            navigator.push(MaterialPageRoute(
+              builder: (_) => GameSignOffScreen(
+                gameId: gameId,
+                teamId: teamId,
+                teamName: teamName,
+              ),
+            ));
+          } else {
+            print('📋 Generic notification view: $type');
+          }
           break;
         case 'dismiss':
           print('Notification dismissed');

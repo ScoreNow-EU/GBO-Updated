@@ -18,12 +18,13 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
   
   List<Team> allTeams = [];
   List<Team> filteredTeams = [];
-  String selectedSeason = '2025';
+  String selectedSeason = DateTime.now().year.toString();
   bool isLoading = true;
   Set<String> expandedTeams = {}; // Track which teams are expanded
+  bool _seasonAutoDetected = false;
 
-  // Available seasons
-  final List<String> availableSeasons = ['2025', '2026', '2027'];
+  // Available seasons - dynamically populated from data
+  List<String> availableSeasons = [];
 
   void _openDrawer() {
     // Find the parent Scaffold and open its drawer
@@ -46,12 +47,76 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       // Load all teams
       allTeams = await _teamService.getAllTeams();
       
+      // Build available seasons from data and auto-detect current season
+      _buildAvailableSeasons();
+      if (!_seasonAutoDetected) {
+        _autoDetectSeason();
+        _seasonAutoDetected = true;
+      }
+      
       _filterTeams();
       
     } catch (e) {
       _showErrorToast('Fehler beim Laden der Teams: $e');
     } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  /// Build the list of available seasons from all teams' pointsHistory dates
+  void _buildAvailableSeasons() {
+    final Set<String> years = {};
+    final currentYear = DateTime.now().year.toString();
+    
+    for (final team in allTeams) {
+      for (final entry in team.pointsHistory) {
+        final dateStr = entry['date'] as String? ?? '';
+        if (dateStr.isEmpty) continue;
+        try {
+          final date = DateTime.parse(dateStr);
+          years.add(date.year.toString());
+        } catch (_) {}
+      }
+    }
+    
+    // Always include the current year
+    years.add(currentYear);
+    
+    // Sort descending (newest first)
+    availableSeasons = years.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  /// Auto-detect which season to show:
+  /// If any points exist in the current year, show current year.
+  /// Otherwise, show the previous year.
+  void _autoDetectSeason() {
+    final currentYear = DateTime.now().year;
+    final currentYearStr = currentYear.toString();
+    
+    // Check if any team has points in the current year
+    final hasCurrentYearPoints = allTeams.any((team) {
+      return team.pointsHistory.any((entry) {
+        final dateStr = entry['date'] as String? ?? '';
+        if (dateStr.isEmpty) return false;
+        try {
+          return DateTime.parse(dateStr).year == currentYear;
+        } catch (_) {
+          return false;
+        }
+      });
+    });
+    
+    if (hasCurrentYearPoints) {
+      selectedSeason = currentYearStr;
+    } else {
+      // Fall back to previous year if it exists in available seasons
+      final previousYear = (currentYear - 1).toString();
+      if (availableSeasons.contains(previousYear)) {
+        selectedSeason = previousYear;
+      } else {
+        // If no previous year data either, use the most recent available
+        selectedSeason = availableSeasons.isNotEmpty ? availableSeasons.first : currentYearStr;
+      }
     }
   }
 

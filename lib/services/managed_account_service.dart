@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:firebase_core/firebase_core.dart' as firebase_core;
 import '../models/managed_account.dart';
 import '../models/court.dart';
 import '../models/tablet_status.dart';
+import '../models/user.dart' as app_user;
 import 'tournament_service.dart';
 
 class ManagedAccountService {
@@ -76,6 +78,36 @@ class ManagedAccountService {
   }
 
   // Create managed account
+
+  /// Ensure the currently logged-in managed account has a matching users doc.
+  /// Call this on login so pre-existing accounts get the doc they need.
+  Future<void> ensureUserDocForCurrentUser(String uid) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) return; // already has a users doc
+
+      final managedDoc = await _firestore.collection(_collection).doc(uid).get();
+      if (!managedDoc.exists) return; // not a managed account
+
+      final account = ManagedAccount.fromFirestore(managedDoc);
+      final userRole = account.type == ManagedAccountType.scoringTablet
+          ? app_user.UserRole.scoringTablet
+          : app_user.UserRole.sanitater;
+      final newUser = app_user.User(
+        id: uid,
+        email: account.email,
+        firstName: account.name,
+        lastName: '',
+        roles: [userRole],
+        isActive: true,
+        createdAt: DateTime.now(),
+      );
+      await _firestore.collection('users').doc(uid).set(newUser.toFirestore());
+      print('✅ Created missing users doc for managed account $uid');
+    } catch (e) {
+      print('⚠️ ensureUserDocForCurrentUser error: $e');
+    }
+  }
   Future<ManagedAccount?> createManagedAccount(ManagedAccount account) async {
     try {
       // Check if email already exists
@@ -111,11 +143,29 @@ class ManagedAccountService {
       );
 
       if (credential.user != null) {
-        // Then create the Firestore document with the Firebase Auth UID
-        final accountData = accountWithCode.toFirestore();
-        await _firestore.collection(_collection).doc(credential.user!.uid).set(accountData);
+        final uid = credential.user!.uid;
         
-        return accountWithCode.copyWith(id: credential.user!.uid);
+        // Create the managed_accounts Firestore document
+        final accountData = accountWithCode.toFirestore();
+        await _firestore.collection(_collection).doc(uid).set(accountData);
+        
+        // Also create a users collection document with the correct role
+        // so the sidebar and role checks work properly
+        final userRole = account.type == ManagedAccountType.scoringTablet
+            ? app_user.UserRole.scoringTablet
+            : app_user.UserRole.sanitater;
+        final userDoc = app_user.User(
+          id: uid,
+          email: accountWithCode.email,
+          firstName: accountWithCode.name,
+          lastName: '',
+          roles: [userRole],
+          isActive: true,
+          createdAt: DateTime.now(),
+        );
+        await _firestore.collection('users').doc(uid).set(userDoc.toFirestore());
+        
+        return accountWithCode.copyWith(id: uid);
       } else {
         throw Exception('Firebase Auth Account konnte nicht erstellt werden');
       }
@@ -155,16 +205,54 @@ class ManagedAccountService {
   // Delete managed account
   Future<bool> deleteManagedAccount(String id) async {
     try {
-      // Delete from Firestore first
+      // Fetch credentials before deletion so we can remove the Firebase Auth user
+      final accountDoc = await _firestore.collection(_collection).doc(id).get();
+      if (!accountDoc.exists) {
+        print('Managed account not found: $id');
+        return false;
+      }
+      final data = accountDoc.data() as Map<String, dynamic>;
+      final email = data['email'] as String?;
+      final password = data['password'] as String?;
+
+      // Delete the Firebase Auth user using a secondary app so we don't sign
+      // out the currently logged-in admin.
+      if (email != null && password != null) {
+        final secondaryAppName = 'temp_delete_$id';
+        firebase_core.FirebaseApp? secondaryApp;
+        try {
+          secondaryApp = await firebase_core.Firebase.initializeApp(
+            name: secondaryAppName,
+            options: firebase_core.Firebase.app().options,
+          );
+          final tempAuth = firebase_auth.FirebaseAuth.instanceFor(app: secondaryApp);
+          final credential = await tempAuth.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          await credential.user?.delete();
+          print('Firebase Auth user deleted for managed account $id');
+        } catch (e) {
+          print('Warning: Could not delete Firebase Auth user for managed account $id: $e');
+          // Continue with Firestore deletion even if Auth deletion fails
+        } finally {
+          await secondaryApp?.delete();
+        }
+      }
+
+      // Delete the users collection document
+      try {
+        await _firestore.collection('users').doc(id).delete();
+        print('Users doc deleted for managed account $id');
+      } catch (e) {
+        print('Warning: Could not delete users doc for managed account $id: $e');
+      }
+
+      // Delete the managed_accounts Firestore document
       await _firestore.collection(_collection).doc(id).delete();
-      print('Managed account deleted from Firestore');
-      
-      // Note: Firebase Auth user remains but will be cleaned up later
-      // This prevents UI conflicts during active operations
-      print('Firebase Auth user will need manual cleanup or will expire naturally');
-      
+      print('Managed account $id deleted successfully');
       return true;
-      
+
     } catch (e) {
       print('Error deleting managed account: $e');
       return false;

@@ -6,6 +6,7 @@ import 'dart:math';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/tournament_service.dart';
+import '../services/managed_account_service.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
@@ -80,6 +81,9 @@ class _SideNavigationState extends State<SideNavigation> {
     // Load app user data
     if (_currentUser != null) {
       try {
+        // Ensure managed accounts have a users doc (self-healing migration)
+        await ManagedAccountService().ensureUserDocForCurrentUser(_currentUser!.uid);
+        
         final appUser = await _authService.getUserById(_currentUser!.uid);
         if (mounted) {
           setState(() {
@@ -309,6 +313,15 @@ class _SideNavigationState extends State<SideNavigation> {
                   _buildRefereeSection(),
                 
                 if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
+                  const SizedBox(height: 16),
+                
+                // Scoring Tablet Section - Show for admin users and scoring tablet managed accounts
+                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
+                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
+                  _buildScoringTabletSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
+                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
                   const SizedBox(height: 16),
                 
                 // Tournament Organizer Section - Only show if user has tournament organizer role
@@ -885,6 +898,83 @@ class _SideNavigationState extends State<SideNavigation> {
               ]).expand((x) => x).toList(),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScoringTabletSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade700,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Scoring Section Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.scoreboard,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'KAMPFGERICHT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Scoring System Item
+          _buildScoringTabletItem(
+            icon: Icons.tablet_mac,
+            title: 'Scoring System',
+            key: 'scoring_system',
+            isSelected: widget.selectedSection == 'scoring_system',
+          ),
+          
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoringTabletItem({
+    required IconData icon,
+    required String title,
+    required String key,
+    required bool isSelected,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(icon, color: Colors.white, size: 18),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
 import '../models/team_manager.dart';
@@ -779,11 +780,12 @@ class AuthService {
       try {
         final firebaseUser = _firebaseAuth.currentUser;
         if (firebaseUser != null && firebaseUser.uid == userId) {
+          // Current user deleting their own account — use client SDK
           await firebaseUser.delete();
         } else {
-          // If trying to delete another user's account, we can't directly delete their auth account
-          // This should only be done if admin has special permissions
-          print('Warning: Could not delete Firebase Auth account for user $userId. User may need to be deleted by Firebase console.');
+          // Admin deleting another user — use Cloud Function with Admin SDK
+          final callable = FirebaseFunctions.instance.httpsCallable('deleteAuthUser');
+          await callable.call({'uid': userId});
         }
       } catch (e) {
         print('Warning: Could not delete Firebase Auth account: $e');

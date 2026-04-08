@@ -1,74 +1,72 @@
 {
   "fill" : {
     "linear-gradient" : [
-      "display-p3:0.97266,0.83789,0.38672,1.00000",
-      "display-p3:0.95703,0.71387,0.78418,1.00000"
-    ]
+      "extended-srgb:1.00000,0.80000,0.00000,1.00000",
+      "extended-srgb:1.00000,0.21961,0.23529,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
       "blur-material" : null,
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "fill-specializations" : [
-            {
-              "value" : "automatic"
-            },
-            {
-              "appearance" : "dark",
-              "value" : {
-                "solid" : "extended-gray:1.00000,1.00000"
-              }
-            }
-          ],
-          "glass" : true,
-          "image-name" : "Untitled-2.png",
-          "name" : "Untitled-2",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "outside circle.png",
+          "name" : "outside circle",
           "position" : {
-            "scale" : 0.4,
+            "scale" : 1,
             "translation-in-points" : [
               0,
-              270
+              0
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "text.png",
+          "name" : "text"
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "player.png",
+          "name" : "player"
+        },
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "logo.png",
+          "name" : "logo",
+          "position" : {
+            "scale" : 0.79,
+            "translation-in-points" : [
+              0,
+              0
             ]
           }
         }
       ],
-      "lighting" : "individual",
+      "lighting" : "combined",
       "shadow" : {
-        "kind" : "layer-color",
+        "kind" : "neutral",
         "opacity" : 0.5
       },
       "specular" : true,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.19
-      }
-    },
-    {
-      "blur-material" : null,
-      "layers" : [
-        {
-          "glass" : true,
-          "image-name" : "logo.png",
-          "name" : "logo_ball_half",
-          "position" : {
-            "scale" : 0.55,
-            "translation-in-points" : [
-              0,
-              -190
-            ]
-          }
-        }
-      ],
-      "shadow" : {
-        "kind" : "layer-color",
-        "opacity" : 1
-      },
-      "specular" : false,
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.22
+        "value" : 0.5
       }
     }
   ],

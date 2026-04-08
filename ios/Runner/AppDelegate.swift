@@ -353,8 +353,29 @@ extension NotificationMonitor: UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         
-        // Handle notification response if needed
-        channel?.invokeMethod("handleNotificationResponse", arguments: userInfo)
+        // Extract game notification data from either native userInfo or flutter_local_notifications payload
+        var notificationData: [String: Any] = [:]
+        
+        // Check if data is at top level (native notification)
+        if let type = userInfo["type"] as? String {
+            notificationData = userInfo as? [String: Any] ?? [:]
+            // If it's a game notification, add the action ID
+            if type == "sign_off_request" || type == "roster_confirmation" {
+                notificationData["actionId"] = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "view" : response.actionIdentifier
+            }
+        }
+        
+        // Check if payload is a JSON string from flutter_local_notifications
+        if let payload = userInfo["payload"] as? String,
+           let payloadData = payload.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any] {
+            notificationData = parsed
+            notificationData["actionId"] = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "view" : response.actionIdentifier
+        }
+        
+        if !notificationData.isEmpty {
+            channel?.invokeMethod("handleNotificationResponse", arguments: notificationData)
+        }
         
         completionHandler()
     }
@@ -403,7 +424,11 @@ class RefereeInvitationMonitor: NSObject {
                let message = args["message"] as? String,
                let userEmail = args["userEmail"] as? String {
                 let isTimeSensitive = args["isTimeSensitive"] as? Bool ?? false
-                showCustomNotification(title: title, message: message, userEmail: userEmail, isTimeSensitive: isTimeSensitive)
+                let type = args["type"] as? String
+                let gameId = args["gameId"] as? String
+                let teamId = args["teamId"] as? String
+                let teamName = args["teamName"] as? String
+                showCustomNotification(title: title, message: message, userEmail: userEmail, isTimeSensitive: isTimeSensitive, type: type, gameId: gameId, teamId: teamId, teamName: teamName)
                 result(nil)
             } else {
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Title, message and userEmail required", details: nil))
@@ -709,9 +734,9 @@ class RefereeInvitationMonitor: NSObject {
     }
   }
   
-  private func showCustomNotification(title: String, message: String, userEmail: String, isTimeSensitive: Bool) {
+  private func showCustomNotification(title: String, message: String, userEmail: String, isTimeSensitive: Bool, type: String? = nil, gameId: String? = nil, teamId: String? = nil, teamName: String? = nil) {
     print("📱 iOS: showCustomNotification called for user: \(userEmail)")
-    print("📱 iOS: Title: \(title), Message: \(message), Time Sensitive: \(isTimeSensitive)")
+    print("📱 iOS: Title: \(title), Message: \(message), Time Sensitive: \(isTimeSensitive), Type: \(type ?? "none")")
     
     let content = UNMutableNotificationContent()
     content.title = isTimeSensitive ? "⚠️ \(title)" : title
@@ -725,14 +750,18 @@ class RefereeInvitationMonitor: NSObject {
       content.interruptionLevel = isTimeSensitive ? .timeSensitive : .active
     }
     
-    // Add custom data to userInfo
-    content.userInfo = [
-      "type": "custom_notification",
+    // Add custom data to userInfo (include game metadata for navigation)
+    var userInfo: [String: Any] = [
+      "type": type ?? "custom_notification",
       "userEmail": userEmail,
       "title": title,
       "message": message,
       "isTimeSensitive": isTimeSensitive
     ]
+    if let gameId = gameId { userInfo["gameId"] = gameId }
+    if let teamId = teamId { userInfo["teamId"] = teamId }
+    if let teamName = teamName { userInfo["teamName"] = teamName }
+    content.userInfo = userInfo
     
     let request = UNNotificationRequest(
       identifier: "custom_notification_\(Date().timeIntervalSince1970)",
@@ -758,6 +787,25 @@ extension RefereeInvitationMonitor: UNUserNotificationCenterDelegate {
         let actionIdentifier = response.actionIdentifier
         let userInfo = response.notification.request.content.userInfo
         
+        // Check if this is a game-related notification (sign_off_request, roster_confirmation, etc.)
+        if let type = userInfo["type"] as? String,
+           (type == "sign_off_request" || type == "roster_confirmation") {
+            // Forward to the notification_monitoring channel for Flutter handling
+            let args: [String: Any] = [
+                "actionId": actionIdentifier == UNNotificationDefaultActionIdentifier ? "view" : actionIdentifier,
+                "type": type,
+                "gameId": userInfo["gameId"] as? String ?? "",
+                "teamId": userInfo["teamId"] as? String ?? "",
+                "teamName": userInfo["teamName"] as? String ?? "",
+            ]
+            // Use the notification_monitoring channel (NotificationMonitor handles game notifications in Flutter)
+            let notificationChannel = FlutterMethodChannel(name: "notification_monitoring", binaryMessenger: (UIApplication.shared.delegate as! AppDelegate).window?.rootViewController as! FlutterBinaryMessenger)
+            notificationChannel.invokeMethod("handleNotificationResponse", arguments: args)
+            completionHandler()
+            return
+        }
+        
+        // Handle referee tournament notifications
         guard let tournaments = userInfo["tournaments"] as? [[String: Any]],
               let firstTournament = tournaments.first,
               let tournamentId = firstTournament["id"] as? String,
