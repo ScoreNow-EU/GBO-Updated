@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
 import 'screens/obs_graphics_screen.dart';
+import 'screens/public_scoreboard_screen.dart';
+import 'screens/kiosk_screen.dart';
 import 'services/preloader_service.dart';
 import 'utils/app_colors.dart';
 import 'utils/version_helper.dart';
@@ -29,14 +32,20 @@ void main() async {
       await Firebase.initializeApp(
         options: FirebaseConfig.currentPlatform,
       );
-      debugPrint('Firebase initialized successfully');
+      print('Firebase initialized successfully');
+      
+      // Enable Firestore offline persistence
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
     } catch (e) {
-      debugPrint('Firebase initialization error: $e');
+      print('Firebase initialization error: $e');
       // For now, continue without Firebase but show error
-      debugPrint('App will continue but Firebase features may not work');
+      print('App will continue but Firebase features may not work');
     }
   } else {
-    debugPrint('Firebase initialization skipped for this platform');
+    print('Firebase initialization skipped for this platform');
   }
   
   // Preload essential data for faster loading (only if Firebase is working)
@@ -44,7 +53,7 @@ void main() async {
     final preloader = PreloaderService();
     preloader.preloadEssentialData(); // Don't await - let it load in background
   } catch (e) {
-    debugPrint('Preloader error: $e - continuing without preloading');
+    print('Preloader error: $e - continuing without preloading');
   }
   
   // Update web version display (only on web platform)
@@ -53,7 +62,7 @@ void main() async {
       final version = await VersionHelper.getAppVersion();
       WebHelper.updateVersionDisplay(version);
     } catch (e) {
-      debugPrint('Error updating web version display: $e');
+      print('Error updating web version display: $e');
     }
   }
   
@@ -63,8 +72,6 @@ void main() async {
 class RHBLApp extends StatelessWidget {
   const RHBLApp({super.key});
 
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
   static FirebaseAnalytics? analytics;
   static FirebaseAnalyticsObserver? observer;
 
@@ -72,9 +79,9 @@ class RHBLApp extends StatelessWidget {
     try {
       analytics = FirebaseAnalytics.instance;
       observer = FirebaseAnalyticsObserver(analytics: analytics!);
-      debugPrint('Analytics initialized successfully');
+      print('Analytics initialized successfully');
     } catch (e) {
-      debugPrint('Analytics initialization error: $e');
+      print('Analytics initialization error: $e');
     }
   }
 
@@ -87,7 +94,6 @@ class RHBLApp extends StatelessWidget {
 
     return ToastificationWrapper(
       child: MaterialApp(
-        navigatorKey: navigatorKey,
         title: 'Rollstuhlhandball Bundesliga',
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
@@ -142,6 +148,8 @@ class RHBLApp extends StatelessWidget {
         routes: {
           '/': (context) => const HomeScreen(),
           '/obs-graphics': (context) => _buildOBSGraphicsScreen(context),
+          '/public': (context) => _buildPublicScoreboard(context),
+          '/kiosk': (context) => _buildKioskScreen(context),
         },
         navigatorObservers: [
           RouteLogger(), // Debug: Zeigt aktuelle Route in Konsole
@@ -163,5 +171,17 @@ class RHBLApp extends StatelessWidget {
       gameId: gameId,
       overlayType: overlayType,
     );
+  }
+
+  static Widget _buildPublicScoreboard(BuildContext context) {
+    final uri = Uri.base;
+    final tournamentId = uri.queryParameters['t'] ?? uri.queryParameters['tournamentId'];
+    return PublicScoreboardScreen(tournamentId: tournamentId);
+  }
+
+  static Widget _buildKioskScreen(BuildContext context) {
+    final uri = Uri.base;
+    final tournamentId = uri.queryParameters['t'] ?? uri.queryParameters['tournamentId'];
+    return KioskScreen(tournamentId: tournamentId);
   }
 }

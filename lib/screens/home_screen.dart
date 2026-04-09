@@ -25,7 +25,6 @@ import '../screens/user_role_management_screen.dart';
 import '../screens/managed_account_screen.dart';
 import '../screens/profile_settings_screen.dart';
 import '../screens/scoring_tablet_screen.dart';
-import '../screens/scoring_picker_screen.dart';
 import '../screens/season_management_screen.dart';
 import '../screens/rangliste_screen.dart';
 import '../screens/city_migration_screen.dart';
@@ -41,6 +40,17 @@ import '../screens/generate_sign_in_codes_screen.dart';
 import '../screens/admin_data_management_screen.dart';
 import '../services/managed_account_service.dart';
 import '../models/managed_account.dart';
+import '../screens/referee_dashboard_screen.dart';
+import '../screens/delegate_dashboard_screen.dart';
+import '../screens/commissioner_dashboard_screen.dart';
+import '../screens/suspension_management_screen.dart';
+import '../screens/fine_management_screen.dart';
+import '../screens/player_dashboard_screen.dart';
+import '../screens/protest_list_screen.dart';
+import '../screens/venue_management_screen.dart';
+import '../screens/player_transfer_screen.dart';
+import '../screens/document_management_screen.dart';
+import '../widgets/offline_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,11 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedSection = 'turniere';
         });
       } else {
-        // User logged in, check if scoring tablet and navigate to scoring picker
+        // User logged in, check if scoring tablet and update current user
         bool isScoringTablet = false;
         try {
           final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-          allAccounts.firstWhere(
+          final managedAccount = allAccounts.firstWhere(
             (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
             orElse: () => throw Exception('Not a managed account'),
           );
@@ -97,10 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _currentUser = user;
           _isScoringTablet = isScoringTablet;
-          // Auto-navigate scoring tablet users to the scoring picker
-          if (isScoringTablet) {
-            selectedSection = 'scoring_system';
-          }
         });
       }
     });
@@ -116,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (user != null) {
         try {
           final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-          allAccounts.firstWhere(
+          final managedAccount = allAccounts.firstWhere(
             (account) => account.email == user.email && account.type == ManagedAccountType.scoringTablet,
             orElse: () => throw Exception('Not a managed account'),
           );
@@ -130,10 +136,6 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentUser = user;
         _isScoringTablet = isScoringTablet;
-        // Auto-navigate scoring tablet users to the scoring picker
-        if (isScoringTablet) {
-          selectedSection = 'scoring_system';
-        }
       });
     } else {
       // No user, ensure we're on the default section
@@ -179,6 +181,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show specialized scoring tablet interface if user is a scoring tablet
+    if (_isScoringTablet && _currentUser != null) {
+      return ScoringTabletScreen(user: _currentUser!);
+    }
+    
     // Handle login screen specially to preserve its blue background
     if (selectedSection == 'login') {
       return LoginScreen(
@@ -298,14 +305,19 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       title: _getScreenTitle(),
-      body: _buildMainContent(),
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: _buildMainContent()),
+        ],
+      ),
       ticker: (selectedSection == 'turniere' || selectedSection == 'rangliste') 
           ? const LiveGamesTicker() 
           : null,
       currentUser: _currentUser,
       onUserUpdated: () {
         // Refresh current user after auto-linking
-        debugPrint('ðŸ”„ User updated, refreshing current user...');
+        print('🔄 User updated, refreshing current user...');
         _loadCurrentUser();
       },
       hideAppBar: selectedSection == 'rangliste', // Hide AppBar for rangliste since it has its own
@@ -357,15 +369,35 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'season_management':
         return 'Saison Management';
       case 'city_migration':
-        return 'StÃ¤dte Migration';
+        return 'Städte Migration';
       case 'new_tournament':
         return 'Neues Turnier';
       case 'generate_sign_in_codes':
         return 'Einmalige Anmeldecodes erstellen';
       case 'demo_data':
         return 'Demo Daten Erstellen';
-      case 'scoring_system':
-        return 'Scoring System';
+      case 'referee_dashboard':
+        return 'Schiedsrichter Dashboard';
+      case 'referee_games':
+        return 'Meine Spiele';
+      case 'delegate_dashboard':
+        return 'Delegierten Dashboard';
+      case 'commissioner_dashboard':
+        return 'Kommissar Dashboard';
+      case 'suspension_management':
+        return 'Sperren-Verwaltung';
+      case 'fine_management':
+        return 'Strafen & Bußgelder';
+      case 'player_dashboard':
+        return 'Spieler Dashboard';
+      case 'protest_list':
+        return 'Proteste';
+      case 'venue_management':
+        return 'Hallenbörse';
+      case 'player_transfers':
+        return 'Spielertransfers';
+      case 'document_management':
+        return 'Dokumentenverwaltung';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -435,10 +467,48 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 'demo_data':
         return const DemoDataScreen();
-      case 'scoring_system':
-        return _currentUser != null
-            ? ScoringPickerScreen(currentUser: _currentUser!)
-            : const Center(child: Text('Bitte melden Sie sich an.'));
+      // Phase 3: Role-specific dashboards
+      case 'referee_dashboard':
+        return const RefereeDashboardScreen();
+      case 'referee_games':
+        return const RefereeDashboardScreen();
+      case 'delegate_dashboard':
+        return const DelegateDashboardScreen();
+      case 'commissioner_dashboard':
+        return const CommissionerDashboardScreen();
+      case 'suspension_management':
+        return const SuspensionManagementScreen();
+      case 'fine_management':
+        return const FineManagementScreen();
+      case 'player_dashboard':
+        return const PlayerDashboardScreen();
+      case 'protest_list':
+        return const ProtestListScreen();
+      case 'venue_management':
+        return const VenueManagementScreen();
+      case 'player_transfers':
+        return const PlayerTransferScreen();
+      case 'document_management':
+        return const DocumentManagementScreen();
+    }
+
+    // Handle referee tournament sections
+    if (selectedSection.startsWith('referee_tournament_')) {
+      final prefix = 'referee_tournament_';
+      final suffix = selectedSection.substring(prefix.length);
+
+      String? tournamentId;
+      if (suffix.endsWith('_overview')) {
+        tournamentId = suffix.substring(0, suffix.length - '_overview'.length);
+      } else if (suffix.endsWith('_games')) {
+        tournamentId = suffix.substring(0, suffix.length - '_games'.length);
+      } else {
+        tournamentId = suffix;
+      }
+
+      if (tournamentId.isNotEmpty) {
+        return RefereeDashboardScreen(key: ValueKey('referee_$tournamentId'));
+      }
     }
 
     // Handle team detail sections (after specific admin sections)
@@ -446,19 +516,19 @@ class _HomeScreenState extends State<HomeScreen> {
         !selectedSection.startsWith('team_management') && 
         !selectedSection.startsWith('team_manager_management')) {
       final parts = selectedSection.split('_');
-      debugPrint('ðŸ  HomeScreen - selectedSection: $selectedSection');
-      debugPrint('ðŸ  HomeScreen - parts: $parts');
+      print('🏠 HomeScreen - selectedSection: $selectedSection');
+      print('🏠 HomeScreen - parts: $parts');
       if (parts.length >= 2) {
         final teamId = parts[1];
         final subSection = parts.length > 2 ? parts[2] : 'overview';
-        debugPrint('ðŸ  HomeScreen - teamId: $teamId, subSection: $subSection');
+        print('🏠 HomeScreen - teamId: $teamId, subSection: $subSection');
         return TeamDetailContent(teamId: teamId, subSection: subSection);
       }
     }
 
     // Handle organizer tournament sections
     if (selectedSection.startsWith('organizer_tournament_')) {
-      debugPrint('Handling organizer tournament section: $selectedSection');
+      print('Handling organizer tournament section: $selectedSection');
       
       // More robust parsing that handles special characters in tournament ID
       final prefix = 'organizer_tournament_';
@@ -478,7 +548,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (tournamentId != null && subSection != null) {
         
-        debugPrint('Tournament ID: $tournamentId, SubSection: $subSection');
+        print('Tournament ID: $tournamentId, SubSection: $subSection');
         
         if (subSection == 'edit') {
           // Navigate to tournament edit screen as full screen
@@ -490,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text('Weiterleitung zum Turnier Editor...'),
           );
         } else if (subSection == 'to_software') {
-          debugPrint('Navigating to TO Software for tournament: $tournamentId');
+          print('Navigating to TO Software for tournament: $tournamentId');
           // Navigate to TO Software screen as full screen
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _navigateToTOSoftware(tournamentId!);
@@ -540,10 +610,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToTOSoftware(String tournamentId) async {
-    debugPrint('_navigateToTOSoftware called with tournamentId: $tournamentId');
+    print('_navigateToTOSoftware called with tournamentId: $tournamentId');
     try {
       final tournament = await _tournamentService.getTournamentById(tournamentId);
-      debugPrint('Tournament found: ${tournament?.name}');
+      print('Tournament found: ${tournament?.name}');
       if (tournament != null && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -552,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       } else {
-        debugPrint('Tournament not found for ID: $tournamentId');
+        print('Tournament not found for ID: $tournamentId');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -563,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error in _navigateToTOSoftware: $e');
+      print('Error in _navigateToTOSoftware: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

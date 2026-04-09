@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
 import '../models/team_manager.dart';
@@ -68,7 +67,7 @@ class AuthService {
         'email': email.toLowerCase(),
       });
     } catch (e) {
-      debugPrint('Error updating user profile: $e');
+      print('Error updating user profile: $e');
       rethrow;
     }
   }
@@ -92,7 +91,7 @@ class AuthService {
       // Update password
       await user.updatePassword(newPassword);
     } catch (e) {
-      debugPrint('Error updating password: $e');
+      print('Error updating password: $e');
       rethrow;
     }
   }
@@ -116,7 +115,7 @@ class AuthService {
 
       await _firestore.collection(_usersCollection).doc(user.uid).update(updateData);
     } catch (e) {
-      debugPrint('Error updating user preferences: $e');
+      print('Error updating user preferences: $e');
       rethrow;
     }
   }
@@ -163,7 +162,7 @@ class AuthService {
         return user;
       }
     } catch (e) {
-      debugPrint('Error signing in: $e');
+      print('Error signing in: $e');
       rethrow;
     }
     return null;
@@ -220,7 +219,7 @@ class AuthService {
         return user;
       }
     } catch (e) {
-      debugPrint('Error registering user: $e');
+      print('Error registering user: $e');
       rethrow;
     }
     return null;
@@ -240,7 +239,7 @@ class AuthService {
         return app_user.User.fromFirestore(doc);
       }
     } catch (e) {
-      debugPrint('Error getting user: $e');
+      print('Error getting user: $e');
     }
     return null;
   }
@@ -327,7 +326,7 @@ class AuthService {
         'lastLoginAt': Timestamp.fromDate(DateTime.now()),
       });
     } catch (e) {
-      debugPrint('Error updating last login: $e');
+      print('Error updating last login: $e');
     }
   }
 
@@ -348,7 +347,7 @@ class AuthService {
       await _firestore.collection(_usersCollection).doc(userId).update(updateData);
       return true;
     } catch (e) {
-      debugPrint('Error updating user role: $e');
+      print('Error updating user role: $e');
       return false;
     }
   }
@@ -377,7 +376,7 @@ class AuthService {
         }
       }
     } catch (e) {
-      debugPrint('Error creating sample referee users: $e');
+      print('Error creating sample referee users: $e');
     }
   }
 
@@ -394,7 +393,7 @@ class AuthService {
         return app_user.User.fromFirestore(query.docs.first);
       }
     } catch (e) {
-      debugPrint('Error getting user by email: $e');
+      print('Error getting user by email: $e');
     }
     return null;
   }
@@ -411,7 +410,7 @@ class AuthService {
           .map((doc) => app_user.User.fromFirestore(doc))
           .toList();
     } catch (e) {
-      debugPrint('Error getting all users: $e');
+      print('Error getting all users: $e');
       return [];
     }
   }
@@ -424,7 +423,7 @@ class AuthService {
           .doc(userId)
           .update({'isActive': isActive});
     } catch (e) {
-      debugPrint('Error updating user status: $e');
+      print('Error updating user status: $e');
       throw Exception('Failed to update user status');
     }
   }
@@ -438,7 +437,7 @@ class AuthService {
     try {
       final user = await getUserById(userId);
       if (user == null) {
-        debugPrint('User not found: $userId');
+        print('User not found: $userId');
         return false;
       }
 
@@ -453,36 +452,36 @@ class AuthService {
         final updatedRoles = [...user.roles, role];
         updateData['roles'] = updatedRoles.map((r) => r.name).toList();
         needsUpdate = true;
-        debugPrint('Adding role ${role.name} to user');
+        print('Adding role ${role.name} to user');
       }
 
       // Set specific role IDs if provided (even if user already has the role)
       if (refereeId != null && user.refereeId != refereeId) {
         updateData['refereeId'] = refereeId;
         needsUpdate = true;
-        debugPrint('Updating refereeId to: $refereeId');
+        print('Updating refereeId to: $refereeId');
       }
       if (teamManagerId != null && user.teamManagerId != teamManagerId) {
         updateData['teamManagerId'] = teamManagerId;
         needsUpdate = true;
-        debugPrint('Updating teamManagerId to: $teamManagerId');
+        print('Updating teamManagerId to: $teamManagerId');
       }
       if (delegateId != null && user.delegateId != delegateId) {
         updateData['delegateId'] = delegateId;
         needsUpdate = true;
-        debugPrint('Updating delegateId to: $delegateId');
+        print('Updating delegateId to: $delegateId');
       }
 
       if (!needsUpdate) {
-        debugPrint('No updates needed for user ${user.fullName}');
+        print('No updates needed for user ${user.fullName}');
         return false;
       }
 
       await _firestore.collection(_usersCollection).doc(userId).update(updateData);
-      debugPrint('âœ… Successfully updated user record');
+      print('✅ Successfully updated user record');
       return true;
     } catch (e) {
-      debugPrint('Error adding role to user: $e');
+      print('Error adding role to user: $e');
       return false;
     }
   }
@@ -492,13 +491,13 @@ class AuthService {
     try {
       final user = await getUserById(userId);
       if (user == null) {
-        debugPrint('User not found: $userId');
+        print('User not found: $userId');
         return false;
       }
 
       // Check if user has this role
       if (!user.roles.contains(role)) {
-        debugPrint('User does not have role: ${role.name}');
+        print('User does not have role: ${role.name}');
         return false;
       }
 
@@ -507,7 +506,7 @@ class AuthService {
       
       // Ensure user has at least one role
       if (updatedRoles.isEmpty) {
-        debugPrint('Cannot remove last role from user');
+        print('Cannot remove last role from user');
         return false;
       }
 
@@ -527,7 +526,7 @@ class AuthService {
       await _firestore.collection(_usersCollection).doc(userId).update(updateData);
       return true;
     } catch (e) {
-      debugPrint('Error removing role from user: $e');
+      print('Error removing role from user: $e');
       return false;
     }
   }
@@ -539,7 +538,7 @@ class AuthService {
       final codeData = await validateOneTimeCode(code);
       
       if (codeData == null) {
-        throw Exception('UngÃ¼ltiger oder bereits verwendeter Code');
+        throw Exception('Ungültiger oder bereits verwendeter Code');
       }
 
       final email = codeData['preEnteredEmail'] as String;
@@ -614,7 +613,7 @@ class AuthService {
 
       return existingUser;
     } catch (e) {
-      debugPrint('Error signing in with one-time code: $e');
+      print('Error signing in with one-time code: $e');
       rethrow;
     }
   }
@@ -644,9 +643,9 @@ class AuthService {
       // Delete Firebase Auth user
       await currentUser.delete();
 
-      debugPrint('User account deleted successfully');
+      print('User account deleted successfully');
     } catch (e) {
-      debugPrint('Error deleting account: $e');
+      print('Error deleting account: $e');
       rethrow;
     }
   }
@@ -689,7 +688,7 @@ class AuthService {
       await _firestore.collection('oneTimeCodes').doc(code).set(oneTimeCode);
       return code;
     } catch (e) {
-      debugPrint('Error generating one-time code: $e');
+      print('Error generating one-time code: $e');
       rethrow;
     }
   }
@@ -723,7 +722,7 @@ class AuthService {
         'roles': data['roles'] ?? ['user'],
       };
     } catch (e) {
-      debugPrint('Error validating one-time code: $e');
+      print('Error validating one-time code: $e');
       rethrow;
     }
   }
@@ -733,7 +732,7 @@ class AuthService {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
     } catch (e) {
-      debugPrint('Error sending password reset email: $e');
+      print('Error sending password reset email: $e');
       rethrow;
     }
   }
@@ -780,20 +779,20 @@ class AuthService {
       try {
         final firebaseUser = _firebaseAuth.currentUser;
         if (firebaseUser != null && firebaseUser.uid == userId) {
-          // Current user deleting their own account â€” use client SDK
           await firebaseUser.delete();
         } else {
-          // Admin deleting another user â€” use Cloud Function with Admin SDK
-          debugPrint('Admin user deletion requires Firebase Console - cloud function not deployed');
+          // If trying to delete another user's account, we can't directly delete their auth account
+          // This should only be done if admin has special permissions
+          print('Warning: Could not delete Firebase Auth account for user $userId. User may need to be deleted by Firebase console.');
         }
       } catch (e) {
-        debugPrint('Warning: Could not delete Firebase Auth account: $e');
+        print('Warning: Could not delete Firebase Auth account: $e');
         // Continue with Firestore deletion even if Auth deletion fails
       }
 
-      debugPrint('User account $userId deleted successfully');
+      print('User account $userId deleted successfully');
     } catch (e) {
-      debugPrint('Error deleting user account: $e');
+      print('Error deleting user account: $e');
       rethrow;
     }
   }
