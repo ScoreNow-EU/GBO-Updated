@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/game_event.dart';
 import '../models/player.dart';
+import 'suspension_service.dart';
 
 class LiveScoringService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -240,7 +242,29 @@ class LiveScoringService {
       _updateGameState(gameId, updatedState);
       
       debugPrint('âœ… Game event added: ${eventType.toString()} by $playerName');
-    } catch (e) {
+      // Auto-create tournament suspension for blue cards
+      if (eventType == GameEventType.blueCard) {
+        try {
+          final suspensionService = SuspensionService();
+          // Get tournament ID from the game document
+          final gameDoc = await _firestore.collection('games').doc(gameId).get();
+          final tournamentId = gameDoc.data()?['tournamentId'] as String? ?? '';
+          final currentUser = FirebaseAuth.instance.currentUser;
+          await suspensionService.createBlueCardSuspension(
+            playerId: playerId,
+            playerName: playerName,
+            teamId: teamId,
+            teamName: teamName,
+            tournamentId: tournamentId,
+            gameId: gameId,
+            issuedByUserId: currentUser?.uid ?? 'system',
+            issuedByName: currentUser?.displayName ?? 'System',
+          );
+          debugPrint('\u2705 Blue card suspension created for $playerName');
+        } catch (e) {
+          debugPrint('\u26a0\ufe0f Failed to create blue card suspension: $e');
+        }
+      }    } catch (e) {
       debugPrint('âŒ Error adding game event: $e');
       throw e;
     }

@@ -318,6 +318,27 @@ class _SideNavigationState extends State<SideNavigation> {
                 if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
                   const SizedBox(height: 16),
                 
+                // Delegate Section - Only show if user has delegate role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.delegate) == true)
+                  _buildDelegateSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.delegate) == true)
+                  const SizedBox(height: 16),
+                
+                // Commissioner Section - Only show if user has teamRHD role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.teamRHD) == true)
+                  _buildCommissionerSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.teamRHD) == true)
+                  const SizedBox(height: 16),
+                
+                // Player Section - Only show if user has spieler role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.spieler) == true)
+                  _buildPlayerSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.spieler) == true)
+                  const SizedBox(height: 16),
+                
                 // Admin Section - Only show if user has admin role
                 if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true)
                   _buildAdminSection(),
@@ -602,6 +623,237 @@ class _SideNavigationState extends State<SideNavigation> {
     );
   }
 
+  Widget _buildDelegateSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade600,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.account_balance, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'DELEGIERTE(R)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.dashboard,
+            title: 'Dashboard',
+            key: 'delegate_dashboard',
+            isSelected: widget.selectedSection == 'delegate_dashboard',
+            selectedColor: Colors.indigo.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.badge,
+            title: 'Spielerpass-Kontrolle',
+            key: 'delegate_dashboard',
+            isSelected: false,
+            selectedColor: Colors.indigo.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.warning_amber,
+            title: 'Proteste',
+            key: 'protest_list',
+            isSelected: widget.selectedSection == 'protest_list',
+            selectedColor: Colors.indigo.shade900,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommissionerSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade600,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.shield, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'LEITENDE STELLE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.dashboard,
+            title: 'Übersicht',
+            key: 'commissioner_dashboard',
+            isSelected: widget.selectedSection == 'commissioner_dashboard',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.block,
+            title: 'Sperren',
+            key: 'suspension_management',
+            isSelected: widget.selectedSection == 'suspension_management',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.euro,
+            title: 'Strafen & Bußgelder',
+            key: 'fine_management',
+            isSelected: widget.selectedSection == 'fine_management',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.warning_amber,
+            title: 'Proteste',
+            key: 'protest_list',
+            isSelected: widget.selectedSection == 'protest_list',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.calendar_today,
+            title: 'Saison',
+            key: 'season_management',
+            isSelected: widget.selectedSection == 'season_management',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.location_city,
+            title: 'Hallenbörse',
+            key: 'venue_management',
+            isSelected: widget.selectedSection == 'venue_management',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.swap_horiz,
+            title: 'Transfers',
+            key: 'player_transfers',
+            isSelected: widget.selectedSection == 'player_transfers',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.folder_special,
+            title: 'Dokumente',
+            key: 'document_management',
+            isSelected: widget.selectedSection == 'document_management',
+            selectedColor: Colors.deepPurple.shade900,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.green.shade600,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.person, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'SPIELER',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.dashboard,
+            title: 'Mein Dashboard',
+            key: 'player_dashboard',
+            isSelected: widget.selectedSection == 'player_dashboard',
+            selectedColor: Colors.green.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.badge,
+            title: 'Mein Spielerpass',
+            key: 'player_dashboard',
+            isSelected: false,
+            selectedColor: Colors.green.shade900,
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.emoji_events,
+            title: 'Turniere',
+            key: 'turniere',
+            isSelected: widget.selectedSection == 'turniere',
+            selectedColor: Colors.green.shade900,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationItemColored({
+    required IconData icon,
+    required String title,
+    required String key,
+    required bool isSelected,
+    required Color selectedColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? selectedColor : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.white : Colors.white70,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      ),
+    );
+  }
+
   Widget _buildAdminSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -741,12 +993,6 @@ class _SideNavigationState extends State<SideNavigation> {
               title: 'Saison Management',
               key: 'season_management',
               isSelected: widget.selectedSection == 'season_management',
-            ),
-            _buildAdminItem(
-              icon: Icons.dashboard,
-              title: 'Kanban Board',
-              key: 'kanban_board',
-              isSelected: widget.selectedSection == 'kanban_board',
             ),
             _buildAdminItem(
               icon: Icons.location_city,

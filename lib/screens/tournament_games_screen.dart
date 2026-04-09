@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/game.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
+import '../services/team_service.dart';
+import '../models/team.dart';
 import 'game_report_screen.dart';
 
 class TournamentGamesScreen extends StatefulWidget {
@@ -18,6 +20,7 @@ class TournamentGamesScreen extends StatefulWidget {
 
 class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
   final GameService _gameService = GameService();
+  final TeamService _teamService = TeamService();
   String _selectedFilter = 'Alle';
   String _selectedStatus = 'Alle';
 
@@ -92,8 +95,16 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                 ElevatedButton(
                   onPressed: () => _showSchedulingSummary(),
                   child: const Text('Zeitplan Ãœbersicht'),
-                ),
-              ],
+                ),                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _showCreateGameDialog(),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Neues Spiel'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                ),              ],
             ),
             const SizedBox(height: 24),
 
@@ -967,6 +978,199 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                 }
               },
               child: const Text('Speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateGameDialog() async {
+    // Load teams registered for this tournament
+    List<Team> teams = [];
+    try {
+      final allTeams = await _teamService.getAllTeams();
+      teams = allTeams.where((t) => widget.tournament.teamIds.contains(t.id)).toList();
+    } catch (e) {
+      debugPrint('Error loading teams: $e');
+    }
+
+    if (!mounted) return;
+
+    Team? teamA;
+    Team? teamB;
+    DateTime? selectedDate;
+    TimeOfDay? selectedTime;
+    String? selectedCourtId;
+    GameType selectedGameType = GameType.pool;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Text('Neues Spiel erstellen'),
+          content: SizedBox(
+            width: 450,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Game type
+                  DropdownButtonFormField<GameType>(
+                    value: selectedGameType,
+                    decoration: const InputDecoration(
+                      labelText: 'Spieltyp',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: GameType.pool, child: Text('Gruppenphase')),
+                      DropdownMenuItem(value: GameType.elimination, child: Text('K.O.-Phase')),
+                    ],
+                    onChanged: (v) => setDlgState(() => selectedGameType = v!),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Team A
+                  DropdownButtonFormField<Team>(
+                    value: teamA,
+                    decoration: const InputDecoration(
+                      labelText: 'Team A',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.people),
+                    ),
+                    items: teams.map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t.name),
+                    )).toList(),
+                    onChanged: (v) => setDlgState(() => teamA = v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Team B
+                  DropdownButtonFormField<Team>(
+                    value: teamB,
+                    decoration: const InputDecoration(
+                      labelText: 'Team B',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.people_outline),
+                    ),
+                    items: teams
+                        .where((t) => t.id != teamA?.id)
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.name),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setDlgState(() => teamB = v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Date
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.calendar_today, color: Colors.blue),
+                    title: Text(selectedDate != null
+                        ? '${selectedDate!.day.toString().padLeft(2, '0')}.${selectedDate!.month.toString().padLeft(2, '0')}.${selectedDate!.year}'
+                        : 'Datum auswählen'),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: ctx,
+                        initialDate: widget.tournament.startDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2030),
+                      );
+                      if (date != null) setDlgState(() => selectedDate = date);
+                    },
+                  ),
+
+                  // Time
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.access_time, color: Colors.blue),
+                    title: Text(selectedTime != null
+                        ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
+                        : 'Uhrzeit auswählen'),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 10, minute: 0),
+                      );
+                      if (time != null) setDlgState(() => selectedTime = time);
+                    },
+                  ),
+
+                  // Court
+                  if (widget.tournament.courts.isNotEmpty)
+                    DropdownButtonFormField<String?>(
+                      value: selectedCourtId,
+                      decoration: const InputDecoration(
+                        labelText: 'Feld / Halle',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.stadium),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text('Kein Feld')),
+                        ...widget.tournament.courts.map((court) => DropdownMenuItem<String?>(
+                          value: court.id,
+                          child: Text(court.name),
+                        )),
+                      ],
+                      onChanged: (v) => setDlgState(() => selectedCourtId = v),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: (teamA != null && teamB != null)
+                  ? () async {
+                      DateTime? scheduledTime;
+                      if (selectedDate != null) {
+                        scheduledTime = DateTime(
+                          selectedDate!.year,
+                          selectedDate!.month,
+                          selectedDate!.day,
+                          selectedTime?.hour ?? 0,
+                          selectedTime?.minute ?? 0,
+                        );
+                      }
+
+                      final newGame = Game(
+                        id: '',
+                        tournamentId: widget.tournament.id,
+                        teamAId: teamA!.id,
+                        teamBId: teamB!.id,
+                        teamAName: teamA!.name,
+                        teamBName: teamB!.name,
+                        gameType: selectedGameType,
+                        scheduledTime: scheduledTime,
+                        courtId: selectedCourtId,
+                        status: GameStatus.scheduled,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      );
+
+                      try {
+                        await _gameService.addGame(newGame);
+                        Navigator.of(ctx).pop();
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Spiel wurde erstellt')),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Fehler: $e')),
+                        );
+                      }
+                    }
+                  : null,
+              child: const Text('Erstellen'),
             ),
           ],
         ),

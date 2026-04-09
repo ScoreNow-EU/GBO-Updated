@@ -476,6 +476,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Colors.amber;
       case app_user.UserRole.tournamentOrganizer:
         return Colors.deepPurple;
+      case app_user.UserRole.teamRHD:
+        return Colors.brown;
     }
   }
 
@@ -501,6 +503,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Icons.person;
       case app_user.UserRole.tournamentOrganizer:
         return Icons.event;
+      case app_user.UserRole.teamRHD:
+        return Icons.gavel;
     }
   }
 
@@ -664,6 +668,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.deepPurple;
         icon = Icons.event;
         break;
+      case app_user.UserRole.teamRHD:
+        color = Colors.brown;
+        icon = Icons.gavel;
+        break;
     }
     
     return Container(
@@ -820,6 +828,10 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.deepPurple;
         icon = Icons.event;
         break;
+      case app_user.UserRole.teamRHD:
+        color = Colors.brown;
+        icon = Icons.gavel;
+        break;
     }
     
     return OutlinedButton.icon(
@@ -865,6 +877,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return 'Spieler';
       case app_user.UserRole.tournamentOrganizer:
         return 'Tournament Organizer';
+      case app_user.UserRole.teamRHD:
+        return 'Team RHD';
     }
   }
 
@@ -941,6 +955,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.seriesOrganizer:
       case app_user.UserRole.spieler:
       case app_user.UserRole.tournamentOrganizer:
+      case app_user.UserRole.teamRHD:
         await _assignSimpleRole(user, role);
         break;
     }

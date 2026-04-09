@@ -9,6 +9,7 @@ class Player {
   final String? phone;
   final DateTime? birthDate;
   final String? classification; // 'Gruppe A', 'Gruppe B', 'Gruppe C'
+  final String? spielerpassNummer; // RHD license number
   final String? jerseyNumber;
   final String gender; // 'mÃ¤nnlich', 'weiblich', 'divers'
   final bool isActive;
@@ -22,6 +23,7 @@ class Player {
     this.phone,
     this.birthDate,
     this.classification,
+    this.spielerpassNummer,
     this.jerseyNumber,
     required this.gender,
     this.isActive = true,
@@ -57,6 +59,7 @@ class Player {
       'phone': phone,
       'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
       'classification': classification,
+      'spielerpassNummer': spielerpassNummer,
       'jerseyNumber': jerseyNumber,
       'gender': gender,
       'isActive': isActive,
@@ -89,6 +92,7 @@ class Player {
             ? (data['birthDate'] as Timestamp).toDate() 
             : null,
         classification: classification,
+        spielerpassNummer: data['spielerpassNummer'],
         jerseyNumber: data['jerseyNumber'],
         gender: gender,
         isActive: data['isActive'] ?? true,
@@ -110,6 +114,7 @@ class Player {
     String? phone,
     DateTime? birthDate,
     String? classification,
+    String? spielerpassNummer,
     String? jerseyNumber,
     String? gender,
     bool? isActive,
@@ -122,6 +127,7 @@ class Player {
       phone: phone ?? this.phone,
       birthDate: birthDate ?? this.birthDate,
       classification: classification ?? this.classification,
+      spielerpassNummer: spielerpassNummer ?? this.spielerpassNummer,
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
       gender: gender ?? this.gender,
       isActive: isActive ?? this.isActive,

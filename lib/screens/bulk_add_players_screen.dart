@@ -18,12 +18,14 @@ class BulkPlayerRow {
   final TextEditingController firstName = TextEditingController();
   final TextEditingController lastName = TextEditingController();
   final TextEditingController jersey = TextEditingController();
+  final TextEditingController spielerpass = TextEditingController();
   String? gender;
 
   void dispose() {
     firstName.dispose();
     lastName.dispose();
     jersey.dispose();
+    spielerpass.dispose();
   }
 
   bool get hasData => firstName.text.isNotEmpty || lastName.text.isNotEmpty;
@@ -103,6 +105,7 @@ class _BulkAddPlayersScreenState extends State<BulkAddPlayersScreen> {
           firstName: row.firstName.text.trim(),
           lastName: row.lastName.text.trim(),
           jerseyNumber: row.jersey.text.trim().isEmpty ? null : row.jersey.text.trim(),
+          spielerpassNummer: row.spielerpass.text.trim().isEmpty ? null : row.spielerpass.text.trim(),
           gender: row.gender!,
           isActive: true,
           createdAt: DateTime.now(),
@@ -308,6 +311,15 @@ class _BulkAddPlayersScreenState extends State<BulkAddPlayersScreen> {
               style: const TextStyle(fontSize: 12),
               decoration: dec.copyWith(hintText: 'Nr.'),
               keyboardType: TextInputType.number,
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 110,
+            child: TextFormField(
+              controller: row.spielerpass,
+              style: const TextStyle(fontSize: 12),
+              decoration: dec.copyWith(hintText: 'Spielerpass'),
             ),
           ),
           const SizedBox(width: 8),

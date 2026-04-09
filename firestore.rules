@@ -23,6 +23,14 @@ service cloud.firestore {
       return isAdmin() || hasRole('seriesOrganizer');
     }
 
+    function isTeamRHD() {
+      return hasRole('teamRHD');
+    }
+
+    function isAdminOrTeamRHD() {
+      return isAdmin() || isTeamRHD();
+    }
+
     // ── Users ─────────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isAuthenticated();
@@ -31,25 +39,33 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── Tournaments ───────────────────────────────────────────────────
+    // ── Tournaments (public read for scoreboard) ────────────────────
     match /tournaments/{tournamentId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
       allow update: if isAuthenticated() && isAdminOrSeriesOrganizer();
       allow delete: if isAdmin();
+
+      // Games subcollection under tournaments — public read
+      match /games/{gameId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin();
+      }
     }
 
-    // ── Teams ─────────────────────────────────────────────────────────
+    // ── Teams (public read for scoreboard) ────────────────────────
     match /teams/{teamId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && (isAdminOrSeriesOrganizer() || hasRole('teamManager'));
       allow update: if isAuthenticated() && (isAdminOrSeriesOrganizer() || hasRole('teamManager'));
       allow delete: if isAdmin();
     }
 
-    // ── Games ─────────────────────────────────────────────────────────
+    // ── Games (top-level, public read) ────────────────────────────
     match /games/{gameId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
       allow update: if isAuthenticated();
       allow delete: if isAdmin();
@@ -106,6 +122,94 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && isAdmin();
+    }
+
+    // ── Protests ──────────────────────────────────────────────────────
+    match /protests/{protestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdminOrTeamRHD() || hasRole('delegate'));
+      allow delete: if isAdmin();
+    }
+
+    // ── Suspensions ───────────────────────────────────────────────────
+    match /suspensions/{suspensionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
+    }
+
+    // ── Seasons ───────────────────────────────────────────────────────
+    match /seasons/{seasonId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isAdminOrTeamRHD() || hasRole('seriesOrganizer'));
+      allow update: if isAuthenticated() && (isAdminOrTeamRHD() || hasRole('seriesOrganizer'));
+      allow delete: if isAdmin();
+    }
+
+    // ── Venues ────────────────────────────────────────────────────────
+    match /venues/{venueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow update: if isAuthenticated() && isAdminOrSeriesOrganizer();
+      allow delete: if isAdmin();
+    }
+
+    // ── Fines ─────────────────────────────────────────────────────────
+    match /fines/{fineId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
+    }
+
+    // ── Game Events (public read for scoreboard) ──────────────────────
+    match /gameEvents/{eventId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Game Reports ──────────────────────────────────────────────────
+    match /gameReports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Game Squads ───────────────────────────────────────────────────
+    match /gameSquads/{squadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Custom Notifications ──────────────────────────────────────────
+    match /custom_notifications/{notifId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ── Transfers ─────────────────────────────────────────────────────
+    match /transfers/{transferId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
+    }
+
+    // ── Documents ─────────────────────────────────────────────────────
+    match /documents/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
     }
 
     // ── Deny all other collections by default ─────────────────────────

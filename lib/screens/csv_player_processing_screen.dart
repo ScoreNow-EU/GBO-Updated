@@ -371,6 +371,7 @@ class _CSVPlayerProcessingScreenState extends State<CSVPlayerProcessingScreen> {
             email: '', // Empty email - optional field
             jerseyNumber: row['Jersey Number']?.toString() ?? '',
             classification: row['Position'] ?? '',
+            spielerpassNummer: row['Spielerpass']?.toString().isEmpty ?? true ? null : row['Spielerpass']?.toString(),
             gender: gender,
             createdAt: DateTime.now(),
           );

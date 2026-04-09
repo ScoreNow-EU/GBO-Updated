@@ -145,6 +145,8 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
         return 'Spieler';
       case app_user.UserRole.tournamentOrganizer:
         return 'Turnier Organisator';
+      case app_user.UserRole.teamRHD:
+        return 'Team RHD';
     }
   }
 

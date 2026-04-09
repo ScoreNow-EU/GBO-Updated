@@ -29,6 +29,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
   final _phoneController = TextEditingController();
   final _positionController = TextEditingController();
   final _jerseyNumberController = TextEditingController();
+  final _spielerpassController = TextEditingController();
   
   String _searchQuery = '';
   bool _isLoading = false;
@@ -552,6 +553,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     _phoneController.text = player.phone ?? '';
     _positionController.text = player.classification ?? '';
     _jerseyNumberController.text = player.jerseyNumber ?? '';
+    _spielerpassController.text = player.spielerpassNummer ?? '';
     _showPlayerDialog(isEdit: true, player: player);
   }
 
@@ -632,6 +634,16 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _spielerpassController,
+                decoration: const InputDecoration(
+                  labelText: 'Spielerpass-Nr.',
+                  border: OutlineInputBorder(),
+                  hintText: 'Lizenznummer',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
             ],
           ),
         ),
@@ -686,6 +698,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
         phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         classification: _positionController.text.trim().isEmpty ? null : _positionController.text.trim(),
         jerseyNumber: _jerseyNumberController.text.trim().isEmpty ? null : _jerseyNumberController.text.trim(),
+        spielerpassNummer: _spielerpassController.text.trim().isEmpty ? null : _spielerpassController.text.trim(),
         gender: isEdit ? existingPlayer!.gender : 'male', // Default to male for existing functionality
         createdAt: isEdit ? existingPlayer!.createdAt : DateTime.now(),
       );
@@ -918,6 +931,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     _phoneController.clear();
     _positionController.clear();
     _jerseyNumberController.clear();
+    _spielerpassController.clear();
   }
 
   Future<void> _fixTeamRosters() async {

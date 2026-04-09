@@ -4,6 +4,7 @@ import '../services/custom_notification_service.dart';
 import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
 import '../services/team_manager_service.dart';
+import '../services/team_service.dart';
 import '../models/team.dart';
 
 class CustomNotificationScreen extends StatefulWidget {
@@ -28,6 +29,12 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
   bool _isRequestingPermission = false;
   List<app_user.User> _users = [];
   Map<String, List<String>> _userTeamNames = {};
+  
+  // Broadcast mode
+  String _recipientMode = 'single'; // 'single', 'all', 'role', 'team'
+  List<String> _selectedRoles = [];
+  List<Team> _allTeams = [];
+  List<String> _selectedTeamIds = [];
   
   @override
   void initState() {
@@ -78,6 +85,17 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
           _isLoading = false;
         });
       }
+      
+      // Load all teams for broadcast filter
+      TeamService().getTeams().first.then((teams) {
+        if (mounted) {
+          setState(() {
+            _allTeams = teams;
+          });
+        }
+      }).catchError((e) {
+        debugPrint('Error loading teams for broadcast: $e');
+      });
     } catch (e) {
       // Update loading state only if mounted
       if (mounted) {
@@ -99,13 +117,37 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
   
   Future<void> _sendNotification() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedUserEmail == null) {
+    
+    // Validate recipient selection based on mode
+    if (_recipientMode == 'single' && _selectedUserEmail == null) {
       toastification.show(
         context: context,
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
         title: const Text('Warnung'),
-        description: const Text('Bitte wÃ¤hlen Sie einen Benutzer aus.'),
+        description: const Text('Bitte wählen Sie einen Benutzer aus.'),
+        autoCloseDuration: const Duration(seconds: 3),
+      );
+      return;
+    }
+    if (_recipientMode == 'role' && _selectedRoles.isEmpty) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Warnung'),
+        description: const Text('Bitte wählen Sie mindestens eine Rolle aus.'),
+        autoCloseDuration: const Duration(seconds: 3),
+      );
+      return;
+    }
+    if (_recipientMode == 'team' && _selectedTeamIds.isEmpty) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Warnung'),
+        description: const Text('Bitte wählen Sie mindestens ein Team aus.'),
         autoCloseDuration: const Duration(seconds: 3),
       );
       return;
@@ -182,13 +224,29 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         }
       }
       
-      // Send the notification
-      final success = await _notificationService.sendCustomNotification(
-        title: _titleController.text.trim(),
-        message: _messageController.text.trim(),
-        userEmail: _selectedUserEmail!,
-        isTimeSensitive: _isTimeSensitive,
-      );
+      // Send the notification based on mode
+      bool success = false;
+      String successMessage = '';
+      
+      if (_recipientMode == 'single') {
+        success = await _notificationService.sendCustomNotification(
+          title: _titleController.text.trim(),
+          message: _messageController.text.trim(),
+          userEmail: _selectedUserEmail!,
+          isTimeSensitive: _isTimeSensitive,
+        );
+        successMessage = 'Benachrichtigung wurde erfolgreich an $_selectedUserEmail gesendet.';
+      } else {
+        final sentCount = await _notificationService.sendBroadcast(
+          title: _titleController.text.trim(),
+          message: _messageController.text.trim(),
+          filterRoles: _recipientMode == 'role' ? _selectedRoles : null,
+          filterTeamIds: _recipientMode == 'team' ? _selectedTeamIds : null,
+          isTimeSensitive: _isTimeSensitive,
+        );
+        success = sentCount > 0;
+        successMessage = 'Broadcast an $sentCount Empfänger gesendet.';
+      }
       
       if (success) {
         if (mounted) {
@@ -197,7 +255,7 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
             type: ToastificationType.success,
             style: ToastificationStyle.fillColored,
             title: const Text('Benachrichtigung gesendet'),
-            description: Text('Benachrichtigung wurde erfolgreich an $_selectedUserEmail gesendet.'),
+            description: Text(successMessage),
             autoCloseDuration: const Duration(seconds: 3),
           );
         }
@@ -210,6 +268,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         if (mounted) {
           setState(() {
             _selectedUserEmail = null;
+            _selectedRoles = [];
+            _selectedTeamIds = [];
             _isTimeSensitive = false;
           });
         }
@@ -371,6 +431,18 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                                    Colors.teal,
                                    () => _showTournamentUpdateDialog(),
                                  ),
+                                 _buildPresetChip(
+                                   'Spielverlegung',
+                                   Icons.event_busy,
+                                   Colors.indigo,
+                                   () => _showGamePostponementDialog(),
+                                 ),
+                                 _buildPresetChip(
+                                   'Absage',
+                                   Icons.cancel,
+                                   Colors.red.shade900,
+                                   () => _showCancellationDialog(),
+                                 ),
                               ],
                             ),
                             
@@ -438,12 +510,44 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                             
                             const SizedBox(height: 16),
                             
+                            // Recipient Mode Selection
+                            const Text(
+                              'Empfänger-Modus',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            SegmentedButton<String>(
+                              segments: const [
+                                ButtonSegment(value: 'single', label: Text('Einzeln'), icon: Icon(Icons.person)),
+                                ButtonSegment(value: 'all', label: Text('Alle'), icon: Icon(Icons.groups)),
+                                ButtonSegment(value: 'role', label: Text('Rolle'), icon: Icon(Icons.badge)),
+                                ButtonSegment(value: 'team', label: Text('Team'), icon: Icon(Icons.shield)),
+                              ],
+                              selected: {_recipientMode},
+                              onSelectionChanged: (value) {
+                                setState(() {
+                                  _recipientMode = value.first;
+                                  _selectedUserEmail = null;
+                                  _selectedRoles = [];
+                                  _selectedTeamIds = [];
+                                });
+                              },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Conditional recipient selector
+                            if (_recipientMode == 'single') ...[
                             // User Selection
                             DropdownButtonFormField<String>(
                               value: _selectedUserEmail,
                               decoration: const InputDecoration(
-                                labelText: 'EmpfÃ¤nger',
-                                hintText: 'WÃ¤hlen',
+                                labelText: 'Empfänger',
+                                hintText: 'Wählen',
                                 border: OutlineInputBorder(),
                                 isDense: false,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 30),
@@ -496,12 +600,83 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
                                 });
                               },
                               validator: (value) {
-                                if (value == null) {
-                                  return 'Bitte wÃ¤hlen Sie einen EmpfÃ¤nger aus';
+                                if (_recipientMode == 'single' && value == null) {
+                                  return 'Bitte wählen Sie einen Empfänger aus';
                                 }
                                 return null;
                               },
                             ),
+                            ] else if (_recipientMode == 'all') ...[
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.green.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.groups, color: Colors.green.shade700),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Nachricht wird an alle ${_users.length} Benutzer gesendet',
+                                      style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else if (_recipientMode == 'role') ...[
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: app_user.UserRole.values.map((role) {
+                                  final isSelected = _selectedRoles.contains(role.name);
+                                  return FilterChip(
+                                    selected: isSelected,
+                                    label: Text(_getRoleDisplayName(role)),
+                                    selectedColor: _getRoleColor(role),
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          _selectedRoles.add(role.name);
+                                        } else {
+                                          _selectedRoles.remove(role.name);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              if (_selectedRoles.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    '${_users.where((u) => u.roles.any((r) => _selectedRoles.contains(r.name))).length} Empfänger ausgewählt',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ),
+                            ] else if (_recipientMode == 'team') ...[
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _allTeams.map((team) {
+                                  final isSelected = _selectedTeamIds.contains(team.id);
+                                  return FilterChip(
+                                    selected: isSelected,
+                                    label: Text(team.name),
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          _selectedTeamIds.add(team.id);
+                                        } else {
+                                          _selectedTeamIds.remove(team.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                             
                             const SizedBox(height: 16),
                             
@@ -657,6 +832,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.amber.shade100;
       case app_user.UserRole.tournamentOrganizer:
         return Colors.deepPurple.shade100;
+      case app_user.UserRole.teamRHD:
+        return Colors.brown.shade100;
     }
   }
   
@@ -682,6 +859,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.amber.shade700;
       case app_user.UserRole.tournamentOrganizer:
         return Colors.deepPurple.shade700;
+      case app_user.UserRole.teamRHD:
+        return Colors.brown.shade700;
     }
   }
   
@@ -707,6 +886,8 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return 'SPIELER';
       case app_user.UserRole.tournamentOrganizer:
         return 'TOURNAMENT ORGANIZER';
+      case app_user.UserRole.teamRHD:
+        return 'TEAM RHD';
     }
   }
   
@@ -803,6 +984,30 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
     showDialog(
       context: context,
       builder: (context) => _TournamentUpdateDialog(
+        onFillForm: (title, message) {
+          _titleController.text = title;
+          _messageController.text = message;
+        },
+      ),
+    );
+  }
+  
+  void _showGamePostponementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _GamePostponementDialog(
+        onFillForm: (title, message) {
+          _titleController.text = title;
+          _messageController.text = message;
+        },
+      ),
+    );
+  }
+  
+  void _showCancellationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _CancellationDialog(
         onFillForm: (title, message) {
           _titleController.text = title;
           _messageController.text = message;
@@ -1489,6 +1694,161 @@ class _TournamentUpdateDialogState extends State<_TournamentUpdateDialog> {
             }
           },
           child: const Text('Ãœbernehmen'),
+        ),
+      ],
+    );
+  }
+}
+
+// Dialog for game postponement notification
+class _GamePostponementDialog extends StatefulWidget {
+  final Function(String title, String message) onFillForm;
+  const _GamePostponementDialog({required this.onFillForm});
+  @override
+  State<_GamePostponementDialog> createState() => _GamePostponementDialogState();
+}
+
+class _GamePostponementDialogState extends State<_GamePostponementDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _gameController = TextEditingController();
+  final _newDateController = TextEditingController();
+  final _reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _gameController.dispose();
+    _newDateController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Spielverlegung'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _gameController,
+              decoration: const InputDecoration(
+                labelText: 'Spiel (z.B. Team A vs Team B)',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => value?.isEmpty == true ? 'Pflichtfeld' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _newDateController,
+              decoration: const InputDecoration(
+                labelText: 'Neuer Termin',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => value?.isEmpty == true ? 'Pflichtfeld' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Grund (optional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              final title = 'Spielverlegung: ${_gameController.text}';
+              final reason = _reasonController.text.isNotEmpty
+                  ? '\n\nGrund: ${_reasonController.text}'
+                  : '';
+              final message = 'Das Spiel ${_gameController.text} wurde verlegt.\n\nNeuer Termin: ${_newDateController.text}$reason';
+              widget.onFillForm(title, message);
+              Navigator.of(context).pop();
+            }
+          },
+          child: const Text('Übernehmen'),
+        ),
+      ],
+    );
+  }
+}
+
+// Dialog for cancellation notification
+class _CancellationDialog extends StatefulWidget {
+  final Function(String title, String message) onFillForm;
+  const _CancellationDialog({required this.onFillForm});
+  @override
+  State<_CancellationDialog> createState() => _CancellationDialogState();
+}
+
+class _CancellationDialogState extends State<_CancellationDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _subjectController = TextEditingController();
+  final _reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Absage'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _subjectController,
+              decoration: const InputDecoration(
+                labelText: 'Was wird abgesagt? (z.B. Spieltag 3)',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) => value?.isEmpty == true ? 'Pflichtfeld' : null,
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Begründung',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              validator: (value) => value?.isEmpty == true ? 'Pflichtfeld' : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              final title = 'ABSAGE: ${_subjectController.text}';
+              final message = '${_subjectController.text} wurde abgesagt.\n\nBegründung: ${_reasonController.text}\n\nWeitere Informationen folgen.';
+              widget.onFillForm(title, message);
+              Navigator.of(context).pop();
+            }
+          },
+          child: const Text('Übernehmen'),
         ),
       ],
     );

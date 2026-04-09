@@ -7,6 +7,7 @@ import '../models/player.dart';
 import '../models/team.dart';
 import '../models/game.dart';
 import 'coach_auth_monitoring_service.dart';
+import 'suspension_service.dart';
 
 class GameSquadService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -20,13 +21,29 @@ class GameSquadService {
     required List<Player> selectedPlayers,
     required String selectedByUserId,
     required String selectedByName,
+    String? tournamentId,
     bool shouldSign = false,
   }) async {
     try {
       // Validate squad size (max 16 players)
       if (selectedPlayers.length > 16 || selectedPlayers.isEmpty) {
-        debugPrint('âŒ Invalid squad size: ${selectedPlayers.length}');
+        debugPrint('\u274c Invalid squad size: ${selectedPlayers.length}');
         return false;
+      }
+
+      // Check for suspended players
+      if (tournamentId != null) {
+        final suspensionService = SuspensionService();
+        for (final player in selectedPlayers) {
+          final isSuspended = await suspensionService.isPlayerSuspendedForTournament(
+            player.id,
+            tournamentId,
+          );
+          if (isSuspended) {
+            debugPrint('\u274c Player ${player.fullName} is suspended for tournament $tournamentId');
+            return false;
+          }
+        }
       }
 
       // Convert players to SquadPlayer objects

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:printing/printing.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
 import '../models/tournament.dart';
 import '../services/live_scoring_service.dart';
 import '../services/game_service.dart';
 import '../services/game_squad_service.dart';
+import '../services/protest_service.dart';
+import '../services/spielbericht_pdf_service.dart';
 import '../models/game_squad.dart';
+import 'protest_screen.dart';
+import 'protest_list_screen.dart';
+import 'spielerpass_check_screen.dart';
 
 class GameReportScreen extends StatefulWidget {
   final Game game;
@@ -32,11 +38,24 @@ class _GameReportScreenState extends State<GameReportScreen> {
   GameSquad? _squadA;
   GameSquad? _squadB;
 
-  // Confirmation state
-  bool _refereeConfirmed = false;
-  DateTime? _refereeConfirmedAt;
-  bool _delegateConfirmed = false;
-  DateTime? _delegateConfirmedAt;
+  // Sign-off chain state (5 slots)
+  Map<String, bool> _signatures = {
+    'teamACoach': false,
+    'teamBCoach': false,
+    'referee1': false,
+    'referee2': false,
+    'delegate': false,
+  };
+  Map<String, DateTime?> _signatureTimes = {
+    'teamACoach': null,
+    'teamBCoach': null,
+    'referee1': null,
+    'referee2': null,
+    'delegate': null,
+  };
+  Map<String, String> _signatureNames = {};
+  bool _isLocked = false;
+  bool _hasOpenProtests = false;
 
   @override
   void initState() {
@@ -76,20 +95,53 @@ class _GameReportScreenState extends State<GameReportScreen> {
             .get();
         if (reportDoc.exists) {
           final data = reportDoc.data()!;
-          _refereeConfirmed = data['refereeConfirmed'] ?? false;
-          _refereeConfirmedAt = data['refereeConfirmedAt'] != null
-              ? DateTime.parse(data['refereeConfirmedAt'])
-              : null;
-          _delegateConfirmed = data['delegateConfirmed'] ?? false;
-          _delegateConfirmedAt = data['delegateConfirmedAt'] != null
-              ? DateTime.parse(data['delegateConfirmedAt'])
-              : null;
+          for (final role in ['teamACoach', 'teamBCoach', 'referee1', 'referee2', 'delegate']) {
+            _signatures[role] = data['${role}Signed'] ?? false;
+            _signatureTimes[role] = data['${role}SignedAt'] != null
+                ? DateTime.tryParse(data['${role}SignedAt'])
+                : null;
+            _signatureNames[role] = data['${role}Name'] ?? '';
+          }
+          _isLocked = data['isLocked'] ?? false;
         }
+      } catch (_) {}
+
+      // Check for open protests
+      try {
+        final protestService = ProtestService();
+        _hasOpenProtests = await protestService.hasOpenProtests(widget.game.id);
       } catch (_) {}
     } catch (e) {
       debugPrint('Error loading game report data: $e');
     }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _exportPdf() async {
+    try {
+      final pdfService = SpielberichtPdfService();
+      final pdfBytes = await pdfService.generateSpielberichtPdf(
+        game: widget.game,
+        tournament: widget.tournament,
+        events: _events,
+        squadA: _squadA,
+        squadB: _squadB,
+        signatures: _signatures,
+        signatureTimes: _signatureTimes,
+        signatureNames: _signatureNames,
+        isLocked: _isLocked,
+      );
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'Spielbericht_${widget.game.teamAName}_vs_${widget.game.teamBName}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF-Fehler: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -1064,220 +1116,345 @@ class _GameReportScreenState extends State<GameReportScreen> {
   }
 
   Widget _buildConfirmationSection() {
+    final signOrder = ['teamACoach', 'teamBCoach', 'referee1', 'referee2', 'delegate'];
+    final labels = {
+      'teamACoach': 'Trainer ${widget.game.teamAName ?? 'A'}',
+      'teamBCoach': 'Trainer ${widget.game.teamBName ?? 'B'}',
+      'referee1': 'Schiedsrichter 1',
+      'referee2': 'Schiedsrichter 2',
+      'delegate': 'Delegierter',
+    };
+    final icons = {
+      'teamACoach': Icons.person,
+      'teamBCoach': Icons.person,
+      'referee1': Icons.sports,
+      'referee2': Icons.sports,
+      'delegate': Icons.verified_user,
+    };
+
+    // Determine which slot is next to sign
+    String? nextToSign;
+    for (final role in signOrder) {
+      if (!(_signatures[role] ?? false)) {
+        nextToSign = role;
+        break;
+      }
+    }
+
+    final allSigned = nextToSign == null;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Offizielle BestÃ¤tigung',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-
-            // Referee confirmation
-            _buildConfirmationTile(
-              icon: Icons.sports,
-              title: 'Schiedsrichter',
-              isConfirmed: _refereeConfirmed,
-              confirmedAt: _refereeConfirmedAt,
-              onConfirm: () => _confirmReport('referee'),
-              onRevoke: () => _revokeConfirmation('referee'),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Spielbericht – Unterschriften',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (_hasOpenProtests)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.gavel, size: 14, color: Colors.red.shade700),
+                        const SizedBox(width: 4),
+                        Text('Protest offen',
+                            style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
-
-            // Delegate confirmation
-            _buildConfirmationTile(
-              icon: Icons.verified_user,
-              title: 'Delegierter',
-              isConfirmed: _delegateConfirmed,
-              confirmedAt: _delegateConfirmedAt,
-              onConfirm: () => _confirmReport('delegate'),
-              onRevoke: () => _revokeConfirmation('delegate'),
+            // Action buttons
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.gavel, size: 16),
+                  label: const Text('Protest'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => ProtestListScreen(
+                          tournamentId: widget.tournament.id,
+                          tournamentName: widget.tournament.name,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.badge_outlined, size: 16),
+                  label: const Text('Spielerpass'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => SpielerpassCheckScreen(
+                          gameId: widget.game.id,
+                          tournamentId: widget.tournament.id,
+                          gameDisplayName: widget.game.displayName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (_isLocked)
+                  ActionChip(
+                    avatar: const Icon(Icons.picture_as_pdf, size: 16),
+                    label: const Text('PDF Export'),
+                    onPressed: _exportPdf,
+                  ),
+              ],
             ),
+            const SizedBox(height: 16),
+            if (_isLocked || allSigned)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock, color: Colors.green.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Spielbericht abgeschlossen',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 12),
+            ...signOrder.map((role) {
+              final isSigned = _signatures[role] ?? false;
+              final signedAt = _signatureTimes[role];
+              final name = _signatureNames[role] ?? '';
+              final isNext = role == nextToSign;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildSignatureSlot(
+                  icon: icons[role]!,
+                  title: labels[role]!,
+                  signerName: name,
+                  isSigned: isSigned,
+                  signedAt: signedAt,
+                  isNext: isNext,
+                  isLocked: _isLocked,
+                  onSign: isNext && !_isLocked
+                      ? () => _showSliderConfirmation(role, labels[role]!)
+                      : null,
+                ),
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildConfirmationTile({
+  Widget _buildSignatureSlot({
     required IconData icon,
     required String title,
-    required bool isConfirmed,
-    DateTime? confirmedAt,
-    required VoidCallback onConfirm,
-    required VoidCallback onRevoke,
+    required String signerName,
+    required bool isSigned,
+    DateTime? signedAt,
+    required bool isNext,
+    required bool isLocked,
+    VoidCallback? onSign,
   }) {
+    Color bgColor;
+    Color borderColor;
+    Color textColor;
+
+    if (isSigned) {
+      bgColor = Colors.green.shade50;
+      borderColor = Colors.green.shade300;
+      textColor = Colors.green.shade800;
+    } else if (isNext && !isLocked) {
+      bgColor = Colors.blue.shade50;
+      borderColor = Colors.blue.shade300;
+      textColor = Colors.blue.shade800;
+    } else {
+      bgColor = Colors.grey.shade50;
+      borderColor = Colors.grey.shade200;
+      textColor = Colors.grey.shade500;
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isConfirmed ? Colors.green.shade50 : Colors.orange.shade50,
+        color: bgColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isConfirmed ? Colors.green.shade300 : Colors.orange.shade300,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: isConfirmed ? Colors.green.shade700 : Colors.orange.shade700,
-          ),
+          Icon(icon, color: isSigned ? Colors.green.shade700 : textColor),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: isConfirmed ? Colors.green.shade800 : Colors.orange.shade800,
-                  ),
-                ),
-                if (isConfirmed && confirmedAt != null)
+                Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: textColor)),
+                if (isSigned && signedAt != null)
                   Text(
-                    'BestÃ¤tigt am ${_formatDate(confirmedAt)} um ${_formatTime(confirmedAt)}',
+                    '${signerName.isNotEmpty ? '$signerName – ' : ''}${_formatDate(signedAt)} ${_formatTime(signedAt)}',
                     style: TextStyle(fontSize: 12, color: Colors.green.shade600),
                   )
+                else if (isNext && !isLocked)
+                  Text('Bereit zur Unterschrift', style: TextStyle(fontSize: 12, color: Colors.blue.shade600))
                 else
+                  Text('Ausstehend', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+          if (isSigned)
+            Icon(Icons.check_circle, color: Colors.green.shade700, size: 24)
+          else if (isNext && !isLocked)
+            ElevatedButton(
+              onPressed: onSign,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              child: const Text('Unterschreiben'),
+            )
+          else
+            Icon(Icons.radio_button_unchecked, color: Colors.grey.shade400, size: 24),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSliderConfirmation(String role, String roleLabel) async {
+    double sliderValue = 0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('$roleLabel – Unterschrift'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Schieben Sie den Regler ganz nach rechts, um den Spielbericht zu bestätigen.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: sliderValue >= 0.95 ? Colors.green.shade50 : Colors.grey.shade100,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      Icon(
+                        sliderValue >= 0.95 ? Icons.check_circle : Icons.arrow_forward,
+                        color: sliderValue >= 0.95 ? Colors.green : Colors.grey,
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: sliderValue,
+                          onChanged: (v) => setDialogState(() => sliderValue = v),
+                          activeColor: sliderValue >= 0.95 ? Colors.green : Colors.blue,
+                        ),
+                      ),
+                      Icon(
+                        Icons.lock_open,
+                        color: sliderValue >= 0.95 ? Colors.green : Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (sliderValue >= 0.95)
                   Text(
-                    'Noch nicht bestÃ¤tigt',
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade600),
+                    'Bestätigung bereit',
+                    style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
                   ),
               ],
             ),
           ),
-          if (isConfirmed)
+          actions: [
             TextButton(
-              onPressed: onRevoke,
-              child: const Text('Widerrufen', style: TextStyle(color: Colors.red)),
-            )
-          else
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Abbrechen'),
+            ),
             ElevatedButton(
-              onPressed: onConfirm,
+              onPressed: sliderValue >= 0.95 ? () => Navigator.of(ctx).pop(true) : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('BestÃ¤tigen'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmReport(String role) async {
-    final pin = await _showPinDialog(role);
-    if (pin == null) return;
-
-    try {
-      final now = DateTime.now();
-      final data = <String, dynamic>{};
-      if (role == 'referee') {
-        data['refereeConfirmed'] = true;
-        data['refereeConfirmedAt'] = now.toIso8601String();
-        data['refereePin'] = pin;
-      } else {
-        data['delegateConfirmed'] = true;
-        data['delegateConfirmedAt'] = now.toIso8601String();
-        data['delegatePin'] = pin;
-      }
-
-      await FirebaseFirestore.instance
-          .collection('gameReports')
-          .doc(widget.game.id)
-          .set(data, SetOptions(merge: true));
-
-      setState(() {
-        if (role == 'referee') {
-          _refereeConfirmed = true;
-          _refereeConfirmedAt = now;
-        } else {
-          _delegateConfirmed = true;
-          _delegateConfirmedAt = now;
-        }
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Fehler: $e')),
-      );
-    }
-  }
-
-  Future<void> _revokeConfirmation(String role) async {
-    try {
-      final data = <String, dynamic>{};
-      if (role == 'referee') {
-        data['refereeConfirmed'] = false;
-        data['refereeConfirmedAt'] = null;
-      } else {
-        data['delegateConfirmed'] = false;
-        data['delegateConfirmedAt'] = null;
-      }
-
-      await FirebaseFirestore.instance
-          .collection('gameReports')
-          .doc(widget.game.id)
-          .set(data, SetOptions(merge: true));
-
-      setState(() {
-        if (role == 'referee') {
-          _refereeConfirmed = false;
-          _refereeConfirmedAt = null;
-        } else {
-          _delegateConfirmed = false;
-          _delegateConfirmedAt = null;
-        }
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Fehler: $e')),
-      );
-    }
-  }
-
-  Future<String?> _showPinDialog(String role) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('${role == 'referee' ? 'Schiedsrichter' : 'Delegierter'}-BestÃ¤tigung'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Bitte geben Sie Ihren PIN-Code ein, um den Spielbericht zu bestÃ¤tigen.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              obscureText: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'PIN-Code',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
+              child: const Text('Bestätigen'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Abbrechen'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                Navigator.of(ctx).pop(controller.text);
-              }
-            },
-            child: const Text('BestÃ¤tigen'),
-          ),
-        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      final now = DateTime.now();
+      final data = <String, dynamic>{
+        '${role}Signed': true,
+        '${role}SignedAt': now.toIso8601String(),
+        '${role}Name': roleLabel,
+        '${role}Method': 'slider',
+      };
+
+      // Check if all are now signed
+      final newSignatures = Map<String, bool>.from(_signatures);
+      newSignatures[role] = true;
+      final allSigned = newSignatures.values.every((v) => v);
+      if (allSigned) {
+        data['isLocked'] = true;
+        data['isFullySigned'] = true;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('gameReports')
+          .doc(widget.game.id)
+          .set(data, SetOptions(merge: true));
+
+      setState(() {
+        _signatures[role] = true;
+        _signatureTimes[role] = now;
+        _signatureNames[role] = roleLabel;
+        if (allSigned) _isLocked = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fehler: $e')),
+        );
+      }
+    }
   }
 
   // Helper methods

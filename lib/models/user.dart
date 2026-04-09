@@ -12,6 +12,7 @@ enum UserRole {
   seriesOrganizer,
   spieler,
   tournamentOrganizer,
+  teamRHD,
 }
 
 class User {

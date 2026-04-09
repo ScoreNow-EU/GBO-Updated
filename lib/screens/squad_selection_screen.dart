@@ -10,6 +10,7 @@ import '../services/game_squad_service.dart';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/face_id_service.dart';
+import '../services/suspension_service.dart';
 import '../utils/responsive_helper.dart';
 
 class SquadSelectionScreen extends StatefulWidget {
@@ -33,6 +34,8 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
 
   List<Player> _availablePlayers = [];
   List<Player> _selectedPlayers = [];
+  Set<String> _suspendedPlayerIds = {};
+  Map<String, String> _suspensionReasons = {};
   GameSquad? _existingSquad;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -61,10 +64,31 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
       
       // Load existing squad if any
       final existingSquad = await _gameSquadService.getSquadForGame(widget.game.id, widget.team.id);
+
+      // Check suspensions for each player
+      final suspensionService = SuspensionService();
+      final suspendedIds = <String>{};
+      final suspensionReasonMap = <String, String>{};
+      for (final player in availablePlayers) {
+        final isSuspended = await suspensionService.isPlayerSuspendedForTournament(
+          player.id,
+          widget.game.tournamentId,
+        );
+        if (isSuspended) {
+          suspendedIds.add(player.id);
+          final reason = await suspensionService.getSuspensionReason(
+            player.id,
+            widget.game.tournamentId,
+          );
+          if (reason != null) suspensionReasonMap[player.id] = reason;
+        }
+      }
       
       setState(() {
         _availablePlayers = availablePlayers;
         _existingSquad = existingSquad;
+        _suspendedPlayerIds = suspendedIds;
+        _suspensionReasons = suspensionReasonMap;
         
         // Pre-select existing squad players
         if (existingSquad != null) {
@@ -137,6 +161,7 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
         selectedPlayers: _selectedPlayers,
         selectedByUserId: currentUser.uid,
         selectedByName: currentUser.displayName ?? 'Unbekannt',
+        tournamentId: widget.game.tournamentId,
         shouldSign: shouldSign,
       );
 
@@ -160,6 +185,10 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
   }
 
   void _togglePlayerSelection(Player player) {
+    if (_suspendedPlayerIds.contains(player.id)) {
+      _showErrorToast('${player.fullName} ist gesperrt: ${_suspensionReasons[player.id] ?? 'Gesperrt'}');
+      return;
+    }
     setState(() {
       if (_selectedPlayers.contains(player)) {
         _selectedPlayers.remove(player);
@@ -436,6 +465,7 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
       itemBuilder: (context, index) {
         final player = filteredPlayers[index];
         final isSelected = _selectedPlayers.contains(player);
+        final isSuspended = _suspendedPlayerIds.contains(player.id);
         
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
@@ -443,27 +473,55 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
-              backgroundColor: isSelected ? Colors.green : Colors.grey[300],
-              child: Text(
-                player.jerseyNumber ?? '?',
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[600],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              backgroundColor: isSuspended
+                  ? Colors.red[300]
+                  : isSelected ? Colors.green : Colors.grey[300],
+              child: isSuspended
+                  ? const Icon(Icons.block, color: Colors.white, size: 20)
+                  : Text(
+                      player.jerseyNumber ?? '?',
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
             title: Text(
               player.fullName,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSuspended ? Colors.grey : null,
+                decoration: isSuspended ? TextDecoration.lineThrough : null,
               ),
             ),
-            subtitle: player.classification != null 
-              ? Text(player.classification!)
-              : null,
-            trailing: isSelected
-              ? const Icon(Icons.check_circle, color: Colors.green)
-              : const Icon(Icons.circle_outlined, color: Colors.grey),
+            subtitle: isSuspended
+                ? Text(
+                    'Gesperrt: ${_suspensionReasons[player.id] ?? 'Turniersperre'}',
+                    style: TextStyle(color: Colors.red[700], fontSize: 12),
+                  )
+                : player.classification != null 
+                    ? Text(player.classification!)
+                    : null,
+            trailing: isSuspended
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red[300]!),
+                    ),
+                    child: Text(
+                      'Gesperrt',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : isSelected
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : const Icon(Icons.circle_outlined, color: Colors.grey),
             onTap: () => _togglePlayerSelection(player),
           ),
         );

@@ -41,37 +41,43 @@ class _GameSignOffScreenState extends State<GameSignOffScreen> {
 
   Future<void> _loadGameData() async {
     try {
-      final doc = await FirebaseFirestore.instance
+      // Try to determine team side and scores from game and gameStates
+      final gameDoc = await FirebaseFirestore.instance
+          .collection('games')
+          .doc(widget.gameId)
+          .get();
+
+      if (gameDoc.exists) {
+        final gameData = gameDoc.data()!;
+        _teamAName = gameData['teamAName'] ?? 'Team A';
+        _teamBName = gameData['teamBName'] ?? 'Team B';
+        _isTeamA = gameData['teamAId'] == widget.teamId;
+      }
+
+      final stateDoc = await FirebaseFirestore.instance
           .collection('gameStates')
           .doc(widget.gameId)
           .get();
 
-      if (doc.exists) {
-        final data = doc.data()!;
-
-        // Try to determine team side from the game document
-        final gameDoc = await FirebaseFirestore.instance
-            .collection('games')
-            .doc(widget.gameId)
-            .get();
-
-        if (gameDoc.exists) {
-          final gameData = gameDoc.data()!;
-          _teamAName = gameData['teamAName'] ?? 'Team A';
-          _teamBName = gameData['teamBName'] ?? 'Team B';
-          _isTeamA = gameData['teamAId'] == widget.teamId;
-        }
-
+      if (stateDoc.exists) {
+        final data = stateDoc.data()!;
         _teamAScore = data['teamAScore'] ?? 0;
         _teamBScore = data['teamBScore'] ?? 0;
+        _managerName = _isTeamA
+            ? (data['teamAManagerName'] ?? '')
+            : (data['teamBManagerName'] ?? '');
+      }
 
-        if (_isTeamA) {
-          _managerName = data['teamAManagerName'] ?? '';
-          _isSigned = data['teamAManagerSigned'] ?? false;
-        } else {
-          _managerName = data['teamBManagerName'] ?? '';
-          _isSigned = data['teamBManagerSigned'] ?? false;
-        }
+      // Check sign-off state from unified gameReports
+      final reportDoc = await FirebaseFirestore.instance
+          .collection('gameReports')
+          .doc(widget.gameId)
+          .get();
+
+      if (reportDoc.exists) {
+        final data = reportDoc.data()!;
+        final coachField = _isTeamA ? 'teamACoach' : 'teamBCoach';
+        _isSigned = data['${coachField}Signed'] ?? false;
       }
 
       if (mounted) setState(() => _isLoading = false);
@@ -81,47 +87,76 @@ class _GameSignOffScreenState extends State<GameSignOffScreen> {
   }
 
   Future<void> _signOff() async {
+    // Use slider confirmation
+    double sliderValue = 0;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Spielprotokoll bestätigen'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Spielverantwortlicher:',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-            const SizedBox(height: 4),
-            Text(_managerName,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Text('Ergebnis:',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-            const SizedBox(height: 4),
-            Text('$_teamAName  $_teamAScore : $_teamBScore  $_teamBName',
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            const Text(
-              'Mit der Bestätigung erkennen Sie das Spielergebnis und das Spielprotokoll an.',
-              style: TextStyle(fontSize: 13),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Spielprotokoll bestätigen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Spielverantwortlicher:',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+              const SizedBox(height: 4),
+              Text(_managerName,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text('Ergebnis:',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+              const SizedBox(height: 4),
+              Text('$_teamAName  $_teamAScore : $_teamBScore  $_teamBName',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text(
+                'Schieben Sie den Regler ganz nach rechts, um den Spielbericht zu bestätigen.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: sliderValue >= 0.95 ? Colors.green.shade50 : Colors.grey.shade100,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Icon(
+                      sliderValue >= 0.95 ? Icons.check_circle : Icons.arrow_forward,
+                      color: sliderValue >= 0.95 ? Colors.green : Colors.grey,
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: sliderValue,
+                        onChanged: (v) => setDialogState(() => sliderValue = v),
+                        activeColor: sliderValue >= 0.95 ? Colors.green : Colors.blue,
+                      ),
+                    ),
+                    Icon(Icons.lock_open,
+                        color: sliderValue >= 0.95 ? Colors.green : Colors.grey.shade400),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Abbrechen')),
+            ElevatedButton(
+              onPressed: sliderValue >= 0.95 ? () => Navigator.pop(ctx, true) : null,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1a237e),
+                  foregroundColor: Colors.white),
+              child: const Text('Bestätigen'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('Bestätigen'),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1a237e),
-                foregroundColor: Colors.white),
-          ),
-        ],
       ),
     );
 
@@ -130,15 +165,27 @@ class _GameSignOffScreenState extends State<GameSignOffScreen> {
     setState(() => _isSigning = true);
 
     try {
-      final signedField =
-          _isTeamA ? 'teamAManagerSigned' : 'teamBManagerSigned';
+      final coachField = _isTeamA ? 'teamACoach' : 'teamBCoach';
+      final now = DateTime.now();
 
+      await FirebaseFirestore.instance
+          .collection('gameReports')
+          .doc(widget.gameId)
+          .set({
+        '${coachField}Signed': true,
+        '${coachField}SignedAt': now.toIso8601String(),
+        '${coachField}Name': _managerName.isNotEmpty ? _managerName : widget.teamName,
+        '${coachField}Method': 'slider',
+      }, SetOptions(merge: true));
+
+      // Also write to legacy gameStates for backward compatibility
+      final legacyField = _isTeamA ? 'teamAManagerSigned' : 'teamBManagerSigned';
       await FirebaseFirestore.instance
           .collection('gameStates')
           .doc(widget.gameId)
           .set({
-        signedField: true,
-        '${signedField}At': FieldValue.serverTimestamp(),
+        legacyField: true,
+        '${legacyField}At': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (mounted) {

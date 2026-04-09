@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
+import '../models/season.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
+import '../services/season_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
@@ -18,29 +21,74 @@ class SeasonManagementScreen extends StatefulWidget {
 class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
-  String selectedSeason = '2026';
+  final SeasonService _seasonService = SeasonService();
+  String selectedSeason = '';
   List<Tournament> tournaments = [];
+  List<Season> _seasons = [];
+  Season? _activeSeason;
   bool isLoading = true;
-
-  // Available seasons
-  final List<String> availableSeasons = ['2025', '2026', '2027'];
 
   @override
   void initState() {
     super.initState();
-    _loadTournaments();
+    _loadSeasons();
+  }
+
+  Future<void> _loadSeasons() async {
+    setState(() => isLoading = true);
+    try {
+      _seasons = await _seasonService.getAllSeasons();
+      _activeSeason = _seasons.where((s) => s.isActive).firstOrNull;
+
+      if (_seasons.isEmpty) {
+        // No seasons in Firestore — create a default one
+        selectedSeason = '';
+        tournaments = [];
+      } else {
+        // Select active season or first
+        if (selectedSeason.isEmpty) {
+          selectedSeason = _activeSeason?.id ?? _seasons.first.id;
+        }
+        await _loadTournaments();
+        return; // _loadTournaments handles setState
+      }
+    } catch (e) {
+      _showErrorToast('Fehler beim Laden der Saisons: $e');
+    }
+    setState(() => isLoading = false);
   }
 
   Future<void> _loadTournaments() async {
     setState(() => isLoading = true);
     try {
-      final allTournaments = await _tournamentService.getTournaments().first;
-      setState(() {
-        tournaments = allTournaments
-            .where((tournament) => tournament.season == selectedSeason)
-            .toList();
-        isLoading = false;
-      });
+      final season = _seasons.where((s) => s.id == selectedSeason).firstOrNull;
+      if (season == null) {
+        setState(() {
+          tournaments = [];
+          isLoading = false;
+        });
+        return;
+      }
+
+      if (season.spieltageIds.isNotEmpty) {
+        // Load tournaments by IDs from season
+        final allTournaments = await _tournamentService.getTournaments().first;
+        setState(() {
+          tournaments = allTournaments
+              .where((t) => season.spieltageIds.contains(t.id))
+              .toList();
+          isLoading = false;
+        });
+      } else {
+        // Fallback: filter by season name in tournament
+        final allTournaments = await _tournamentService.getTournaments().first;
+        setState(() {
+          tournaments = allTournaments
+              .where((t) => t.season == season.name)
+              .toList();
+          isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() => isLoading = false);
       _showErrorToast('Fehler beim Laden der Turniere: $e');
@@ -204,39 +252,425 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
         children: [
           // Season Selection
           Row(
-            children: availableSeasons.map((season) {
-              final isSelected = season == selectedSeason;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        selectedSeason = season;
-                      });
-                      _loadTournaments();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.indigo : Colors.white,
-                      foregroundColor: isSelected ? Colors.white : Colors.indigo,
-                      side: BorderSide(
-                        color: isSelected ? Colors.indigo : Colors.grey.shade300,
+            children: [
+              ..._seasons.map((season) {
+                final isSelected = season.id == selectedSeason;
+                return Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          selectedSeason = season.id;
+                        });
+                        _loadTournaments();
+                      },
+                      onLongPress: () => _showSeasonOptionsDialog(season),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isSelected ? Colors.indigo : Colors.white,
+                        foregroundColor: isSelected ? Colors.white : Colors.indigo,
+                        side: BorderSide(
+                          color: isSelected ? Colors.indigo : Colors.grey.shade300,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: Text(
-                      'Saison $season',
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      child: Column(
+                        children: [
+                          Text(
+                            season.name,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          if (season.isActive)
+                            Text(
+                              'Aktiv',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isSelected ? Colors.white70 : Colors.green,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
+                );
+              }),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: () => _showCreateSeasonDialog(),
+                icon: const Icon(Icons.add_circle, color: Colors.indigo),
+                tooltip: 'Neue Saison erstellen',
+              ),
+            ],
+          ),
+          if (_seasons.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            // Spieltag management row
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Lang drücken für Saison-Optionen · ${_getCurrentSeasonTournamentCount()} Spieltag(e) zugewiesen',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showAddSpieltageDialog(),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Spieltag hinzufügen'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.indigo,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  int _getCurrentSeasonTournamentCount() {
+    final season = _seasons.where((s) => s.id == selectedSeason).firstOrNull;
+    return season?.spieltageIds.length ?? 0;
+  }
+
+  void _showCreateSeasonDialog() {
+    final nameController = TextEditingController();
+    DateTime startDate = DateTime(DateTime.now().year, 9, 1);
+    DateTime endDate = DateTime(DateTime.now().year + 1, 8, 31);
+    String format = 'round_robin';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Text('Neue Saison erstellen'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Saison-Name',
+                    hintText: 'z.B. 2026/2027',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today),
+                  title: Text('Start: ${startDate.day}.${startDate.month}.${startDate.year}'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: startDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2035),
+                    );
+                    if (date != null) setDlgState(() => startDate = date);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event),
+                  title: Text('Ende: ${endDate.day}.${endDate.month}.${endDate.year}'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: endDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2035),
+                    );
+                    if (date != null) setDlgState(() => endDate = date);
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  value: format,
+                  decoration: const InputDecoration(
+                    labelText: 'Format',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'round_robin', child: Text('Rundenturnier')),
+                    DropdownMenuItem(value: 'swiss', child: Text('Schweizer System')),
+                    DropdownMenuItem(value: 'groups', child: Text('Gruppenphase + K.O.')),
+                  ],
+                  onChanged: (v) => setDlgState(() => format = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Abbrechen')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty) {
+                  _showErrorToast('Bitte Saison-Name eingeben');
+                  return;
+                }
+                try {
+                  final newSeason = Season(
+                    id: '',
+                    name: nameController.text.trim(),
+                    startDate: startDate,
+                    endDate: endDate,
+                    format: format,
+                    isActive: _seasons.isEmpty,
+                    createdAt: DateTime.now(),
+                  );
+                  final id = await _seasonService.createSeason(newSeason);
+                  Navigator.of(ctx).pop();
+                  selectedSeason = id;
+                  await _loadSeasons();
+                  _showSuccessToast('Saison "${nameController.text}" erstellt');
+                } catch (e) {
+                  _showErrorToast('Fehler: $e');
+                }
+              },
+              child: const Text('Erstellen'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSeasonOptionsDialog(Season season) {
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Saison: ${season.name}'),
+        children: [
+          if (!season.isActive)
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _seasonService.setActiveSeason(season.id);
+                await _loadSeasons();
+                _showSuccessToast('${season.name} ist jetzt aktiv');
+              },
+              child: const ListTile(
+                leading: Icon(Icons.check_circle, color: Colors.green),
+                title: Text('Als aktive Saison setzen'),
+              ),
+            ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _showEditSeasonDialog(season);
+            },
+            child: const ListTile(
+              leading: Icon(Icons.edit, color: Colors.blue),
+              title: Text('Bearbeiten'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (c) => AlertDialog(
+                  title: const Text('Saison löschen?'),
+                  content: Text('Möchten Sie "${season.name}" wirklich löschen?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.of(c).pop(false), child: const Text('Abbrechen')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(c).pop(true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                      child: const Text('Löschen'),
+                    ),
+                  ],
                 ),
               );
-            }).toList(),
+              if (confirm == true) {
+                await _seasonService.deleteSeason(season.id);
+                selectedSeason = '';
+                await _loadSeasons();
+                _showSuccessToast('Saison gelöscht');
+              }
+            },
+            child: const ListTile(
+              leading: Icon(Icons.delete, color: Colors.red),
+              title: Text('Löschen'),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showEditSeasonDialog(Season season) {
+    final nameController = TextEditingController(text: season.name);
+    DateTime startDate = season.startDate;
+    DateTime endDate = season.endDate;
+    String format = season.format ?? 'round_robin';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Text('Saison bearbeiten'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Saison-Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today),
+                  title: Text('Start: ${startDate.day}.${startDate.month}.${startDate.year}'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: startDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2035),
+                    );
+                    if (date != null) setDlgState(() => startDate = date);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event),
+                  title: Text('Ende: ${endDate.day}.${endDate.month}.${endDate.year}'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: ctx,
+                      initialDate: endDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2035),
+                    );
+                    if (date != null) setDlgState(() => endDate = date);
+                  },
+                ),
+                DropdownButtonFormField<String>(
+                  value: format,
+                  decoration: const InputDecoration(
+                    labelText: 'Format',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'round_robin', child: Text('Rundenturnier')),
+                    DropdownMenuItem(value: 'swiss', child: Text('Schweizer System')),
+                    DropdownMenuItem(value: 'groups', child: Text('Gruppenphase + K.O.')),
+                  ],
+                  onChanged: (v) => setDlgState(() => format = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Abbrechen')),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await _seasonService.updateSeason(season.id, {
+                    'name': nameController.text.trim(),
+                    'startDate': Timestamp.fromDate(startDate),
+                    'endDate': Timestamp.fromDate(endDate),
+                    'format': format,
+                  });
+                  Navigator.of(ctx).pop();
+                  await _loadSeasons();
+                  _showSuccessToast('Saison aktualisiert');
+                } catch (e) {
+                  _showErrorToast('Fehler: $e');
+                }
+              },
+              child: const Text('Speichern'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddSpieltageDialog() async {
+    if (selectedSeason.isEmpty) return;
+
+    // Load all tournaments not yet assigned to this season
+    final season = _seasons.where((s) => s.id == selectedSeason).firstOrNull;
+    if (season == null) return;
+
+    final allTournaments = await _tournamentService.getTournaments().first;
+    final unassigned = allTournaments
+        .where((t) => !season.spieltageIds.contains(t.id))
+        .toList()
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final selected = <String>{};
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) => AlertDialog(
+            title: const Text('Spieltage hinzufügen'),
+            content: SizedBox(
+              width: 500,
+              height: 400,
+              child: unassigned.isEmpty
+                  ? const Center(child: Text('Keine weiteren Turniere verfügbar.'))
+                  : ListView.builder(
+                      itemCount: unassigned.length,
+                      itemBuilder: (ctx, i) {
+                        final t = unassigned[i];
+                        final isSelected = selected.contains(t.id);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          onChanged: (v) {
+                            setDlgState(() {
+                              if (v == true) {
+                                selected.add(t.id);
+                              } else {
+                                selected.remove(t.id);
+                              }
+                            });
+                          },
+                          title: Text(t.name),
+                          subtitle: Text(
+                            '${t.startDate.day}.${t.startDate.month}.${t.startDate.year} · ${t.location}',
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Abbrechen')),
+              ElevatedButton(
+                onPressed: selected.isEmpty
+                    ? null
+                    : () async {
+                        for (final id in selected) {
+                          await _seasonService.addSpieltag(selectedSeason, id);
+                        }
+                        Navigator.of(ctx).pop();
+                        await _loadSeasons();
+                        _showSuccessToast('${selected.length} Spieltag(e) hinzugefügt');
+                      },
+                child: Text('${selected.length} hinzufügen'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

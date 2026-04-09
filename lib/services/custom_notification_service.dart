@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
 
 class CustomNotificationService {
@@ -270,6 +271,76 @@ class CustomNotificationService {
     } catch (e) {
       debugPrint('âŒ Error sending game notification: $e');
       return false;
+    }
+  }
+
+  /// Send a broadcast notification to multiple users filtered by role or team
+  Future<int> sendBroadcast({
+    required String title,
+    required String message,
+    List<String>? filterRoles, // e.g. ['teamManager', 'referee']
+    List<String>? filterTeamIds, // send to players/managers of these teams
+    bool isTimeSensitive = false,
+  }) async {
+    try {
+      debugPrint('📢 Sending broadcast: "$title"');
+      
+      // Get all users
+      final allUsers = await _authService.getAllUsers();
+      List<app_user.User> targetUsers = [];
+
+      if (filterRoles != null && filterRoles.isNotEmpty) {
+        // Filter users by role
+        targetUsers = allUsers.where((user) {
+          return user.roles.any((role) => filterRoles.contains(role.name));
+        }).toList();
+      } else if (filterTeamIds != null && filterTeamIds.isNotEmpty) {
+        // Filter users who manage these teams
+        for (final user in allUsers) {
+          if (user.roles.contains(app_user.UserRole.teamManager) && user.teamManagerId != null) {
+            // Check if user manages any of the target teams
+            targetUsers.add(user);
+          }
+        }
+      } else {
+        // Send to all users
+        targetUsers = allUsers;
+      }
+
+      int sentCount = 0;
+      for (final user in targetUsers) {
+        await _firestore.collection('custom_notifications').add({
+          'title': title,
+          'message': message,
+          'userEmail': user.email,
+          'userId': user.id,
+          'sentAt': FieldValue.serverTimestamp(),
+          'type': 'broadcast',
+          'status': 'sent',
+          'isTimeSensitive': isTimeSensitive,
+          'filterRoles': filterRoles,
+          'filterTeamIds': filterTeamIds,
+        });
+        sentCount++;
+      }
+
+      // Also try to send push notification
+      try {
+        await _sendPushNotification(
+          title: title,
+          message: message,
+          userEmail: 'all',
+          isTimeSensitive: isTimeSensitive,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Broadcast push failed, Firestore records created: $e');
+      }
+
+      debugPrint('✅ Broadcast sent to $sentCount users');
+      return sentCount;
+    } catch (e) {
+      debugPrint('❌ Error sending broadcast: $e');
+      return 0;
     }
   }
 
