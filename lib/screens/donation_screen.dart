@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
@@ -114,7 +114,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
 
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
-      _showErrorToast('Bitte geben Sie einen gÃ¼ltigen Betrag ein');
+      _showErrorToast('Bitte geben Sie einen gültigen Betrag ein');
       return;
     }
 
@@ -130,7 +130,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       );
       
       if (success) {
-        _showSuccessToast('Vielen Dank fÃ¼r deine Spende! ðŸŽ‰');
+        _showSuccessToast('Vielen Dank für deine Spende! ðŸŽ‰');
         _clearForm();
       }
     } catch (e) {
@@ -282,7 +282,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                 
                 // Title
                 const Text(
-                  'UnterstÃ¼tze die\nRHBL App',
+                  'Unterstütze die\nRHBL App',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
@@ -401,7 +401,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             const SizedBox(width: 16),
             const Expanded(
               child: Text(
-                'Warum deine UnterstÃ¼tzung wichtig ist',
+                'Warum deine Unterstützung wichtig ist',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -415,9 +415,9 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
         const SizedBox(height: 16),
         
         const Text(
-          'Die RHBL App wird vollstÃ¤ndig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
-          'Um die App am Leben zu erhalten und kontinuierlich zu verbessern, entstehen uns laufende Kosten fÃ¼r '
-          'Server, Datenbanken, App Store GebÃ¼hren und Entwicklungstools.',
+          'Die RHBL App wird vollständig ehrenamtlich betrieben und ist ein kostenloses, werbefreies Projekt. '
+          'Um die App am Leben zu erhalten und kontinuierlich zu verbessern, entstehen uns laufende Kosten für '
+          'Server, Datenbanken, App Store Gebühren und Entwicklungstools.',
           style: TextStyle(
             fontSize: 16,
             color: Colors.black87,
@@ -444,7 +444,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Ohne ausreichende UnterstÃ¼tzung mÃ¼ssen wir eventuell Werbung einblenden, um die Kosten zu decken.',
+                  'Ohne ausreichende Unterstützung müssen wir eventuell Werbung einblenden, um die Kosten zu decken.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.orange.shade800,
@@ -464,7 +464,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Spendenbetrag wÃ¤hlen',
+          'Spendenbetrag wählen',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -565,7 +565,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Spende abschlieÃŸen',
+          'Spende abschließen',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -645,7 +645,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                   ),
                 ),
                 Text(
-                  'Deine Zahlungsdaten werden verschlÃ¼sselt Ã¼bertragen und nicht gespeichert.',
+                  'Deine Zahlungsdaten werden verschlüsselt übertragen und nicht gespeichert.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.green.shade700,
@@ -711,7 +711,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             
             ...[
               {'item': 'Firebase Hosting & Database', 'cost': '45â‚¬'},
-              {'item': 'App Store & Play Store GebÃ¼hren', 'cost': '35â‚¬'},
+              {'item': 'App Store & Play Store Gebühren', 'cost': '35â‚¬'},
               {'item': 'Domain & SSL Zertifikat', 'cost': '25â‚¬'},
               {'item': 'Entwicklungstools & Services', 'cost': '135â‚¬'},
               {'item': 'Backup & Monitoring', 'cost': '20â‚¬'},
@@ -820,7 +820,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
             
             const Text(
               'Dieses Projekt wird in unserer Freizeit entwickelt und betrieben. Alle Projektmitglieder Arbeiten nebenbei noch Vollzeit. '
-              'Wir investieren unzÃ¤hlige Stunden, um den Beach-Handball in Deutschland zu fÃ¶rdern. Ohne deine UnterstÃ¼tzung wÃ¤re das nicht mÃ¶glich.',
+              'Wir investieren unzählige Stunden, um den Beach-Handball in Deutschland zu fördern. Ohne deine Unterstützung wäre das nicht möglich.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -846,7 +846,7 @@ class _DonationScreenState extends State<DonationScreen> with TickerProviderStat
                   height: 40,
                   color: Colors.purple.shade200,
                 ),
-                _buildVolunteerStat('â¤ï¸', 'Leidenschaft\nfÃ¼r den Sport'),
+                _buildVolunteerStat('â¤ï¸', 'Leidenschaft\nfür den Sport'),
               ],
             ),
           ],

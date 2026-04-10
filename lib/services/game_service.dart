@@ -382,6 +382,23 @@ class GameService {
     }
   }
 
+  /// Lightweight status-only update — used by scoring tablet to mark game live/complete.
+  Future<void> updateGameStatus(String tournamentId, String gameId, GameStatus status) async {
+    try {
+      await _firestore
+          .collection(_tournamentsCollection)
+          .doc(tournamentId)
+          .collection(_gamesSubcollection)
+          .doc(gameId)
+          .update({'status': status.toString()});
+      _invalidateCache(tournamentId);
+      debugPrint('🎮 GameService: Game $gameId status → $status');
+    } catch (e) {
+      debugPrint('❌ Error updating game status: $e');
+      rethrow;
+    }
+  }
+
   // Delete a game
   Future<void> deleteGame(String tournamentId, String gameId) async {
     await _firestore

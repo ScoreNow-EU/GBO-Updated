@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/team.dart';
 import '../models/game.dart';
@@ -200,7 +200,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'WÃ¤hlen Sie fÃ¼r jedes Spiel Ihren Kader aus (max. 10 Spieler)',
+            'Wählen Sie für jedes Spiel Ihren Kader aus (max. 10 Spieler)',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -289,7 +289,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             Icon(Icons.group, size: 16, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Text(
-                              '${squad.playerCount}/10 Spieler ausgewÃ¤hlt',
+                              '${squad.playerCount}/10 Spieler ausgewählt',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
@@ -313,7 +313,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             Icon(Icons.group_off, size: 16, color: Colors.orange[600]),
                             const SizedBox(width: 4),
                             Text(
-                              'Kein Kader ausgewÃ¤hlt',
+                              'Kein Kader ausgewählt',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.orange[600],
@@ -322,7 +322,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                             ),
                             const Spacer(),
                             Text(
-                              'Tippen zum AuswÃ¤hlen',
+                              'Tippen zum Auswählen',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue[600],
@@ -403,7 +403,7 @@ class _TeamGamesViewState extends State<TeamGamesView> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          'âœ“ BestÃ¤tigt',
+          'âœ“ Bestätigt',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 12,

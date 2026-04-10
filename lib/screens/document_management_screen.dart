@@ -28,7 +28,7 @@ class _DocumentManagementScreenState extends State<DocumentManagementScreen> {
   ];
 
   Future<void> _uploadDocument() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'xlsx', 'xls'],
       withData: true,
@@ -115,7 +115,7 @@ class _DocumentManagementScreenState extends State<DocumentManagementScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final currentUser = _authService.currentUser;
+      final currentUser = _authService.currentFirebaseUser;
       await _documentService.uploadDocument(
         name: documentName!,
         category: selectedCategory!,

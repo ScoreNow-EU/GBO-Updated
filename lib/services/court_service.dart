@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/court.dart';
 
-/// Simplified court service â€” courts are now just labels embedded in tournaments.
+/// Simplified court service — courts are now just labels embedded in tournaments.
 /// This service is kept for any standalone court operations but most court CRUD
 /// happens through the TournamentService (as courts are embedded in the Tournament document).
 class CourtService {

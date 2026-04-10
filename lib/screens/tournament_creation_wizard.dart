@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/city.dart';
 import '../utils/firebase_cities_helper.dart';
@@ -224,7 +224,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                               );
                             },
                             icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            label: const Text('ZurÃ¼ck', style: TextStyle(color: Colors.white)),
+                            label: const Text('Zurück', style: TextStyle(color: Colors.white)),
                             style: TextButton.styleFrom(
                               backgroundColor: Colors.white.withOpacity(0.2),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -255,7 +255,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                           ),
                           label: Text(
                             _currentPage == 3 ? 'Erstellen' :
-                            _currentPage == 2 ? 'ÃœberprÃ¼fen' :
+                            _currentPage == 2 ? 'Überprüfen' :
                             'Weiter'
                           ),
                           style: ElevatedButton.styleFrom(
@@ -441,7 +441,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                                 ),
                               )
                             : null,
-                        helperText: _citiesLoading ? 'StÃ¤dte werden geladen...' : null,
+                        helperText: _citiesLoading ? 'Städte werden geladen...' : null,
                         helperStyle: const TextStyle(color: Color(0xFFe63946), fontSize: 12),
                       ),
                       validator: (value) {
@@ -525,7 +525,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                 return 'Bitte geben Sie ein Startdatum ein';
               }
               if (_parseDate(value) == null) {
-                return 'Bitte geben Sie ein gÃ¼ltiges Datum ein';
+                return 'Bitte geben Sie ein gültiges Datum ein';
               }
               return null;
             },
@@ -565,7 +565,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                 return 'Bitte geben Sie ein Enddatum ein';
               }
               if (_parseDate(value) == null) {
-                return 'Bitte geben Sie ein gÃ¼ltiges Datum ein';
+                return 'Bitte geben Sie ein gültiges Datum ein';
               }
               final endDate = _parseDate(value);
               final startDate = _startDate;
@@ -685,7 +685,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Konfigurieren Sie die Team-Anmeldungen fÃ¼r das Turnier',
+            'Konfigurieren Sie die Team-Anmeldungen für das Turnier',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -696,8 +696,8 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
           // Registration Settings
           _buildSectionTitle('Anmeldungseinstellungen'),
           SwitchListTile(
-            title: const Text('Anmeldung geÃ¶ffnet'),
-            subtitle: const Text('Teams kÃ¶nnen sich fÃ¼r das Turnier anmelden'),
+            title: const Text('Anmeldung geöffnet'),
+            subtitle: const Text('Teams können sich für das Turnier anmelden'),
             value: _isRegistrationOpen,
             onChanged: (value) {
               setState(() {
@@ -793,7 +793,7 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
     if (_startDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Bitte wÃ¤hlen Sie zuerst ein Startdatum'),
+          content: Text('Bitte wählen Sie zuerst ein Startdatum'),
           backgroundColor: Colors.orange,
         ),
       );

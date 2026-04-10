@@ -7,6 +7,7 @@ import '../models/team.dart';
 import '../services/game_service.dart';
 import '../services/tournament_service.dart';
 import '../services/team_service.dart';
+import '../services/tournament_stats_service.dart';
 import '../utils/app_colors.dart';
 
 class OBSGraphicsScreen extends StatefulWidget {
@@ -30,11 +31,14 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
   final GameService _gameService = GameService();
   final TournamentService _tournamentService = TournamentService();
   final TeamService _teamService = TeamService();
+  final TournamentStatsService _statsService = TournamentStatsService();
 
   Tournament? tournament;
   Game? currentGame;
   List<Game> games = [];
   List<Team> teams = [];
+  List<TeamTournamentStats> _standings = [];
+  List<PlayerTournamentStats> _topScorers = [];
   
   Timer? _refreshTimer;
   late AnimationController _pulseController;
@@ -117,6 +121,10 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
         }
 
         teams = await _teamService.getTeams().first;
+
+        // Load tournament statistics for standings and player info overlays
+        _standings = await _statsService.getOverallTeamStats(widget.tournamentId!);
+        _topScorers = await _statsService.getTopScorers(widget.tournamentId!);
       }
 
       setState(() {
@@ -574,7 +582,6 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
   }
 
   Widget _buildStandingsOverlay() {
-    // Tournament standings overlay
     return Container(
       margin: const EdgeInsets.all(20),
       child: Container(
@@ -596,15 +603,100 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
               ),
             ),
             const SizedBox(height: 16),
-            // TODO: Add actual standings data
-            Text(
-              'Standings will be displayed here',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 16,
+            if (_standings.isEmpty)
+              Text(
+                'Noch keine Ergebnisse vorhanden',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              )
+            else
+              Table(
+                columnWidths: const {
+                  0: FixedColumnWidth(36),
+                  1: FlexColumnWidth(3),
+                  2: FixedColumnWidth(36),
+                  3: FixedColumnWidth(36),
+                  4: FixedColumnWidth(36),
+                  5: FixedColumnWidth(36),
+                  6: FixedColumnWidth(60),
+                  7: FixedColumnWidth(44),
+                  8: FixedColumnWidth(36),
+                },
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                children: [
+                  TableRow(
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.primaryColor, width: 1)),
+                    ),
+                    children: ['#', 'Team', 'Sp', 'S', 'U', 'N', 'Tore', 'Diff', 'Pkt']
+                        .map((h) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                              child: Text(
+                                h,
+                                textAlign: h == 'Team' ? TextAlign.left : TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.primaryColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                  ..._standings.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final s = entry.value;
+                    return TableRow(
+                      decoration: BoxDecoration(
+                        color: i.isEven ? Colors.white.withOpacity(0.05) : Colors.transparent,
+                      ),
+                      children: [
+                        _standingsCell('${i + 1}', center: true),
+                        _standingsCell(s.teamName),
+                        _standingsCell('${s.played}', center: true),
+                        _standingsCell('${s.won}', center: true),
+                        _standingsCell('${s.drawn}', center: true),
+                        _standingsCell('${s.lost}', center: true),
+                        _standingsCell('${s.goalsFor}:${s.goalsAgainst}', center: true),
+                        _standingsCell(
+                          '${s.goalDifference > 0 ? "+" : ""}${s.goalDifference}',
+                          center: true,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                          child: Text(
+                            '${s.points}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ],
               ),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _standingsCell(String text, {bool center = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      child: Text(
+        text,
+        textAlign: center ? TextAlign.center : TextAlign.left,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
         ),
       ),
     );
@@ -675,7 +767,8 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
   }
 
   Widget _buildPlayerInfoOverlay() {
-    // Player information overlay
+    final topFive = _topScorers.take(5).toList();
+
     return Container(
       margin: const EdgeInsets.all(20),
       child: Container(
@@ -696,15 +789,89 @@ class _OBSGraphicsScreenState extends State<OBSGraphicsScreen>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
-            // TODO: Add actual player data
+            const SizedBox(height: 4),
             Text(
-              'Player information will be displayed here',
+              'Top Scorers',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 16,
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 14,
               ),
             ),
+            const SizedBox(height: 16),
+            if (topFive.isEmpty)
+              Text(
+                'Noch keine Torschützen vorhanden',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 16,
+                ),
+              )
+            else
+              Table(
+                columnWidths: const {
+                  0: FixedColumnWidth(36),
+                  1: FlexColumnWidth(3),
+                  2: FlexColumnWidth(2),
+                  3: FixedColumnWidth(50),
+                  4: FixedColumnWidth(50),
+                },
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                children: [
+                  TableRow(
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: AppColors.primaryColor, width: 1)),
+                    ),
+                    children: ['#', 'Spieler', 'Team', 'Tore', '7m%']
+                        .map((h) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                              child: Text(
+                                h,
+                                textAlign: h == 'Spieler' || h == 'Team'
+                                    ? TextAlign.left
+                                    : TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.primaryColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                  ...topFive.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final p = entry.value;
+                    return TableRow(
+                      decoration: BoxDecoration(
+                        color: i.isEven ? Colors.white.withOpacity(0.05) : Colors.transparent,
+                      ),
+                      children: [
+                        _standingsCell('${i + 1}', center: true),
+                        _standingsCell(p.playerName),
+                        _standingsCell(p.teamName),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                          child: Text(
+                            '${p.totalGoals}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        _standingsCell(
+                          p.sevenMeterTotal > 0
+                              ? '${p.sevenMeterPercentage.toStringAsFixed(0)}%'
+                              : '-',
+                          center: true,
+                        ),
+                      ],
+                    );
+                  }),
+                ],
+              ),
           ],
         ),
       ),

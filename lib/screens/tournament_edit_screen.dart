@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tournament.dart';
 import '../models/tournament_link.dart';
@@ -37,6 +37,9 @@ import 'game_report_screen.dart';
 import 'tournament_stats_screen.dart';
 import '../models/game_event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 // Add this class at the top of the file after imports
 class GamePosition {
@@ -162,8 +165,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   String _userSearchQuery = '';
   final _userSearchController = TextEditingController();
 
-  // Ausrichterverein (host club) â€“ gets +3 Ligapunkte
+  // Ausrichterverein (host club) — gets +3 Ligapunkte
   String? _hostClubTeamId;
+
+  // Sponsor logos (download URLs from Firebase Storage)
+  List<String> _sponsorLogos = [];
+  bool _isUploadingSponsor = false;
 
   // Team management
   List<Team> _allTeams = [];
@@ -367,6 +374,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       
       // Load Ausrichterverein
       _hostClubTeamId = tournament.hostClubTeamId;
+      
+      // Load sponsor logos
+      _sponsorLogos = List<String>.from(tournament.sponsorLogos);
       
       // Load tournament links
       _links = List<TournamentLink>.from(tournament.links);
@@ -603,20 +613,20 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     final cityCoordinates = <String, LatLng>{
       'berlin': const LatLng(52.5200, 13.4050),
       'hamburg': const LatLng(53.5511, 9.9937),
-      'mÃ¼nchen': const LatLng(48.1351, 11.5820),
+      'münchen': const LatLng(48.1351, 11.5820),
       'munich': const LatLng(48.1351, 11.5820),
-      'kÃ¶ln': const LatLng(50.9375, 6.9603),
+      'köln': const LatLng(50.9375, 6.9603),
       'cologne': const LatLng(50.9375, 6.9603),
       'frankfurt': const LatLng(50.1109, 8.6821),
       'stuttgart': const LatLng(48.7758, 9.1829),
-      'dÃ¼sseldorf': const LatLng(51.2277, 6.7735),
+      'düsseldorf': const LatLng(51.2277, 6.7735),
       'dortmund': const LatLng(51.5136, 7.4653),
       'essen': const LatLng(51.4556, 7.0116),
       'bremen': const LatLng(53.0793, 8.8017),
       'dresden': const LatLng(51.0504, 13.7373),
       'leipzig': const LatLng(51.3397, 12.3731),
       'hannover': const LatLng(52.3759, 9.7320),
-      'nÃ¼rnberg': const LatLng(49.4521, 11.0767),
+      'nürnberg': const LatLng(49.4521, 11.0767),
       'nuremberg': const LatLng(49.4521, 11.0767),
     };
 
@@ -754,12 +764,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   _buildDrawerNavItem('links', 'Links & Social Media', Icons.link, screenWidth),
                   _buildDrawerNavItem('games', 'Spiele', Icons.sports_handball, screenWidth),
                   _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
-                  _buildDrawerNavItem('courts', 'PlÃ¤tze', Icons.place, screenWidth),
+                  _buildDrawerNavItem('courts', 'Plätze', Icons.place, screenWidth),
                   _buildDrawerNavItem('referees', 'Schiedsrichter', Icons.sports_hockey, screenWidth),
                   _buildDrawerNavItem('kampfgericht', 'Kampfgericht', Icons.gavel, screenWidth),
                   _buildDrawerNavItem('delegates', 'Delegierte', Icons.person_outline, screenWidth),
                   _buildDrawerNavItem('assignment', 'Zuordnung', Icons.auto_fix_high, screenWidth),
                   _buildDrawerNavItem('stats', 'Statistiken', Icons.bar_chart, screenWidth),
+                  _buildDrawerNavItem('sponsors', 'Sponsoren', Icons.handshake, screenWidth),
                   _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
                 ],
               ),
@@ -794,7 +805,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     child: TextButton.icon(
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                      label: const Text('ZurÃ¼ck', style: TextStyle(color: Colors.white70)),
+                      label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                       ),
@@ -871,12 +882,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 _buildNavItem('links', 'Links & Social Media', Icons.link),
                 _buildNavItem('games', 'Spiele', Icons.sports_handball),
                 _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
-                _buildNavItem('courts', 'PlÃ¤tze', Icons.place),
+                _buildNavItem('courts', 'Plätze', Icons.place),
                 _buildNavItem('referees', 'Schiedsrichter', Icons.sports_hockey),
                 _buildNavItem('kampfgericht', 'Kampfgericht', Icons.gavel),
                 _buildNavItem('delegates', 'Delegierte', Icons.person_outline),
                 _buildNavItem('assignment', 'Zuordnung', Icons.auto_fix_high),
                 _buildNavItem('stats', 'Statistiken', Icons.bar_chart),
+                _buildNavItem('sponsors', 'Sponsoren', Icons.handshake),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
@@ -911,7 +923,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   child: TextButton.icon(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                    label: const Text('ZurÃ¼ck', style: TextStyle(color: Colors.white70)),
+                    label: const Text('Zurück', style: TextStyle(color: Colors.white70)),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white70,
                     ),
@@ -940,7 +952,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       case 'scheduling':
         return 'Spielplanung';
       case 'courts':
-        return 'PlÃ¤tze';
+        return 'Plätze';
       case 'referees':
         return 'Schiedsrichter';
       case 'kampfgericht':
@@ -951,6 +963,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Zuordnung';
       case 'stats':
         return 'Statistiken';
+      case 'sponsors':
+        return 'Sponsoren';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -1006,6 +1020,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return TournamentStatsScreen(key: UniqueKey(), tournament: widget.tournament!);
       case 'settings':
         return _buildSettingsTab();
+      case 'sponsors':
+        return _buildSponsorsTab();
       default:
         return _buildBasicDataTab();
     }
@@ -1111,7 +1127,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu, color: Colors.black),
               onPressed: () => Scaffold.of(context).openDrawer(),
-              tooltip: 'MenÃ¼ Ã¶ffnen',
+              tooltip: 'Menü öffnen',
             ),
           ),
           const SizedBox(width: 16),
@@ -1172,7 +1188,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'ZurÃ¼ck',
+            tooltip: 'Zurück',
           ),
         ],
       ),
@@ -1230,6 +1246,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return TournamentStatsScreen(key: UniqueKey(), tournament: widget.tournament!);
       case 'settings':
         return _buildSettingsTab();
+      case 'sponsors':
+        return _buildSponsorsTab();
       default:
         return _buildBasicDataTab();
     }
@@ -1372,7 +1390,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            'ÃœberprÃ¼fen Sie die URL',
+                                            'Überprüfen Sie die URL',
                                             style: TextStyle(
                                               color: Colors.grey.shade500,
                                               fontSize: 10,
@@ -1404,7 +1422,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'UngÃ¼ltige URL',
+                                    'Ungültige URL',
                                     style: TextStyle(
                                       color: Colors.orange.shade700,
                                       fontSize: 14,
@@ -1621,11 +1639,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                             labelText: 'Austragungsort *',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.location_on),
-                            hintText: 'Deutsche Stadt eingeben (z.B. Berlin, MÃ¼nchen)...',
-                            helperText: 'Tippen Sie um deutsche StÃ¤dte zu durchsuchen',
+                            hintText: 'Deutsche Stadt eingeben (z.B. Berlin, München)...',
+                            helperText: 'Tippen Sie um deutsche Städte zu durchsuchen',
                             suffixIcon: _selectedLocation != null 
                                 ? Tooltip(
-                                    message: 'Stadt ausgewÃ¤hlt: ${_selectedLocation!.displayName}',
+                                    message: 'Stadt ausgewählt: ${_selectedLocation!.displayName}',
                                     child: Icon(Icons.check_circle, color: Colors.green, size: 20),
                                   )
                                 : Icon(Icons.search, color: Colors.grey, size: 20),
@@ -1671,7 +1689,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Adresse der Sporthalle fÃ¼r automatische Entfernungsberechnung',
+                      'Adresse der Sporthalle für automatische Entfernungsberechnung',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 16),
@@ -1682,7 +1700,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           child: TextFormField(
                             controller: _venueStreetController,
                             decoration: const InputDecoration(
-                              labelText: 'StraÃŸe',
+                              labelText: 'Straße',
                               border: OutlineInputBorder(),
                             ),
                           ),
@@ -2042,7 +2060,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(width: 16),
                   Text(
-                    '${_selectedTeamIds.length} Teams ausgewÃ¤hlt',
+                    '${_selectedTeamIds.length} Teams ausgewählt',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 16,
@@ -2108,8 +2126,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ? Center(
                       child: Text(
                         _teamSearchQuery.isNotEmpty 
-                            ? 'Keine Teams gefunden fÃ¼r "$_teamSearchQuery"'
-                            : 'Keine Teams verfÃ¼gbar',
+                            ? 'Keine Teams gefunden für "$_teamSearchQuery"'
+                            : 'Keine Teams verfügbar',
                         style: TextStyle(color: Colors.grey[600], fontSize: 16),
                       ),
                     )
@@ -2192,7 +2210,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       const Icon(Icons.place, color: Colors.blue),
                       const SizedBox(width: 12),
                       const Text(
-                        'Turnier-PlÃ¤tze',
+                        'Turnier-Plätze',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -2203,7 +2221,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       ElevatedButton.icon(
                         onPressed: _showAddCourtDialog,
                         icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Feld / Halle hinzufÃ¼gen'),
+                        label: const Text('Feld / Halle hinzufügen'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -2213,7 +2231,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'PlÃ¤tze, Felder und Hallen die fÃ¼r dieses Turnier genutzt werden.',
+                    'Plätze, Felder und Hallen die für dieses Turnier genutzt werden.',
                     style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
@@ -2232,12 +2250,12 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       Icon(Icons.place_outlined, size: 48, color: Colors.grey.shade400),
                       const SizedBox(height: 16),
                       Text(
-                        'Noch keine PlÃ¤tze konfiguriert',
+                        'Noch keine Plätze konfiguriert',
                         style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Klicken Sie auf "Feld / Halle hinzufÃ¼gen" um einen Platz hinzuzufÃ¼gen.',
+                        'Klicken Sie auf "Feld / Halle hinzufügen" um einen Platz hinzuzufügen.',
                         style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                       ),
                     ],
@@ -2426,7 +2444,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     );
   }
 
-  // Court management methods (simplified â€” courts are just labels now)
+  // Court management methods (simplified — courts are just labels now)
 
   void _startEditingCourt(Court court) {
     setState(() {
@@ -2745,6 +2763,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         approvedAt: _approvalStatus == 'pending_approval' ? null : widget.tournament!.approvedAt,
         rejectionReason: widget.tournament!.rejectionReason,
         hostClubTeamId: _hostClubTeamId,
+        sponsorLogos: _sponsorLogos,
         venueStreet: _venueStreetController.text.trim().isNotEmpty ? _venueStreetController.text.trim() : null,
         venueHouseNumber: _venueHouseNumberController.text.trim().isNotEmpty ? _venueHouseNumberController.text.trim() : null,
         venuePlz: _venuePlzController.text.trim().isNotEmpty ? _venuePlzController.text.trim() : null,
@@ -2805,7 +2824,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Validierungsfehler'),
-          description: const Text('Bitte fÃ¼llen Sie alle Pflichtfelder in den Grunddaten aus'),
+          description: const Text('Bitte füllen Sie alle Pflichtfelder in den Grunddaten aus'),
           alignment: Alignment.topRight,
           autoCloseDuration: const Duration(seconds: 4),
           showProgressBar: false,
@@ -2821,7 +2840,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Validierungsfehler'),
-          description: const Text('Bitte fÃ¼llen Sie alle Pflichtfelder in den Grunddaten aus'),
+          description: const Text('Bitte füllen Sie alle Pflichtfelder in den Grunddaten aus'),
           alignment: Alignment.topRight,
           autoCloseDuration: const Duration(seconds: 4),
           showProgressBar: false,
@@ -2841,7 +2860,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
         title: const Text('Warnung'),
-        description: const Text('Bitte wÃ¤hlen Sie ein Startdatum aus'),
+        description: const Text('Bitte wählen Sie ein Startdatum aus'),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 4),
         showProgressBar: false,
@@ -2899,6 +2918,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         approvedAt: _approvalStatus == 'pending_approval' ? null : widget.tournament?.approvedAt,
         rejectionReason: widget.tournament?.rejectionReason,
         hostClubTeamId: _hostClubTeamId,
+        sponsorLogos: _sponsorLogos,
         venueStreet: _venueStreetController.text.trim().isNotEmpty ? _venueStreetController.text.trim() : null,
         venueHouseNumber: _venueHouseNumberController.text.trim().isNotEmpty ? _venueHouseNumberController.text.trim() : null,
         venuePlz: _venuePlzController.text.trim().isNotEmpty ? _venuePlzController.text.trim() : null,
@@ -3085,7 +3105,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         });
 
       if (anyTiebreaker) {
-        debugPrint('Ligapunkte NOT written â€“ Entscheidungsspiel required');
+        debugPrint('Ligapunkte NOT written — Entscheidungsspiel required');
         return;
       }
 
@@ -3142,7 +3162,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       debugPrint('Ligapunkte written for $totalTeams teams');
     } catch (e) {
       debugPrint('Error writing Ligapunkte: $e');
-      // Non-fatal â€“ tournament was already saved successfully
+      // Non-fatal — tournament was already saved successfully
     }
   }
 
@@ -3179,7 +3199,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     if (_startDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Bitte wÃ¤hlen Sie zuerst ein Startdatum'),
+          content: Text('Bitte wählen Sie zuerst ein Startdatum'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -3254,8 +3274,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: const Text('Turnier zurÃ¼ckgesetzt'),
-          description: const Text('Das Turnier wurde zurÃ¼ck in den Entwurf-Status versetzt'),
+          title: const Text('Turnier zurückgesetzt'),
+          description: const Text('Das Turnier wurde zurück in den Entwurf-Status versetzt'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -3266,7 +3286,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Fehler beim ZurÃ¼cksetzen: $e'),
+          description: Text('Fehler beim Zurücksetzen: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -3322,7 +3342,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            'AuswÃ¤hlen (${_refereeInvitations.length})',
+                            'Auswählen (${_refereeInvitations.length})',
                             style: TextStyle(
                               color: _refereeSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
                               fontWeight: FontWeight.w500,
@@ -3476,7 +3496,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Klicken Sie auf einen Schiedsrichter um den Status zu Ã¤ndern',
+                    'Klicken Sie auf einen Schiedsrichter um den Status zu ändern',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
@@ -3765,7 +3785,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('SchlieÃŸen'),
+              child: const Text('Schließen'),
             ),
           ],
         );
@@ -3813,7 +3833,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'WÃ¤hlen Sie Delegierte fÃ¼r dieses Turnier aus',
+                    'Wählen Sie Delegierte für dieses Turnier aus',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 14,
@@ -3840,7 +3860,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'AusgewÃ¤hlte Delegierte: ${_selectedDelegateIds.length}',
+                      'Ausgewählte Delegierte: ${_selectedDelegateIds.length}',
                       style: TextStyle(
                         color: Colors.orange.shade700,
                         fontWeight: FontWeight.w500,
@@ -3986,7 +4006,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Erstellen Sie Schiedsrichter-Gespanne fÃ¼r Handball-Spiele',
+                    'Erstellen Sie Schiedsrichter-Gespanne für Handball-Spiele',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 14,
@@ -4019,7 +4039,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Mindestens 2 verfÃ¼gbare Schiedsrichter benÃ¶tigt. WÃ¤hlen Sie zuerst Schiedsrichter im "Schiedsrichter" Tab aus.',
+                              'Mindestens 2 verfügbare Schiedsrichter benötigt. Wählen Sie zuerst Schiedsrichter im "Schiedsrichter" Tab aus.',
                               style: TextStyle(
                                 color: Colors.orange.shade700,
                                 fontSize: 14,
@@ -4072,7 +4092,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'VerfÃ¼gbare: ${unassignedReferees.length}',
+                          'Verfügbare: ${unassignedReferees.length}',
                           style: TextStyle(
                             color: Colors.orange.shade700,
                             fontWeight: FontWeight.w500,
@@ -4111,7 +4131,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Erstellen Sie Ihr erstes Gespann fÃ¼r das Turnier',
+                        'Erstellen Sie Ihr erstes Gespann für das Turnier',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade500,
@@ -4282,7 +4302,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           IconButton(
                             onPressed: () => _deleteGespann(index),
                             icon: Icon(Icons.delete, color: Colors.red.shade600),
-                            tooltip: 'Gespann lÃ¶schen',
+                            tooltip: 'Gespann löschen',
                           ),
                         ],
                       ),
@@ -4798,7 +4818,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         description: Text(
           gespannId != null 
             ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
-            : 'Gespann-Zuordnung fÃ¼r "${game.displayName}" entfernt',
+            : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
         ),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 3),
@@ -4990,7 +5010,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'VerfÃ¼gbare Gespanne',
+                      'Verfügbare Gespanne',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -5264,7 +5284,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Keine PlÃ¤tze konfiguriert',
+              'Keine Plätze konfiguriert',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -5272,7 +5292,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Konfigurieren Sie zuerst PlÃ¤tze im "PlÃ¤tze" Tab',
+              'Konfigurieren Sie zuerst Plätze im "Plätze" Tab',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -5653,7 +5673,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         description: Text(
           gespannId != null 
             ? 'Gespann "$gespannName" zu "${game.displayName}" zugeordnet'
-            : 'Gespann-Zuordnung fÃ¼r "${game.displayName}" entfernt',
+            : 'Gespann-Zuordnung für "${game.displayName}" entfernt',
         ),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 3),
@@ -5709,7 +5729,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       controller: _gespannNameController,
                       decoration: const InputDecoration(
                         labelText: 'Gespann Name (optional)',
-                        hintText: 'z.B. "Gespann A" oder "MÃ¼ller/Schmidt"',
+                        hintText: 'z.B. "Gespann A" oder "Müller/Schmidt"',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -5822,7 +5842,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       type: ToastificationType.info,
       style: ToastificationStyle.fillColored,
       title: const Text('Info'),
-      description: const Text('Gespann bearbeiten wird in einer zukÃ¼nftigen Version implementiert'),
+      description: const Text('Gespann bearbeiten wird in einer zukünftigen Version implementiert'),
       alignment: Alignment.topRight,
       autoCloseDuration: const Duration(seconds: 3),
       showProgressBar: false,
@@ -5835,8 +5855,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Gespann lÃ¶schen'),
-          content: Text('MÃ¶chten Sie das Gespann "${gespann['name']}" wirklich lÃ¶schen?'),
+          title: const Text('Gespann löschen'),
+          content: Text('Möchten Sie das Gespann "${gespann['name']}" wirklich löschen?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -5856,20 +5876,234 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     context: context,
                     type: ToastificationType.error,
                     style: ToastificationStyle.fillColored,
-                    title: const Text('Gespann gelÃ¶scht'),
-                    description: Text('Gespann "${gespann['name']}" gelÃ¶scht und gespeichert'),
+                    title: const Text('Gespann gelöscht'),
+                    description: Text('Gespann "${gespann['name']}" gelöscht und gespeichert'),
                     alignment: Alignment.topRight,
                     autoCloseDuration: const Duration(seconds: 3),
                     showProgressBar: false,
                   );
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
+                child: const Text('Löschen', style: TextStyle(color: Colors.white)),
               ),
           ],
         );
       },
     );
+  }
+
+  // ─── SPONSORS TAB ─────────────────────────────────────────────────────
+
+  Widget _buildSponsorsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.handshake, color: Colors.teal, size: 24),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Sponsor-Logos',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: _isUploadingSponsor ? null : _uploadSponsorLogo,
+                        icon: _isUploadingSponsor
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.upload, color: Colors.white, size: 18),
+                        label: Text(
+                          _isUploadingSponsor ? 'Lädt hoch...' : 'Logo hochladen',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Logos werden im Kiosk-Modus in einer Sponsoren-Ansicht angezeigt.',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_sponsorLogos.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey.shade50,
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.image_outlined, size: 48, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Noch keine Sponsor-Logos hochgeladen',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 200,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 1,
+                      ),
+                      itemCount: _sponsorLogos.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white,
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Image.network(
+                                    _sponsorLogos[index],
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.broken_image,
+                                      size: 48,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: IconButton(
+                                onPressed: () => _deleteSponsorLogo(index),
+                                icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.red.withValues(alpha: 0.8),
+                                  padding: const EdgeInsets.all(4),
+                                  minimumSize: const Size(28, 28),
+                                ),
+                                tooltip: 'Logo entfernen',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _uploadSponsorLogo() async {
+    if (widget.tournament == null) {
+      toastification.show(
+        context: context,
+        type: ToastificationType.warning,
+        style: ToastificationStyle.fillColored,
+        title: const Text('Hinweis'),
+        description: const Text('Bitte speichern Sie das Turnier zuerst.'),
+        alignment: Alignment.topRight,
+        autoCloseDuration: const Duration(seconds: 3),
+        showProgressBar: false,
+      );
+      return;
+    }
+
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      setState(() => _isUploadingSponsor = true);
+
+      final storage = FirebaseStorage.instance;
+      final tournamentId = widget.tournament!.id;
+
+      for (final file in result.files) {
+        if (file.bytes == null) continue;
+        final sanitizedName = (file.name).replaceAll(RegExp(r'[^\w\.\-]'), '_');
+        final storagePath = 'sponsors/$tournamentId/${DateTime.now().millisecondsSinceEpoch}_$sanitizedName';
+        final ref = storage.ref().child(storagePath);
+        final metadata = SettableMetadata(contentType: 'image/${file.extension ?? 'png'}');
+        await ref.putData(file.bytes!, metadata);
+        final downloadUrl = await ref.getDownloadURL();
+        _sponsorLogos.add(downloadUrl);
+      }
+
+      // Auto-save after upload
+      await _autoSaveTournament();
+
+      if (mounted) {
+        setState(() => _isUploadingSponsor = false);
+        toastification.show(
+          context: context,
+          type: ToastificationType.success,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Erfolg'),
+          description: Text('${result.files.length} Logo(s) hochgeladen'),
+          alignment: Alignment.topRight,
+          autoCloseDuration: const Duration(seconds: 3),
+          showProgressBar: false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingSponsor = false);
+        toastification.show(
+          context: context,
+          type: ToastificationType.error,
+          style: ToastificationStyle.fillColored,
+          title: const Text('Fehler'),
+          description: Text('Upload fehlgeschlagen: $e'),
+          alignment: Alignment.topRight,
+          autoCloseDuration: const Duration(seconds: 4),
+          showProgressBar: false,
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSponsorLogo(int index) async {
+    final url = _sponsorLogos[index];
+    try {
+      // Delete from Firebase Storage
+      final ref = FirebaseStorage.instance.refFromURL(url);
+      await ref.delete();
+    } catch (e) {
+      debugPrint('Could not delete sponsor logo from storage: $e');
+    }
+    setState(() => _sponsorLogos.removeAt(index));
+    // Auto-save after deletion
+    await _autoSaveTournament();
   }
 
   Widget _buildSettingsTab() {
@@ -5915,7 +6149,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       onPressed: widget.tournament != null ? _showRemoveAllGamesDialog : null,
                       icon: const Icon(Icons.delete_forever, color: Colors.white),
                       label: const Text(
-                        'Alle Spiele lÃ¶schen',
+                        'Alle Spiele löschen',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -5932,7 +6166,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    '?? Diese Aktion lÃ¶scht alle Spiele und Planungen unwiderruflich!',
+                    '?? Diese Aktion löscht alle Spiele und Planungen unwiderruflich!',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.red,
@@ -6037,7 +6271,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   const SizedBox(height: 16),
                   const Text(
                     'Berechnet die Platzierung und schreibt Ligapunkte in die Rangliste. '
-                    'Vorhandene EintrÃ¤ge fÃ¼r dieses Turnier werden ersetzt.',
+                    'Vorhandene Einträge für dieses Turnier werden ersetzt.',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
@@ -6057,14 +6291,14 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Der Ausrichterverein erhÃ¤lt +3 Ligapunkte zusÃ¤tzlich zu den Spielpunkten.',
+                        'Der Ausrichterverein erhält +3 Ligapunkte zusätzlich zu den Spielpunkten.',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         value: _hostClubTeamId,
                         decoration: const InputDecoration(
-                          labelText: 'Ausrichterverein auswÃ¤hlen',
+                          labelText: 'Ausrichterverein auswählen',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.home_work_outlined),
                           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -6072,7 +6306,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         items: [
                           const DropdownMenuItem<String>(
                             value: null,
-                            child: Text('â€“ Kein Ausrichterverein â€“'),
+                            child: Text('— Kein Ausrichterverein —'),
                           ),
                           ..._allTeams
                               .where((t) => _selectedTeamIds.contains(t.id))
@@ -6183,7 +6417,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         Icon(Icons.undo, color: Colors.orange, size: 24),
                         const SizedBox(width: 12),
                         const Text(
-                          'Genehmigung zurÃ¼cksetzen',
+                          'Genehmigung zurücksetzen',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -6193,8 +6427,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Setzt das Turnier zurÃ¼ck in den Entwurf-Status. '
-                      'Das Turnier muss dann erneut genehmigt werden, bevor es Ã¶ffentlich sichtbar ist.',
+                      'Setzt das Turnier zurück in den Entwurf-Status. '
+                      'Das Turnier muss dann erneut genehmigt werden, bevor es öffentlich sichtbar ist.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey,
@@ -6207,7 +6441,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         onPressed: _revertToDraft,
                         icon: const Icon(Icons.undo, color: Colors.orange),
                         label: const Text(
-                          'ZurÃ¼ck zu Entwurf',
+                          'Zurück zu Entwurf',
                           style: TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -6319,7 +6553,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             children: [
               Icon(Icons.warning, color: Colors.red, size: 28),
               const SizedBox(width: 12),
-              const Text('Alle Spiele lÃ¶schen'),
+              const Text('Alle Spiele löschen'),
             ],
           ),
           content: Column(
@@ -6327,7 +6561,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Sind Sie sicher, dass Sie alle Spiele dieses Turniers lÃ¶schen mÃ¶chten?',
+                'Sind Sie sicher, dass Sie alle Spiele dieses Turniers löschen möchten?',
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
@@ -6342,7 +6576,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dies wird folgende Daten unwiderruflich lÃ¶schen:',
+                      'Dies wird folgende Daten unwiderruflich löschen:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.red.shade800,
@@ -6350,7 +6584,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text('â€¢ Alle Gruppen- und Eliminationsspiele', style: TextStyle(color: Colors.red.shade700)),
-                    Text('â€¢ Alle ZeitplÃ¤ne und Platzplanungen', style: TextStyle(color: Colors.red.shade700)),
+                    Text('â€¢ Alle Zeitpläne und Platzplanungen', style: TextStyle(color: Colors.red.shade700)),
                     Text('â€¢ Alle Spielergebnisse', style: TextStyle(color: Colors.red.shade700)),
                   ],
                 ),
@@ -6373,7 +6607,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Alle Spiele lÃ¶schen'),
+              child: const Text('Alle Spiele löschen'),
             ),
           ],
         );
@@ -6399,7 +6633,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Sind Sie sicher, dass Sie alle Teams aus diesem Turnier entfernen mÃ¶chten?',
+                'Sind Sie sicher, dass Sie alle Teams aus diesem Turnier entfernen möchten?',
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
@@ -6414,7 +6648,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Dies wird folgende Aktionen ausfÃ¼hren:',
+                      'Dies wird folgende Aktionen ausführen:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.orange.shade800,
@@ -6423,7 +6657,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     const SizedBox(height: 8),
                     Text('â€¢ Alle Teams werden vom Turnier abgemeldet', style: TextStyle(color: Colors.orange.shade700)),
                     Text('â€¢ Die Teams bleiben im System bestehen', style: TextStyle(color: Colors.orange.shade700)),
-                    Text('â€¢ TurnierplÃ¤tze werden fÃ¼r neue Anmeldungen frei', style: TextStyle(color: Colors.orange.shade700)),
+                    Text('â€¢ Turnierplätze werden für neue Anmeldungen frei', style: TextStyle(color: Colors.orange.shade700)),
                   ],
                 ),
               ),
@@ -6469,7 +6703,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               children: [
                 CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                const Text('LÃ¶sche alle Spiele...'),
+                const Text('Lösche alle Spiele...'),
               ],
             ),
           );
@@ -6498,7 +6732,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                const Text('Alle Spiele wurden erfolgreich gelÃ¶scht'),
+                const Text('Alle Spiele wurden erfolgreich gelöscht'),
               ],
             ),
             backgroundColor: Colors.green,
@@ -6521,7 +6755,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               children: [
                 Icon(Icons.error, color: Colors.white),
                 const SizedBox(width: 12),
-                Text('Fehler beim LÃ¶schen der Spiele: $e'),
+                Text('Fehler beim Löschen der Spiele: $e'),
               ],
             ),
             backgroundColor: Colors.red,
@@ -6634,7 +6868,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MÃ¶chten Sie dieses Spiel aus dem Zeitplan entfernen?',
+                'Möchten Sie dieses Spiel aus dem Zeitplan entfernen?',
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 12),
@@ -6671,7 +6905,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Das Spiel wird zurÃ¼ck in die Liste der nicht geplanten Spiele verschoben.',
+                'Das Spiel wird zurück in die Liste der nicht geplanten Spiele verschoben.',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade600,
@@ -6819,7 +7053,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           ElevatedButton.icon(
             onPressed: _saveTournament,
             icon: const Icon(Icons.save),
-            label: const Text('Ã„nderungen speichern'),
+            label: const Text('Änderungen speichern'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
@@ -6845,7 +7079,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
             child: Center(
               child: Text(
-                'Keine ${linkType == 'agb' ? 'Ausschreibungen/AGBs' : 'Social Media Links'} hinzugefÃ¼gt',
+                'Keine ${linkType == 'agb' ? 'Ausschreibungen/AGBs' : 'Social Media Links'} hinzugefügt',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             ),
@@ -6902,7 +7136,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         ElevatedButton.icon(
           onPressed: () => _addLink(linkType),
           icon: const Icon(Icons.add),
-          label: Text(linkType == 'agb' ? 'Ausschreibung hinzufÃ¼gen' : 'Social Media Link hinzufÃ¼gen'),
+          label: Text(linkType == 'agb' ? 'Ausschreibung hinzufügen' : 'Social Media Link hinzufügen'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
             foregroundColor: Colors.white,
@@ -6952,8 +7186,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Link lÃ¶schen?'),
-        content: Text('MÃ¶chten Sie "${link.label}" wirklich lÃ¶schen?'),
+        title: const Text('Link löschen?'),
+        content: Text('Möchten Sie "${link.label}" wirklich löschen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -6967,7 +7201,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               });
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('LÃ¶schen'),
+            child: const Text('Löschen'),
           ),
         ],
       ),
@@ -7037,7 +7271,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         ElevatedButton.icon(
                           onPressed: _showManualGameCreationDialog,
                           icon: const Icon(Icons.add),
-                          label: const Text('Spiel hinzufÃ¼gen'),
+                          label: const Text('Spiel hinzufügen'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
@@ -7130,7 +7364,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     
                     // Current games overview
                     const Text(
-                      'Ãœbersicht',
+                      'Übersicht',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -7242,9 +7476,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     : null;
                 final timeStr = game.scheduledTime != null
                     ? '${game.scheduledTime!.day.toString().padLeft(2,'0')}.${game.scheduledTime!.month.toString().padLeft(2,'0')} ${game.scheduledTime!.hour.toString().padLeft(2,'0')}:${game.scheduledTime!.minute.toString().padLeft(2,'0')}'
-                    : 'â€“';
+                    : '—';
                 final isCompleted = game.status == GameStatus.completed;
-                final resultStr = isCompleted && game.result != null ? game.result!.finalScore : 'â€“';
+                final resultStr = isCompleted && game.result != null ? game.result!.finalScore : '—';
 
                 return Column(
                   children: [
@@ -7263,7 +7497,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${game.teamAName} â€“ ${game.teamBName}',
+                                  '${game.teamAName} — ${game.teamBName}',
                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -7322,7 +7556,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      courtName ?? 'â€“',
+                                      courtName ?? '—',
                                       style: TextStyle(fontSize: 12, color: Colors.green.shade700),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -7427,7 +7661,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          title: Text('Zeit & Halle â€“ ${game.teamAName} vs ${game.teamBName}'),
+          title: Text('Zeit & Halle — ${game.teamAName} vs ${game.teamBName}'),
           content: SizedBox(
             width: 380,
             child: Column(
@@ -7441,7 +7675,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   icon: const Icon(Icons.event),
                   label: Text(selectedDate != null
                       ? '${selectedDate!.day.toString().padLeft(2,'0')}.${selectedDate!.month.toString().padLeft(2,'0')}.${selectedDate!.year}'
-                      : 'Datum wÃ¤hlen'),
+                      : 'Datum wählen'),
                   onPressed: () async {
                     final picked = await showDatePicker(
                       context: ctx,
@@ -7460,7 +7694,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   icon: const Icon(Icons.schedule),
                   label: Text(selectedTime != null
                       ? '${selectedTime!.hour.toString().padLeft(2,'0')}:${selectedTime!.minute.toString().padLeft(2,'0')}'
-                      : 'Uhrzeit wÃ¤hlen'),
+                      : 'Uhrzeit wählen'),
                   onPressed: () async {
                     final picked = await showTimePicker(
                       context: ctx,
@@ -7481,7 +7715,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     hintText: 'Keine Halle',
                   ),
                   items: [
-                    const DropdownMenuItem<String>(value: null, child: Text('â€“ Keine Halle â€“')),
+                    const DropdownMenuItem<String>(value: null, child: Text('— Keine Halle —')),
                     ..._tournamentCourts.map((c) => DropdownMenuItem<String>(value: c.id, child: Text(c.name))),
                   ],
                   onChanged: (val) => setDlgState(() => selectedCourtId = val),
@@ -7542,7 +7776,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     final entryPlayerFocus = FocusNode();
     final formKey = GlobalKey<FormState>();
 
-    // Mutable event state â€“ captured by ref in StatefulBuilder
+    // Mutable event state — captured by ref in StatefulBuilder
     final List<_GameEventEntry> events = [];
     int entryMinute = 1;
     int entryHalf = 1;
@@ -7645,7 +7879,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Spielbericht â€“ ${game.teamAName} vs ${game.teamBName}',
+                            'Spielbericht — ${game.teamAName} vs ${game.teamBName}',
                             style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -7819,7 +8053,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                         width: 52,
                                         child: showScore
                                             ? Text('$runA:$runB', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))
-                                            : Text('â€”', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
+                                            : Text('—', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
                                       ),
                                       // Ereignis
                                       Expanded(
@@ -7835,7 +8069,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                       // Person
                                       Expanded(
                                         child: Text(
-                                          ev.playerName.isNotEmpty ? ev.playerName : 'â€”',
+                                          ev.playerName.isNotEmpty ? ev.playerName : '—',
                                           style: const TextStyle(fontSize: 11),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -7852,7 +8086,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                           }),
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
-                                          tooltip: 'LÃ¶schen',
+                                          tooltip: 'Löschen',
                                         ),
                                       ),
                                     ]),
@@ -7934,7 +8168,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  // Row 2: Team toggle + Spieler autocomplete + HinzufÃ¼gen
+                                  // Row 2: Team toggle + Spieler autocomplete + Hinzufügen
                                   Row(
                                     children: [
                                       _buildToggle2(
@@ -7970,7 +8204,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                                   _recalcScoresFromEvents(events, teamAScoreCtrl, teamBScoreCtrl, htACtrl, htBCtrl);
                                                 }),
                                         icon: const Icon(Icons.add, size: 18),
-                                        label: const Text('HinzufÃ¼gen'),
+                                        label: const Text('Hinzufügen'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.deepPurple,
                                           foregroundColor: Colors.white,
@@ -8061,7 +8295,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Spielverlauf-Abschnitt aus der nuLiga-PDF kopieren und hier einfÃ¼gen:',
+                                        'Spielverlauf-Abschnitt aus der nuLiga-PDF kopieren und hier einfügen:',
                                         style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                                       ),
                                       const SizedBox(height: 10),
@@ -8264,7 +8498,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _deleteAllGames(),
                     icon: const Icon(Icons.delete_sweep),
-                    label: const Text('Alle Spiele lÃ¶schen'),
+                    label: const Text('Alle Spiele löschen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
@@ -8323,7 +8557,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         }
       }
     }
-    return '$totalPoolGames Spiele mÃ¶glich';
+    return '$totalPoolGames Spiele möglich';
   }
 
   String _getEliminationGamesInfo() {
@@ -8337,7 +8571,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     
     if (totalAdvancingTeams > 1) {
       int eliminationGames = totalAdvancingTeams - 1; // n-1 games for n teams
-      return '$eliminationGames Spiele fÃ¼r $totalAdvancingTeams Teams';
+      return '$eliminationGames Spiele für $totalAdvancingTeams Teams';
     }
     return 'Keine Teams definiert';
   }
@@ -8378,7 +8612,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Text(
-                            'Spielplan-Tabelle â€“ Mehrere Spiele eintragen',
+                            'Spielplan-Tabelle — Mehrere Spiele eintragen',
                             style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -8442,7 +8676,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                             style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
                                       ),
 
-                                      // Datum â€“ free text TT.MM.JJJJ
+                                      // Datum — free text TT.MM.JJJJ
                                       SizedBox(
                                         width: 110,
                                         child: Container(
@@ -8455,7 +8689,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                         ),
                                       ),
 
-                                      // Zeit â€“ free text HH:MM
+                                      // Zeit — free text HH:MM
                                       SizedBox(
                                         width: 80,
                                         child: Container(
@@ -8468,7 +8702,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                         ),
                                       ),
 
-                                      // Halle â€“ Autocomplete
+                                      // Halle — Autocomplete
                                       SizedBox(
                                         width: 130,
                                         child: Container(
@@ -8482,7 +8716,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                         ),
                                       ),
 
-                                      // Team A â€“ Autocomplete
+                                      // Team A — Autocomplete
                                       Expanded(
                                         child: Container(
                                           margin: const EdgeInsets.only(right: 8),
@@ -8503,7 +8737,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                         ),
                                       ),
 
-                                      // Team B â€“ Autocomplete
+                                      // Team B — Autocomplete
                                       Expanded(
                                         child: Container(
                                           margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -8561,7 +8795,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         OutlinedButton.icon(
                           onPressed: addRow,
                           icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Zeile hinzufÃ¼gen'),
+                          label: const Text('Zeile hinzufügen'),
                           style: OutlinedButton.styleFrom(foregroundColor: Colors.deepPurple),
                         ),
                         const SizedBox(width: 8),
@@ -8596,7 +8830,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                 type: ToastificationType.error,
                                 style: ToastificationStyle.fillColored,
                                 title: const Text('Fehler'),
-                                description: const Text('Bitte Team A und Team B in jeder Zeile ausfÃ¼llen.'),
+                                description: const Text('Bitte Team A und Team B in jeder Zeile ausfüllen.'),
                                 alignment: Alignment.topRight,
                                 autoCloseDuration: const Duration(seconds: 3),
                                 showProgressBar: false,
@@ -8781,7 +9015,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   ///   mit Bericht       â†’ blueCard (Disqualifikation mit schriftlichem Bericht)
   ///   Auszeit           â†’ timeout
   List<_GameEventEntry> _parseNuLigaText(String rawText) {
-    // Zeilenweise einlesen; Folgezeilen die auf "," enden zusammenfÃ¼hren
+    // Zeilenweise einlesen; Folgezeilen die auf "," enden zusammenführen
     final rawLines = rawText.split('\n');
     final lines = <String>[];
     for (final raw in rawLines) {
@@ -8862,9 +9096,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         rest = '';
       }
 
-      if (type == null) continue; // unbekannter Ereignistyp â†’ Ã¼berspringen
+      if (type == null) continue; // unbekannter Ereignistyp â†’ überspringen
 
-      // FÃ¼hrende Trikotnummer entfernen (z. B. "12 Kunert, Heiko" â†’ "Kunert, Heiko")
+      // Führende Trikotnummer entfernen (z. B. "12 Kunert, Heiko" â†’ "Kunert, Heiko")
       rest = rest.replaceFirst(RegExp(r'^\d+\s*'), '').trim();
 
       entries.add(_GameEventEntry(
@@ -8906,7 +9140,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Szenario auswÃ¤hlen:', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                Text('Szenario auswählen:', style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
@@ -8935,8 +9169,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   controller: commentCtrl,
                   maxLines: 3,
                   decoration: const InputDecoration(
-                    labelText: 'Kommentar / BegrÃ¼ndung (optional)',
-                    hintText: 'z. B. â€žGastmannschaft frÃ¼hzeitig abgereist"',
+                    labelText: 'Kommentar / Begründung (optional)',
+                    hintText: 'z. B. â€žGastmannschaft frühzeitig abgereist"',
                     border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -8949,7 +9183,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             if (localScenario != null)
               TextButton.icon(
                 icon: const Icon(Icons.clear, size: 14),
-                label: const Text('ZurÃ¼cksetzen'),
+                label: const Text('Zurücksetzen'),
                 style: TextButton.styleFrom(foregroundColor: Colors.grey),
                 onPressed: () {
                   setSS(() => localScenario = null);
@@ -8966,7 +9200,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 onChanged(localScenario);
                 Navigator.of(dCtx).pop();
               },
-              child: const Text('Ãœbernehmen'),
+              child: const Text('Übernehmen'),
             ),
           ],
         ),
@@ -9226,7 +9460,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Pool ID â€“ only for pool games
+                    // Pool ID — only for pool games
                     if (selectedGameType == GameType.pool) ...[
                       TextFormField(
                         decoration: const InputDecoration(
@@ -9284,7 +9518,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           labelText: 'Team A Name *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.groups),
-                          hintText: 'z.B. TSV MÃ¼nchen',
+                          hintText: 'z.B. TSV München',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -9306,7 +9540,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       leading: const Icon(Icons.calendar_today, color: Colors.blue),
                       title: Text(selectedDate != null
                           ? '${selectedDate!.day.toString().padLeft(2, '0')}.${selectedDate!.month.toString().padLeft(2, '0')}.${selectedDate!.year}'
-                          : 'Datum auswÃ¤hlen'),
+                          : 'Datum auswählen'),
                       subtitle: const Text('Spieltag'),
                       onTap: () async {
                         final date = await showDatePicker(
@@ -9325,8 +9559,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       leading: const Icon(Icons.access_time, color: Colors.blue),
                       title: Text(selectedTime != null
                           ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
-                          : 'Uhrzeit auswÃ¤hlen'),
-                      subtitle: const Text('AnstoÃŸzeit'),
+                          : 'Uhrzeit auswählen'),
+                      subtitle: const Text('Anstoßzeit'),
                       onTap: () async {
                         final time = await showTimePicker(
                           context: ctx,
@@ -9436,7 +9670,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         type: ToastificationType.error,
                         style: ToastificationStyle.fillColored,
                         title: const Text('Fehler'),
-                        description: const Text('Bitte zwei Teams auswÃ¤hlen'),
+                        description: const Text('Bitte zwei Teams auswählen'),
                         alignment: Alignment.topRight,
                         autoCloseDuration: const Duration(seconds: 3),
                         showProgressBar: false,
@@ -10890,7 +11124,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                     _isAutoRefreshing ? Icons.hourglass_empty : Icons.refresh,
                     size: 18,
                   ),
-                  label: Text(_isAutoRefreshing ? 'LÃ¤dt...' : 'Aktualisieren'),
+                  label: Text(_isAutoRefreshing ? 'Lädt...' : 'Aktualisieren'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade600,
                     foregroundColor: Colors.white,
@@ -11107,7 +11341,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Feld / Halle hinzufÃ¼gen'),
+        title: const Text('Feld / Halle hinzufügen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -11148,7 +11382,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 _triggerScheduleAutoSave();
                 Navigator.of(ctx).pop();
               },
-              child: const Text('HinzufÃ¼gen'),
+              child: const Text('Hinzufügen'),
             ),
           ],
         ),
@@ -11510,7 +11744,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'VerfÃ¼gbare Delegierte',
+                      'Verfügbare Delegierte',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -11532,7 +11766,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Keine Delegierte ausgewÃ¤hlt',
+                                'Keine Delegierte ausgewählt',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,
@@ -11541,7 +11775,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'WÃ¤hlen Sie Delegierte im "Auswahl" Tab aus',
+                                'Wählen Sie Delegierte im "Auswahl" Tab aus',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade500,
@@ -11734,7 +11968,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Keine PlÃ¤tze konfiguriert',
+              'Keine Plätze konfiguriert',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
@@ -11742,7 +11976,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Konfigurieren Sie zuerst PlÃ¤tze im "PlÃ¤tze" Tab',
+              'Konfigurieren Sie zuerst Plätze im "Plätze" Tab',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -11975,7 +12209,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Delegierte-Zuordnung fÃ¼r "${game.displayName}" entfernt'),
+          content: Text('Delegierte-Zuordnung für "${game.displayName}" entfernt'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -12173,7 +12407,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         type: ToastificationType.warning,
         style: ToastificationStyle.fillColored,
         title: const Text('Delegierter entfernt'),
-        description: Text('Delegierte-Zuordnung fÃ¼r "${game.displayName}" entfernt'),
+        description: Text('Delegierte-Zuordnung für "${game.displayName}" entfernt'),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 3),
         showProgressBar: false,
@@ -12281,7 +12515,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         },
         {
           'name': 'Demo Team 2',
-          'city': 'MÃ¼nchen',
+          'city': 'München',
           'playerIds': createdPlayerIds.skip(4).take(4).toList(),
           'teamManager': 'demo.manager2@example.com',
         },
@@ -12338,7 +12572,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         type: ToastificationType.success,
         style: ToastificationStyle.fillColored,
         title: const Text('Demo Teams erstellt'),
-        description: Text('${demoTeams.length} Demo Teams mit ${demoPlayersData.length} Spielern erfolgreich erstellt und ausgewÃ¤hlt!'),
+        description: Text('${demoTeams.length} Demo Teams mit ${demoPlayersData.length} Spielern erfolgreich erstellt und ausgewählt!'),
         alignment: Alignment.topRight,
         autoCloseDuration: const Duration(seconds: 5),
         showProgressBar: false,
@@ -12545,7 +12779,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'WÃ¤hlen Sie Zeitnehmer und SekretÃ¤re fÃ¼r dieses Turnier aus',
+                    'Wählen Sie Zeitnehmer und Sekretäre für dieses Turnier aus',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 14,
@@ -12570,7 +12804,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'AusgewÃ¤hlte Kampfgericht-Mitglieder: ${_selectedKampfgerichtIds.length}',
+                      'Ausgewählte Kampfgericht-Mitglieder: ${_selectedKampfgerichtIds.length}',
                       style: TextStyle(
                         color: Colors.teal.shade700,
                         fontWeight: FontWeight.w500,
@@ -12696,7 +12930,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'AuswÃ¤hlen (${_selectedDelegateIds.length})',
+                          'Auswählen (${_selectedDelegateIds.length})',
                           style: TextStyle(
                             color: _delegateSubTab == 'selection' ? Colors.white : Colors.grey.shade600,
                             fontWeight: FontWeight.w500,
@@ -12752,7 +12986,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           const SizedBox(height: 12),
           Text(
             hasPools
-                ? 'Generiert Hinrunden-Spiele fÃ¼r alle definierten Pools.'
+                ? 'Generiert Hinrunden-Spiele für alle definierten Pools.'
                 : 'Bitte erstellen Sie zuerst Pools im "Pools" Tab.',
             style: TextStyle(
               fontSize: 13,
@@ -12825,9 +13059,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Alle Spiele lÃ¶schen?'),
+        title: const Text('Alle Spiele löschen?'),
         content: const Text(
-          'MÃ¶chten Sie wirklich alle Spiele fÃ¼r dieses Turnier lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.',
+          'Möchten Sie wirklich alle Spiele für dieses Turnier löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
         ),
         actions: [
           TextButton(
@@ -12837,7 +13071,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('LÃ¶schen'),
+            child: const Text('Löschen'),
           ),
         ],
       ),
@@ -12852,8 +13086,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: const Text('Spiele gelÃ¶scht'),
-          description: const Text('Alle Spiele wurden erfolgreich gelÃ¶scht.'),
+          title: const Text('Spiele gelöscht'),
+          description: const Text('Alle Spiele wurden erfolgreich gelöscht.'),
           alignment: Alignment.topRight,
           autoCloseDuration: const Duration(seconds: 3),
           showProgressBar: false,
@@ -12864,7 +13098,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Fehler beim LÃ¶schen der Spiele: $e'),
+          description: Text('Fehler beim Löschen der Spiele: $e'),
           alignment: Alignment.topRight,
           autoCloseDuration: const Duration(seconds: 5),
           showProgressBar: false,

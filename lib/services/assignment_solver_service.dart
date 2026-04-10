@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
@@ -33,13 +33,13 @@ class AssignmentSolverService {
 
   /// Run the AI solver for a tournament.
   ///
-  /// [games] â€” all games that need officials assigned (must have scheduledTime).
-  /// [referees] â€” accepted referees for this tournament (with availability).
-  /// [kampfgerichtMembers] â€” accepted Kampfgericht members (with availability).
-  /// [refereeInvitations] â€” to extract availability windows.
-  /// [kampfgerichtInvitations] â€” to extract availability windows.
-  /// [constraints] â€” per-game constraints (license levels, manual overrides, exclusions).
-  /// [compatibilities] â€” who can/can't work together.
+  /// [games] — all games that need officials assigned (must have scheduledTime).
+  /// [referees] — accepted referees for this tournament (with availability).
+  /// [kampfgerichtMembers] — accepted Kampfgericht members (with availability).
+  /// [refereeInvitations] — to extract availability windows.
+  /// [kampfgerichtInvitations] — to extract availability windows.
+  /// [constraints] — per-game constraints (license levels, manual overrides, exclusions).
+  /// [compatibilities] — who can/can't work together.
   ///
   /// Returns a [SolverResponse] with assignments and metadata.
   Future<SolverResponse> solveAssignment({

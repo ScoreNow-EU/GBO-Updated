@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/player.dart';
 
@@ -222,7 +222,7 @@ class PlayerService {
         phone: '+49 123 456789',
         classification: 'Gruppe A',
         jerseyNumber: '1',
-        gender: 'mÃ¤nnlich',
+        gender: 'männlich',
         createdAt: DateTime.now(),
       ),
       Player(
@@ -243,7 +243,7 @@ class PlayerService {
         email: 'thomas.weber@example.com',
         classification: 'Gruppe C',
         jerseyNumber: '3',
-        gender: 'mÃ¤nnlich',
+        gender: 'männlich',
         createdAt: DateTime.now(),
       ),
       Player(

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/tournament.dart';
@@ -478,12 +478,12 @@ class TournamentService {
     }
   }
 
-  // Legacy method â€” kept for backward compat but simplified
+  // Legacy method — kept for backward compat but simplified
   Future<bool> inviteRefereeToTournament(String tournamentId, String refereeId) async {
     return addRefereeToTournament(tournamentId, refereeId);
   }
 
-  // Legacy method â€” kept for backward compat but simplified
+  // Legacy method — kept for backward compat but simplified
   Future<bool> respondToRefereeInvitation(
     String tournamentId,
     String refereeId,

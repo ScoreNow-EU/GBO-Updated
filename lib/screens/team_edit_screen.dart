@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/player.dart';
 import '../models/team_manager.dart';
@@ -284,7 +284,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             child: TextButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('ZurÃ¼ck'),
+              label: const Text('Zurück'),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white70,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -358,7 +358,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Bitte wÃ¤hlen Sie ein Bundesland';
+                        return 'Bitte wählen Sie ein Bundesland';
                       }
                       return null;
                     },
@@ -421,7 +421,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _addExistingPlayer,
                   icon: const Icon(Icons.group_add, size: 18),
-                  label: const Text('Vorhandenen Spieler hinzufÃ¼gen'),
+                  label: const Text('Vorhandenen Spieler hinzufügen'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -522,8 +522,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.visibility, color: Colors.blue),
-                    title: const Text('Team Ã¶ffentlich sichtbar'),
-                    subtitle: const Text('Team wird in Ã¶ffentlichen Listen angezeigt'),
+                    title: const Text('Team öffentlich sichtbar'),
+                    subtitle: const Text('Team wird in öffentlichen Listen angezeigt'),
                     trailing: Switch(
                       value: true,
                       onChanged: (value) {
@@ -535,7 +535,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   ListTile(
                     leading: const Icon(Icons.notifications, color: Colors.orange),
                     title: const Text('Benachrichtigungen aktiviert'),
-                    subtitle: const Text('Team erhÃ¤lt E-Mail-Benachrichtigungen'),
+                    subtitle: const Text('Team erhält E-Mail-Benachrichtigungen'),
                     trailing: Switch(
                       value: true,
                       onChanged: (value) {
@@ -546,8 +546,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Team lÃ¶schen'),
-                    subtitle: const Text('Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden'),
+                    title: const Text('Team löschen'),
+                    subtitle: const Text('Diese Aktion kann nicht rückgängig gemacht werden'),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: _deleteTeam,
                   ),
@@ -590,7 +590,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                ),
              ),
              title: Text(player.fullName),
-             subtitle: Text('${player.classification ?? 'Keine Klassifikation'} â€¢ RÃ¼ckennr. ${player.jerseyNumber ?? 'N/A'}'),
+             subtitle: Text('${player.classification ?? 'Keine Klassifikation'} â€¢ Rückennr. ${player.jerseyNumber ?? 'N/A'}'),
             trailing: PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
@@ -651,7 +651,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'FÃ¼gen Sie Spieler zu diesem Team hinzu',
+            'Fügen Sie Spieler zu diesem Team hinzu',
             style: TextStyle(color: Colors.grey[500]),
           ),
         ],
@@ -709,7 +709,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ),
           TextButton(
             onPressed: _changeTeamManager,
-            child: const Text('Ã„ndern'),
+            child: const Text('Ändern'),
           ),
         ],
       ),
@@ -806,7 +806,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Spieler entfernen'),
-        content: Text('MÃ¶chten Sie "${player.fullName}" aus dem Team-Kader entfernen?'),
+        content: Text('Möchten Sie "${player.fullName}" aus dem Team-Kader entfernen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -930,7 +930,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       child: TextField(
                         controller: jerseyController,
                         decoration: const InputDecoration(
-                          labelText: 'RÃ¼ckennummer',
+                          labelText: 'Rückennummer',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -949,7 +949,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('MÃ¤nnlich')),
+                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
                           DropdownMenuItem(value: 'female', child: Text('Weiblich')),
                         ],
                         onChanged: (value) {
@@ -1002,7 +1002,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Erstellen & HinzufÃ¼gen'),
+              child: const Text('Erstellen & Hinzufügen'),
             ),
           ],
         ),
@@ -1022,7 +1022,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       ).toList();
 
       if (availablePlayers.isEmpty) {
-        _showError('Keine verfÃ¼gbaren Spieler gefunden. Erstellen Sie zunÃ¤chst neue Spieler.');
+        _showError('Keine verfügbaren Spieler gefunden. Erstellen Sie zunächst neue Spieler.');
         return;
       }
 
@@ -1033,7 +1033,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Vorhandenen Spieler hinzufÃ¼gen'),
+            title: const Text('Vorhandenen Spieler hinzufügen'),
             content: SizedBox(
               width: 500,
               height: 400,
@@ -1079,7 +1079,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text((player.email?.contains('@placeholder.com') ?? false) ? 'Keine E-Mail' : (player.email ?? 'Keine E-Mail')),
-                                Text('${player.classification ?? 'Keine Klassifikation'} â€¢ ${player.gender == 'male' ? 'MÃ¤nnlich' : 'Weiblich'}'),
+                                Text('${player.classification ?? 'Keine Klassifikation'} â€¢ ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
                               ],
                             ),
                             trailing: ElevatedButton(
@@ -1088,7 +1088,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
                               ),
-                              child: const Text('HinzufÃ¼gen'),
+                              child: const Text('Hinzufügen'),
                             ),
                           ),
                         );
@@ -1101,7 +1101,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('SchlieÃŸen'),
+                child: const Text('Schließen'),
               ),
             ],
           ),
@@ -1185,7 +1185,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       child: TextField(
                         controller: jerseyController,
                         decoration: const InputDecoration(
-                          labelText: 'RÃ¼ckennummer',
+                          labelText: 'Rückennummer',
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -1204,7 +1204,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('MÃ¤nnlich')),
+                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
                           DropdownMenuItem(value: 'female', child: Text('Weiblich')),
                         ],
                         onChanged: (value) {
@@ -1334,9 +1334,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
              ));
             });
           }
-          _showSuccess('Spieler erfolgreich erstellt und zum Kader hinzugefÃ¼gt!');
+          _showSuccess('Spieler erfolgreich erstellt und zum Kader hinzugefügt!');
         } else {
-          _showError('Spieler erstellt, aber Fehler beim HinzufÃ¼gen zum Kader');
+          _showError('Spieler erstellt, aber Fehler beim Hinzufügen zum Kader');
         }
       } else {
         _showError('Fehler beim Erstellen des Spielers');
@@ -1376,12 +1376,12 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             _players.add(player);
           });
         }
-        _showSuccess('Spieler erfolgreich zum Kader hinzugefÃ¼gt!');
+        _showSuccess('Spieler erfolgreich zum Kader hinzugefügt!');
       } else {
-        _showError('Fehler beim HinzufÃ¼gen zum Kader');
+        _showError('Fehler beim Hinzufügen zum Kader');
       }
     } catch (e) {
-      _showError('Fehler beim HinzufÃ¼gen: $e');
+      _showError('Fehler beim Hinzufügen: $e');
     }
   }
 
@@ -1457,7 +1457,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       final allManagers = await _teamManagerService.getAllTeamManagers();
       
       if (allManagers.isEmpty) {
-        _showError('Keine Team Manager gefunden. Erstellen Sie zunÃ¤chst Team Manager.');
+        _showError('Keine Team Manager gefunden. Erstellen Sie zunächst Team Manager.');
         return;
       }
 
@@ -1476,7 +1476,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: Text(isChanging ? 'Team Manager Ã¤ndern' : 'Team Manager zuweisen'),
+            title: Text(isChanging ? 'Team Manager ändern' : 'Team Manager zuweisen'),
             content: SizedBox(
               width: 500,
               height: 400,
@@ -1575,7 +1575,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                                       backgroundColor: Colors.blue,
                                       foregroundColor: Colors.white,
                                     ),
-                                    child: Text(isChanging ? 'Ã„ndern zu' : 'Zuweisen'),
+                                    child: Text(isChanging ? 'Ändern zu' : 'Zuweisen'),
                                   ),
                           ),
                         );
@@ -1588,7 +1588,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('SchlieÃŸen'),
+                child: const Text('Schließen'),
               ),
             ],
           ),
@@ -1641,7 +1641,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Team Manager entfernen'),
-        content: Text('MÃ¶chten Sie "${_teamManager!.name}" als Team Manager entfernen?'),
+        content: Text('Möchten Sie "${_teamManager!.name}" als Team Manager entfernen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1694,8 +1694,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Team lÃ¶schen'),
-        content: Text('MÃ¶chten Sie das Team "${_team!.name}" wirklich lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.'),
+        title: const Text('Team löschen'),
+        content: Text('Möchten Sie das Team "${_team!.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -1704,7 +1704,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
+            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1715,12 +1715,12 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         final success = await _teamService.deleteTeam(_team!.id);
         if (success) {
           Navigator.of(context).pop(); // Go back to team management
-          _showSuccess('Team erfolgreich gelÃ¶scht!');
+          _showSuccess('Team erfolgreich gelöscht!');
         } else {
-          _showError('Fehler beim LÃ¶schen des Teams');
+          _showError('Fehler beim Löschen des Teams');
         }
       } catch (e) {
-        _showError('Fehler beim LÃ¶schen: $e');
+        _showError('Fehler beim Löschen: $e');
       }
     }
   }

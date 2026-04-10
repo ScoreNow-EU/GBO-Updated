@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../services/team_service.dart';
 import '../models/city.dart';
@@ -29,7 +29,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teams Bulk HinzufÃ¼gen'),
+        title: const Text('Teams Bulk Hinzufügen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -44,7 +44,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               Row(
                 children: [
                   const Text(
-                    'Teams hinzufÃ¼gen',
+                    'Teams hinzufügen',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -63,7 +63,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Geben Sie fÃ¼r jedes Team individuelle Daten ein.',
+                'Geben Sie für jedes Team individuelle Daten ein.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -169,7 +169,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
           Row(
             children: [
               Text(
-                isLast ? 'Team ${index + 1} hinzufÃ¼gen' : 'Team ${index + 1}',
+                isLast ? 'Team ${index + 1} hinzufügen' : 'Team ${index + 1}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -367,7 +367,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
     for (TeamFormData teamData in teamsToPreview) {
       // Parse city and state from selection with better error handling
       String city = 'Unknown';
-      String state = 'Baden-WÃ¼rttemberg';
+      String state = 'Baden-Württemberg';
       
       try {
         if (teamData.selectedCity != null) {
@@ -389,7 +389,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
         // If there's any error accessing the city data, use defaults
         debugPrint('Error parsing city data: $e');
         city = 'Unknown';
-        state = 'Baden-WÃ¼rttemberg';
+        state = 'Baden-Württemberg';
       }
 
       Team team = Team(
@@ -435,7 +435,7 @@ class _BulkAddTeamsScreenState extends State<BulkAddTeamsScreen> {
       Navigator.of(context).pop(); // Close bulk add screen
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${teams.length} Teams erfolgreich hinzugefÃ¼gt'),
+          content: Text('${teams.length} Teams erfolgreich hinzugefügt'),
           backgroundColor: Colors.green,
         ),
       );
@@ -510,7 +510,7 @@ class TeamConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teams BestÃ¤tigen'),
+        title: const Text('Teams Bestätigen'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -532,7 +532,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  '${teams.length} Teams werden hinzugefÃ¼gt',
+                  '${teams.length} Teams werden hinzugefügt',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
@@ -542,7 +542,7 @@ class TeamConfirmationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'ÃœberprÃ¼fen Sie die Team-Details bevor Sie sie hinzufÃ¼gen.',
+              'Überprüfen Sie die Team-Details bevor Sie sie hinzufügen.',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -617,7 +617,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: const Text('ZurÃ¼ck'),
+                  child: const Text('Zurück'),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton(
@@ -627,7 +627,7 @@ class TeamConfirmationScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  child: Text('${teams.length} Teams HinzufÃ¼gen'),
+                  child: Text('${teams.length} Teams Hinzufügen'),
                 ),
               ],
             ),

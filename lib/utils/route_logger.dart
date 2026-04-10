@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// NavigatorObserver zur Debug-Anzeige der aktuellen Route/Screen
 /// Gibt bei jedem Screen-Wechsel die .dart-Datei in der Konsole aus
 /// 
 /// VERWENDUNG:
-/// Bei der Navigation einfach `settings` hinzufÃ¼gen:
+/// Bei der Navigation einfach `settings` hinzufügen:
 /// ```dart
 /// Navigator.of(context).push(
 ///   MaterialPageRoute(
 ///     builder: (context) => MeinScreen(),
-///     settings: const RouteSettings(name: 'MeinScreen'),  // <- Diese Zeile hinzufÃ¼gen
+///     settings: const RouteSettings(name: 'MeinScreen'),  // <- Diese Zeile hinzufügen
 ///   ),
 /// );
 /// ```
@@ -50,11 +50,11 @@ class RouteLogger extends NavigatorObserver {
     final routeName = route.settings.name ?? 'unnamed';
     final widgetInfo = _getWidgetInfo(route);
     
-    // Ausgabe in Konsole mit Emoji fÃ¼r bessere Sichtbarkeit
+    // Ausgabe in Konsole mit Emoji für bessere Sichtbarkeit
     final display = widgetInfo.isNotEmpty ? widgetInfo : routeName;
     debugPrint('ðŸ§­ [$action] $display');
     
-    // ZusÃ¤tzlich: Title des Browser-Tabs aktualisieren (nur fÃ¼r Web)
+    // Zusätzlich: Title des Browser-Tabs aktualisieren (nur für Web)
     // Dies erscheint auch in den Browser DevTools
   }
 
@@ -68,9 +68,9 @@ class RouteLogger extends NavigatorObserver {
         return '$name â†’ screens/$fileName.dart';
       }
       
-      // Fallback fÃ¼r unnamed routes
+      // Fallback für unnamed routes
       if (route is MaterialPageRoute) {
-        return 'MaterialPageRoute (unnamed - Hinweis: settings: RouteSettings(name: "ScreenName") hinzufÃ¼gen)';
+        return 'MaterialPageRoute (unnamed - Hinweis: settings: RouteSettings(name: "ScreenName") hinzufügen)';
       }
       
       return 'Route: ${route.runtimeType}';

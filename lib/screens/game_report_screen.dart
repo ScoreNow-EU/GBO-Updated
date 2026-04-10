@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:printing/printing.dart';
 import '../models/game.dart';
@@ -9,6 +9,8 @@ import '../services/game_service.dart';
 import '../services/game_squad_service.dart';
 import '../services/protest_service.dart';
 import '../services/spielbericht_pdf_service.dart';
+import '../services/referee_service.dart';
+import '../services/delegate_service.dart';
 import '../models/game_squad.dart';
 import 'protest_screen.dart';
 import 'protest_list_screen.dart';
@@ -119,6 +121,27 @@ class _GameReportScreenState extends State<GameReportScreen> {
 
   Future<void> _exportPdf() async {
     try {
+      // Resolve referee and delegate names
+      final refereeService = RefereeService();
+      final delegateService = DelegateService();
+      
+      String? referee1Name;
+      String? referee2Name;
+      String? delegateName;
+      
+      if (widget.game.referee1Id != null && widget.game.referee1Id!.isNotEmpty) {
+        final ref = await refereeService.getRefereeById(widget.game.referee1Id!);
+        referee1Name = ref?.fullName;
+      }
+      if (widget.game.referee2Id != null && widget.game.referee2Id!.isNotEmpty) {
+        final ref = await refereeService.getRefereeById(widget.game.referee2Id!);
+        referee2Name = ref?.fullName;
+      }
+      if (widget.game.delegateId != null && widget.game.delegateId!.isNotEmpty) {
+        final del = await delegateService.getDelegateById(widget.game.delegateId!);
+        delegateName = del?.fullName;
+      }
+
       final pdfService = SpielberichtPdfService();
       final pdfBytes = await pdfService.generateSpielberichtPdf(
         game: widget.game,
@@ -130,6 +153,9 @@ class _GameReportScreenState extends State<GameReportScreen> {
         signatureTimes: _signatureTimes,
         signatureNames: _signatureNames,
         isLocked: _isLocked,
+        referee1Name: referee1Name,
+        referee2Name: referee2Name,
+        delegateName: delegateName,
       );
       await Printing.sharePdf(
         bytes: pdfBytes,
@@ -498,7 +524,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                   ElevatedButton.icon(
                     onPressed: _showAddEventDialog,
                     icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Ereignis hinzufÃ¼gen'),
+                    label: const Text('Ereignis hinzufügen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
@@ -522,7 +548,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'FÃ¼gen Sie Ereignisse Ã¼ber den Button oben oder unten rechts hinzu.',
+                        'Fügen Sie Ereignisse über den Button oben oder unten rechts hinzu.',
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                         textAlign: TextAlign.center,
                       ),
@@ -634,7 +660,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   )
                 : Text(
-                    'â€”',
+                    '—',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                   ),
@@ -658,7 +684,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
           // Person
           Expanded(
             child: Text(
-              event.playerName.isNotEmpty ? event.playerName : 'â€”',
+              event.playerName.isNotEmpty ? event.playerName : '—',
               style: const TextStyle(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
@@ -671,7 +697,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
               onPressed: () => _showDeleteConfirmation(event),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              tooltip: 'LÃ¶schen',
+              tooltip: 'Löschen',
             ),
           ),
         ],
@@ -687,12 +713,21 @@ class _GameReportScreenState extends State<GameReportScreen> {
     int selectedHalf = 1;
     final minuteController = TextEditingController();
     final playerController = TextEditingController();
+    SquadPlayer? selectedSquadPlayer;
+
+    List<SquadPlayer> getSquadPlayers(String team) {
+      final squad = team == 'A' ? _squadA : _squadB;
+      return squad?.selectedPlayers ?? [];
+    }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) => AlertDialog(
-          title: const Text('Ereignis hinzufÃ¼gen'),
+        builder: (ctx, setDlgState) {
+          final squadPlayers = getSquadPlayers(selectedTeam);
+          final hasSquad = squadPlayers.isNotEmpty;
+          return AlertDialog(
+          title: const Text('Ereignis hinzufügen'),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -714,7 +749,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
                           children: [
                             Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
                             const SizedBox(width: 8),
-                            Flexible(child: Text('Heim â€“ ${widget.game.teamAName}', overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text('Heim — ${widget.game.teamAName}', overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ),
@@ -724,12 +759,16 @@ class _GameReportScreenState extends State<GameReportScreen> {
                           children: [
                             Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
                             const SizedBox(width: 8),
-                            Flexible(child: Text('Gast â€“ ${widget.game.teamBName}', overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text('Gast — ${widget.game.teamBName}', overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ),
                     ],
-                    onChanged: (v) => setDlgState(() => selectedTeam = v!),
+                    onChanged: (v) => setDlgState(() {
+                      selectedTeam = v!;
+                      selectedSquadPlayer = null;
+                      playerController.clear();
+                    }),
                   ),
                   const SizedBox(height: 12),
 
@@ -788,16 +827,37 @@ class _GameReportScreenState extends State<GameReportScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Person
-                  TextField(
-                    controller: playerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Spieler / Person',
-                      hintText: 'Name eingeben (optional)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
+                  // Person — squad picker or free text
+                  if (hasSquad)
+                    DropdownButtonFormField<SquadPlayer?>(
+                      value: selectedSquadPlayer,
+                      decoration: const InputDecoration(
+                        labelText: 'Spieler',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      items: [
+                        const DropdownMenuItem<SquadPlayer?>(
+                          value: null,
+                          child: Text('— Kein Spieler —', style: TextStyle(color: Colors.grey)),
+                        ),
+                        ...squadPlayers.map((p) => DropdownMenuItem<SquadPlayer?>(
+                          value: p,
+                          child: Text(p.displayName),
+                        )),
+                      ],
+                      onChanged: (v) => setDlgState(() => selectedSquadPlayer = v),
+                    )
+                  else
+                    TextField(
+                      controller: playerController,
+                      decoration: const InputDecoration(
+                        labelText: 'Spieler / Person',
+                        hintText: 'Name eingeben (optional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -809,7 +869,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('HinzufÃ¼gen'),
+              label: const Text('Hinzufügen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
@@ -829,12 +889,14 @@ class _GameReportScreenState extends State<GameReportScreen> {
                   eventType: selectedEventType,
                   gameMinute: minute,
                   half: selectedHalf,
-                  playerName: playerController.text.trim(),
+                  playerName: selectedSquadPlayer?.fullName ?? playerController.text.trim(),
+                  playerId: selectedSquadPlayer?.playerId,
                 );
               },
             ),
           ],
-        ),
+        );
+        },
       ),
     );
   }
@@ -844,11 +906,11 @@ class _GameReportScreenState extends State<GameReportScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ereignis lÃ¶schen'),
+        title: const Text('Ereignis löschen'),
         content: Text(
-          'MÃ¶chten Sie das Ereignis "${cfg.label}"'
+          'Möchten Sie das Ereignis "${cfg.label}"'
           '${event.playerName.isNotEmpty ? ' von ${event.playerName}' : ''}'
-          ' wirklich lÃ¶schen?',
+          ' wirklich löschen?',
         ),
         actions: [
           TextButton(
@@ -864,7 +926,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
               Navigator.of(ctx).pop();
               _deleteEvent(event);
             },
-            child: const Text('LÃ¶schen'),
+            child: const Text('Löschen'),
           ),
         ],
       ),
@@ -880,12 +942,14 @@ class _GameReportScreenState extends State<GameReportScreen> {
     required int gameMinute,
     required int half,
     required String playerName,
+    String? playerId,
   }) async {
     try {
       final ref = FirebaseFirestore.instance.collection('gameEvents').doc();
       final event = GameEvent(
         id: ref.id,
         gameId: widget.game.id,
+        playerId: playerId,
         teamId: teamId,
         teamName: teamName,
         eventType: eventType,
@@ -900,7 +964,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ereignis hinzugefÃ¼gt'),
+            content: Text('Ereignis hinzugefügt'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -926,7 +990,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ereignis gelÃ¶scht'),
+            content: Text('Ereignis gelöscht'),
             duration: Duration(seconds: 2),
           ),
         );
@@ -1523,7 +1587,7 @@ class _GameReportScreenState extends State<GameReportScreen> {
       case GameStatus.scheduled:
         return 'Geplant';
       case GameStatus.inProgress:
-        return 'LÃ¤uft';
+        return 'Läuft';
       case GameStatus.completed:
         return 'Beendet';
       case GameStatus.cancelled:

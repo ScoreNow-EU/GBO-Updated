@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../models/team.dart';
 import '../widgets/custom_bracket_builder.dart';
@@ -40,7 +40,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
         id: 'team_$teamNumber',
         name: 'Team $teamNumber',
         city: 'Stadt $teamNumber',
-        bundesland: 'Baden-WÃ¼rttemberg',
+        bundesland: 'Baden-Württemberg',
         createdAt: DateTime.now(),
         teamManager: 'Manager $teamNumber',
         logoUrl: null,
@@ -296,7 +296,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                         : _savedPresets.isEmpty
                             ? Center(
                                 child: Text(
-                                  'Keine Presets fÃ¼r\n$_selectedCategory',
+                                  'Keine Presets für\n$_selectedCategory',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 12,
@@ -337,7 +337,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
                                           ),
                                           const PopupMenuItem(
                                             value: 'delete',
-                                            child: Text('LÃ¶schen'),
+                                            child: Text('Löschen'),
                                           ),
                                         ],
                                       ),
@@ -389,7 +389,7 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '${_sampleTeams.length} Test-Teams verfÃ¼gbar',
+              '${_sampleTeams.length} Test-Teams verfügbar',
               style: const TextStyle(
                 color: Colors.blue,
                 fontSize: 14,
@@ -574,8 +574,8 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Preset lÃ¶schen'),
-        content: Text('MÃ¶chten Sie das Preset "${preset.name}" wirklich lÃ¶schen?'),
+        title: const Text('Preset löschen'),
+        content: Text('Möchten Sie das Preset "${preset.name}" wirklich löschen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -586,14 +586,14 @@ class _PresetManagementScreenState extends State<PresetManagementScreen> {
               try {
                 await _presetService.deletePreset(preset.id);
                 Navigator.pop(context);
-                _showSuccess('Preset "${preset.name}" gelÃ¶scht');
+                _showSuccess('Preset "${preset.name}" gelöscht');
                 _loadPresets(); // Refresh the list
               } catch (e) {
-                _showError('Fehler beim LÃ¶schen: $e');
+                _showError('Fehler beim Löschen: $e');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
+            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

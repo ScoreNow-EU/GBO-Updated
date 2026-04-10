@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -78,10 +78,10 @@ class _NotificationStatusWidgetState extends State<NotificationStatusWidget> {
             
             // Last check time
             _buildStatusRow(
-              'Letzte ÃœberprÃ¼fung',
+              'Letzte Überprüfung',
               _lastCheck != null 
                   ? _formatDateTime(_lastCheck!)
-                  : 'Noch nicht Ã¼berprÃ¼ft',
+                  : 'Noch nicht überprüft',
               _lastCheck != null ? Colors.green : Colors.orange,
             ),
             

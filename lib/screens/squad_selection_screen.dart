@@ -112,8 +112,8 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
       return;
     }
 
-    if (_selectedPlayers.length > 10) {
-      _showErrorToast('Maximal 10 Spieler erlaubt');
+    if (_selectedPlayers.length > 16) {
+      _showErrorToast('Maximal 16 Spieler erlaubt');
       return;
     }
 
@@ -193,8 +193,8 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
       if (_selectedPlayers.contains(player)) {
         _selectedPlayers.remove(player);
       } else {
-        if (_selectedPlayers.length >= 10) {
-          _showErrorToast('Maximal 10 Spieler erlaubt');
+        if (_selectedPlayers.length >= 16) {
+          _showErrorToast('Maximal 16 Spieler erlaubt');
           return;
         }
         _selectedPlayers.add(player);
@@ -379,7 +379,7 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: _selectedPlayers.length > 10 ? Colors.red[50] : Colors.green[50],
+      color: _selectedPlayers.length > 16 ? Colors.red[50] : Colors.green[50],
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -393,11 +393,11 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _selectedPlayers.length > 10 ? Colors.red : Colors.green,
+              color: _selectedPlayers.length > 16 ? Colors.red : Colors.green,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '${_selectedPlayers.length}/10',
+              '${_selectedPlayers.length}/16',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,

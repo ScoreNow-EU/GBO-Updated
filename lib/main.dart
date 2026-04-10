@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:toastification/toastification.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'firebase_config.dart';
 import 'screens/home_screen.dart';
@@ -20,6 +21,7 @@ import 'utils/route_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
   
   // Initialize debug filter to silence unwanted messages
   DebugFilter.initialize();
@@ -72,6 +74,8 @@ void main() async {
 class RHBLApp extends StatelessWidget {
   const RHBLApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static FirebaseAnalytics? analytics;
   static FirebaseAnalyticsObserver? observer;
 
@@ -94,6 +98,7 @@ class RHBLApp extends StatelessWidget {
 
     return ToastificationWrapper(
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'Rollstuhlhandball Bundesliga',
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
@@ -145,11 +150,9 @@ class RHBLApp extends StatelessWidget {
           ),
         ),
         initialRoute: '/',
-        routes: {
-          '/': (context) => const HomeScreen(),
-          '/obs-graphics': (context) => _buildOBSGraphicsScreen(context),
-          '/public': (context) => _buildPublicScoreboard(context),
-          '/kiosk': (context) => _buildKioskScreen(context),
+        onGenerateRoute: _generateRoute,
+        onGenerateInitialRoutes: (String initialRoute) {
+          return [_generateRoute(RouteSettings(name: initialRoute))!];
         },
         navigatorObservers: [
           RouteLogger(), // Debug: Zeigt aktuelle Route in Konsole
@@ -159,9 +162,36 @@ class RHBLApp extends StatelessWidget {
     );
   }
 
-  static Widget _buildOBSGraphicsScreen(BuildContext context) {
+  static Route<dynamic>? _generateRoute(RouteSettings settings) {
+    final uri = Uri.parse(settings.name ?? '/');
+    final path = uri.path;
+
+    switch (path) {
+      case '/obs-graphics':
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => _buildOBSGraphicsScreen(uri),
+        );
+      case '/public':
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => _buildPublicScoreboard(uri),
+        );
+      case '/kiosk':
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => _buildKioskScreen(uri),
+        );
+      default:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => const HomeScreen(),
+        );
+    }
+  }
+
+  static Widget _buildOBSGraphicsScreen(Uri uri) {
     // Parse URL parameters for OBS graphics configuration
-    final uri = Uri.base;
     final tournamentId = uri.queryParameters['tournamentId'];
     final gameId = uri.queryParameters['gameId'];
     final overlayType = uri.queryParameters['overlayType'];
@@ -173,14 +203,12 @@ class RHBLApp extends StatelessWidget {
     );
   }
 
-  static Widget _buildPublicScoreboard(BuildContext context) {
-    final uri = Uri.base;
+  static Widget _buildPublicScoreboard(Uri uri) {
     final tournamentId = uri.queryParameters['t'] ?? uri.queryParameters['tournamentId'];
     return PublicScoreboardScreen(tournamentId: tournamentId);
   }
 
-  static Widget _buildKioskScreen(BuildContext context) {
-    final uri = Uri.base;
+  static Widget _buildKioskScreen(Uri uri) {
     final tournamentId = uri.queryParameters['t'] ?? uri.queryParameters['tournamentId'];
     return KioskScreen(tournamentId: tournamentId);
   }

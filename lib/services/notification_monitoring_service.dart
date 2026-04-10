@@ -1,13 +1,15 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../main.dart';
 import '../screens/roster_confirmation_screen.dart';
 import '../screens/game_sign_off_screen.dart';
+import 'package:toastification/toastification.dart';
 
 class NotificationMonitoringService {
   static const String _prefKeyLastCheck = 'lastNotificationCheck';
@@ -34,11 +36,13 @@ class NotificationMonitoringService {
       // Initialize local notifications
       await _initializeLocalNotifications();
       
-      // Set up method channel for iOS communication
-      _methodChannel.setMethodCallHandler(_handleMethodCall);
-      
-      // Handle notification that launched the app (cold start)
-      await _handleAppLaunchNotification();
+      // Set up method channel for iOS communication (not available on web)
+      if (!kIsWeb) {
+        _methodChannel.setMethodCallHandler(_handleMethodCall);
+        
+        // Handle notification that launched the app (cold start)
+        await _handleAppLaunchNotification();
+      }
       
       _isInitialized = true;
       debugPrint('âœ… Notification monitoring service initialized');
@@ -52,7 +56,7 @@ class NotificationMonitoringService {
     try {
       final details = await _localNotifications.getNotificationAppLaunchDetails();
       if (details != null && details.didNotificationLaunchApp && details.notificationResponse != null) {
-        debugPrint('ðŸš€ App launched from notification tap â€” handling...');
+        debugPrint('ðŸš€ App launched from notification tap — handling...');
         await _onNotificationResponse(details.notificationResponse!);
       }
     } catch (e) {
@@ -95,8 +99,10 @@ class NotificationMonitoringService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKeyCurrentUserEmail, userEmail);
       
-      // Notify native iOS code that monitoring started
-      await _methodChannel.invokeMethod('startBackgroundMonitoring', userEmail);
+      // Notify native iOS code that monitoring started (not available on web)
+      if (!kIsWeb) {
+        await _methodChannel.invokeMethod('startBackgroundMonitoring', userEmail);
+      }
       
       // Start foreground periodic check
       _startPeriodicCheck();
@@ -118,8 +124,10 @@ class NotificationMonitoringService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefKeyCurrentUserEmail);
       
-      // Notify native iOS code to stop monitoring
-      await _methodChannel.invokeMethod('stopBackgroundMonitoring');
+      // Notify native iOS code to stop monitoring (not available on web)
+      if (!kIsWeb) {
+        await _methodChannel.invokeMethod('stopBackgroundMonitoring');
+      }
       
       debugPrint('ðŸ›‘ Stopped notification monitoring');
     } catch (e) {
@@ -176,8 +184,14 @@ class NotificationMonitoringService {
             
             // Filter by user email in memory
             final notificationUserEmail = notification['userEmail'] as String;
-            return sentAt.isAfter(cutoffTime) && 
-                   (notificationUserEmail == 'all' || notificationUserEmail == userEmail);
+            if (!sentAt.isAfter(cutoffTime)) return false;
+            if (notificationUserEmail != 'all' && notificationUserEmail != userEmail) return false;
+            // Skip broadcast notifications already read by this user
+            if (notificationUserEmail == 'all') {
+              final readBy = notification['readBy'];
+              if (readBy is List && readBy.contains(userEmail)) return false;
+            }
+            return true;
           })
           .toList();
       
@@ -188,11 +202,14 @@ class NotificationMonitoringService {
       
       // Send push notifications for new notifications
       if (allNotifications.isNotEmpty) {
-        debugPrint('ðŸ”” Sending push notifications for ${allNotifications.length} notifications');
+        debugPrint('🔔 Sending push notifications for ${allNotifications.length} notifications');
         await _sendPushNotifications(allNotifications);
         
         // Auto-navigate for game-related notifications (sign_off_request, roster_confirmation)
         await _autoNavigateForGameNotifications(allNotifications);
+
+        // Clean up: delete user-specific notifications, mark broadcast ones as read
+        await _markNotificationsAsRead(allNotifications, userEmail);
       }
       
       return {
@@ -207,6 +224,32 @@ class NotificationMonitoringService {
     }
   }
   
+  /// Delete user-specific notifications and mark broadcast notifications as read
+  static Future<void> _markNotificationsAsRead(
+      List<Map<String, dynamic>> notifications, String userEmail) async {
+    try {
+      final batch = _firestore.batch();
+      for (final notification in notifications) {
+        final id = notification['id'] as String?;
+        if (id == null) continue;
+        final ref = _firestore.collection('custom_notifications').doc(id);
+        if (notification['userEmail'] == 'all') {
+          // Mark broadcast as read by this user (other users still need to see it)
+          batch.update(ref, {
+            'readBy': FieldValue.arrayUnion([userEmail]),
+          });
+        } else {
+          // Delete user-specific notification after display
+          batch.delete(ref);
+        }
+      }
+      await batch.commit();
+      debugPrint('🗑️ Cleaned up ${notifications.length} shown notifications');
+    } catch (e) {
+      debugPrint('❌ Error cleaning up notifications: $e');
+    }
+  }
+
   /// Auto-navigate to the appropriate screen for game-related notifications
   static Future<void> _autoNavigateForGameNotifications(List<Map<String, dynamic>> notifications) async {
     try {
@@ -254,6 +297,21 @@ class NotificationMonitoringService {
 
   /// Send push notifications through iOS native code
   static Future<void> _sendPushNotifications(List<Map<String, dynamic>> notifications) async {
+    // On web, skip native channel and go directly to local/web notification
+    if (kIsWeb) {
+      for (final notification in notifications) {
+        await _showLocalNotification(
+          notification['title'] as String,
+          notification['message'] as String,
+          isTimeSensitive: notification['isTimeSensitive'] as bool? ?? false,
+          type: notification['type'] as String? ?? 'custom_notification',
+          gameId: notification['gameId'] as String?,
+          teamId: notification['teamId'] as String?,
+          teamName: notification['teamName'] as String?,
+        );
+      }
+      return;
+    }
     try {
       // Call iOS native code to send push notifications
       await _methodChannel.invokeMethod('sendPushNotifications', {
@@ -289,6 +347,12 @@ class NotificationMonitoringService {
     String? teamName,
   }) async {
     try {
+      // On web, use SnackBar since flutter_local_notifications doesn't work
+      if (kIsWeb) {
+        _showWebSnackBar(title, message, isTimeSensitive: isTimeSensitive);
+        return;
+      }
+
       final notificationDetails = NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
@@ -321,10 +385,10 @@ class NotificationMonitoringService {
       if (teamName != null) payloadMap['teamName'] = teamName;
       
       await _localNotifications.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        isTimeSensitive ? "âš ï¸ $title" : title,
-        message,
-        notificationDetails,
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: isTimeSensitive ? "\u26a0\ufe0f $title" : title,
+        body: message,
+        notificationDetails: notificationDetails,
         payload: jsonEncode(payloadMap),
       );
       
@@ -333,9 +397,32 @@ class NotificationMonitoringService {
       debugPrint('âŒ Error showing local notification: $e');
     }
   }
-  
+  /// Show notification as toast on web platform
+  static void _showWebSnackBar(String title, String message, {bool isTimeSensitive = false}) {
+    final context = RHBLApp.navigatorKey.currentState?.context;
+    if (context == null) {
+      debugPrint('⚠️ No navigator context for web toast');
+      return;
+    }
+    toastification.show(
+      context: context,
+      type: isTimeSensitive ? ToastificationType.warning : ToastificationType.info,
+      style: ToastificationStyle.fillColored,
+      title: Text(isTimeSensitive ? '⚠️ $title' : title),
+      description: Text(message),
+      alignment: Alignment.topRight,
+      autoCloseDuration: Duration(seconds: isTimeSensitive ? 8 : 5),
+      showProgressBar: true,
+    );
+    debugPrint('📱 Web toast notification shown: $title');
+  }  
   /// Initialize local notifications
   static Future<void> _initializeLocalNotifications() async {
+    // Skip native notification setup on web
+    if (kIsWeb) {
+      debugPrint('📱 Web platform: using in-app SnackBar for notifications');
+      return;
+    }
     try {
       const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
       
@@ -354,7 +441,7 @@ class NotificationMonitoringService {
               ),
               DarwinNotificationAction.plain(
                 'dismiss',
-                'SpÃ¤ter',
+                'Später',
                 options: {},
               ),
             ],
@@ -381,7 +468,7 @@ class NotificationMonitoringService {
       );
       
       await _localNotifications.initialize(
-        initializationSettings,
+        settings: initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
       

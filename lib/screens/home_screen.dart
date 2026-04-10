@@ -38,6 +38,7 @@ import '../screens/admin_donation_management_screen.dart';
 import '../screens/app_store_splash_screen.dart';
 import '../screens/generate_sign_in_codes_screen.dart';
 import '../screens/admin_data_management_screen.dart';
+import '../screens/kanban_board_screen.dart';
 import '../services/managed_account_service.dart';
 import '../models/managed_account.dart';
 import '../screens/referee_dashboard_screen.dart';
@@ -51,6 +52,7 @@ import '../screens/venue_management_screen.dart';
 import '../screens/player_transfer_screen.dart';
 import '../screens/document_management_screen.dart';
 import '../widgets/offline_banner.dart';
+import '../services/web_notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final RefereeService _refereeService = RefereeService();
   final TournamentService _tournamentService = TournamentService();
   final ManagedAccountService _managedAccountService = ManagedAccountService();
+  final WebNotificationService _webNotificationService = WebNotificationService();
   app_user.User? _currentUser;
   bool _isScoringTablet = false;
 
@@ -137,12 +140,49 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentUser = user;
         _isScoringTablet = isScoringTablet;
       });
+
+      // Prompt for web notifications after user is authenticated
+      _promptWebNotifications();
     } else {
       // No user, ensure we're on the default section
       setState(() {
         _currentUser = null;
         selectedSection = 'turniere';
       });
+    }
+  }
+
+  /// Prompt user for browser notification permission (web only, once per session)
+  Future<void> _promptWebNotifications() async {
+    if (!_webNotificationService.isSupported) return;
+    if (_webNotificationService.permissionStatus != 'default') return;
+
+    // Small delay so the UI is settled before showing the prompt
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    final shouldPrompt = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Benachrichtigungen'),
+        content: const Text(
+          'Möchtest du Benachrichtigungen über Spielstände erhalten?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Nein, danke'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Ja, aktivieren'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldPrompt == true) {
+      await _webNotificationService.requestPermission();
     }
   }
 
@@ -398,6 +438,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Spielertransfers';
       case 'document_management':
         return 'Dokumentenverwaltung';
+      case 'scoring_tablet':
+        return 'Live Scoring';
+      case 'kanban_board':
+        return 'Kanban Board';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -483,13 +527,19 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'player_dashboard':
         return const PlayerDashboardScreen();
       case 'protest_list':
-        return const ProtestListScreen();
+        return const ProtestListScreen(tournamentId: '');
       case 'venue_management':
         return const VenueManagementScreen();
       case 'player_transfers':
         return const PlayerTransferScreen();
       case 'document_management':
         return const DocumentManagementScreen();
+      case 'scoring_tablet':
+        return _currentUser != null
+            ? ScoringTabletScreen(user: _currentUser!)
+            : const Center(child: Text('Bitte melden Sie sich an.'));
+      case 'kanban_board':
+        return const KanbanBoardScreen();
     }
 
     // Handle referee tournament sections

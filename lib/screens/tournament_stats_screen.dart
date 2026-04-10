@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../services/tournament_stats_service.dart';
 import '../services/disciplinary_service.dart';
@@ -122,7 +122,7 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     value: 'scorers',
                     child: ListTile(
                       leading: Icon(Icons.emoji_events, size: 20),
-                      title: Text('TorschÃ¼tzen (CSV)'),
+                      title: Text('Torschützen (CSV)'),
                       dense: true,
                     ),
                   ),
@@ -626,7 +626,8 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     Icons.timer,
                     record.twoMinuteSuspensions >= 3 ? Colors.red : Colors.orange,
                     '${record.twoMinuteSuspensions}x 2min'
-                        '${record.twoMinuteSuspensions >= 3 ? " â†’ Rote Karte" : ""}',
+                        '${record.twoMinuteSuspensions >= 3 ? " \u2192 Rote Karte" : ""}',
+
                   ),
                 if (record.redCards > 0)
                   _buildPenaltyChip(Icons.square, Colors.red,

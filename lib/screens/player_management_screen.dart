@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
@@ -54,7 +54,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
       }
       if (mounted) setState(() => _playerTeamMap = map);
     } catch (_) {
-      // silently ignore â€” team column will just show 'Kein Team'
+      // silently ignore — team column will just show 'Kein Team'
     }
   }
 
@@ -429,7 +429,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
 
   void _showCSVUploadDialog() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );

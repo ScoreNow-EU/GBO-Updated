@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
+import '../main.dart';
+import 'package:toastification/toastification.dart';
 
 class CustomNotificationService {
   static const MethodChannel _methodChannel = MethodChannel('referee_invitation_monitoring');
@@ -163,7 +166,13 @@ class CustomNotificationService {
   Future<void> _showLocalNotification(String title, String message, {bool isTimeSensitive = false, String? payload}) async {
     try {
       debugPrint('ðŸ“± Creating local notification - Time Sensitive: $isTimeSensitive');
-      
+
+      // On web, use SnackBar since flutter_local_notifications doesn't work
+      if (kIsWeb) {
+        _showWebSnackBar(title, message, isTimeSensitive: isTimeSensitive);
+        return;
+      }
+
       final notificationDetails = NotificationDetails(
         android: AndroidNotificationDetails(
           'custom_notifications',
@@ -187,10 +196,10 @@ class CustomNotificationService {
       );
       
       await _localNotifications.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        isTimeSensitive ? "âš ï¸ $title" : title,
-        message,
-        notificationDetails,
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: isTimeSensitive ? "\u26a0\ufe0f $title" : title,
+        body: message,
+        notificationDetails: notificationDetails,
         payload: payload ?? 'custom_notification',
       );
       
@@ -199,7 +208,24 @@ class CustomNotificationService {
       debugPrint('âŒ Error showing local notification: $e');
     }
   }
-  
+
+  /// Show notification as toast on web platform
+  void _showWebSnackBar(String title, String message, {bool isTimeSensitive = false}) {
+    final context = RHBLApp.navigatorKey.currentState?.context;
+    if (context == null) return;
+    toastification.show(
+      context: context,
+      type: isTimeSensitive ? ToastificationType.warning : ToastificationType.info,
+      style: ToastificationStyle.fillColored,
+      title: Text(isTimeSensitive ? '⚠️ $title' : title),
+      description: Text(message),
+      alignment: Alignment.topRight,
+      autoCloseDuration: Duration(seconds: isTimeSensitive ? 8 : 5),
+      showProgressBar: true,
+    );
+    debugPrint('📱 Web toast notification shown: $title');
+  }
+
   /// Send a game-related notification (roster confirmation, sign-off request)
   Future<bool> sendGameNotification({
     required String title,

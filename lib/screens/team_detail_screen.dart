@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../services/team_service.dart';
@@ -88,7 +88,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   String _getSectionName(String section) {
     switch (section) {
       case 'overview':
-        return 'Ãœbersicht';
+        return 'Übersicht';
       case 'tournaments':
         return 'Turnier Anmeldung';
       case 'games':
@@ -96,7 +96,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
       case 'settings':
         return 'Einstellungen';
       default:
-        return 'Ãœbersicht';
+        return 'Übersicht';
     }
   }
 
@@ -195,7 +195,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
               const Icon(Icons.dashboard, color: Colors.black87),
               const SizedBox(width: 8),
               const Text(
-                'Team Ãœbersicht',
+                'Team Übersicht',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -374,7 +374,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'VerfÃ¼gbare Turniere',
+                    'Verfügbare Turniere',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -420,7 +420,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Anmeldung fÃ¼r $name gestartet'),
+                  content: Text('Anmeldung für $name gestartet'),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -742,7 +742,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
               const Icon(Icons.dashboard, color: Colors.black87),
               const SizedBox(width: 8),
               const Text(
-                'Team Ãœbersicht',
+                'Team Übersicht',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -777,7 +777,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Aktuell verfÃ¼gbare Daten:',
+                    'Aktuell verfügbare Daten:',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -830,7 +830,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'VerfÃ¼gbare Turniere',
+                      'Verfügbare Turniere',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -839,8 +839,8 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                     const SizedBox(height: 16),
                     Text(
                       _team != null 
-                        ? 'Aktuell sind keine Turniere fÃ¼r ${_team!.city} Teams verfÃ¼gbar.'
-                        : 'Aktuell sind keine Turniere verfÃ¼gbar.',
+                        ? 'Aktuell sind keine Turniere für ${_team!.city} Teams verfügbar.'
+                        : 'Aktuell sind keine Turniere verfügbar.',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -849,7 +849,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                     const SizedBox(height: 8),
                     if (_team != null) ...[
                       Text(
-                        'â€¢ Senior Teams (Men\'s, Women\'s, Seniors, FUN) kÃ¶nnen sich fÃ¼r "RHBL Spieltag" Turniere anmelden',
+                        'â€¢ Senior Teams (Men\'s, Women\'s, Seniors, FUN) können sich für "RHBL Spieltag" Turniere anmelden',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[500],
@@ -857,7 +857,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'â€¢ Junior Teams (U14, U16, U18) kÃ¶nnen sich fÃ¼r "RHBL Spieltag" Turniere anmelden',
+                        'â€¢ Junior Teams (U14, U16, U18) können sich für "RHBL Spieltag" Turniere anmelden',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[500],
@@ -873,7 +873,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'VerfÃ¼gbare Turniere (${_tournaments.length})',
+                  'Verfügbare Turniere (${_tournaments.length})',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -968,7 +968,7 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Anmeldung fÃ¼r "${tournament.name}" - Coming Soon!'),
+                            content: Text('Anmeldung für "${tournament.name}" - Coming Soon!'),
                             backgroundColor: Colors.blue,
                           ),
                         );

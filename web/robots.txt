@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /admin
+Disallow: /scoring-tablet
+Disallow: /obs-graphics
+Disallow: /to-software
+Disallow: /kanban
+Allow: /public
+Allow: /kiosk
+Allow: /impressum
+Allow: /datenschutz

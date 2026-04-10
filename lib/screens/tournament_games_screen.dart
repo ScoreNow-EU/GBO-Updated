@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/game.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
@@ -94,7 +94,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _showSchedulingSummary(),
-                  child: const Text('Zeitplan Ãœbersicht'),
+                  child: const Text('Zeitplan Übersicht'),
                 ),                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   onPressed: () => _showCreateGameDialog(),
@@ -122,7 +122,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                       filled: true,
                       fillColor: Colors.white,
                     ),
-                    items: ['Alle', 'Gruppenphase', 'Elimination'].map((String type) {
+                    items: ['Alle', 'Gruppenphase', 'Elimination', 'Einzelspiele'].map((String type) {
                       return DropdownMenuItem<String>(
                         value: type,
                         child: Text(type),
@@ -326,6 +326,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
     // Group games by type
     final poolGames = games.where((g) => g.gameType == GameType.pool).toList();
     final eliminationGames = games.where((g) => g.gameType == GameType.elimination).toList();
+    final friendlyGames = games.where((g) => g.gameType == GameType.friendly).toList();
 
     return SingleChildScrollView(
       child: Column(
@@ -343,6 +344,21 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
             ),
             const SizedBox(height: 16),
             ...poolGames.map((game) => _buildGameCard(game)),
+            const SizedBox(height: 32),
+          ],
+
+          // Friendly / Einzelspiele
+          if (friendlyGames.isNotEmpty) ...[
+            const Text(
+              'Einzelspiele',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...friendlyGames.map((game) => _buildGameCard(game)),
             const SizedBox(height: 32),
           ],
 
@@ -396,17 +412,23 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   decoration: BoxDecoration(
                     color: game.gameType == GameType.pool 
                         ? Colors.blue.withOpacity(0.2) 
-                        : Colors.purple.withOpacity(0.2),
+                        : game.gameType == GameType.friendly
+                            ? Colors.teal.withOpacity(0.2)
+                            : Colors.purple.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     game.gameType == GameType.pool 
                         ? 'Gruppe ${game.poolId?.toUpperCase() ?? ''}' 
-                        : _getCustomMatchName(game),
+                        : game.gameType == GameType.friendly
+                            ? 'Einzelspiel'
+                            : _getCustomMatchName(game),
                     style: TextStyle(
                       color: game.gameType == GameType.pool 
                           ? Colors.blue.shade700 
-                          : Colors.purple.shade700,
+                          : game.gameType == GameType.friendly
+                              ? Colors.teal.shade700
+                              : Colors.purple.shade700,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -489,7 +511,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                         const SizedBox(height: 8),
                       ] else ...[
                         Text(
-                          game.status == GameStatus.scheduled ? 'vs' : 'LÃ¤uft...',
+                          game.status == GameStatus.scheduled ? 'vs' : 'Läuft...',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey[600],
@@ -656,6 +678,8 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
         filteredGames = filteredGames.where((g) => g.gameType == GameType.pool).toList();
       } else if (_selectedFilter == 'Elimination') {
         filteredGames = filteredGames.where((g) => g.gameType == GameType.elimination).toList();
+      } else if (_selectedFilter == 'Einzelspiele') {
+        filteredGames = filteredGames.where((g) => g.gameType == GameType.friendly).toList();
       }
     }
 
@@ -736,7 +760,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Ergebnis ${game.result != null ? 'bearbeiten' : 'eingeben'}'),
-        content: const Text('Ergebniseingabe FunktionalitÃ¤t kommt bald...'),
+        content: const Text('Ergebniseingabe Funktionalität kommt bald...'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -793,7 +817,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Zeitplan Ãœbersicht'),
+        title: const Text('Zeitplan Übersicht'),
         content: SizedBox(
           width: 600,
           height: 400,
@@ -834,7 +858,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('SchlieÃŸen'),
+            child: const Text('Schließen'),
           ),
         ],
       ),
@@ -881,7 +905,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   leading: const Icon(Icons.calendar_today, color: Colors.blue),
                   title: Text(selectedDate != null
                       ? '${selectedDate!.day.toString().padLeft(2, '0')}.${selectedDate!.month.toString().padLeft(2, '0')}.${selectedDate!.year}'
-                      : 'Datum auswÃ¤hlen'),
+                      : 'Datum auswählen'),
                   trailing: selectedDate != null
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),
@@ -905,7 +929,7 @@ class _TournamentGamesScreenState extends State<TournamentGamesScreen> {
                   leading: const Icon(Icons.access_time, color: Colors.blue),
                   title: Text(selectedTime != null
                       ? '${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}'
-                      : 'Uhrzeit auswÃ¤hlen'),
+                      : 'Uhrzeit auswählen'),
                   trailing: selectedTime != null
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),

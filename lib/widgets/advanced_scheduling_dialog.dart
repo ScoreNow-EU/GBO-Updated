@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
 import '../services/game_scheduler.dart';
@@ -194,7 +194,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     _buildConflictOptions(),
                     
                     const SizedBox(height: 20),
-                    _buildSectionTitle('Kategorien-PrioritÃ¤ten'),
+                    _buildSectionTitle('Kategorien-Prioritäten'),
                     _buildCategoryPriorities(),
                     
                     const SizedBox(height: 20),
@@ -338,7 +338,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         
         SwitchListTile(
           title: const Text('Minimale Feldanzahl verwenden'),
-          subtitle: const Text('Versuche, mÃ¶glichst wenige Felder zu nutzen'),
+          subtitle: const Text('Versuche, möglichst wenige Felder zu nutzen'),
           value: _optimizeForMinimalFields,
           onChanged: (value) {
             setState(() {
@@ -355,7 +355,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
       children: [
         RadioListTile<String>(
           title: const Text('Ausgewogen'),
-          subtitle: const Text('GleichmÃ¤ÃŸige Verteilung Ã¼ber alle Felder'),
+          subtitle: const Text('Gleichmäßige Verteilung über alle Felder'),
           value: 'balanced',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -366,7 +366,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         RadioListTile<String>(
           title: const Text('Sequenziell'),
-          subtitle: const Text('Felder nacheinander fÃ¼llen'),
+          subtitle: const Text('Felder nacheinander füllen'),
           value: 'sequential',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -377,7 +377,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         RadioListTile<String>(
           title: const Text('Minimal Felder'),
-          subtitle: const Text('So wenige Felder wie mÃ¶glich verwenden'),
+          subtitle: const Text('So wenige Felder wie möglich verwenden'),
           value: 'minimize_fields',
           groupValue: _distributionStrategy,
           onChanged: (value) {
@@ -395,7 +395,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
       children: [
         SwitchListTile(
           title: const Text('Gleichzeitige Spiele erlauben'),
-          subtitle: const Text('Teams kÃ¶nnen zur gleichen Zeit auf verschiedenen Feldern spielen'),
+          subtitle: const Text('Teams können zur gleichen Zeit auf verschiedenen Feldern spielen'),
           value: _allowSameTimeConflicts,
           onChanged: (value) {
             setState(() {
@@ -406,7 +406,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         
         SwitchListTile(
           title: const Text('Direkt aufeinanderfolgende Spiele erlauben'),
-          subtitle: const Text('Teams kÃ¶nnen ohne Pause zwischen Spielen antreten'),
+          subtitle: const Text('Teams können ohne Pause zwischen Spielen antreten'),
           value: _allowBackToBackGames,
           onChanged: (value) {
             setState(() {
@@ -502,7 +502,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     ),
                     RadioListTile<String>(
                       title: const Text('ASAP'),
-                      subtitle: const Text('So frÃ¼h wie mÃ¶glich planen'),
+                      subtitle: const Text('So früh wie möglich planen'),
                       value: 'asap',
                       groupValue: _categoryPriorities[category],
                       onChanged: (value) {
@@ -514,7 +514,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     ),
                     RadioListTile<String>(
                       title: const Text('Zeit geben'),
-                      subtitle: const Text('Ãœber mehrere Tage verteilen'),
+                      subtitle: const Text('Über mehrere Tage verteilen'),
                       value: 'time',
                       groupValue: _categoryPriorities[category],
                       onChanged: (value) {
@@ -554,7 +554,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                     ElevatedButton.icon(
                       onPressed: _addBreakSlot,
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Pause hinzufÃ¼gen'),
+                      label: const Text('Pause hinzufügen'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
@@ -564,7 +564,7 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
                 const SizedBox(height: 8),
                 if (_breakSlots.isEmpty)
                   const Text(
-                    'Keine Pausen definiert. FÃ¼gen Sie Zeiten fÃ¼r Zeremonien, Siegerehrungen oder Pausen hinzu.',
+                    'Keine Pausen definiert. Fügen Sie Zeiten für Zeremonien, Siegerehrungen oder Pausen hinzu.',
                     style: TextStyle(color: Colors.grey),
                   )
                 else
@@ -619,8 +619,8 @@ class _AdvancedSchedulingDialogState extends State<AdvancedSchedulingDialog> {
         ),
         
         SwitchListTile(
-          title: const Text('LÃ¼cken bei Konflikten erlauben'),
-          subtitle: const Text('Zeitslots freilassen wenn Konflikte nicht lÃ¶sbar sind'),
+          title: const Text('Lücken bei Konflikten erlauben'),
+          subtitle: const Text('Zeitslots freilassen wenn Konflikte nicht lösbar sind'),
           value: _allowGapsForConflicts,
           onChanged: (value) {
             setState(() {
@@ -714,7 +714,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Pause hinzufÃ¼gen'),
+      title: const Text('Pause hinzufügen'),
       content: SizedBox(
         width: 400,
         child: Column(
@@ -732,7 +732,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
               controller: _descriptionController,
               decoration: const InputDecoration(
                 labelText: 'Beschreibung (optional)',
-                hintText: 'ZusÃ¤tzliche Details',
+                hintText: 'Zusätzliche Details',
               ),
               maxLines: 2,
             ),
@@ -785,7 +785,7 @@ class _BreakSlotDialogState extends State<_BreakSlotDialog> {
         ),
         ElevatedButton(
           onPressed: _titleController.text.isNotEmpty ? _addBreakSlot : null,
-          child: const Text('HinzufÃ¼gen'),
+          child: const Text('Hinzufügen'),
         ),
       ],
     );

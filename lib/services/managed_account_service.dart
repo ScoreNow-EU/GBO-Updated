@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart' as firebase_core;
@@ -120,7 +120,7 @@ class ManagedAccountService {
       // Validate court assignment for scoring tablets
       if (account.type == ManagedAccountType.scoringTablet) {
         if (account.tournamentId == null || account.courtId == null) {
-          throw Exception('Scoring Tablets mÃ¼ssen einem Turnier und einem Court zugewiesen werden');
+          throw Exception('Scoring Tablets müssen einem Turnier und einem Court zugewiesen werden');
         }
 
         // Check if court is already assigned to another tablet in the same tournament
@@ -182,7 +182,7 @@ class ManagedAccountService {
       // Validate court assignment for scoring tablets
       if (account.type == ManagedAccountType.scoringTablet) {
         if (account.tournamentId == null || account.courtId == null) {
-          throw Exception('Scoring Tablets mÃ¼ssen einem Turnier und einem Court zugewiesen werden');
+          throw Exception('Scoring Tablets müssen einem Turnier und einem Court zugewiesen werden');
         }
 
         // Check if court is already assigned to another tablet (excluding current account)

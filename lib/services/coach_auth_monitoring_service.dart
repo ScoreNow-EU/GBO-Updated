@@ -1,11 +1,14 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/coach_auth_request.dart';
+import '../main.dart';
+import 'package:toastification/toastification.dart';
 
 class CoachAuthMonitoringService {
   static const String _prefKeyLastCheck = 'lastCoachAuthCheck';
@@ -74,6 +77,11 @@ class CoachAuthMonitoringService {
   
   /// Initialize local notifications
   static Future<void> _initializeLocalNotifications() async {
+    // Skip native notification setup on web
+    if (kIsWeb) {
+      debugPrint('📱 Web platform: using in-app SnackBar for coach auth notifications');
+      return;
+    }
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -87,7 +95,7 @@ class CoachAuthMonitoringService {
     );
     
     await _localNotifications.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
     
@@ -95,7 +103,7 @@ class CoachAuthMonitoringService {
     const androidChannel = AndroidNotificationChannel(
       _channelId,
       'Trainer Freigabe Anfragen',
-      description: 'Benachrichtigungen fÃ¼r Trainer Kader-Freigabe Anfragen',
+      description: 'Benachrichtigungen für Trainer Kader-Freigabe Anfragen',
       importance: Importance.high,
       playSound: true,
       enableVibration: true,
@@ -216,10 +224,21 @@ class CoachAuthMonitoringService {
   /// Send notification for a coach auth request
   static Future<void> _sendNotification(CoachAuthRequest request) async {
     try {
+      final title = '\u26a0\ufe0f Kader-Freigabe erforderlich';
+      final timeRemaining = request.expiresAt.difference(DateTime.now());
+      final minutesRemaining = timeRemaining.inMinutes;
+      final body = '${request.teamName} - ${request.gameTitle}\nVerbleibt: ${minutesRemaining}min';
+
+      // On web, use SnackBar
+      if (kIsWeb) {
+        _showWebSnackBar(title, body);
+        return;
+      }
+
       final androidDetails = AndroidNotificationDetails(
         _channelId,
         'Trainer Freigabe Anfragen',
-        channelDescription: 'Benachrichtigungen fÃ¼r Trainer Kader-Freigabe Anfragen',
+        channelDescription: 'Benachrichtigungen für Trainer Kader-Freigabe Anfragen',
         importance: Importance.high,
         priority: Priority.high,
         ticker: 'Trainer Freigabe erforderlich',
@@ -245,14 +264,11 @@ class CoachAuthMonitoringService {
         iOS: iosDetails,
       );
       
-      final timeRemaining = request.expiresAt.difference(DateTime.now());
-      final minutesRemaining = timeRemaining.inMinutes;
-      
       await _localNotifications.show(
-        request.hashCode,
-        'âš ï¸ Kader-Freigabe erforderlich',
-        '${request.teamName} - ${request.gameTitle}\nVerbleibt: ${minutesRemaining}min',
-        details,
+        id: request.hashCode,
+        title: title,
+        body: body,
+        notificationDetails: details,
         payload: jsonEncode({
           'requestId': request.id,
           'type': 'coach_auth_request',
@@ -264,8 +280,22 @@ class CoachAuthMonitoringService {
       debugPrint('âŒ Error sending coach auth notification: $e');
     }
   }
-  
 
+  /// Show notification as toast on web platform
+  static void _showWebSnackBar(String title, String body) {
+    final context = RHBLApp.navigatorKey.currentState?.context;
+    if (context == null) return;
+    toastification.show(
+      context: context,
+      type: ToastificationType.warning,
+      style: ToastificationStyle.fillColored,
+      title: Text(title),
+      description: Text(body),
+      alignment: Alignment.topRight,
+      autoCloseDuration: const Duration(seconds: 8),
+      showProgressBar: true,
+    );
+  }
   
   /// Respond to a coach auth request
   static Future<bool> respondToRequest(String requestId, String coachEmail, String response) async {

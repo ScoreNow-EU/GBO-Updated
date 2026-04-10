@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/recent_account.dart';
 import '../services/recent_accounts_service.dart';
 import '../utils/app_colors.dart';
@@ -130,7 +130,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Keine kÃ¼rzlich verwendeten Konten',
+                  'Keine kürzlich verwendeten Konten',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -157,7 +157,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
 
   Widget _buildHeader() {
     return Text(
-      'KÃ¼rzlich verwendet',
+      'Kürzlich verwendet',
       style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
@@ -320,7 +320,7 @@ class _RecentAccountsWidgetState extends State<RecentAccountsWidget> {
           ),
         ),
         content: Text(
-          'MÃ¶chten Sie das Konto "${account.fullName}" aus der Liste der kÃ¼rzlich verwendeten Konten entfernen?',
+          'Möchten Sie das Konto "${account.fullName}" aus der Liste der kürzlich verwendeten Konten entfernen?',
         ),
         actions: [
           TextButton(

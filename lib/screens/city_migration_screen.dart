@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import '../data/german_cities.dart'; // Keep for migration comparison only
@@ -138,11 +138,11 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
     
     try {
       // First, migrate states
-      _showInfoToast('Migriere BundeslÃ¤nder...');
+      _showInfoToast('Migriere Bundesländer...');
       
       final statesToMigrate = fileStates.map((stateName) {
         const stateAbbreviations = {
-          'Baden-WÃ¼rttemberg': 'BW',
+          'Baden-Württemberg': 'BW',
           'Bayern': 'BAY',
           'Berlin': 'BER',
           'Brandenburg': 'BRA',
@@ -157,9 +157,9 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
           'Sachsen': 'SAC',
           'Sachsen-Anhalt': 'SAH',
           'Schleswig-Holstein': 'SHL',
-          'ThÃ¼ringen': 'THU',
+          'Thüringen': 'THU',
           // International "states" (countries)
-          'DÃ¤nemark': 'DK',
+          'Dänemark': 'DK',
           'Norwegen': 'NO',
           'Niederlande': 'NL',
           'Serbien': 'SRB',
@@ -183,13 +183,13 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
       
       final statesSuccess = await _cityService.batchAddStates(statesToMigrate);
       if (!statesSuccess) {
-        throw Exception('Fehler beim Migrieren der BundeslÃ¤nder');
+        throw Exception('Fehler beim Migrieren der Bundesländer');
       }
       
-      _showSuccessToast('${statesToMigrate.length} BundeslÃ¤nder migriert');
+      _showSuccessToast('${statesToMigrate.length} Bundesländer migriert');
       
       // Then, migrate cities
-      _showInfoToast('Migriere StÃ¤dte...');
+      _showInfoToast('Migriere Städte...');
       
       final citiesToMigrate = fileCities.map((fileCity) {
         final country = _isInternational(fileCity.state) ? fileCity.state : 'Deutschland';
@@ -205,10 +205,10 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
       
       final citiesSuccess = await _cityService.batchAddCities(citiesToMigrate);
       if (!citiesSuccess) {
-        throw Exception('Fehler beim Migrieren der StÃ¤dte');
+        throw Exception('Fehler beim Migrieren der Städte');
       }
       
-      _showSuccessToast('${citiesToMigrate.length} StÃ¤dte migriert');
+      _showSuccessToast('${citiesToMigrate.length} Städte migriert');
       
       // Reload Firebase data
       await _loadFirebaseData();
@@ -225,8 +225,8 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
 
   Future<void> _clearFirebaseData() async {
     final confirmed = await _showConfirmationDialog(
-      'Firebase Daten lÃ¶schen',
-      'MÃ¶chten Sie wirklich alle StÃ¤dte und BundeslÃ¤nder aus Firebase lÃ¶schen? Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden.',
+      'Firebase Daten löschen',
+      'Möchten Sie wirklich alle Städte und Bundesländer aus Firebase löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
     );
     
     if (!confirmed) return;
@@ -234,20 +234,20 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
     setState(() => isMigrating = true);
     
     try {
-      _showInfoToast('LÃ¶sche Firebase Daten...');
+      _showInfoToast('Lösche Firebase Daten...');
       
       final citiesSuccess = await _cityService.clearAllCities();
       final statesSuccess = await _cityService.clearAllStates();
       
       if (citiesSuccess && statesSuccess) {
-        _showSuccessToast('Firebase Daten erfolgreich gelÃ¶scht');
+        _showSuccessToast('Firebase Daten erfolgreich gelöscht');
         await _loadFirebaseData();
         await _loadStatistics();
       } else {
-        throw Exception('Fehler beim LÃ¶schen der Daten');
+        throw Exception('Fehler beim Löschen der Daten');
       }
     } catch (e) {
-      _showErrorToast('Fehler beim LÃ¶schen: $e');
+      _showErrorToast('Fehler beim Löschen: $e');
     } finally {
       setState(() => isMigrating = false);
     }
@@ -255,7 +255,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
 
   Future<void> _importCsvFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
         allowMultiple: false,
@@ -276,7 +276,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
       final cities = await _cityService.parseCitiesFromCsv(csvContent);
       
       if (cities.isEmpty) {
-        _showErrorToast('Keine gÃ¼ltigen StÃ¤dte in der CSV-Datei gefunden');
+        _showErrorToast('Keine gültigen Städte in der CSV-Datei gefunden');
         return;
       }
       
@@ -285,7 +285,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
         hasCsvData = true;
       });
       
-      _showSuccessToast('${cities.length} StÃ¤dte aus CSV geladen');
+      _showSuccessToast('${cities.length} Städte aus CSV geladen');
       
     } catch (e) {
       _showErrorToast('Fehler beim Importieren der CSV: $e');
@@ -303,11 +303,11 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
     setState(() => isMigrating = true);
     
     try {
-      _showInfoToast('Importiere ${csvCities.length} StÃ¤dte nach Firebase...');
+      _showInfoToast('Importiere ${csvCities.length} Städte nach Firebase...');
       
       final success = await _cityService.batchAddCities(csvCities);
       if (success) {
-        _showSuccessToast('${csvCities.length} StÃ¤dte erfolgreich importiert');
+        _showSuccessToast('${csvCities.length} Städte erfolgreich importiert');
         await _loadFirebaseData();
         await _loadStatistics();
       } else {
@@ -344,7 +344,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
     setState(() => isMatchingTeams = true);
     
     try {
-      _showInfoToast('Gleiche Teams mit StÃ¤dten ab...');
+      _showInfoToast('Gleiche Teams mit Städten ab...');
       
       final matches = await _cityService.matchTeamsToCities(teams);
       
@@ -389,7 +389,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
     setState(() => isSyncingStates = true);
     
     try {
-      _showInfoToast('Synchronisiere BundeslÃ¤nder aus StÃ¤dten...');
+      _showInfoToast('Synchronisiere Bundesländer aus Städten...');
       
       final result = await FirebaseCitiesHelper.syncStatesFromCities();
       
@@ -402,11 +402,11 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
           final newStates = result['newStates'] as List<String>;
           _showSuccessToast(
             '${result['message']}\n'
-            'Neue BundeslÃ¤nder: ${newStates.join(', ')}\n'
-            'Gesamt: $total BundeslÃ¤nder ($existing bereits vorhanden, $added hinzugefÃ¼gt)'
+            'Neue Bundesländer: ${newStates.join(', ')}\n'
+            'Gesamt: $total Bundesländer ($existing bereits vorhanden, $added hinzugefügt)'
           );
         } else {
-          _showInfoToast('${result['message']} ($total BundeslÃ¤nder insgesamt)');
+          _showInfoToast('${result['message']} ($total Bundesländer insgesamt)');
         }
         
         // Reload data to show updated states
@@ -424,7 +424,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
   }
 
   bool _isInternational(String stateName) {
-    return ['DÃ¤nemark', 'Norwegen', 'Niederlande', 'Serbien', 'Frankreich'].contains(stateName);
+    return ['Dänemark', 'Norwegen', 'Niederlande', 'Serbien', 'Frankreich'].contains(stateName);
   }
 
   Future<bool> _showConfirmationDialog(String title, String content) async {
@@ -441,7 +441,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('LÃ¶schen', style: TextStyle(color: Colors.white)),
+            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -532,7 +532,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'StÃ¤dte Migration',
+                'Städte Migration',
                 style: TextStyle(
                   fontSize: isMobile ? 20 : 28,
                   fontWeight: FontWeight.bold,
@@ -540,7 +540,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
                 ),
               ),
               Text(
-                'Migration von Datei-basierten zu Firebase-basierten StÃ¤dten',
+                'Migration von Datei-basierten zu Firebase-basierten Städten',
                 style: TextStyle(
                   fontSize: isMobile ? 14 : 16,
                   color: Colors.grey.shade600,
@@ -575,11 +575,11 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
               spacing: 24,
               runSpacing: 16,
               children: [
-                _buildStatCard('Datei BundeslÃ¤nder', fileStates.length, Colors.green),
-                _buildStatCard('Datei StÃ¤dte', fileCities.length, Colors.green),
-                _buildStatCard('CSV StÃ¤dte', csvCities.length, Colors.orange),
-                _buildStatCard('Firebase BundeslÃ¤nder', statistics['states'] ?? 0, Colors.blue),
-                _buildStatCard('Firebase StÃ¤dte', statistics['cities'] ?? 0, Colors.blue),
+                _buildStatCard('Datei Bundesländer', fileStates.length, Colors.green),
+                _buildStatCard('Datei Städte', fileCities.length, Colors.green),
+                _buildStatCard('CSV Städte', csvCities.length, Colors.orange),
+                _buildStatCard('Firebase Bundesländer', statistics['states'] ?? 0, Colors.blue),
+                _buildStatCard('Firebase Städte', statistics['cities'] ?? 0, Colors.blue),
                 _buildStatCard('Teams', teams.length, Colors.purple),
                 _buildStatCard('Team-Zuordnungen', teamCityMatches.length, Colors.teal),
               ],
@@ -676,7 +676,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.sync),
-                  label: const Text('BundeslÃ¤nder sync'),
+                  label: const Text('Bundesländer sync'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo,
                     foregroundColor: Colors.white,
@@ -688,7 +688,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
                 ElevatedButton.icon(
                   onPressed: isMigrating ? null : _clearFirebaseData,
                   icon: const Icon(Icons.delete_forever),
-                  label: const Text('Firebase lÃ¶schen'),
+                  label: const Text('Firebase löschen'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
@@ -792,7 +792,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
             
             // States section
             const Text(
-              'BundeslÃ¤nder:',
+              'Bundesländer:',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -827,7 +827,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
             
             // Cities section
             Text(
-              'StÃ¤dte${selectedFileState.isNotEmpty ? ' in $selectedFileState' : ''}:',
+              'Städte${selectedFileState.isNotEmpty ? ' in $selectedFileState' : ''}:',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -885,7 +885,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
             
             // States section
             const Text(
-              'BundeslÃ¤nder:',
+              'Bundesländer:',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -902,7 +902,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
               child: firebaseStates.isEmpty
                   ? const Center(
                       child: Text(
-                        'Keine BundeslÃ¤nder in Firebase',
+                        'Keine Bundesländer in Firebase',
                         style: TextStyle(color: Colors.grey),
                       ),
                     )
@@ -928,7 +928,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
             
             // Cities section
             Text(
-              'StÃ¤dte${selectedFirebaseState.isNotEmpty ? ' in $selectedFirebaseState' : ''}:',
+              'Städte${selectedFirebaseState.isNotEmpty ? ' in $selectedFirebaseState' : ''}:',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -945,7 +945,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
                 child: filteredFirebaseCities.isEmpty
                     ? const Center(
                         child: Text(
-                          'Keine StÃ¤dte in Firebase',
+                          'Keine Städte in Firebase',
                           style: TextStyle(color: Colors.grey),
                         ),
                       )

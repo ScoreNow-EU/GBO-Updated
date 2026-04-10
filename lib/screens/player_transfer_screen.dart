@@ -350,7 +350,7 @@ class _PlayerTransferScreenState extends State<PlayerTransferScreen> {
     List<Player> players = [];
     try {
       teams = await _teamService.getAllTeams();
-      players = await _playerService.getAllPlayers();
+      players = await _playerService.getAllPlayers().first;
     } catch (e) {
       debugPrint('Error loading data for transfer: $e');
     }

@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -133,7 +133,7 @@ class LiveScoringService {
 
     _gameTimer?.cancel();
     _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      // Read directly from cache â€” no Firestore round-trip per tick
+      // Read directly from cache — no Firestore round-trip per tick
       final state = _stateCache[gameId];
       if (state == null || !state.isRunning) {
         timer.cancel();
@@ -166,11 +166,11 @@ class LiveScoringService {
     await _saveGameState(updatedState);
   }
 
-  // Start second half
+  // Start second half (time continues from where period 1 ended)
   Future<void> startSecondHalf(String gameId) async {
     final currentState = await _loadGameState(gameId);
     final newGameTime = GameTime(
-      minutes: 0,
+      minutes: currentState.gameTime.halfDurationMinutes,
       seconds: 0,
       currentPeriod: 2,
       halfDurationMinutes: currentState.gameTime.halfDurationMinutes,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import '../services/auth_service.dart';
@@ -74,7 +74,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
 
   Future<void> _generateCode() async {
     if (_selectedTeam == null) {
-      _showErrorToast('Bitte wÃ¤hlen Sie ein Team aus');
+      _showErrorToast('Bitte wählen Sie ein Team aus');
       return;
     }
 
@@ -85,7 +85,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
 
     // Basic email validation
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
-      _showErrorToast('Bitte geben Sie eine gÃ¼ltige Email-Adresse ein');
+      _showErrorToast('Bitte geben Sie eine gültige Email-Adresse ein');
       return;
     }
 
@@ -138,7 +138,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
       case app_user.UserRole.sanitater:
-        return 'SanitÃ¤ter';
+        return 'Sanitäter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:
@@ -216,7 +216,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                           controller: textEditingController,
                           focusNode: focusNode,
                           decoration: InputDecoration(
-                            labelText: 'Team auswÃ¤hlen',
+                            labelText: 'Team auswählen',
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.groups),
                             suffixIcon: _selectedTeam != null
@@ -272,7 +272,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
-                          'AusgewÃ¤hltes Team: ${_selectedTeam!.name}',
+                          'Ausgewähltes Team: ${_selectedTeam!.name}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
@@ -301,7 +301,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                         }
                       },
                       decoration: const InputDecoration(
-                        labelText: 'Rolle auswÃ¤hlen',
+                        labelText: 'Rolle auswählen',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.assignment_ind),
                       ),
@@ -325,7 +325,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'GÃ¼ltig fÃ¼r (Tage): $_validityDays',
+                          'Gültig für (Tage): $_validityDays',
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -509,7 +509,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'GÃ¼ltig bis: ${expiresAt.day}.${expiresAt.month}.${expiresAt.year}',
+                                'Gültig bis: ${expiresAt.day}.${expiresAt.month}.${expiresAt.year}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],

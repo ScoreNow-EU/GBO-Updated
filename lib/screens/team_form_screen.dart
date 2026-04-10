@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/city.dart';
 import '../models/team.dart';
 import '../models/team_manager.dart';
@@ -26,14 +26,14 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
   final _teamManagerController = TextEditingController();
 
   static const List<String> _countries = [
-    'Deutschland', 'Ã–sterreich', 'Niederlande',
-    'DÃ¤nemark', 'Norwegen', 'Serbien', 'Frankreich',
+    'Deutschland', 'Österreich', 'Niederlande',
+    'Dänemark', 'Norwegen', 'Serbien', 'Frankreich',
   ];
   static const Set<String> _germanStates = {
-    'Baden-WÃ¼rttemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
+    'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
     'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen',
     'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen',
-    'Sachsen-Anhalt', 'Schleswig-Holstein', 'ThÃ¼ringen',
+    'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen',
   };
 
   String _selectedCountry = 'Deutschland';
@@ -199,7 +199,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // 1. Land auswÃ¤hlen (lÃ¤dt nur StÃ¤dte dieses Landes)
+                      // 1. Land auswählen (lädt nur Städte dieses Landes)
                       DropdownButtonFormField<String>(
                         value: _selectedCountry,
                         decoration: const InputDecoration(
@@ -225,13 +225,13 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Bitte wÃ¤hlen Sie ein Land';
+                            return 'Bitte wählen Sie ein Land';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      // 2. Stadt aus dem gewÃ¤hlten Land
+                      // 2. Stadt aus dem gewählten Land
                       Autocomplete<City>(
                         displayStringForOption: (City city) => city.name,
                         optionsBuilder: (TextEditingValue textEditingValue) {
@@ -263,9 +263,9 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                               border: const OutlineInputBorder(),
                               prefixIcon: const Icon(Icons.location_city),
                               hintText: _citiesLoading
-                                  ? 'StÃ¤dte werden geladen...'
+                                  ? 'Städte werden geladen...'
                                   : 'Stadt eingeben...',
-                              helperText: _citiesLoading ? 'StÃ¤dte werden geladen...' : null,
+                              helperText: _citiesLoading ? 'Städte werden geladen...' : null,
                               suffixIcon: _citiesLoading
                                   ? const SizedBox(
                                       width: 20,
@@ -338,7 +338,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      // 3. Bundesland / Region â€“ automatisch aus gewÃ¤hlter Stadt
+                      // 3. Bundesland / Region — automatisch aus gewählter Stadt
                       TextFormField(
                         controller: _bundeslandController,
                         readOnly: true,
@@ -349,7 +349,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                           fillColor: Colors.grey.shade100,
                           filled: true,
                           helperText: _selectedCity == null
-                              ? 'Wird automatisch aus der Stadt Ã¼bernommen'
+                              ? 'Wird automatisch aus der Stadt übernommen'
                               : null,
                         ),
                       ),
@@ -571,7 +571,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'AusgewÃ¤hlt: ${_selectedTeamManager!.name}',
+                        'Ausgewählt: ${_selectedTeamManager!.name}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 12,

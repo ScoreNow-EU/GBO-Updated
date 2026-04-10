@@ -4,6 +4,7 @@ import '../models/game.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
 import '../services/tournament_stats_service.dart';
+import '../utils/app_colors.dart';
 
 /// Public scoreboard screen — accessible without login at /public?t={tournamentId}
 class PublicScoreboardScreen extends StatefulWidget {
@@ -60,7 +61,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
         });
         return;
       }
-      _tournament = Tournament.fromJson({...doc.data()!, 'id': doc.id});
+      _tournament = Tournament.fromMap({...doc.data()!, 'id': doc.id});
 
       // Load stats
       _topScorers = await _statsService.getTopScorers(tId);
@@ -74,18 +75,18 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_tournament?.name ?? 'Live Scoreboard'),
-        backgroundColor: const Color(0xFF16213e),
-        foregroundColor: Colors.white,
+        flexibleSpace: Container(decoration: const BoxDecoration(gradient: AppColors.primaryGradient)),
+        foregroundColor: AppColors.onPrimary,
         elevation: 0,
         bottom: _tournament != null
             ? TabBar(
                 controller: _tabController,
-                indicatorColor: Colors.amber,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white54,
+                indicatorColor: Colors.white,
+                labelColor: AppColors.onPrimary,
+                unselectedLabelColor: Colors.black38,
                 tabs: const [
                   Tab(icon: Icon(Icons.scoreboard), text: 'Live'),
                   Tab(icon: Icon(Icons.emoji_events), text: 'Tabelle'),
@@ -95,7 +96,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
             : null,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.amber))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryColor))
           : _error != null
               ? Center(
                   child: Padding(
@@ -103,10 +104,10 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.amber),
+                        const Icon(Icons.error_outline, size: 64, color: AppColors.primaryColorAlt),
                         const SizedBox(height: 16),
                         Text(_error!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 16),
+                            style: const TextStyle(color: Colors.black54, fontSize: 16),
                             textAlign: TextAlign.center),
                       ],
                     ),
@@ -128,7 +129,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
       stream: _gameService.getGamesForTournament(_tournament!.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.amber));
+          return const Center(child: CircularProgressIndicator(color: AppColors.primaryColor));
         }
         final games = snapshot.data ?? [];
 
@@ -151,7 +152,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
               const SizedBox(height: 24),
             ],
             if (upcoming.isNotEmpty) ...[
-              _sectionHeader('NÄCHSTE SPIELE', Colors.amber),
+              _sectionHeader('NÄCHSTE SPIELE', AppColors.primaryColorAlt),
               ...upcoming.take(6).map(_buildGameCard),
               const SizedBox(height: 24),
             ],
@@ -165,10 +166,10 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
                   padding: const EdgeInsets.symmetric(vertical: 64),
                   child: Column(
                     children: [
-                      Icon(Icons.sports_handball, size: 64, color: Colors.white.withValues(alpha: 0.3)),
+                      Icon(Icons.sports_handball, size: 64, color: Colors.black.withValues(alpha: 0.15)),
                       const SizedBox(height: 16),
                       Text('Noch keine Spiele geplant',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16)),
+                          style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 16)),
                     ],
                   ),
                 ),
@@ -199,11 +200,11 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
     final isLive = game.status == GameStatus.inProgress;
 
     return Card(
-      color: const Color(0xFF16213e),
+      color: Colors.grey.shade50,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isLive ? Colors.red.withValues(alpha: 0.5) : Colors.transparent),
+        side: BorderSide(color: isLive ? Colors.red.withValues(alpha: 0.5) : Colors.grey.shade200),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -212,7 +213,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
             // Team A
             Expanded(
               child: Text(game.teamAName,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.right,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
@@ -223,8 +224,8 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: isLive
-                    ? Colors.red.withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.05),
+                    ? Colors.red.withValues(alpha: 0.1)
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -243,21 +244,21 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
                   Text(
                     result != null ? result.finalScore : _formatTime(game.scheduledTime),
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black87,
                       fontSize: result != null ? 22 : 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   if (result?.halfTimeScore != null)
                     Text('HZ: ${result!.halfTimeScore}',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
+                        style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 10)),
                 ],
               ),
             ),
             // Team B
             Expanded(
               child: Text(game.teamBName,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.left,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
@@ -272,14 +273,14 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
     if (_standings.isEmpty) {
       return Center(
         child: Text('Keine Tabellendaten verfügbar',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16)),
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 16)),
       );
     }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
-        color: const Color(0xFF16213e),
+          color: Colors.grey.shade50,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -302,7 +303,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Text(h,
                               style: TextStyle(
-                                  color: Colors.amber.shade300,
+                                  color: AppColors.primaryColorAlt,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold),
                               textAlign: TextAlign.center),
@@ -312,10 +313,10 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
               ..._standings.asMap().entries.map((e) {
                 final i = e.key;
                 final t = e.value;
-                final textStyle = TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12);
+                final textStyle = TextStyle(color: Colors.black.withValues(alpha: 0.85), fontSize: 12);
                 return TableRow(
                   decoration: BoxDecoration(
-                    color: i.isEven ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
+                    color: i.isEven ? Colors.grey.shade50 : Colors.transparent,
                   ),
                   children: [
                     _tableText('${i + 1}', textStyle),
@@ -333,7 +334,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
                     _tableText('${t.goalsFor}:${t.goalsAgainst}', textStyle),
                     _tableText('${t.goalDifference}', textStyle),
                     _tableText('${t.points}',
-                        textStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.amber)),
+                        textStyle.copyWith(fontWeight: FontWeight.bold, color: AppColors.primaryColorAlt)),
                   ],
                 );
               }),
@@ -356,7 +357,7 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
     if (scorers.isEmpty) {
       return Center(
         child: Text('Keine Torschützendaten verfügbar',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16)),
+            style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 16)),
       );
     }
 
@@ -366,31 +367,31 @@ class _PublicScoreboardScreenState extends State<PublicScoreboardScreen>
       itemBuilder: (context, index) {
         final s = scorers[index];
         return Card(
-          color: const Color(0xFF16213e),
+          color: AppColors.primaryColor.withValues(alpha: 0.06),
           margin: const EdgeInsets.only(bottom: 6),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: index < 3
                   ? [Colors.amber, Colors.grey.shade400, Colors.brown.shade300][index]
-                  : Colors.white.withValues(alpha: 0.1),
+                  : Colors.grey.shade200,
               child: Text('${index + 1}',
                   style: TextStyle(
-                      color: index < 3 ? Colors.black87 : Colors.white70,
+                      color: index < 3 ? Colors.black87 : Colors.black54,
                       fontWeight: FontWeight.bold, fontSize: 14)),
             ),
             title: Text(s.playerName,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 14)),
             subtitle: Text(s.teamName,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                style: TextStyle(color: Colors.black.withValues(alpha: 0.5), fontSize: 12)),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('${s.totalGoals}',
                     style: const TextStyle(
-                        color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
-                Text('Tore', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10)),
+                        color: AppColors.primaryColorAlt, fontSize: 20, fontWeight: FontWeight.bold)),
+                Text('Tore', style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 10)),
               ],
             ),
           ),

@@ -16,6 +16,7 @@ class MixedFontTitle extends StatelessWidget {
       'ROLLSTUHLHANDBALL BUNDESLIGA',
       style: TextStyle(
         fontFamily: 'MyriadPro',
+        fontFamilyFallback: const ['Roboto'],
         fontSize: fontSize + 4,
         fontWeight: FontWeight.bold,
         color: color,

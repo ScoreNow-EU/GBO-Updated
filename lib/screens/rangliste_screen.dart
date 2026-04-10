@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../services/team_service.dart';
 import '../utils/responsive_helper.dart';
@@ -349,7 +349,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Es sind noch keine Teams verfÃ¼gbar, die in der Saison $selectedSeason an Turnieren teilgenommen haben.',
+            'Es sind noch keine Teams verfügbar, die in der Saison $selectedSeason an Turnieren teilgenommen haben.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
@@ -1031,7 +1031,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Nur die besten 3 Turniere zÃ¤hlen zur Gesamtwertung',
+            'Nur die besten 3 Turniere zählen zur Gesamtwertung',
             style: TextStyle(
               fontSize: 10,
               color: Colors.grey.shade600,
@@ -1176,7 +1176,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                 color: Colors.grey.shade300,
                 child: const Center(
                   child: Text(
-                    'Nur die besten 3 Ergebnisse zÃ¤hlen zur Rangliste',
+                    'Nur die besten 3 Ergebnisse zählen zur Rangliste',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,

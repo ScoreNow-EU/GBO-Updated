@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 import '../models/game.dart';
 import '../models/tournament.dart';
 import '../models/court.dart';
@@ -115,7 +115,7 @@ class GameScheduler {
           scheduledGames: 0,
           unscheduledGames: unscheduledGames.length,
           fieldsUsed: 0,
-          errorMessage: 'Keine Felder verfÃ¼gbar. Bitte Felder hinzufÃ¼gen.',
+          errorMessage: 'Keine Felder verfügbar. Bitte Felder hinzufügen.',
         );
       }
 
@@ -390,7 +390,7 @@ class GameScheduler {
           scheduledGames: 0,
           unscheduledGames: unscheduledGames.length,
           fieldsUsed: 0,
-          errorMessage: 'Keine Felder verfÃ¼gbar. Bitte Felder hinzufÃ¼gen.',
+          errorMessage: 'Keine Felder verfügbar. Bitte Felder hinzufügen.',
         );
       }
 

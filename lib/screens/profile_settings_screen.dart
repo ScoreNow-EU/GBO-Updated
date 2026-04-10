@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart' as app_user;
 import '../utils/app_colors.dart';
@@ -354,6 +355,29 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       ),
                       child: const Text('Einstellungen speichern'),
                     ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Legal Links Section
+            const SizedBox(height: 24),
+            _buildSectionCard(
+              title: 'Rechtliches',
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.gavel),
+                    title: const Text('Impressum'),
+                    trailing: const Icon(Icons.open_in_new, size: 18),
+                    onTap: () => launchUrl(Uri.parse('/impressum')),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip),
+                    title: const Text('Datenschutzerklärung'),
+                    trailing: const Icon(Icons.open_in_new, size: 18),
+                    onTap: () => launchUrl(Uri.parse('/datenschutz')),
                   ),
                 ],
               ),

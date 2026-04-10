@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -172,7 +172,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         _cachedGames = _parseGameDocs(gamesSnapshot.docs);
         _gamesFingerprint = _buildGamesFingerprint(_cachedGames!);
 
-        // Silent background polling every 15 seconds â€“ only setState when data changed
+        // Silent background polling every 15 seconds — only setState when data changed
         _gamesRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
           if (!mounted) return;
           try {
@@ -2250,7 +2250,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               // 1. Uhrzeit
               final timeCmp = (a.scheduledTime ?? DateTime(2100)).compareTo(b.scheduledTime ?? DateTime(2100));
               if (timeCmp != 0) return timeCmp;
-              // 2. Halle (natÃ¼rliche Sortierung: Halle 1 vor Halle 2)
+              // 2. Halle (natürliche Sortierung: Halle 1 vor Halle 2)
               final courtCmp = _courtSortKey(a.courtId).compareTo(_courtSortKey(b.courtId));
               if (courtCmp != 0) return courtCmp;
               // 3. Team A Name (A vor B)
@@ -2314,7 +2314,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         child: Text(
           _statsLoaded
               ? 'Noch keine Spielerstatistiken vorhanden.'
-              : 'Statistiken werden beim Ã–ffnen geladen.',
+              : 'Statistiken werden beim Öffnen geladen.',
           style: TextStyle(fontSize: 13, color: Colors.grey[600]),
         ),
       );
@@ -2543,7 +2543,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
                               ],
                             )
                           : Text(
-                              isLive ? 'lÃ¤uft' : '- : -',
+                              isLive ? 'läuft' : '- : -',
                               style: TextStyle(
                                 fontSize: isLive ? 12 : 15,
                                 fontWeight: FontWeight.bold,
@@ -2712,7 +2712,7 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       );
     }
     
-    // No organizer assigned â€” show neutral placeholder
+    // No organizer assigned — show neutral placeholder
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 20),
       decoration: BoxDecoration(

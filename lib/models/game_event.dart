@@ -206,11 +206,12 @@ class GameTime {
   }
 
   String get periodDisplay {
-    return '$currentPeriod. Halbzeit ($displayTime/${halfDurationMinutes.toString().padLeft(2, '0')}:00)';
+    final periodEnd = currentPeriod * halfDurationMinutes;
+    return '$currentPeriod. Halbzeit ($displayTime/${periodEnd.toString().padLeft(2, '0')}:00)';
   }
 
   bool get isHalfTime => minutes >= halfDurationMinutes && currentPeriod == 1;
-  bool get isFullTime => minutes >= halfDurationMinutes && currentPeriod == 2;
+  bool get isFullTime => minutes >= halfDurationMinutes * 2 && currentPeriod == 2;
 
   GameTime copyWith({
     int? minutes,

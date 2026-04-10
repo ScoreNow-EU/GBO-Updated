@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/user.dart' as app_user;
 import '../models/referee.dart';
@@ -36,7 +36,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     'Team Manager',
     'Delegate',
     'Scoring Tablet',
-    'SanitÃ¤ter',
+    'Sanitäter',
     'Series Organizer',
     'Spieler',
   ];
@@ -188,7 +188,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Rolle hinzufÃ¼gen fÃ¼r ${user.fullName}'),
+        title: Text('Rolle hinzufügen für ${user.fullName}'),
         content: SizedBox(
           width: 300,
           child: Column(
@@ -712,7 +712,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Rollen hinzufÃ¼gen:',
+          'Rollen hinzufügen:',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -752,7 +752,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           ElevatedButton.icon(
             onPressed: () => _showAddRoleDialog(user, availableRoles),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Rolle hinzufÃ¼gen'),
+            label: const Text('Rolle hinzufügen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -763,7 +763,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         OutlinedButton.icon(
           onPressed: () => _showResetPasswordDialog(user),
           icon: const Icon(Icons.lock_reset, size: 16),
-          label: const Text('Passwort zurÃ¼cksetzen'),
+          label: const Text('Passwort zurücksetzen'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.orange,
             side: const BorderSide(color: Colors.orange),
@@ -773,7 +773,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         OutlinedButton.icon(
           onPressed: () => _showDeleteAccountDialog(user),
           icon: const Icon(Icons.delete, size: 16),
-          label: const Text('Konto lÃ¶schen'),
+          label: const Text('Konto löschen'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.red,
             side: const BorderSide(color: Colors.red),
@@ -870,7 +870,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
       case app_user.UserRole.sanitater:
-        return 'SanitÃ¤ter';
+        return 'Sanitäter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:
@@ -920,7 +920,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         case 'Scoring Tablet':
           filterRole = app_user.UserRole.scoringTablet;
           break;
-        case 'SanitÃ¤ter':
+        case 'Sanitäter':
           filterRole = app_user.UserRole.sanitater;
           break;
         case 'Series Organizer':
@@ -994,7 +994,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Referee erstellt'),
-                description: Text('${user.fullName} wurde als Referee hinzugefÃ¼gt.'),
+                description: Text('${user.fullName} wurde als Referee hinzugefügt.'),
                 autoCloseDuration: const Duration(seconds: 3),
               );
             }
@@ -1053,7 +1053,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                 type: ToastificationType.success,
                 style: ToastificationStyle.fillColored,
                 title: const Text('Team Manager erstellt'),
-                description: Text('${user.fullName} wurde als Team Manager hinzugefÃ¼gt.'),
+                description: Text('${user.fullName} wurde als Team Manager hinzugefügt.'),
                 autoCloseDuration: const Duration(seconds: 3),
               );
             }
@@ -1164,9 +1164,9 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Passwort zurÃ¼cksetzen'),
+        title: const Text('Passwort zurücksetzen'),
         content: Text(
-          'MÃ¶chten Sie wirklich eine Passwort-ZurÃ¼cksetzen-E-Mail an ${user.email} senden?',
+          'Möchten Sie wirklich eine Passwort-Zurücksetzen-E-Mail an ${user.email} senden?',
         ),
         actions: [
           TextButton(
@@ -1181,7 +1181,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
             ),
-            child: const Text('Passwort zurÃ¼cksetzen'),
+            child: const Text('Passwort zurücksetzen'),
           ),
         ],
       ),
@@ -1198,7 +1198,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
           title: const Text('E-Mail versendet'),
-          description: Text('Passwort-ZurÃ¼cksetzen-E-Mail wurde an ${user.email} versendet.'),
+          description: Text('Passwort-Zurücksetzen-E-Mail wurde an ${user.email} versendet.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1220,13 +1220,13 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Konto lÃ¶schen'),
+        title: const Text('Konto löschen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'MÃ¶chten Sie wirklich das Konto von ${user.fullName} (${user.email}) dauerhaft lÃ¶schen?',
+              'Möchten Sie wirklich das Konto von ${user.fullName} (${user.email}) dauerhaft löschen?',
             ),
             const SizedBox(height: 12),
             Container(
@@ -1242,7 +1242,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Diese Aktion kann nicht rÃ¼ckgÃ¤ngig gemacht werden!',
+                      'Diese Aktion kann nicht rückgängig gemacht werden!',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.red.shade700,
@@ -1268,7 +1268,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Konto lÃ¶schen'),
+            child: const Text('Konto löschen'),
           ),
         ],
       ),
@@ -1285,8 +1285,8 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           context: context,
           type: ToastificationType.success,
           style: ToastificationStyle.fillColored,
-          title: const Text('Konto gelÃ¶scht'),
-          description: Text('Das Konto von ${user.fullName} wurde erfolgreich gelÃ¶scht.'),
+          title: const Text('Konto gelöscht'),
+          description: Text('Das Konto von ${user.fullName} wurde erfolgreich gelöscht.'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1297,7 +1297,7 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
           type: ToastificationType.error,
           style: ToastificationStyle.fillColored,
           title: const Text('Fehler'),
-          description: Text('Fehler beim LÃ¶schen des Kontos: $e'),
+          description: Text('Fehler beim Löschen des Kontos: $e'),
           autoCloseDuration: const Duration(seconds: 3),
         );
       }
@@ -1345,7 +1345,7 @@ class _RefereeCreationDialogState extends State<_RefereeCreationDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Erstelle einen Referee-Eintrag fÃ¼r ${widget.user.fullName}',
+                'Erstelle einen Referee-Eintrag für ${widget.user.fullName}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -1463,7 +1463,7 @@ class _TeamManagerCreationDialogState extends State<_TeamManagerCreationDialog> 
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Erstelle einen Team Manager-Eintrag fÃ¼r ${widget.user.fullName}',
+                'Erstelle einen Team Manager-Eintrag für ${widget.user.fullName}',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,

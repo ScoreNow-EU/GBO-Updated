@@ -19,6 +19,9 @@ class SpielberichtPdfService {
     required Map<String, DateTime?> signatureTimes,
     required Map<String, String> signatureNames,
     required bool isLocked,
+    String? referee1Name,
+    String? referee2Name,
+    String? delegateName,
   }) async {
     final pdf = pw.Document(
       title: 'Spielbericht – ${game.teamAName} vs ${game.teamBName}',
@@ -41,8 +44,14 @@ class SpielberichtPdfService {
         build: (context) => [
           _buildScoreSection(game, result),
           pw.SizedBox(height: 16),
+          _buildOfficialsSection(
+            referee1Name: referee1Name,
+            referee2Name: referee2Name,
+            delegateName: delegateName,
+          ),
+          pw.SizedBox(height: 16),
           if (squadA != null || squadB != null)
-            _buildSquadsSection(game, squadA, squadB),
+            _buildSquadsSection(game, squadA, squadB, events),
           if (squadA != null || squadB != null) pw.SizedBox(height: 16),
           _buildEventsSection(game, sortedEvents),
           pw.SizedBox(height: 16),
@@ -182,7 +191,7 @@ class SpielberichtPdfService {
     );
   }
 
-  pw.Widget _buildSquadsSection(Game game, GameSquad? squadA, GameSquad? squadB) {
+  pw.Widget _buildSquadsSection(Game game, GameSquad? squadA, GameSquad? squadB, List<GameEvent> events) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -192,16 +201,39 @@ class SpielberichtPdfService {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            if (squadA != null) pw.Expanded(child: _buildSquadTable(game.teamAName, squadA)),
+            if (squadA != null) pw.Expanded(child: _buildSquadTable(game.teamAName, squadA, events, game.teamAId)),
             if (squadA != null && squadB != null) pw.SizedBox(width: 16),
-            if (squadB != null) pw.Expanded(child: _buildSquadTable(game.teamBName, squadB)),
+            if (squadB != null) pw.Expanded(child: _buildSquadTable(game.teamBName, squadB, events, game.teamBId)),
           ],
         ),
       ],
     );
   }
 
-  pw.Widget _buildSquadTable(String teamName, GameSquad squad) {
+  pw.Widget _buildSquadTable(String teamName, GameSquad squad, List<GameEvent> events, String? teamId) {
+    // Compute per-player stats from events
+    // Match by playerId first, fall back to playerName for legacy events
+    Map<String, Map<String, int>> playerStats = {};
+    Map<String, Map<String, int>> playerStatsByName = {};
+    for (final e in events) {
+      if (e.teamId != teamId) continue;
+      if (e.playerId != null) {
+        playerStats.putIfAbsent(e.playerId!, () => {
+          'goals': 0, '7mHit': 0, '7mMiss': 0,
+          'yellow': 0, 'twoMin': 0, 'red': 0, 'blue': 0,
+        });
+        final s = playerStats[e.playerId!]!;
+        _applyEventToStats(s, e);
+      } else if (e.playerName.isNotEmpty) {
+        final key = e.playerName.trim().toLowerCase();
+        playerStatsByName.putIfAbsent(key, () => {
+          'goals': 0, '7mHit': 0, '7mMiss': 0,
+          'yellow': 0, 'twoMin': 0, 'red': 0, 'blue': 0,
+        });
+        _applyEventToStats(playerStatsByName[key]!, e);
+      }
+    }
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -210,9 +242,15 @@ class SpielberichtPdfService {
         pw.Table(
           border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
           columnWidths: {
-            0: const pw.FixedColumnWidth(28),
+            0: const pw.FixedColumnWidth(22),
             1: const pw.FlexColumnWidth(),
-            2: const pw.FixedColumnWidth(50),
+            2: const pw.FixedColumnWidth(22),
+            3: const pw.FixedColumnWidth(22),
+            4: const pw.FixedColumnWidth(28),
+            5: const pw.FixedColumnWidth(16),
+            6: const pw.FixedColumnWidth(20),
+            7: const pw.FixedColumnWidth(16),
+            8: const pw.FixedColumnWidth(16),
           },
           children: [
             pw.TableRow(
@@ -221,15 +259,36 @@ class SpielberichtPdfService {
                 _tableCell('#', bold: true),
                 _tableCell('Name', bold: true),
                 _tableCell('Kl.', bold: true),
+                _tableCell('T', bold: true),
+                _tableCell('7m', bold: true),
+                _tableCell('G', bold: true),
+                _tableCell('2\'', bold: true),
+                _tableCell('R', bold: true),
+                _tableCell('B', bold: true),
               ],
             ),
-            ...squad.selectedPlayers.map((p) => pw.TableRow(
-                  children: [
-                    _tableCell(p.jerseyNumber ?? '-'),
-                    _tableCell('${p.firstName} ${p.lastName}'),
-                    _tableCell(p.classification ?? '-'),
-                  ],
-                )),
+            ...squad.selectedPlayers.map((p) {
+              final s = playerStats[p.playerId]
+                  ?? playerStatsByName['${p.firstName} ${p.lastName}'.trim().toLowerCase()]
+                  ?? {};
+              final goals = s['goals'] ?? 0;
+              final smHit = s['7mHit'] ?? 0;
+              final smMiss = s['7mMiss'] ?? 0;
+              final smTotal = smHit + smMiss;
+              return pw.TableRow(
+                children: [
+                  _tableCell(p.jerseyNumber ?? '-'),
+                  _tableCell('${p.firstName} ${p.lastName}'),
+                  _tableCell(p.classification ?? '-'),
+                  _tableCell(goals > 0 ? '$goals' : '-', align: pw.TextAlign.center),
+                  _tableCell(smTotal > 0 ? '$smHit/$smTotal' : '-', align: pw.TextAlign.center),
+                  _tableCell((s['yellow'] ?? 0) > 0 ? '${s['yellow']}' : '-', align: pw.TextAlign.center),
+                  _tableCell((s['twoMin'] ?? 0) > 0 ? '${s['twoMin']}' : '-', align: pw.TextAlign.center),
+                  _tableCell((s['red'] ?? 0) > 0 ? '${s['red']}' : '-', align: pw.TextAlign.center),
+                  _tableCell((s['blue'] ?? 0) > 0 ? '${s['blue']}' : '-', align: pw.TextAlign.center),
+                ],
+              );
+            }),
           ],
         ),
         if (squad.officials.isNotEmpty) ...[
@@ -240,7 +299,77 @@ class SpielberichtPdfService {
                 style: const pw.TextStyle(fontSize: 8),
               )),
         ],
+        pw.SizedBox(height: 4),
+        pw.Text('Mannschaftsverantwortlicher: ${squad.selectedByName}',
+            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
       ],
+    );
+  }
+
+  void _applyEventToStats(Map<String, int> s, GameEvent e) {
+    switch (e.eventType) {
+      case GameEventType.goal: s['goals'] = (s['goals'] ?? 0) + 1;
+      case GameEventType.sevenMeterHit:
+        s['goals'] = (s['goals'] ?? 0) + 1;
+        s['7mHit'] = (s['7mHit'] ?? 0) + 1;
+      case GameEventType.sevenMeterMiss: s['7mMiss'] = (s['7mMiss'] ?? 0) + 1;
+      case GameEventType.yellowCard: s['yellow'] = (s['yellow'] ?? 0) + 1;
+      case GameEventType.twoMinuteSuspension: s['twoMin'] = (s['twoMin'] ?? 0) + 1;
+      case GameEventType.redCard: s['red'] = (s['red'] ?? 0) + 1;
+      case GameEventType.blueCard: s['blue'] = (s['blue'] ?? 0) + 1;
+      default: break;
+    }
+  }
+
+  pw.Widget _buildOfficialsSection({
+    String? referee1Name,
+    String? referee2Name,
+    String? delegateName,
+  }) {
+    final hasOfficials = (referee1Name != null && referee1Name.isNotEmpty) ||
+        (referee2Name != null && referee2Name.isNotEmpty) ||
+        (delegateName != null && delegateName.isNotEmpty);
+    if (!hasOfficials) return pw.SizedBox();
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: pw.BorderRadius.circular(4),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text('Spielleitung',
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 6),
+          pw.Row(
+            children: [
+              if (referee1Name != null && referee1Name.isNotEmpty)
+                pw.Expanded(
+                  child: pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'SR 1: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(text: referee1Name, style: const pw.TextStyle(fontSize: 9)),
+                  ])),
+                ),
+              if (referee2Name != null && referee2Name.isNotEmpty)
+                pw.Expanded(
+                  child: pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'SR 2: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(text: referee2Name, style: const pw.TextStyle(fontSize: 9)),
+                  ])),
+                ),
+              if (delegateName != null && delegateName.isNotEmpty)
+                pw.Expanded(
+                  child: pw.RichText(text: pw.TextSpan(children: [
+                    pw.TextSpan(text: 'Delegierter: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(text: delegateName, style: const pw.TextStyle(fontSize: 9)),
+                  ])),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

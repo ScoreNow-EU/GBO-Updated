@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
@@ -338,6 +338,13 @@ class _SideNavigationState extends State<SideNavigation> {
                 
                 if (_currentAppUser?.roles.contains(app_user.UserRole.spieler) == true)
                   const SizedBox(height: 16),
+
+                // Scoring Tablet Section - Only show if user has scoringTablet role
+                if (_currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
+                  _buildScoringTabletSection(),
+
+                if (_currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
+                  const SizedBox(height: 16),
                 
                 // Admin Section - Only show if user has admin role
                 if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true)
@@ -391,7 +398,7 @@ class _SideNavigationState extends State<SideNavigation> {
           //                 crossAxisAlignment: CrossAxisAlignment.start,
           //                 children: [
           //                   const Text(
-          //                     'UnterstÃ¼tzen',
+          //                     'Unterstützen',
           //                     style: TextStyle(
           //                       color: Colors.white,
           //                       fontSize: 14,
@@ -506,7 +513,7 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
             // Sub-items always visible
             _buildTeamSubItem(
-              title: 'Ãœbersicht',
+              title: 'Übersicht',
               key: 'team_${team.id}_overview',
               icon: Icons.dashboard,
               isSelected: widget.selectedSection == 'team_${team.id}_overview' || widget.selectedSection == 'team_${team.id}',
@@ -766,6 +773,46 @@ class _SideNavigationState extends State<SideNavigation> {
     );
   }
 
+  Widget _buildScoringTabletSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade700,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.scoreboard, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'KAMPFGERICHT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildNavigationItemColored(
+            icon: Icons.sports_score,
+            title: 'Live Scoring',
+            key: 'scoring_tablet',
+            isSelected: widget.selectedSection == 'scoring_tablet',
+            selectedColor: Colors.teal.shade900,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlayerSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -958,6 +1005,12 @@ class _SideNavigationState extends State<SideNavigation> {
             key: 'admin_data_management',
             isSelected: widget.selectedSection == 'admin_data_management',
           ),
+          _buildAdminItem(
+            icon: Icons.view_kanban,
+            title: 'Kanban Board',
+            key: 'kanban_board',
+            isSelected: widget.selectedSection == 'kanban_board',
+          ),
           
           // "Mehr" entry after regular items
           _buildAdminItem(
@@ -996,7 +1049,7 @@ class _SideNavigationState extends State<SideNavigation> {
             ),
             _buildAdminItem(
               icon: Icons.location_city,
-              title: 'StÃ¤dte Migration',
+              title: 'Städte Migration',
               key: 'city_migration',
               isSelected: widget.selectedSection == 'city_migration',
             ),
@@ -1117,7 +1170,7 @@ class _SideNavigationState extends State<SideNavigation> {
                 ),
                 // Sub-items for tournament details
                 _buildRefereeSubItem(
-                  title: 'Ãœbersicht',
+                  title: 'Übersicht',
                   key: 'referee_tournament_${tournament.id}_overview',
                   icon: Icons.info_outline,
                   isSelected: widget.selectedSection == 'referee_tournament_${tournament.id}_overview' || widget.selectedSection == 'referee_tournament_${tournament.id}',

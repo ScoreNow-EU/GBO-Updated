@@ -152,16 +152,16 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     setState(() => _isRefreshing = true);
     
     try {
-      debugPrint('Ã°Å¸â€â€ž ScoringTablet: Starting comprehensive Firebase refresh...');
+      debugPrint(' ScoringTablet: Starting comprehensive Firebase refresh...');
       
       // Force refresh games data from Firebase
       if (_assignedTournament != null) {
-        debugPrint('Ã°Å¸â€â€ž Force refreshing games for tournament: ${_assignedTournament!.name}');
+        debugPrint(' Force refreshing games for tournament: ${_assignedTournament!.name}');
         await _gameService.forceRefreshGames(_assignedTournament!.id);
       }
       
       // Force refresh team data (clear cache)
-      debugPrint('Ã°Å¸â€â€ž Clearing team cache...');
+      debugPrint(' Clearing team cache...');
       _teamService.clearCache();
       
       // Reload games with fresh data
@@ -169,7 +169,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // Refresh team data for selected game
       if (_selectedGame != null) {
-        debugPrint('Ã°Å¸â€â€ž Refreshing team data for selected game...');
+        debugPrint(' Refreshing team data for selected game...');
         if (_selectedGame!.teamAId?.isNotEmpty == true) {
           final freshTeamA = await _teamService.getTeamById(_selectedGame!.teamAId!);
           if (mounted && freshTeamA != null) {
@@ -185,7 +185,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         
         // Also refresh squad data if in scoring mode
         if (_isInScoringMode) {
-          debugPrint('Ã°Å¸â€â€ž Refreshing squad data...');
+          debugPrint(' Refreshing squad data...');
           setState(() => _squadsLoading = true);
           await _loadGameSquads();
           if (mounted) {
@@ -195,13 +195,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       }
       
       setState(() => _lastRefresh = DateTime.now());
-      debugPrint('Ã¢Å“â€¦ ScoringTablet: Comprehensive refresh complete');
+      debugPrint(' ScoringTablet: Comprehensive refresh complete');
       
       // Show success feedback
       _showSuccessToast('Daten erfolgreich von Firebase aktualisiert');
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error during comprehensive refresh: $e');
+      debugPrint('Error during comprehensive refresh: $e');
       _showErrorToast('Fehler beim Aktualisieren der Daten: $e');
     } finally {
       setState(() => _isRefreshing = false);
@@ -210,17 +210,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
   Future<void> _loadManagedAccountData() async {
     try {
-      debugPrint('Ã°Å¸â€Â ScoringTablet: Loading managed account data for user: ${widget.user.email}');
+      debugPrint(' ScoringTablet: Loading managed account data for user: ${widget.user.email}');
       
       final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
-      debugPrint('Ã°Å¸â€Â Found ${allAccounts.length} managed accounts total');
+      debugPrint(' Found ${allAccounts.length} managed accounts total');
       
       _managedAccount = allAccounts.firstWhere(
         (account) => account.email == widget.user.email,
         orElse: () => throw Exception('Managed account not found for email: ${widget.user.email}'),
       );
 
-      debugPrint('Ã°Å¸â€Â Managed account found:');
+      debugPrint(' Managed account found:');
       debugPrint('   - Email: ${_managedAccount!.email}');
       debugPrint('   - Tournament ID: ${_managedAccount!.tournamentId}');
       debugPrint('   - Court ID: ${_managedAccount!.courtId}');
@@ -228,13 +228,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
       if (_managedAccount != null && _managedAccount!.tournamentId != null) {
         _assignedTournament = await _tournamentService.getTournamentById(_managedAccount!.tournamentId!);
-        debugPrint('Ã°Å¸â€Â Tournament loaded: ${_assignedTournament?.name}');
-        debugPrint('Ã°Å¸â€Â Tournament has ${_assignedTournament?.courts.length} courts');
+        debugPrint(' Tournament loaded: ${_assignedTournament?.name}');
+        debugPrint(' Tournament has ${_assignedTournament?.courts.length} courts');
         
         if (_assignedTournament != null && _managedAccount!.courtId != null) {
           try {
             // Debug: Show all available courts
-            debugPrint('Ã°Å¸â€Â Available courts in tournament:');
+            debugPrint(' Available courts in tournament:');
             for (final court in _assignedTournament!.courts) {
               debugPrint('   - Court ID: "${court.id}", Name: "${court.name}"');
             }
@@ -243,20 +243,20 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               (court) => court.id == _managedAccount!.courtId,
             );
             
-            debugPrint('Ã°Å¸â€Â Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
+            debugPrint(' Assigned court: "${_assignedCourt!.name}" (ID: "${_assignedCourt!.id}")');
             
             await _loadGames();
             
             // Update tablet status to indicate it's connected (disabled to prevent null errors)
             // _updateTabletStatus();
           } catch (e) {
-            debugPrint('Ã¢ÂÅ’ Court not found: $e');
+            debugPrint('Court not found: $e');
             _showErrorToast('Court "${_managedAccount!.courtId}" nicht im Turnier gefunden');
           }
         }
       }
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error loading managed account data: $e');
+      debugPrint('Error loading managed account data: $e');
       _showErrorToast('Fehler beim Laden der Account-Daten: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
@@ -270,12 +270,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show all game court IDs and assigned court ID
-      debugPrint('Ã°Å¸ÂÂ ScoringTablet: Debug court ID matching');
-      debugPrint('Ã°Å¸ÂÂ Assigned court ID: "${_assignedCourt!.id}"');
-      debugPrint('Ã°Å¸ÂÂ Found ${allGames.length} total games for tournament');
+      debugPrint('[DEBUG] ScoringTablet: Debug court ID matching');
+      debugPrint('[DEBUG] Assigned court ID: "${_assignedCourt!.id}"');
+      debugPrint('[DEBUG] Found ${allGames.length} total games for tournament');
       
       for (final game in allGames) {
-        debugPrint('Ã°Å¸ÂÂ Game: ${game.teamAName} vs ${game.teamBName}');
+        debugPrint('[DEBUG] Game: ${game.teamAName} vs ${game.teamBName}');
         debugPrint('   - Game court ID: "${game.courtId}"');
         debugPrint('   - Matches assigned court: ${game.courtId == _assignedCourt!.id}');
         debugPrint('   - Game status: ${game.status}');
@@ -287,7 +287,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If no exact matches, try matching by court name
       if (courtGames.isEmpty) {
-        debugPrint('Ã°Å¸ÂÂ No exact court ID matches, trying to match by court name...');
+        debugPrint('[DEBUG] No exact court ID matches, trying to match by court name...');
         
         // Get all courts from the tournament
         final allTournamentCourts = _assignedTournament!.courts;
@@ -306,7 +306,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             // If we found a matching court and it has the same name as our assigned court
             if (gamesCourt.id.isNotEmpty && gamesCourt.name == _assignedCourt!.name) {
               courtGames.add(game);
-              debugPrint('Ã°Å¸ÂÂ Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
+              debugPrint('[DEBUG] Matched game "${game.teamAName} vs ${game.teamBName}" by court name "${gamesCourt.name}"');
             }
           }
         }
@@ -314,12 +314,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       // If still no matches, show ALL games for debugging (remove this in production)
       if (courtGames.isEmpty) {
-        debugPrint('Ã¢Å¡Â Ã¯Â¸Â Still no court matches found. For debugging, showing all games:');
+        debugPrint('[DEBUG]  Still no court matches found. For debugging, showing all games:');
         courtGames = allGames;
-        debugPrint('Ã¢Å¡Â Ã¯Â¸Â DEBUG MODE: Showing all ${courtGames.length} games');
+        debugPrint('[DEBUG]  DEBUG MODE: Showing all ${courtGames.length} games');
       }
       
-      debugPrint('Ã°Å¸ÂÂ Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
+      debugPrint('[DEBUG] Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
       
       final now = DateTime.now();
       
@@ -359,7 +359,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       });
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error loading games: $e');
+      debugPrint('Error loading games: $e');
     }
   }
 
@@ -370,9 +370,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       final allGames = await _gameService.getGamesForTournament(_assignedTournament!.id).first;
       
       // Debug: Show court ID matching (same as _loadGames)
-      debugPrint('Ã°Å¸â€â€ž ScoringTablet: Refreshing games with animation');
-      debugPrint('Ã°Å¸â€â€ž Assigned court ID: "${_assignedCourt!.id}"');
-      debugPrint('Ã°Å¸â€â€ž Found ${allGames.length} total games');
+      debugPrint(' ScoringTablet: Refreshing games with animation');
+      debugPrint(' Assigned court ID: "${_assignedCourt!.id}"');
+      debugPrint(' Found ${allGames.length} total games');
       
       // Try multiple matching strategies for court assignment (same as _loadGames)
       var courtGames = allGames.where((game) => game.courtId == _assignedCourt!.id).toList();
@@ -403,7 +403,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         courtGames = allGames;
       }
       
-      debugPrint('Ã°Å¸â€â€ž Found ${courtGames.length} games for assigned court');
+      debugPrint(' Found ${courtGames.length} games for assigned court');
       
       final now = DateTime.now();
       
@@ -442,7 +442,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       await _animateGameListChanges(_upcomingGames, newUpcomingGames, _upcomingGamesListKey, false);
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error loading games with animation: $e');
+      debugPrint('Error loading games with animation: $e');
     }
   }
 
@@ -1172,12 +1172,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Find squads for each team
       for (final squad in squads) {
         _gameSquads[squad.teamId] = squad;
-        debugPrint('Ã¢Å“â€¦ Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
+        debugPrint(' Loaded squad for team ${squad.teamId}: ${squad.playerCount} players');
       }
       
-      debugPrint('Ã¢Å“â€¦ Total squads loaded: ${_gameSquads.length}');
+      debugPrint(' Total squads loaded: ${_gameSquads.length}');
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error loading game squads: $e');
+      debugPrint('Error loading game squads: $e');
     }
   }
 
@@ -1290,7 +1290,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: TextButton.icon(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 20),
-                      label: const Text('ZurÃƒÂ¼ck zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      label: const Text('Zurück zu Spielen', style: TextStyle(color: Colors.white70, fontSize: 14)),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1301,7 +1301,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: IconButton(
                       onPressed: _backToGames,
                       icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 22),
-                      tooltip: 'ZurÃƒÂ¼ck zu Spielen',
+                      tooltip: 'Zurück zu Spielen',
                       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                       padding: const EdgeInsets.all(12),
                       style: IconButton.styleFrom(
@@ -1383,7 +1383,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 child: TextButton.icon(
                   onPressed: _backToGames,
                   icon: const Icon(Icons.arrow_back, color: Colors.white70),
-                  label: const Text('ZurÃƒÂ¼ck zu Spielen', style: TextStyle(color: Colors.white70)),
+                  label: const Text('Zurück zu Spielen', style: TextStyle(color: Colors.white70)),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white70,
                   ),
@@ -1431,7 +1431,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           IconButton(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back, color: Color(0xFF4A5568)),
-            tooltip: 'ZurÃƒÂ¼ck zu Spielen',
+            tooltip: 'Zurück zu Spielen',
           ),
         ],
       ),
@@ -1980,7 +1980,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 24),
           Text(
-            'Kein Spiel ausgewÃƒÂ¤hlt',
+            'Kein Spiel ausgewählt',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -1989,7 +1989,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 12),
           Text(
-            'WÃƒÂ¤hlen Sie ein Spiel aus der Liste aus.',
+            'Wählen Sie ein Spiel aus der Liste aus.',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade500,
@@ -2000,7 +2000,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ElevatedButton.icon(
             onPressed: _backToGames,
             icon: const Icon(Icons.arrow_back),
-            label: const Text('ZurÃƒÂ¼ck zu Spielen'),
+            label: const Text('Zurück zu Spielen'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFffd665),
               foregroundColor: Colors.black87,
@@ -2104,7 +2104,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _buildPlaceholderScreen(
       'Schiedsrichter und Offizielle',
       Icons.sports_handball,
-      'Hier kÃƒÂ¶nnen Sie Schiedsrichter und Spieloffizielle verwalten.',
+      'Hier können Sie Schiedsrichter und Spieloffizielle verwalten.',
       Colors.purple,
     );
   }
@@ -2208,7 +2208,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return _buildPlaceholderScreen(
       'Live-Statistiken',
       Icons.analytics,
-      'Hier kÃƒÂ¶nnen Sie Live-Statistiken und Spielanalysen einsehen.',
+      'Hier können Sie Live-Statistiken und Spielanalysen einsehen.',
       Colors.blue,
     );
   }
@@ -2600,7 +2600,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
               const SizedBox(width: 12),
               const Text(
-                'Spiel zurÃƒÂ¼cksetzen',
+                'Spiel zurücksetzen',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -2613,8 +2613,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           
           Text(
             hasData 
-                ? 'Alle Punkte, Ereignisse und SÃƒÂ¤tze lÃƒÂ¶schen. Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden.'
-                : 'Aktuell sind keine Daten zum ZurÃƒÂ¼cksetzen vorhanden.',
+                ? 'Alle Punkte, Ereignisse und Sätze löschen. Diese Aktion kann nicht rückgängig gemacht werden.'
+                : 'Aktuell sind keine Daten zum Zurücksetzen vorhanden.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -2642,7 +2642,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelÃƒÂ¶scht!',
+                      'Achtung: Alle Spielereignisse und Punkte werden dauerhaft gelöscht!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -2662,7 +2662,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, false),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Aktuellen Satz zurÃƒÂ¼cksetzen'),
+                    label: const Text('Aktuellen Satz zurücksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange.shade600,
                       foregroundColor: Colors.white,
@@ -2678,7 +2678,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   child: ElevatedButton.icon(
                     onPressed: () => _showResetConfirmationDialog(gameState, true),
                     icon: const Icon(Icons.delete_forever),
-                    label: const Text('Gesamtes Spiel zurÃƒÂ¼cksetzen'),
+                    label: const Text('Gesamtes Spiel zurücksetzen'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red.shade600,
                       foregroundColor: Colors.white,
@@ -2780,7 +2780,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'Diese FunktionalitÃƒÂ¤t wird in einer zukÃƒÂ¼nftigen Version implementiert.',
+                'Diese Funktionalität wird in einer zukünftigen Version implementiert.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -2852,7 +2852,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Abmelden'),
-        content: const Text('MÃƒÂ¶chten Sie sich wirklich abmelden?'),
+        content: const Text('Möchten Sie sich wirklich abmelden?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -2977,7 +2977,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 8),
           Text(
-            _selectedGame?.displayName ?? 'Kein Spiel ausgewÃƒÂ¤hlt',
+            _selectedGame?.displayName ?? 'Kein Spiel ausgewählt',
             style: const TextStyle(
               fontSize: 18,
               color: Colors.black54,
@@ -3085,7 +3085,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 12),
         Text(
-          'Kein Kader ausgewÃƒÂ¤hlt',
+          'Kein Kader ausgewählt',
           style: TextStyle(
             fontSize: 16,
             color: Colors.grey[600],
@@ -3094,7 +3094,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         const SizedBox(height: 8),
         Text(
-          'Der Trainer muss noch den Kader fÃƒÂ¼r dieses Spiel auswÃƒÂ¤hlen.',
+          'Der Trainer muss noch den Kader für dieses Spiel auswählen.',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[500],
@@ -3126,7 +3126,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
 
     if (squad.isApproved) {
       statusColor = Colors.green;
-      statusText = 'Vom Trainer bestÃƒÂ¤tigt';
+      statusText = 'Vom Trainer bestätigt';
       statusIcon = Icons.check_circle;
     } else if (squad.isRejected) {
       statusColor = Colors.red;
@@ -3134,7 +3134,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       statusIcon = Icons.cancel;
     } else {
       statusColor = Colors.orange;
-      statusText = 'Wartet auf Trainer-BestÃƒÂ¤tigung';
+      statusText = 'Wartet auf Trainer-Bestätigung';
       statusIcon = Icons.hourglass_empty;
     }
 
@@ -3162,7 +3162,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   ),
                 ),
                 Text(
-                  'AusgewÃƒÂ¤hlt von ${squad.selectedByName}',
+                  'Ausgewählt von ${squad.selectedByName}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -3186,7 +3186,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         Row(
           children: [
             Text(
-              'AusgewÃƒÂ¤hlte Spieler (${squad.playerCount})',
+              'Ausgewählte Spieler (${squad.playerCount})',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -3328,7 +3328,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           ),
           const SizedBox(height: 16),
           const Text(
-            'WÃƒÂ¤hlen Sie Farben fÃƒÂ¼r Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
+            'Wählen Sie Farben für Shooter und Spieler. Diese werden in der Live-Punktevergabe verwendet.',
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
@@ -3516,7 +3516,20 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 ElevatedButton(
                   onPressed: gameState.isRunning 
                       ? () => _liveScoringService.pauseGameTimer(_selectedGame!.id)
-                      : () => _liveScoringService.startGameTimer(_selectedGame!.id),
+                      : () async {
+                          _liveScoringService.startGameTimer(_selectedGame!.id);
+                          // Sync game status to Firestore so kiosk/public screens see it live
+                          if (_selectedGame!.status != GameStatus.inProgress) {
+                            await _gameService.updateGameStatus(
+                              _selectedGame!.tournamentId,
+                              _selectedGame!.id,
+                              GameStatus.inProgress,
+                            );
+                            if (mounted) setState(() {
+                              _selectedGame = _selectedGame!.copyWith(status: GameStatus.inProgress);
+                            });
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: gameState.isRunning ? Colors.orange : Colors.green,
                     foregroundColor: Colors.white,
@@ -3528,7 +3541,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     size: 16,
                   ),
                 ),
-                if (gameState.gameTime.minutes >= 10) ...[
+                if (gameState.gameTime.minutes >= (gameState.gameTime.currentPeriod == 1 ? 10 : gameState.gameTime.halfDurationMinutes + 10)) ...[
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => _showEndSetDialog(gameState),
@@ -3728,7 +3741,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                         backgroundColor: Colors.white.withOpacity(0.2),
                         padding: const EdgeInsets.all(8),
                       ),
-                      tooltip: 'Letzte Aktion rÃƒÂ¼ckgÃƒÂ¤ngig',
+                      tooltip: 'Letzte Aktion rückgängig',
                     ),
                   ],
                 ),
@@ -3966,7 +3979,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleMakeChanges,
                       icon: const Icon(Icons.edit),
-                      label: const Text('Ãƒâ€žnderungen vornehmen'),
+                      label: const Text('Änderungen vornehmen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange.shade600,
                         foregroundColor: Colors.white,
@@ -3985,7 +3998,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     child: ElevatedButton.icon(
                       onPressed: _handleConfirmSet,
                       icon: const Icon(Icons.check_circle),
-                      label: const Text('BestÃƒÂ¤tigen'),
+                      label: const Text('Bestätigen'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade600,
                         foregroundColor: Colors.white,
@@ -4636,7 +4649,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         ),
         child: Center(
           child: Text(
-            'Kein Kader fÃƒÂ¼r $teamName',
+            'Kein Kader für $teamName',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -4713,9 +4726,9 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     ),
                   ),
                 ),
-                // Disable dragging only for red-carded players (used Werfer players can still be Shooter/Goalkeeper)
+                // Red-carded players can still be selected (for blue card), but not dragged
                 child: IgnorePointer(
-                  ignoring: hasRedCard,
+                  ignoring: false,
                   child: Container(
                     decoration: BoxDecoration(
                       color: hasRedCard 
@@ -4797,7 +4810,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   void _recordShootoutScore(int points) {
     // Validate that all positions are assigned
     if (_assignedShooter == null || _assignedPlayer == null || _assignedGoalkeeper == null) {
-      _showErrorToast('Alle Positionen mÃƒÂ¼ssen besetzt sein!');
+      _showErrorToast('Alle Positionen müssen besetzt sein!');
       return;
     }
 
@@ -4820,7 +4833,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         if (teamATotal == teamBTotal) {
           // It's a draw after 5 throws each - reset used players for sudden death
           _usedPlayerIds.clear();
-          _showSuccessToast('Unentschieden nach 5 WÃƒÂ¼rfen - Sudden Death! Alle Spieler wieder verfÃƒÂ¼gbar.');
+          _showSuccessToast('Unentschieden nach 5 Würfen - Sudden Death! Alle Spieler wieder verfügbar.');
         }
       }
       
@@ -4860,7 +4873,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       _halfCompleted = false;
     });
     
-    _showSuccessToast('Halbzeit bestÃƒÂ¤tigt und weiter');
+    _showSuccessToast('Halbzeit bestätigt und weiter');
   }
 
   // Handle make changes to set
@@ -5016,7 +5029,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             // Winner/Tie indicator
             if (teamAScore > teamBScore) ...[
               Text(
-                '${_selectedGame!.teamAName} fÃƒÂ¼hrt',
+                '${_selectedGame!.teamAName} führt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -5025,7 +5038,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else if (teamBScore > teamAScore) ...[
               Text(
-                '${_selectedGame!.teamBName} fÃƒÂ¼hrt',
+                '${_selectedGame!.teamBName} führt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -5068,14 +5081,26 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // End half by time (handball rules)
   Future<void> _endSetByTime(GameState gameState) async {
     try {
+      final isSecondHalf = gameState.currentHalf == 2;
       await _liveScoringService.completeHalf(
         _selectedGame!.id,
       );
+      // If game is fully complete, update Firestore game status
+      if (isSecondHalf) {
+        await _gameService.updateGameStatus(
+          _selectedGame!.tournamentId,
+          _selectedGame!.id,
+          GameStatus.completed,
+        );
+        if (mounted) setState(() {
+          _selectedGame = _selectedGame!.copyWith(status: GameStatus.completed);
+        });
+      }
       
-      _showSuccessToast('Halbzeit wurde erfolgreich beendet');
+      _showSuccessToast(isSecondHalf ? 'Spiel beendet' : 'Halbzeit wurde erfolgreich beendet');
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error ending set by time: $e');
+      debugPrint('Error ending set by time: $e');
       _showErrorToast('Fehler beim Beenden des Satzes: $e');
     }
   }
@@ -5094,7 +5119,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(width: 12),
             Text(
-              resetFullGame ? 'Gesamtes Spiel zurÃƒÂ¼cksetzen?' : 'Aktuellen Satz zurÃƒÂ¼cksetzen?',
+              resetFullGame ? 'Gesamtes Spiel zurücksetzen?' : 'Aktuellen Satz zurücksetzen?',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -5108,8 +5133,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           children: [
             Text(
               resetFullGame 
-                  ? 'Alle Punkte, Ereignisse, SÃƒÂ¤tze und Spielzeit werden dauerhaft gelÃƒÂ¶scht!'
-                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelÃƒÂ¶scht!',
+                  ? 'Alle Punkte, Ereignisse, Sätze und Spielzeit werden dauerhaft gelöscht!'
+                  : 'Alle Punkte und Ereignisse des aktuellen Satzes werden gelöscht!',
               style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 16),
@@ -5130,7 +5155,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Diese Aktion kann nicht rÃƒÂ¼ckgÃƒÂ¤ngig gemacht werden!',
+                      'Diese Aktion kann nicht rückgängig gemacht werden!',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.red.shade700,
@@ -5161,7 +5186,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: Text(resetFullGame ? 'Gesamtes Spiel zurÃƒÂ¼cksetzen' : 'Satz zurÃƒÂ¼cksetzen'),
+            child: Text(resetFullGame ? 'Gesamtes Spiel zurücksetzen' : 'Satz zurücksetzen'),
           ),
         ],
       ),
@@ -5202,7 +5227,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Rote Karte bestÃƒÂ¤tigen',
+                    'Rote Karte bestätigen',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -5300,7 +5325,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Nach zwei Hinausstellungen folgt automatisch eine Rote Karte.',
+                        'Nach drei Hinausstellungen folgt automatisch eine Rote Karte.',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.orange.shade700,
@@ -5313,7 +5338,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               ),
             ] else ...[
               Text(
-                'MÃƒÂ¶chten Sie eine direkte Rote Karte fÃƒÂ¼r diesen Spieler vergeben?',
+                'Möchten Sie eine direkte Rote Karte für diesen Spieler vergeben?',
                 style: const TextStyle(fontSize: 16),
               ),
             ],
@@ -5343,7 +5368,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Rote Karte bestÃƒÂ¤tigen'),
+            child: const Text('Rote Karte bestätigen'),
           ),
         ],
       ),
@@ -5356,7 +5381,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Delete all game events
       await _liveScoringService.clearAllGameData(_selectedGame!.id);
       
-      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurÃƒÂ¼ckgesetzt');
+      _showSuccessToast('Gesamtes Spiel wurde erfolgreich zurückgesetzt');
       
       // Clear local overlay state
       setState(() {
@@ -5366,8 +5391,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       });
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error resetting full game: $e');
-      _showErrorToast('Fehler beim ZurÃƒÂ¼cksetzen des Spiels: $e');
+      debugPrint('Error resetting full game: $e');
+      _showErrorToast('Fehler beim Zurücksetzen des Spiels: $e');
     }
   }
 
@@ -5377,11 +5402,11 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       // Delete events from current half only
       await _liveScoringService.clearCurrentHalfData(_selectedGame!.id, gameState.currentHalf);
       
-      _showSuccessToast('Aktueller Satz wurde erfolgreich zurÃƒÂ¼ckgesetzt');
+      _showSuccessToast('Aktueller Satz wurde erfolgreich zurückgesetzt');
       
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ Error resetting current set: $e');
-      _showErrorToast('Fehler beim ZurÃƒÂ¼cksetzen des Satzes: $e');
+      debugPrint('Error resetting current set: $e');
+      _showErrorToast('Fehler beim Zurücksetzen des Satzes: $e');
     }
   }
 
@@ -5422,7 +5447,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 16),
             Text(
-              'Kein Kader ausgewÃƒÂ¤hlt',
+              'Kein Kader ausgewählt',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -5431,7 +5456,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'Der Trainer muss noch den Kader fÃƒÂ¼r dieses Spiel auswÃƒÂ¤hlen.',
+              'Der Trainer muss noch den Kader für dieses Spiel auswählen.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -5481,7 +5506,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             ),
             const SizedBox(height: 8),
             Text(
-              'FÃƒÂ¼r dieses Spiel wurden noch keine Spieler ausgewÃƒÂ¤hlt.',
+              'Für dieses Spiel wurden noch keine Spieler ausgewählt.',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade500,
@@ -5627,7 +5652,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: hasRedCard ? null : () {
+        onTap: () {
           setState(() {
             if (isSelected) {
               // Deselect if already selected
@@ -5858,9 +5883,10 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     required GameEventType eventType,
     required GameState gameState,
   }) {
+    final bool playerHasRedCard = _selectedPlayer != null && _hasRedCard(gameState, _selectedPlayer!.id);
     final bool isEnabled = _selectedPlayer != null && 
                        _selectedPlayerTeamId != null && 
-                       !_hasRedCard(gameState, _selectedPlayer!.id);
+                       (!playerHasRedCard || eventType == GameEventType.blueCard);
     
     return ElevatedButton.icon(
       onPressed: isEnabled
@@ -5923,8 +5949,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                     _selectedPlayer != null 
                       ? (_hasRedCard(gameState, _selectedPlayer!.id)
                           ? 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) - ROTE KARTE (nicht spielberechtigt)'
-                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewÃƒÂ¤hlt')
-                        : 'WÃƒÂ¤hlen Sie zuerst einen Spieler aus',
+                          : 'Spieler ${_selectedPlayer!.jerseyNumber} (${_selectedPlayer!.fullName}) ausgewählt')
+                        : 'Wählen Sie zuerst einen Spieler aus',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: _selectedPlayer != null ? FontWeight.bold : FontWeight.normal,
@@ -6111,18 +6137,24 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     Player player,
     GameEventType eventType,
   ) {
+    // Players with a red card can only receive a blue card
+    if (_hasRedCard(gameState, player.id) && eventType != GameEventType.blueCard) {
+      _showErrorToast('Spieler hat bereits eine Rote Karte. Nur Blaue Karte möglich.');
+      return;
+    }
+
     // Check if this is a 2-minute suspension that would trigger automatic red card
     if (eventType == GameEventType.twoMinuteSuspension) {
       final currentSuspensions = _getPlayerSuspensionCount(gameState, player.id);
-      if (currentSuspensions >= 1) {
-        // This would be the second 2-min suspension - trigger automatic red card
+      if (currentSuspensions >= 2) {
+        // This would be the third 2-min suspension - trigger automatic red card
         _showRedCardConfirmationDialog(
           gameState: gameState,
           teamId: teamId,
           teamName: teamName,
           player: player,
           isAutomatic: true,
-          reason: 'Zweite 2-Minuten-Strafe',
+          reason: 'Dritte 2-Minuten-Strafe',
         );
         return;
       }
@@ -6166,17 +6198,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         _selectedPlayerTeamId = null;
       });
       
-      _showSuccessToast('${_getEventTypeDisplayName(eventType)} fÃƒÂ¼r ${player.fullName} hinzugefÃƒÂ¼gt');
+      _showSuccessToast('${_getEventTypeDisplayName(eventType)} für ${player.fullName} hinzugefügt');
     }).catchError((error) {
-      _showErrorToast('Fehler beim HinzufÃƒÂ¼gen des Ereignisses: $error');
+      _showErrorToast('Fehler beim Hinzufügen des Ereignisses: $error');
     });
   }
 
   void _undoLastAction(String teamId) {
     _liveScoringService.removeLastEvent(_selectedGame!.id, teamId).then((_) {
-      _showSuccessToast('Letzte Aktion rÃƒÂ¼ckgÃƒÂ¤ngig gemacht');
+      _showSuccessToast('Letzte Aktion rückgängig gemacht');
     }).catchError((error) {
-      _showErrorToast('Fehler beim RÃƒÂ¼ckgÃƒÂ¤ngigmachen: $error');
+      _showErrorToast('Fehler beim Rückgängigmachen: $error');
     });
   }
 
@@ -6320,7 +6352,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               onAccept: (player) {
                 // Check if player was already used as Werfer
                 if (_usedPlayerIds.contains(player.playerId)) {
-                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wÃƒÂ¤hle einen anderen Spieler');
+                  _showErrorToast('${player.firstName} ${player.lastName} war bereits Werfer - wähle einen anderen Spieler');
                   return;
                 }
                 setState(() {
@@ -6409,17 +6441,17 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   // Update tablet status when tablet is connected
   Future<void> _updateTabletStatus() async {
     if (_managedAccount == null || _assignedCourt == null) {
-      debugPrint('Ã¢Å¡Â Ã¯Â¸Â ScoringTablet: Cannot update tablet status - missing managed account or court');
+      debugPrint('[DEBUG]  ScoringTablet: Cannot update tablet status - missing managed account or court');
       return;
     }
     
     if (_managedAccount!.id.isEmpty || _assignedCourt!.id.isEmpty) {
-      debugPrint('Ã¢Å¡Â Ã¯Â¸Â ScoringTablet: Cannot update tablet status - empty IDs');
+      debugPrint('[DEBUG]  ScoringTablet: Cannot update tablet status - empty IDs');
       return;
     }
     
     try {
-      debugPrint('Ã°Å¸â€œÂ± ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
+      debugPrint(' ScoringTablet: Updating tablet status for court ${_assignedCourt!.id}');
       
       // Simulate battery level (in a real implementation, this would come from device info)
       final batteryLevel = _getBatteryLevel();
@@ -6433,12 +6465,12 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       );
       
       if (success) {
-        debugPrint('Ã¢Å“â€¦ ScoringTablet: Tablet status updated successfully');
+        debugPrint(' ScoringTablet: Tablet status updated successfully');
       } else {
-        debugPrint('Ã¢ÂÅ’ ScoringTablet: Failed to update tablet status');
+        debugPrint('ScoringTablet: Failed to update tablet status');
       }
     } catch (e) {
-      debugPrint('Ã¢ÂÅ’ ScoringTablet: Error updating tablet status: $e');
+      debugPrint('ScoringTablet: Error updating tablet status: $e');
     }
   }
 

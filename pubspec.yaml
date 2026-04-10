@@ -30,24 +30,24 @@ environment:
 dependencies:
   cloud_firestore: ^6.0.0
   crypto: ^3.0.6
-  file_picker: ^10.2.1
+  file_picker: ^11.0.2
   firebase_analytics: ^12.0.0
   firebase_auth: ^6.0.0
   firebase_core: ^4.0.0
   flutter:
     sdk: flutter
-  flutter_local_notifications: ^19.4.0
+  flutter_local_notifications: ^20.1.0
   flutter_localizations:
     sdk: flutter
   flutter_map: ^8.2.1
   flutter_map_cancellable_tile_provider: ^3.1.1
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^10.0.0
   http: ^1.4.0
   intl: ^0.20.2
   latlong2: ^0.9.1
-  local_auth: ^2.3.0
+  local_auth: ^3.0.1
   logger: ^2.6.1
-  package_info_plus: ^8.3.0
+  package_info_plus: ^9.0.1
   responsive_framework: ^1.5.1
   shared_preferences: ^2.5.3
   timeline_tile: ^2.0.0
@@ -59,12 +59,12 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.3
   qr_flutter: ^4.1.0
-  firebase_storage: ^12.3.7
-  firebase_messaging: ^15.1.6
-  connectivity_plus: ^6.1.1
+  firebase_storage: ^13.2.0
+  firebase_messaging: ^16.1.3
+  connectivity_plus: ^7.1.0
 
 dev_dependencies:
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
 

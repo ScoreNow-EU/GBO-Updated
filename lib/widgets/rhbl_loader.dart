@@ -88,6 +88,7 @@ class _RHBLLoaderState extends State<RHBLLoader>
       'RHBL',
       style: TextStyle(
         fontFamily: 'CasanovaScotia',
+        fontFamilyFallback: const ['Roboto'],
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: Colors.black87,
@@ -101,6 +102,7 @@ class _RHBLLoaderState extends State<RHBLLoader>
       'ROLLSTUHLHANDBALL BUNDESLIGA',
       style: TextStyle(
         fontFamily: 'MyriadPro',
+        fontFamilyFallback: const ['Roboto'],
         fontSize: 16,
         fontWeight: FontWeight.bold,
         color: Colors.black87,

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/kanban_board.dart';
 import '../models/kanban_task.dart';
@@ -20,7 +20,7 @@ class KanbanService {
         final defaultBoard = KanbanBoard(
           id: _defaultBoardId,
           name: 'RHBL - Aufgaben',
-          description: 'Hauptboard fÃ¼r die Verwaltung aller RHBL-Aufgaben',
+          description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
           projectKey: 'RHBL',
           adminIds: [],
           memberIds: [],
@@ -39,7 +39,7 @@ class KanbanService {
       return KanbanBoard(
         id: _defaultBoardId,
         name: 'RHBL - Aufgaben',
-        description: 'Hauptboard fÃ¼r die Verwaltung aller RHBL-Aufgaben',
+        description: 'Hauptboard für die Verwaltung aller RHBL-Aufgaben',
         projectKey: 'RHBL',
         adminIds: [],
         memberIds: [],

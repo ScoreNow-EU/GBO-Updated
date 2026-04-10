@@ -262,10 +262,8 @@ class FaceIdService {
         debugPrint('[FaceID] Calling _localAuth.authenticate for login');
         final bool didAuthenticate = await _localAuth.authenticate(
           localizedReason: 'Anmeldung mit $biometricName',
-          options: const AuthenticationOptions(
-            biometricOnly: true,
-            stickyAuth: false,
-          ),
+          biometricOnly: true,
+          persistAcrossBackgrounding: false,
         ).timeout(
           const Duration(seconds: 30),
           onTimeout: () {
@@ -331,10 +329,8 @@ class FaceIdService {
       debugPrint('[FaceID] Calling _localAuth.authenticate for admin');
       _localAuth.authenticate(
         localizedReason: 'Authentifizierung für Admin-Bereiche',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: false,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: false,
       ).then((result) {
         debugPrint('[FaceID] Authentication succeeded: $result');
         if (!completer.isCompleted) {

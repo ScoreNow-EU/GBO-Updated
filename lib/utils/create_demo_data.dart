@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
@@ -40,13 +40,13 @@ class DemoDataCreator {
         'bundesland': 'Berlin',
       },
       {
-        'name': 'MÃ¼nchen Beach Stars',
-        'city': 'MÃ¼nchen',
+        'name': 'München Beach Stars',
+        'city': 'München',
         'bundesland': 'Bayern',
       },
       {
-        'name': 'KÃ¶ln Coastal Crew',
-        'city': 'KÃ¶ln',
+        'name': 'Köln Coastal Crew',
+        'city': 'Köln',
         'bundesland': 'Nordrhein-Westfalen',
       },
       {
@@ -57,7 +57,7 @@ class DemoDataCreator {
       {
         'name': 'Stuttgart Beach United',
         'city': 'Stuttgart',
-        'bundesland': 'Baden-WÃ¼rttemberg',
+        'bundesland': 'Baden-Württemberg',
       },
       {
         'name': 'Dresden Dunes',
@@ -80,13 +80,13 @@ class DemoDataCreator {
         'bundesland': 'Sachsen',
       },
       {
-        'name': 'DÃ¼sseldorf Divas',
-        'city': 'DÃ¼sseldorf',
+        'name': 'Düsseldorf Divas',
+        'city': 'Düsseldorf',
         'bundesland': 'Nordrhein-Westfalen',
       },
       {
-        'name': 'NÃ¼rnberg Nets',
-        'city': 'NÃ¼rnberg',
+        'name': 'Nürnberg Nets',
+        'city': 'Nürnberg',
         'bundesland': 'Bayern',
       },
       {
@@ -102,12 +102,12 @@ class DemoDataCreator {
       {
         'name': 'Karlsruhe Kickers',
         'city': 'Karlsruhe',
-        'bundesland': 'Baden-WÃ¼rttemberg',
+        'bundesland': 'Baden-Württemberg',
       },
       {
         'name': 'Mannheim Mavericks',
         'city': 'Mannheim',
-        'bundesland': 'Baden-WÃ¼rttemberg',
+        'bundesland': 'Baden-Württemberg',
       },
     ];
 
@@ -178,7 +178,7 @@ class DemoDataCreator {
       },
       {
         'name': 'RHBL Spieltag 3',
-        'location': 'MÃ¼nchen',
+        'location': 'München',
         'startDate': now.add(Duration(days: 45)),
         'endDate': now.add(Duration(days: 47)),
         'status': 'upcoming',
@@ -186,7 +186,7 @@ class DemoDataCreator {
       },
       {
         'name': 'RHBL Spieltag 4',
-        'location': 'KÃ¶ln',
+        'location': 'Köln',
         'startDate': now.subtract(Duration(days: 10)),
         'endDate': now.subtract(Duration(days: 8)),
         'status': 'finished',

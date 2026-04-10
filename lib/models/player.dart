@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 class Player {
@@ -11,7 +11,7 @@ class Player {
   final String? classification; // 'Gruppe A', 'Gruppe B', 'Gruppe C'
   final String? spielerpassNummer; // RHD license number
   final String? jerseyNumber;
-  final String gender; // 'mÃ¤nnlich', 'weiblich', 'divers'
+  final String gender; // 'männlich', 'weiblich', 'divers'
   final bool isActive;
   final DateTime createdAt;
 
@@ -46,7 +46,7 @@ class Player {
   };
 
   static const List<String> genderOptions = [
-    'mÃ¤nnlich',
+    'männlich',
     'weiblich',
     'divers',
   ];
@@ -78,8 +78,8 @@ class Player {
       }
 
       // Migration: convert old gender values
-      String gender = data['gender'] ?? 'mÃ¤nnlich';
-      if (gender == 'male') gender = 'mÃ¤nnlich';
+      String gender = data['gender'] ?? 'männlich';
+      if (gender == 'male') gender = 'männlich';
       if (gender == 'female') gender = 'weiblich';
       
       return Player(

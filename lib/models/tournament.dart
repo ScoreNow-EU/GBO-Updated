@@ -478,6 +478,7 @@ class Tournament {
   final double? venueLatitude;
   final double? venueLongitude;
   final int halfDurationMinutes;
+  final List<String> sponsorLogos;
 
   static String determineSeason(DateTime startDate) {
     return startDate.year.toString();
@@ -519,6 +520,7 @@ class Tournament {
     this.venueLatitude,
     this.venueLongitude,
     this.halfDurationMinutes = 15,
+    this.sponsorLogos = const [],
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -604,6 +606,7 @@ class Tournament {
       'venueLatitude': venueLatitude,
       'venueLongitude': venueLongitude,
       'halfDurationMinutes': halfDurationMinutes,
+      'sponsorLogos': sponsorLogos,
     };
   }
 
@@ -688,6 +691,7 @@ class Tournament {
       venueLatitude: map['venueLatitude']?.toDouble(),
       venueLongitude: map['venueLongitude']?.toDouble(),
       halfDurationMinutes: map['halfDurationMinutes'] is int ? map['halfDurationMinutes'] : (map['halfDurationMinutes'] != null ? (map['halfDurationMinutes'] as num).toInt() : 15),
+      sponsorLogos: List<String>.from(map['sponsorLogos'] ?? []),
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],
@@ -755,6 +759,7 @@ class Tournament {
     double? venueLatitude,
     double? venueLongitude,
     int? halfDurationMinutes,
+    List<String>? sponsorLogos,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -792,6 +797,7 @@ class Tournament {
       venueLatitude: venueLatitude ?? this.venueLatitude,
       venueLongitude: venueLongitude ?? this.venueLongitude,
       halfDurationMinutes: halfDurationMinutes ?? this.halfDurationMinutes,
+      sponsorLogos: sponsorLogos ?? List.from(this.sponsorLogos),
     );
   }
 } 

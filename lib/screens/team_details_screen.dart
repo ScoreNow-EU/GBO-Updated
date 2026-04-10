@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/player.dart';
 import '../services/player_service.dart';
@@ -464,7 +464,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                       color: Colors.grey.shade300,
                       child: const Center(
                         child: Text(
-                          'Nur die besten 3 Ergebnisse zÃ¤hlen zur Rangliste',
+                          'Nur die besten 3 Ergebnisse zählen zur Rangliste',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
