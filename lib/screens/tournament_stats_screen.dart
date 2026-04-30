@@ -3,6 +3,8 @@ import '../models/tournament.dart';
 import '../services/tournament_stats_service.dart';
 import '../services/disciplinary_service.dart';
 import '../services/tournament_export_service.dart';
+import 'player_profile_screen.dart';
+import 'team_detail_screen.dart';
 
 class TournamentStatsScreen extends StatefulWidget {
   final Tournament tournament;
@@ -289,11 +291,22 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     DataCell(
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 160),
-                        child: Text(
-                          p.playerName,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: isTop3 ? FontWeight.bold : FontWeight.normal,
+                        child: InkWell(
+                          onTap: p.playerId.isEmpty
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PlayerProfileScreen(playerId: p.playerId),
+                                    ),
+                                  ),
+                          child: Text(
+                            p.playerName,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: isTop3 ? FontWeight.bold : FontWeight.normal,
+                              decoration: p.playerId.isEmpty ? null : TextDecoration.underline,
+                              color: p.playerId.isEmpty ? null : Colors.blue,
+                            ),
                           ),
                         ),
                       ),
@@ -401,12 +414,23 @@ class _TournamentStatsScreenState extends State<TournamentStatsScreen>
                     DataCell(
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 180),
-                        child: Text(
-                          team.teamName,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight:
-                                isTop ? FontWeight.bold : FontWeight.normal,
+                        child: InkWell(
+                          onTap: team.teamId.isEmpty
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => TeamDetailScreen(teamId: team.teamId),
+                                    ),
+                                  ),
+                          child: Text(
+                            team.teamName,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight:
+                                  isTop ? FontWeight.bold : FontWeight.normal,
+                              decoration: team.teamId.isEmpty ? null : TextDecoration.underline,
+                              color: team.teamId.isEmpty ? null : Colors.blue,
+                            ),
                           ),
                         ),
                       ),

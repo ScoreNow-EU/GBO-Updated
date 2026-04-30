@@ -237,6 +237,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
         iconTheme: const IconThemeData(color: Colors.black87),
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.black87),
+          tooltip: 'Menü öffnen',
           onPressed: _openDrawer,
         ),
       ) : AppBar(
@@ -401,10 +402,13 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
       child: Column(
         children: [
           // Main Team Card (Clickable)
-          InkWell(
-            onTap: () => _toggleTeamExpansion(team.id),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          Semantics(
+            button: true,
+            label: 'Platz $placement, Team ${team.name}. Details ein- oder ausblenden.',
+            child: InkWell(
+              onTap: () => _toggleTeamExpansion(team.id),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   // Placement Badge
@@ -521,6 +525,7 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
                 ],
               ),
             ),
+          ),
           ),
           
           // Expanded Content

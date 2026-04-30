@@ -406,16 +406,28 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
         
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => TournamentDetailScreen(tournament: tournament),
-                settings: const RouteSettings(name: 'TournamentDetailScreen'),
-              ),
-            );
-          },
-          child: Container(
+        final statusLabel = isCompleted
+            ? 'Abgeschlossen'
+            : isCurrent
+                ? 'Läuft aktuell'
+                : isUpcoming
+                    ? 'Bevorstehend'
+                    : '';
+        return Semantics(
+          button: true,
+          label: 'Turnier ${tournament.name}'
+              '${statusLabel.isNotEmpty ? ', $statusLabel' : ''}'
+              '. Details öffnen.',
+          child: GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => TournamentDetailScreen(tournament: tournament),
+                  settings: const RouteSettings(name: 'TournamentDetailScreen'),
+                ),
+              );
+            },
+            child: Container(
             padding: EdgeInsets.all(isMobile ? 12 : 20),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -434,6 +446,7 @@ class _TournamentTimelineState extends State<TournamentTimeline> {
             ),
             child: isMobile ? _buildMobileLayout(tournament, isCurrent) : _buildDesktopLayout(tournament, isCurrent),
           ),
+        ),
         );
       },
     );

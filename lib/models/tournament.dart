@@ -479,6 +479,9 @@ class Tournament {
   final double? venueLongitude;
   final int halfDurationMinutes;
   final List<String> sponsorLogos;
+  /// Manual override of season-ranking points awarded for this tournament.
+  /// When non-null, takes precedence over the auto-calculated value.
+  final int? manualPoints;
 
   static String determineSeason(DateTime startDate) {
     return startDate.year.toString();
@@ -521,6 +524,7 @@ class Tournament {
     this.venueLongitude,
     this.halfDurationMinutes = 15,
     this.sponsorLogos = const [],
+    this.manualPoints,
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -607,6 +611,7 @@ class Tournament {
       'venueLongitude': venueLongitude,
       'halfDurationMinutes': halfDurationMinutes,
       'sponsorLogos': sponsorLogos,
+      'manualPoints': manualPoints,
     };
   }
 
@@ -692,6 +697,11 @@ class Tournament {
       venueLongitude: map['venueLongitude']?.toDouble(),
       halfDurationMinutes: map['halfDurationMinutes'] is int ? map['halfDurationMinutes'] : (map['halfDurationMinutes'] != null ? (map['halfDurationMinutes'] as num).toInt() : 15),
       sponsorLogos: List<String>.from(map['sponsorLogos'] ?? []),
+      manualPoints: map['manualPoints'] is int
+          ? map['manualPoints'] as int
+          : (map['manualPoints'] is num
+              ? (map['manualPoints'] as num).toInt()
+              : null),
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],
@@ -760,6 +770,7 @@ class Tournament {
     double? venueLongitude,
     int? halfDurationMinutes,
     List<String>? sponsorLogos,
+    int? manualPoints,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -798,6 +809,7 @@ class Tournament {
       venueLongitude: venueLongitude ?? this.venueLongitude,
       halfDurationMinutes: halfDurationMinutes ?? this.halfDurationMinutes,
       sponsorLogos: sponsorLogos ?? List.from(this.sponsorLogos),
+      manualPoints: manualPoints ?? this.manualPoints,
     );
   }
 } 

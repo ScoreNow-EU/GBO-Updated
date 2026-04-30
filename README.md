@@ -87,3 +87,11 @@ The app is configured to use Firebase for:
 ## 📄 License
 
 This project is proprietary software developed for the Rollstuhlhandball Bundesliga.
+
+## Integration Tests
+
+Integration tests live under `integration_test/` and run against the local Firebase emulator suite.
+
+```bash
+firebase emulators:exec --only auth,firestore,storage \`n  "flutter test integration_test --dart-define=USE_EMULATOR=true"
+```

@@ -79,6 +79,19 @@ class SuspensionService {
     return snapshot.docs.map((doc) => Suspension.fromFirestore(doc)).toList();
   }
 
+  /// Get all suspensions (active + inactive) for the historical view.
+  /// Capped at 1000 entries, ordered by issuedAt desc.
+  Future<List<Suspension>> getAllSuspensions() async {
+    final snapshot = await _collection
+        .orderBy('issuedAt', descending: true)
+        .limit(1000)
+        .get();
+    if (snapshot.docs.length == 1000) {
+      debugPrint('⚠️ Suspensions: snapshot hit limit cap (1000)');
+    }
+    return snapshot.docs.map((doc) => Suspension.fromFirestore(doc)).toList();
+  }
+
   /// Stream all active suspensions (real-time)
   Stream<List<Suspension>> streamActiveSuspensions() {
     return _collection

@@ -4,6 +4,9 @@ import '../models/tournament.dart';
 import '../services/team_service.dart';
 import '../services/tournament_service.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/season_calendar_view.dart';
+import '../widgets/team_logo_section.dart';
+import '../widgets/team_profile_view.dart';
 import 'team_games_view.dart';
 
 class TeamDetailScreen extends StatefulWidget {
@@ -53,7 +56,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     if (_isLoading) {
       return ResponsiveLayout(
         selectedSection: 'team_${widget.teamId}_${widget.subSection}',
-        onSectionChanged: (section) {},
+        onSectionChanged: _handleSectionChanged,
         title: 'Team wird geladen...',
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -62,7 +65,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
     if (_team == null) {
       return ResponsiveLayout(
         selectedSection: 'team_${widget.teamId}_${widget.subSection}',
-        onSectionChanged: (section) {},
+        onSectionChanged: _handleSectionChanged,
         title: 'Team nicht gefunden',
         body: const Center(
           child: Text('Team konnte nicht geladen werden'),
@@ -72,12 +75,24 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
 
     return ResponsiveLayout(
       selectedSection: 'team_${widget.teamId}_${widget.subSection}',
-      onSectionChanged: (section) {
-        // Navigation is handled by the parent HomeScreen
-      },
+      onSectionChanged: _handleSectionChanged,
       title: _getScreenTitle(),
       body: _getContentForSection(_selectedSubSection),
     );
+  }
+
+  /// Side-nav callback. Same-team sub-sections swap locally; anything else
+  /// pops back to the root (HomeScreen) so the user can navigate freely.
+  void _handleSectionChanged(String section) {
+    final prefix = 'team_${widget.teamId}_';
+    if (section.startsWith(prefix)) {
+      setState(() {
+        _selectedSubSection = section.substring(prefix.length);
+      });
+      return;
+    }
+    // Leave the pushed team-detail route entirely.
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   String _getScreenTitle() {
@@ -93,6 +108,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return 'Turnier Anmeldung';
       case 'games':
         return 'Spiele & Kader';
+      case 'calendar':
+        return 'Kalender';
+      case 'profile':
+        return 'Profil';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -108,6 +127,10 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         return _buildTournamentRegistrationContent();
       case 'games':
         return _buildGamesContent();
+      case 'calendar':
+        return SeasonCalendarView(teamId: widget.teamId);
+      case 'profile':
+        return TeamProfileView(team: _team!);
       case 'settings':
         return _buildSettingsContent();
       default:
@@ -456,7 +479,16 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          
+
+          // T43 — Team logo upload/display
+          TeamLogoSection(
+            team: _team!,
+            canEdit: true,
+            onLogoChanged: _loadTeam,
+          ),
+
+          const SizedBox(height: 16),
+
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -478,24 +510,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
                   _buildSettingItem('Bundesland', _team!.bundesland),
                   if (_team!.teamManager != null)
                     _buildSettingItem('Team Manager', _team!.teamManager!),
-                  
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Team bearbeiten - Coming Soon!'),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D5016),
-                      foregroundColor: Colors.white,
-                    ),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Team bearbeiten'),
-                  ),
                 ],
               ),
             ),
@@ -532,7 +546,6 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
   }
 }
 
-// Content-only widget for use within ResponsiveLayout
 class TeamDetailContent extends StatefulWidget {
   final String teamId;
   final String subSection;
@@ -649,6 +662,12 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
       case 'roster':
         debugPrint('ðŸ‘¥ Showing roster/games content');
         return _buildGamesContent();
+      case 'calendar':
+        debugPrint('📅 Showing team calendar');
+        return SeasonCalendarView(teamId: widget.teamId);
+      case 'profile':
+        debugPrint('ðŸªª Showing team profile');
+        return TeamProfileView(team: _team!);
       case 'settings':
         debugPrint('âš™ï¸ Showing settings');
         return _buildSettingsContent();
@@ -1010,7 +1029,16 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
             ],
           ),
           const SizedBox(height: 24),
-          
+
+          // T43 — Team logo upload/display
+          TeamLogoSection(
+            team: _team!,
+            canEdit: true,
+            onLogoChanged: _loadTeam,
+          ),
+
+          const SizedBox(height: 16),
+
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -1032,24 +1060,6 @@ class _TeamDetailContentState extends State<TeamDetailContent> {
                   _buildSettingItem('Bundesland', _team!.bundesland),
                   if (_team!.teamManager != null)
                     _buildSettingItem('Team Manager', _team!.teamManager!),
-                  
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Team bearbeiten - Coming Soon!'),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D5016),
-                      foregroundColor: Colors.white,
-                    ),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Team bearbeiten'),
-                  ),
                 ],
               ),
             ),

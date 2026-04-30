@@ -1,0 +1,513 @@
+.elementor-kit-10{--e-global-color-primary:#FFFFFF;--e-global-color-secondary:#040C18;--e-global-color-text:#FFFFFF;--e-global-color-e3566e1:#BDBDBD;--e-global-color-d9d98a6:#656363;--e-global-color-a2491b3:#FFF6DD;--e-global-color-23c248b:#FFEFC2;--e-global-color-39878f7:#FFBC00;--e-global-color-043df83:#AB8000;--e-global-color-1a015c4:#D9000D;--e-global-color-82a9dd3:#D10022;--e-global-color-5e92b58:#AC031F;--e-global-color-5a33b10:#040C18;--e-global-color-24d10e4:#092B5C;--e-global-color-8afb93e:#003792;--e-global-color-9300047:#1B78DE;--e-global-color-0a5d942:#82B8F7;--e-global-color-4b3793a:#93AAC3;--e-global-color-7d13dc7:#002853;--e-global-color-b4b1ef0:#072D56;--e-global-color-8693ca9:#07325F;--e-global-color-d58f49c:#0F4279;--e-global-typography-primary-font-family:"Gilory-Local";--e-global-typography-secondary-font-family:"Gilory-Local";--e-global-typography-text-font-family:"Gilory-Local";--e-global-typography-text-font-weight:400;--e-global-typography-accent-font-family:"Gilory-Local";--e-global-typography-cef7874-font-family:"Gilory-Local";--e-global-typography-cef7874-font-size:3rem;--e-global-typography-cef7874-font-weight:600;--e-global-typography-cef7874-line-height:122%;--e-global-typography-129a8cb-font-family:"Gilory-Local";--e-global-typography-129a8cb-font-size:6.5rem;--e-global-typography-129a8cb-font-weight:400;--e-global-typography-129a8cb-text-transform:uppercase;--e-global-typography-129a8cb-line-height:1.2em;--e-global-typography-0b627a0-font-family:"Gilory-Local";--e-global-typography-0b627a0-font-size:4rem;--e-global-typography-0b627a0-line-height:100%;--e-global-typography-f283dbe-font-family:"Gilory-Local";--e-global-typography-f283dbe-font-size:3.5rem;--e-global-typography-f283dbe-line-height:110%;--e-global-typography-be090b4-font-family:"Gilory-Local";--e-global-typography-be090b4-font-size:3.2rem;--e-global-typography-be090b4-line-height:100%;--e-global-typography-cd8e246-font-family:"Gilory-Local";--e-global-typography-cd8e246-font-size:3rem;--e-global-typography-cd8e246-line-height:110%;--e-global-typography-22d4d8f-font-family:"Gilory-Local";--e-global-typography-22d4d8f-font-size:2rem;--e-global-typography-22d4d8f-line-height:122%;--e-global-typography-2fa4866-font-family:"Gilory-Local";--e-global-typography-2fa4866-font-size:1.8rem;--e-global-typography-2fa4866-line-height:122%;--e-global-typography-2fa4866-letter-spacing:0.4px;--e-global-typography-b7b3bb7-font-family:"Gilory-Local";--e-global-typography-b7b3bb7-font-size:1.6rem;--e-global-typography-b7b3bb7-line-height:120%;--e-global-typography-9fe79e0-font-family:"Gilory-Local";--e-global-typography-9fe79e0-font-size:1.5rem;--e-global-typography-9fe79e0-line-height:120%;--e-global-typography-b55d933-font-family:"Gilory-Local";--e-global-typography-b55d933-font-size:1.4rem;--e-global-typography-b55d933-line-height:120%;background-color:var( --e-global-color-secondary );color:var( --e-global-color-text );font-family:var( --e-global-typography-2fa4866-font-family ), Sans-serif;font-size:var( --e-global-typography-2fa4866-font-size );line-height:var( --e-global-typography-2fa4866-line-height );letter-spacing:var( --e-global-typography-2fa4866-letter-spacing );}.elementor-kit-10 e-page-transition{background-color:#FFBC7D;}.elementor-kit-10 p{margin-block-end:3rem;}.elementor-kit-10 a{color:var( --e-global-color-39878f7 );}.elementor-kit-10 a:hover{color:#FFBC00AD;}.elementor-kit-10 h1{color:var( --e-global-color-text );font-size:7rem;font-weight:400;line-height:110%;}.elementor-kit-10 h2{color:#FFFFFF;font-size:4rem;line-height:110%;}.elementor-kit-10 h3{color:var( --e-global-color-text );font-size:3.5rem;line-height:110%;}.elementor-kit-10 h4{color:var( --e-global-color-text );font-size:3.2rem;line-height:100%;}.elementor-kit-10 h5{color:var( --e-global-color-text );}.elementor-kit-10 button,.elementor-kit-10 input[type="button"],.elementor-kit-10 input[type="submit"],.elementor-kit-10 .elementor-button{font-family:"Gilory-Local", Sans-serif;font-size:1.8rem;text-transform:uppercase;line-height:2.3rem;letter-spacing:0.3px;color:#FFFFFF;border-style:solid;border-width:2px 2px 2px 2px;border-color:#FFFFFF;border-radius:5px 5px 5px 5px;padding:13px 24px 9px 24px;}.elementor-kit-10 button:hover,.elementor-kit-10 button:focus,.elementor-kit-10 input[type="button"]:hover,.elementor-kit-10 input[type="button"]:focus,.elementor-kit-10 input[type="submit"]:hover,.elementor-kit-10 input[type="submit"]:focus,.elementor-kit-10 .elementor-button:hover,.elementor-kit-10 .elementor-button:focus{color:var( --e-global-color-text );}.elementor-section.elementor-section-boxed > .elementor-container{max-width:1640px;}.e-con{--container-max-width:1640px;--container-default-padding-top:0px;--container-default-padding-right:50px;--container-default-padding-bottom:0px;--container-default-padding-left:50px;}.elementor-widget:not(:last-child){--kit-widget-spacing:20px;}.elementor-element{--widgets-spacing:20px 20px;--widgets-spacing-row:20px;--widgets-spacing-column:20px;}{}h1.entry-title{display:var(--page-title-display);}@media(max-width:1280px){.elementor-kit-10{--e-global-typography-cef7874-font-size:2rem;--e-global-typography-129a8cb-font-size:5rem;--e-global-typography-0b627a0-font-size:3.8rem;--e-global-typography-f283dbe-font-size:3.2rem;--e-global-typography-be090b4-font-size:3rem;--e-global-typography-cd8e246-font-size:2.5rem;font-size:var( --e-global-typography-2fa4866-font-size );line-height:var( --e-global-typography-2fa4866-line-height );letter-spacing:var( --e-global-typography-2fa4866-letter-spacing );}.elementor-kit-10 h1{font-size:5rem;}.elementor-kit-10 h2{font-size:3.2rem;}.elementor-kit-10 h3{font-size:3.2rem;}.elementor-kit-10 h4{font-size:3rem;}.elementor-kit-10 button,.elementor-kit-10 input[type="button"],.elementor-kit-10 input[type="submit"],.elementor-kit-10 .elementor-button{font-size:1.6rem;padding:10px 24px 10px 24px;}.elementor-section.elementor-section-boxed > .elementor-container{max-width:1024px;}.e-con{--container-max-width:1024px;}}@media(max-width:767px){.elementor-kit-10{--e-global-typography-cef7874-font-size:2rem;--e-global-typography-129a8cb-font-size:3.4rem;--e-global-typography-0b627a0-font-size:3rem;--e-global-typography-f283dbe-font-size:2.8rem;--e-global-typography-be090b4-font-size:2.6rem;--e-global-typography-cd8e246-font-size:2.4rem;font-size:var( --e-global-typography-2fa4866-font-size );line-height:var( --e-global-typography-2fa4866-line-height );letter-spacing:var( --e-global-typography-2fa4866-letter-spacing );}.elementor-kit-10 h1{font-size:3.4rem;}.elementor-kit-10 h2{font-size:2.8rem;}.elementor-kit-10 h3{font-size:2.8rem;}.elementor-kit-10 h4{font-size:2.6rem;}.elementor-section.elementor-section-boxed > .elementor-container{max-width:767px;}.e-con{--container-max-width:767px;--container-default-padding-top:0px;--container-default-padding-right:20px;--container-default-padding-bottom:0px;--container-default-padding-left:20px;}}/* Start custom CSS */html {
+    font-size: 62.5%;
+}
+
+p, a, h1, h2, h3, h4 ,h5{
+    -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body{
+    overflow-x: hidden;
+    position: relative
+}
+
+
+
+html:before{
+ background: #00438b ;
+ border-radius: 100%;
+ filter: blur(110px);
+ -webkit-filter: blur(110px);
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -200px;
+  width: 40%;
+  height: 800px;
+  opacity: .3;
+  transform: translateX(-300px);
+}
+
+/*=
+html:after{
+ background: #00438b ;
+ border-radius: 100%;
+ filter: blur(110px);
+  -webkit-filter: blur(110px);
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 100vh;
+   width: 20%;
+  height: 800px;
+  opacity: .3;
+  z-index: 1;
+}
+
+*/
+
+@media (max-width: 1024px){
+   body::before{
+  left: -15%;
+}
+}
+
+/*============ Text verlauf ============*/
+
+
+/*============ Text verlauf ============*/
+
+.text-verlauf {
+ background: var(--Linear-Bunt, linear-gradient(90deg, #FFBC00 1.84%, #FFEFC2 102.67%));
+ -webkit-background-clip: text;
+ -webkit-text-fill-color: transparent;
+}
+
+/*============ END Text verlauf ============*/
+
+
+h2, h3,h3{
+    margin-bottom: 2rem;
+}
+
+.home  #breadcrumb_2024{
+    display: none !important;
+}
+
+*{
+   -webkit-font-smoothing: antialiased;
+}
+
+*, 
+*::before, 
+*::after{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.category-bagh .elementor-post-info__terms-list-item{
+    padding: 6px 12px;
+    border: 1.3px solid #fff;
+    background-color: var(--e-global-color-9300047);
+    border-radius: 5px;
+}
+
+.clamp {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+@media screen and (max-width: 1024px){
+   .clamp {
+  -webkit-line-clamp: 5 !important;
+}
+ 
+}
+
+
+
+
+
+/*============ Flex Library ============*/
+.justify-self-end{
+    justify-self: end;
+}
+
+.justify-self-start{
+    justify-self: start;
+}
+
+.m-top-auto{
+    margin-top: auto;
+}
+.m-bottom-auto{
+    margin-bottom: auto;
+}
+.m-left-auto{
+    margin-left: auto;
+}
+.m-right-auto{
+    margin-right: auto;
+}
+/*============ ENDE Flex Library ============*/
+
+
+.regular .elementor-heading-title, .regular p, .regular a, .regular span{
+    font-weight: 400 !important;
+}
+
+.medium .elementor-heading-title, .medium p, .medium a, .medium span{
+    font-weight: 500 !important;
+}
+
+.semibold .elementor-heading-title, .semibold p, .semibold a, .semibold span{
+    font-weight: 600 !important;
+}
+
+.bold .elementor-heading-title, .bold p, .bold a, .bold span{
+    font-weight: 700 !important;
+}
+
+.extrabold .elementor-heading-title, .extrabold p, .extrabold a, .extrabold span{
+    font-weight: 900 !important;
+}
+
+
+
+/*==== Variable Farbe ======*/
+
+
+
+.elementor-swiper-button, .anmeldung .elementor-button, .elementor-login a{
+    background: linear-gradient(148deg, #1362B4 -53.93%, #042143 127.01%);
+}
+
+:root {
+  --background-primary: linear-gradient(148deg, #1362B4 -53.93%, #042143 127.01%);
+  --background-primary-hover: linear-gradient(148deg, #1B78DE -53.93%, #0D4581 127.01%);
+  --rot-dunkel: #AC031F;
+  --rot-hell: #D9000D;
+  --weiss: #fff;
+   font-family: "Gilory-Local";
+ 
+}
+/*==== ENDE Variable Farbe ======*/
+
+
+
+/*================= BUTTONS =================*/
+.elementor-widget-button span{
+    font-weight: 700;
+}
+
+a.elementor-button {
+   transition: 300ms, ease;
+}
+
+.elementor-widget-button.button__primary a, .page-numbers.next, .page-numbers.prev, .page-numbers.current, .page-numbers{
+    background: var(--background-primary)
+
+}
+
+.elementor-widget-button.button__primary a:hover, .page-numbers.next:hover, .page-numbers.prev:hover{
+   background: var(--background-primary-hover)
+
+}
+
+
+.elementor-widget-button.button__secondary a{
+    background: var(--rot-hell) !important;
+
+}
+
+.elementor-widget-button.button__secondary a:hover{
+   background: var(--rot-dunkel) !important;
+
+}
+
+.elementor-widget-button.button__ohne-rahmen{
+    position: static !important;
+    
+  
+}
+
+.elementor-widget-button.button__ohne-rahmen a:after{
+    position: absolute;
+    content:'';
+    top:0;
+    bottom: 0;
+    right:0;
+    left:0;
+    z-index: 2;
+}
+
+.elementor-widget-button.button__ohne-rahmen a{
+   background: none;
+   padding: 0;
+   border: none;
+   line-height: 2.4rem;
+   font-size: var(--e-global-typography-9fe79e0-font-size);
+   text-transform: capitalize;
+   color: var(--e-global-color-9300047);
+   width: auto;
+ 
+   
+}
+
+.elementor-widget-button.button__ohne-rahmen .elementor-button-icon svg{
+  width: 2.4rem;
+       stroke: var(--e-global-color-9300047);
+   
+}
+
+.elementor-widget-button.button__ohne-rahmen a:hover .elementor-button-text {
+    color: var(--e-global-color-8afb93e);
+   
+}
+.elementor-widget-button.button__ohne-rahmen a:hover svg {
+    stroke: var(--e-global-color-8afb93e);
+   
+}
+
+
+
+
+
+
+
+
+
+
+
+@media screen and (max-width: 576px){
+    a.elementor-button {
+   width: 100%;
+}
+}
+
+/*================= ENDE BUTTONS =================*/
+
+
+.rot-zeiger:after{
+    content: ' ';
+    position: absolute;
+    width: 50px;
+    height: 3px;
+    background-color: var(--rot-hell);
+    left:0;
+    top: -12px;
+    
+}
+
+
+/*=========== Grid Trenner entfernen ==========*/
+
+.grid-trenner .jet-listing-grid__item:last-of-type .partner-trenner{
+  display: none
+}
+
+/*=========== END Grid Trenner entfernen ==========*/
+
+
+
+*::placeholder{
+    opacity: 1 !important;
+}
+
+
+
+
+/*============ Allgemeinen Text Editor ============*/
+
+.allgemein-text-editor h2:first-of-type{
+  margin-top: 0 !important;
+}
+
+.allgemein-text-editor h2{
+    margin-top: 4rem !important;
+     font-weight: 600 !important;
+}
+.allgemein-text-editor h3{
+     font-weight: 600 !important;
+}
+
+.allgemein-text-editor ul{
+   padding-left: 15px !important;
+   margin-bottom: 3rem !important;
+
+}
+
+.allgemein-text-editor li{
+   list-style-type: disc;
+   padding-right: 20px !important;
+   padding-bottom: 10px !important;
+
+}
+/*============ END Allgemeine Text Editor============*/
+
+
+/*============ Massage success Text============*/
+
+.elementor-message.elementor-message-success {
+  font-size: 26px;
+  margin-top: 50px;
+  padding: 50px;
+  border: 1px solid #fff;
+  border-radius: 10px;
+  line-height: 1.3em
+}
+
+.elementor-message:before {
+    margin-inline-end: 12px;
+}
+
+@media (max-width: 576px){
+    
+    .elementor-message.elementor-message-success {
+      font-size: 22px;
+      margin-top: 50px;
+      padding: 20px;
+    }
+}
+
+/*============ ENDE Massage success Text============*/
+
+
+
+.page-id-4235 #breadcrumb_2024 {
+  display: none !important;
+}
+
+
+/*============ slider Button ============*/
+
+.elementor-swiper-button {
+    opacity: .6;
+    transition: .3s !important;
+}
+
+.elementor-swiper-button:hover {
+    opacity: .9;
+    transition: .3s !important;
+}
+
+
+/*============ Download Loop ============*/
+
+.download_container h2{
+    margin:5px 0 0 0 !important;
+}
+
+.download_container img{
+    aspect-ratio: 16 / 11 ;
+    object-fit: cover;
+    
+}
+.download_container a{
+    flex-direction: row-reverse;
+    justify-content: start !important;
+}
+
+.download_container ul{
+    margin: 0;
+    padding: 0 !important;
+}
+
+
+.loop-widget-wrapper .text-1024 p{
+    max-width: 1024px !important;
+}
+
+
+.download_container span.elementor-icon-list-text {
+    padding: 0 5px 0 0 !important;
+}
+
+
+.download_container span.jet-download__label {
+    text-transform: none;
+    font-size: 16px;
+    padding-right: 10px;
+}
+
+.download_container a.elementor-button{
+    padding: 2px 0 !important;
+    border-width: 0;
+    
+}
+
+.download_container a.elementor-button:after{
+   content: " ";
+   position: absolute;
+   width: 21px;
+   height: 21px;
+   top: 0px;
+   bottom: 0px;
+   left: 200px;
+    background-image: url('../images/download-icon.svg');
+    background-size: 21px;
+    background-repeat: no-repeat;
+    background-position: center center;
+    transition: .4s;
+}
+
+.download_container.mit-img a.elementor-button:after{
+   left: 194px;
+}
+
+.download_container a.elementor-button:hover:after{
+   background-image: url('../images/download-icon-hover_2.svg');
+}
+
+@media (max-width: 576px){
+
+.tabele-mobil-td, .tabele-mobil-td-info, .tabellen-inhalt-desktop td {
+    padding: 5px;
+    height: 65px;
+    padding: 8px;
+    font-size: 16px;
+    line-height: 1.2em;
+}
+
+}/* End custom CSS */
+/* Start Custom Fonts CSS */@font-face {
+	font-family: 'Gilory-Local';
+	font-style: normal;
+	font-weight: 400;
+	font-display: auto;
+	src: url('../fonts/Gilroy-Medium.eot');
+	src: url('../fonts/Gilroy-Medium.eot#iefix') format('embedded-opentype'),
+		url('../fonts/Gilroy-Regular.woff2') format('woff2'),
+		url('../fonts/Gilroy-Regular.woff') format('woff'),
+		url('../fonts/Gilroy-Medium.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Gilory-Local';
+	font-style: normal;
+	font-weight: 700;
+	font-display: auto;
+	src: url('../fonts/Gilroy-Bold.eot');
+	src: url('../fonts/Gilroy-Bold.eot#iefix') format('embedded-opentype'),
+		url('../fonts/Gilroy-Bold.woff2') format('woff2'),
+		url('../fonts/Gilroy-Bold.woff') format('woff'),
+		url('../fonts/Gilroy-Bold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Gilory-Local';
+	font-style: normal;
+	font-weight: 600;
+	font-display: auto;
+	src: url('../fonts/Gilroy-Semibold.eot');
+	src: url('../fonts/Gilroy-Semibold.eot#iefix') format('embedded-opentype'),
+		url('../fonts/Gilroy-Semibold.woff2') format('woff2'),
+		url('../fonts/Gilroy-Semibold.woff') format('woff'),
+		url('../fonts/Gilroy-Semibold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Gilory-Local';
+	font-style: normal;
+	font-weight: 900;
+	font-display: auto;
+	src: url('../fonts/Gilroy-Extrabold.eot');
+	src: url('../fonts/Gilroy-Extrabold.eot#iefix') format('embedded-opentype'),
+		url('../fonts/Gilroy-Extrabold.woff2') format('woff2'),
+		url('../fonts/Gilroy-Extrabold.woff') format('woff'),
+		url('../fonts/Gilroy-Extrabold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Gilory-Local';
+	font-style: normal;
+	font-weight: 500;
+	font-display: auto;
+	src: url('../fonts/Gilroy-Regular.eot');
+	src: url('../fonts/Gilroy-Regular.eot#iefix') format('embedded-opentype'),
+		url('../fonts/Gilroy-Regular-1.woff2') format('woff2'),
+		url('../fonts/Gilroy-Regular-1.woff') format('woff'),
+		url('../fonts/Gilroy-Regular.ttf') format('truetype');
+}
+/* End Custom Fonts CSS */

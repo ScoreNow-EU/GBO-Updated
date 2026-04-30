@@ -22,6 +22,10 @@ class SpielberichtPdfService {
     String? referee1Name,
     String? referee2Name,
     String? delegateName,
+    String? referee1License,
+    String? referee2License,
+    String? delegateLicense,
+    Map<String, bool>? spielerpassChecks,
   }) async {
     final pdf = pw.Document(
       title: 'Spielbericht – ${game.teamAName} vs ${game.teamBName}',
@@ -48,10 +52,13 @@ class SpielberichtPdfService {
             referee1Name: referee1Name,
             referee2Name: referee2Name,
             delegateName: delegateName,
+            referee1License: referee1License,
+            referee2License: referee2License,
+            delegateLicense: delegateLicense,
           ),
           pw.SizedBox(height: 16),
           if (squadA != null || squadB != null)
-            _buildSquadsSection(game, squadA, squadB, events),
+            _buildSquadsSection(game, squadA, squadB, events, spielerpassChecks),
           if (squadA != null || squadB != null) pw.SizedBox(height: 16),
           _buildEventsSection(game, sortedEvents),
           pw.SizedBox(height: 16),
@@ -191,7 +198,7 @@ class SpielberichtPdfService {
     );
   }
 
-  pw.Widget _buildSquadsSection(Game game, GameSquad? squadA, GameSquad? squadB, List<GameEvent> events) {
+  pw.Widget _buildSquadsSection(Game game, GameSquad? squadA, GameSquad? squadB, List<GameEvent> events, Map<String, bool>? spielerpassChecks) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -201,16 +208,16 @@ class SpielberichtPdfService {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            if (squadA != null) pw.Expanded(child: _buildSquadTable(game.teamAName, squadA, events, game.teamAId)),
+            if (squadA != null) pw.Expanded(child: _buildSquadTable(game.teamAName, squadA, events, game.teamAId, spielerpassChecks)),
             if (squadA != null && squadB != null) pw.SizedBox(width: 16),
-            if (squadB != null) pw.Expanded(child: _buildSquadTable(game.teamBName, squadB, events, game.teamBId)),
+            if (squadB != null) pw.Expanded(child: _buildSquadTable(game.teamBName, squadB, events, game.teamBId, spielerpassChecks)),
           ],
         ),
       ],
     );
   }
 
-  pw.Widget _buildSquadTable(String teamName, GameSquad squad, List<GameEvent> events, String? teamId) {
+  pw.Widget _buildSquadTable(String teamName, GameSquad squad, List<GameEvent> events, String? teamId, Map<String, bool>? spielerpassChecks) {
     // Compute per-player stats from events
     // Match by playerId first, fall back to playerName for legacy events
     Map<String, Map<String, int>> playerStats = {};
@@ -245,12 +252,13 @@ class SpielberichtPdfService {
             0: const pw.FixedColumnWidth(22),
             1: const pw.FlexColumnWidth(),
             2: const pw.FixedColumnWidth(22),
-            3: const pw.FixedColumnWidth(22),
-            4: const pw.FixedColumnWidth(28),
-            5: const pw.FixedColumnWidth(16),
-            6: const pw.FixedColumnWidth(20),
-            7: const pw.FixedColumnWidth(16),
+            3: const pw.FixedColumnWidth(18),
+            4: const pw.FixedColumnWidth(22),
+            5: const pw.FixedColumnWidth(28),
+            6: const pw.FixedColumnWidth(16),
+            7: const pw.FixedColumnWidth(20),
             8: const pw.FixedColumnWidth(16),
+            9: const pw.FixedColumnWidth(16),
           },
           children: [
             pw.TableRow(
@@ -259,6 +267,7 @@ class SpielberichtPdfService {
                 _tableCell('#', bold: true),
                 _tableCell('Name', bold: true),
                 _tableCell('Kl.', bold: true),
+                _tableCell('Pass', bold: true),
                 _tableCell('T', bold: true),
                 _tableCell('7m', bold: true),
                 _tableCell('G', bold: true),
@@ -275,11 +284,13 @@ class SpielberichtPdfService {
               final smHit = s['7mHit'] ?? 0;
               final smMiss = s['7mMiss'] ?? 0;
               final smTotal = smHit + smMiss;
+              final passVerified = spielerpassChecks?[p.playerId] == true;
               return pw.TableRow(
                 children: [
                   _tableCell(p.jerseyNumber ?? '-'),
                   _tableCell('${p.firstName} ${p.lastName}'),
                   _tableCell(p.classification ?? '-'),
+                  _tableCell(passVerified ? '✓' : '✗', align: pw.TextAlign.center),
                   _tableCell(goals > 0 ? '$goals' : '-', align: pw.TextAlign.center),
                   _tableCell(smTotal > 0 ? '$smHit/$smTotal' : '-', align: pw.TextAlign.center),
                   _tableCell((s['yellow'] ?? 0) > 0 ? '${s['yellow']}' : '-', align: pw.TextAlign.center),
@@ -325,11 +336,17 @@ class SpielberichtPdfService {
     String? referee1Name,
     String? referee2Name,
     String? delegateName,
+    String? referee1License,
+    String? referee2License,
+    String? delegateLicense,
   }) {
     final hasOfficials = (referee1Name != null && referee1Name.isNotEmpty) ||
         (referee2Name != null && referee2Name.isNotEmpty) ||
         (delegateName != null && delegateName.isNotEmpty);
     if (!hasOfficials) return pw.SizedBox();
+
+    String _withLicense(String name, String? license) =>
+        (license != null && license.isNotEmpty) ? '$name ($license)' : name;
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(8),
@@ -349,21 +366,21 @@ class SpielberichtPdfService {
                 pw.Expanded(
                   child: pw.RichText(text: pw.TextSpan(children: [
                     pw.TextSpan(text: 'SR 1: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                    pw.TextSpan(text: referee1Name, style: const pw.TextStyle(fontSize: 9)),
+                    pw.TextSpan(text: _withLicense(referee1Name, referee1License), style: const pw.TextStyle(fontSize: 9)),
                   ])),
                 ),
               if (referee2Name != null && referee2Name.isNotEmpty)
                 pw.Expanded(
                   child: pw.RichText(text: pw.TextSpan(children: [
                     pw.TextSpan(text: 'SR 2: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                    pw.TextSpan(text: referee2Name, style: const pw.TextStyle(fontSize: 9)),
+                    pw.TextSpan(text: _withLicense(referee2Name, referee2License), style: const pw.TextStyle(fontSize: 9)),
                   ])),
                 ),
               if (delegateName != null && delegateName.isNotEmpty)
                 pw.Expanded(
                   child: pw.RichText(text: pw.TextSpan(children: [
                     pw.TextSpan(text: 'Delegierter: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                    pw.TextSpan(text: delegateName, style: const pw.TextStyle(fontSize: 9)),
+                    pw.TextSpan(text: _withLicense(delegateName, delegateLicense), style: const pw.TextStyle(fontSize: 9)),
                   ])),
                 ),
             ],

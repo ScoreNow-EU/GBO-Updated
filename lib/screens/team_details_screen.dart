@@ -5,6 +5,7 @@ import '../services/player_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
+import 'player_profile_screen.dart';
 
 class TeamDetailsScreen extends StatefulWidget {
   final Team team;
@@ -324,7 +325,14 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
   }
 
   Widget _buildPlayerCard(Player player) {
-    return Container(
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PlayerProfileScreen(playerId: player.id),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -400,6 +408,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

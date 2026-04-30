@@ -9,6 +9,7 @@ class DelegateService {
   Stream<List<Delegate>> getDelegates() {
     return _firestore
         .collection(_collection)
+        .limit(1000)
         .snapshots()
         .map((snapshot) {
           List<Delegate> delegates = snapshot.docs

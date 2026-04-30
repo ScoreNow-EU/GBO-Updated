@@ -27,6 +27,8 @@ import '../screens/profile_settings_screen.dart';
 import '../screens/scoring_tablet_screen.dart';
 import '../screens/season_management_screen.dart';
 import '../screens/rangliste_screen.dart';
+import '../screens/public_teams_screen.dart';
+import '../screens/season_calendar_screen.dart';
 import '../screens/city_migration_screen.dart';
 import '../screens/tournament_creation_wizard.dart';
 import '../screens/tournament_edit_screen.dart';
@@ -384,6 +386,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Turniere';
       case 'rangliste':
         return 'Rangliste';
+      case 'teams':
+        return 'Teams';
+      case 'saisonkalender':
+        return 'Saisonkalender';
       case 'preset_management':
         return 'Preset Verwaltung';
       case 'tournament_management':
@@ -460,6 +466,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return const TournamentOverview();
       case 'rangliste':
         return const RanglisteScreen();
+      case 'teams':
+        return const PublicTeamsScreen();
+      case 'saisonkalender':
+        return const SeasonCalendarScreen();
       case 'preset_management':
         return const PresetManagementScreen();
       case 'tournament_management':

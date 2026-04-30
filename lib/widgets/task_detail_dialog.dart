@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:toastification/toastification.dart';
 import '../models/kanban_task.dart';
 import '../models/user.dart' as app_user;
+import '../services/auth_service.dart';
 import '../services/kanban_service.dart';
+import '../utils/app_toast.dart';
 import '../utils/responsive_helper.dart';
 
 class TaskDetailDialog extends StatefulWidget {
@@ -658,9 +660,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
 
   Widget _buildAssigneeField() {
     return InkWell(
-      onTap: () {
-        // TODO: Show user picker dialog
-      },
+      onTap: _showAssigneePicker,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1044,25 +1044,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
   }
 
   void _showSuccessToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      style: ToastificationStyle.fillColored,
-      title: Text(message),
-      alignment: Alignment.topRight,
-      autoCloseDuration: const Duration(seconds: 3),
-    );
+    AppToast.success(context, message);
   }
 
   void _showErrorToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.error,
-      style: ToastificationStyle.fillColored,
-      title: Text(message),
-      alignment: Alignment.topRight,
-      autoCloseDuration: const Duration(seconds: 5),
-    );
+    AppToast.error(context, message);
   }
 
   Future<void> _saveChanges() async {
@@ -1214,7 +1200,167 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
   }
 
   void _addLabel() {
-    // TODO: Implement label adding functionality
+    final controller = TextEditingController();
+    showDialog<_AddLabelResult>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Label hinzufügen'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'z.B. Bug, Feature, UX',
+          ),
+          onSubmitted: (_) => Navigator.of(ctx).pop(_AddLabelResult.submit),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(_AddLabelResult.submit),
+            child: const Text('Hinzufügen'),
+          ),
+        ],
+      ),
+    ).then((result) async {
+      if (result != _AddLabelResult.submit) return;
+      final raw = controller.text.trim();
+      if (raw.isEmpty) return;
+      final existing = _currentTask.labels;
+      if (existing.any((l) => l.toLowerCase() == raw.toLowerCase())) {
+        _showErrorToast('Label "$raw" existiert bereits');
+        return;
+      }
+      final updated = [...existing, raw];
+      final ok = await _kanbanService.updateTaskLabels(_currentTask.id, updated);
+      if (!mounted) return;
+      if (ok) {
+        setState(() {
+          _currentTask = _currentTask.copyWith(labels: updated);
+        });
+        widget.onTaskUpdated(_currentTask);
+      } else {
+        _showErrorToast('Label konnte nicht gespeichert werden');
+      }
+    });
+  }
+
+  Future<void> _showAssigneePicker() async {
+    final auth = AuthService();
+    List<app_user.User> users;
+    try {
+      users = await auth.getAllUsers();
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorToast('Nutzer konnten nicht geladen werden: $e');
+      return;
+    }
+    final active = users.where((u) => u.isActive).toList()
+      ..sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    if (!mounted) return;
+    final picked = await showDialog<_AssigneePick>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Zuweisen'),
+        content: SizedBox(
+          width: 360,
+          height: 420,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.person_off, size: 16)),
+                title: const Text('Zuweisung entfernen'),
+                onTap: () => Navigator.of(ctx).pop(const _AssigneePick.unassign()),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: active.isEmpty
+                    ? const Center(child: Text('Keine aktiven Nutzer'))
+                    : ListView.builder(
+                        itemCount: active.length,
+                        itemBuilder: (_, i) {
+                          final u = active[i];
+                          final initials = (u.firstName.isNotEmpty ? u.firstName[0] : '') +
+                              (u.lastName.isNotEmpty ? u.lastName[0] : '');
+                          return ListTile(
+                            leading: CircleAvatar(
+                              child: Text(
+                                initials.toUpperCase(),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            title: Text(u.fullName),
+                            subtitle: Text(u.email),
+                            onTap: () => Navigator.of(ctx).pop(_AssigneePick.user(u)),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Abbrechen'),
+          ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    final ok = await _kanbanService.assignTask(
+      _currentTask.id,
+      picked.user?.id,
+      picked.user?.fullName,
+      picked.user?.email,
+    );
+    if (!mounted) return;
+    if (ok) {
+      setState(() {
+        if (picked.user != null) {
+          _currentTask = _currentTask.copyWith(
+            assigneeId: picked.user!.id,
+            assigneeName: picked.user!.fullName,
+            assigneeEmail: picked.user!.email,
+          );
+        } else {
+          // Rebuild without assignee — copyWith can't null-out fields.
+          _currentTask = KanbanTask(
+            id: _currentTask.id,
+            title: _currentTask.title,
+            description: _currentTask.description,
+            type: _currentTask.type,
+            status: _currentTask.status,
+            priority: _currentTask.priority,
+            assigneeId: null,
+            assigneeName: null,
+            assigneeEmail: null,
+            reporterId: _currentTask.reporterId,
+            reporterName: _currentTask.reporterName,
+            reporterEmail: _currentTask.reporterEmail,
+            labels: _currentTask.labels,
+            epicId: _currentTask.epicId,
+            parentTaskId: _currentTask.parentTaskId,
+            subtaskIds: _currentTask.subtaskIds,
+            createdAt: _currentTask.createdAt,
+            updatedAt: DateTime.now(),
+            dueDate: _currentTask.dueDate,
+            estimatedHours: _currentTask.estimatedHours,
+            loggedHours: _currentTask.loggedHours,
+            sprint: _currentTask.sprint,
+            attachments: _currentTask.attachments,
+            comments: _currentTask.comments,
+            boardId: _currentTask.boardId,
+            position: _currentTask.position,
+          );
+        }
+      });
+      widget.onTaskUpdated(_currentTask);
+    } else {
+      _showErrorToast('Zuweisung konnte nicht gespeichert werden');
+    }
   }
 
   void _removeLabel(String label) {
@@ -1269,3 +1415,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog>
     return priority.toString().split('.').last;
   }
 } 
+
+enum _AddLabelResult { submit }
+
+class _AssigneePick {
+  final app_user.User? user;
+  const _AssigneePick.user(app_user.User u) : user = u;
+  const _AssigneePick.unassign() : user = null;
+}

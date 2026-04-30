@@ -67,6 +67,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec#dependencies
@@ -78,6 +80,7 @@ flutter:
     - rhbl_logo.png
     - logo.png
     - assets/grid.png
+    - assets/placeholder-player.png
 
   fonts:
     - family: CasanovaScotia

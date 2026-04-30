@@ -294,6 +294,19 @@ class _SideNavigationState extends State<SideNavigation> {
                   key: 'rangliste',
                   isSelected: widget.selectedSection == 'rangliste',
                 ),
+                _buildNavigationItem(
+                  icon: Icons.shield,
+                  title: 'Teams',
+                  key: 'teams',
+                  isSelected: widget.selectedSection == 'teams' ||
+                      widget.selectedSection.startsWith('team_'),
+                ),
+                _buildNavigationItem(
+                  icon: Icons.calendar_month,
+                  title: 'Saisonkalender',
+                  key: 'saisonkalender',
+                  isSelected: widget.selectedSection == 'saisonkalender',
+                ),
                 
                 const SizedBox(height: 16),
                 
@@ -529,6 +542,12 @@ class _SideNavigationState extends State<SideNavigation> {
               key: 'team_${team.id}_roster',
               icon: Icons.group,
               isSelected: widget.selectedSection == 'team_${team.id}_roster',
+            ),
+            _buildTeamSubItem(
+              title: 'Kalender',
+              key: 'team_${team.id}_calendar',
+              icon: Icons.calendar_month,
+              isSelected: widget.selectedSection == 'team_${team.id}_calendar',
             ),
             _buildTeamSubItem(
               title: 'Einstellungen',

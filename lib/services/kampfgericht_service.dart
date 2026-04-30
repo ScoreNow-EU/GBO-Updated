@@ -12,6 +12,7 @@ class KampfgerichtService {
   Stream<List<KampfgerichtMember>> getMembers() {
     return _firestore
         .collection(_collection)
+        .limit(1000)
         .snapshots()
         .map((snapshot) {
           List<KampfgerichtMember> members = snapshot.docs

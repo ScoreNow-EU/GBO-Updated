@@ -10,6 +10,7 @@ class RefereeService {
   Stream<List<Referee>> getReferees() {
     return _firestore
         .collection(_collection)
+        .limit(1000)
         .snapshots()
         .map((snapshot) {
           List<Referee> referees = snapshot.docs

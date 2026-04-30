@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/team.dart';
 
 class TeamService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   final String _collection = 'teams';
   
   // Cache for faster subsequent loads
@@ -72,6 +74,7 @@ class TeamService {
 
     return _firestore
         .collection(_collection)
+        .limit(1000)
         .snapshots()
         .map((snapshot) {
           List<Team> teams = snapshot.docs
@@ -168,6 +171,40 @@ class TeamService {
       debugPrint('âŒ TeamService: Error updating team: $e');
       return false;
     }
+  }
+
+  /// Upload a team logo image and persist its download URL on the team doc.
+  /// [bytes] is the raw image bytes. [extension] is without dot, e.g. 'jpg'.
+  Future<String> uploadTeamLogo({
+    required String teamId,
+    required Uint8List bytes,
+    String extension = 'jpg',
+  }) async {
+    final path =
+        'teamLogos/$teamId/${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final ref = _storage.ref().child(path);
+    final metadata = SettableMetadata(contentType: 'image/$extension');
+    await ref.putData(bytes, metadata);
+    final url = await ref.getDownloadURL();
+    await _firestore.collection(_collection).doc(teamId).update({'logoUrl': url});
+    _invalidateCache();
+    return url;
+  }
+
+  /// Remove the logoUrl from the team doc and delete the storage object.
+  Future<void> removeTeamLogo(String teamId, {String? currentUrl}) async {
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      try {
+        await _storage.refFromURL(currentUrl).delete();
+      } catch (e) {
+        debugPrint('removeTeamLogo: storage delete failed (non-fatal): $e');
+      }
+    }
+    await _firestore
+        .collection(_collection)
+        .doc(teamId)
+        .update({'logoUrl': FieldValue.delete()});
+    _invalidateCache();
   }
 
   // Delete team

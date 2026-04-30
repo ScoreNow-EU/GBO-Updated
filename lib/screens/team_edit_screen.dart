@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/player.dart';
 import '../models/team_manager.dart';
@@ -171,33 +171,47 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             decoration: const BoxDecoration(
               color: Color(0xFF4A5568),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
               children: [
-                TeamAvatar(
-                  teamName: _team!.name,
-                  size: 48,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _team!.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                // Close button — return to teams overview
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    tooltip: 'Schließen',
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    onPressed: () => Navigator.of(context).maybePop(),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _team!.city,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TeamAvatar(
+                      teamName: _team!.name,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _team!.name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _team!.city,
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -865,7 +879,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
     final jerseyController = TextEditingController();
-    String selectedGender = 'male';
+    String selectedGender = 'männlich';
     String selectedClassification = 'Gruppe C';
     
     final classifications = ['Gruppe A', 'Gruppe B', 'Gruppe C'];
@@ -949,8 +963,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
-                          DropdownMenuItem(value: 'female', child: Text('Weiblich')),
+                          DropdownMenuItem(value: 'männlich', child: Text('Männlich')),
+                          DropdownMenuItem(value: 'weiblich', child: Text('Weiblich')),
+                          DropdownMenuItem(value: 'divers', child: Text('Divers')),
                         ],
                         onChanged: (value) {
                           setDialogState(() {
@@ -1079,7 +1094,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text((player.email?.contains('@placeholder.com') ?? false) ? 'Keine E-Mail' : (player.email ?? 'Keine E-Mail')),
-                                Text('${player.classification ?? 'Keine Klassifikation'} â€¢ ${player.gender == 'male' ? 'Männlich' : 'Weiblich'}'),
+                                Text('${player.classification ?? 'Keine Klassifikation'} • ${player.gender == 'männlich' ? 'Männlich' : player.gender == 'weiblich' ? 'Weiblich' : 'Divers'}'),
                               ],
                             ),
                             trailing: ElevatedButton(
@@ -1204,8 +1219,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                           border: OutlineInputBorder(),
                         ),
                         items: [
-                          DropdownMenuItem(value: 'male', child: Text('Männlich')),
-                          DropdownMenuItem(value: 'female', child: Text('Weiblich')),
+                          DropdownMenuItem(value: 'männlich', child: Text('Männlich')),
+                          DropdownMenuItem(value: 'weiblich', child: Text('Weiblich')),
+                          DropdownMenuItem(value: 'divers', child: Text('Divers')),
                         ],
                         onChanged: (value) {
                           setDialogState(() {

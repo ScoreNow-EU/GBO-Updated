@@ -43,6 +43,7 @@ class VenueService {
   Stream<List<Venue>> streamVenues() {
     return _collection
         .orderBy('name')
+        .limit(1000)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => Venue.fromFirestore(doc)).toList());

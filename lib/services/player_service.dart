@@ -1,10 +1,89 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/player.dart';
 
 class PlayerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
   static const String _collection = 'players';
+
+  /// Upload a player profile photo and persist its download URL on the player doc.
+  /// [bytes] is the raw image bytes (use FilePicker with `withData: true`).
+  /// [extension] is the file extension without dot, e.g. 'jpg', 'png'.
+  /// Returns the download URL.
+  Future<String> uploadPlayerPhoto({
+    required String playerId,
+    required Uint8List bytes,
+    String extension = 'jpg',
+  }) async {
+    final path = 'playerImages/$playerId/${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final ref = _storage.ref().child(path);
+    final metadata = SettableMetadata(contentType: 'image/$extension');
+    await ref.putData(bytes, metadata);
+    final url = await ref.getDownloadURL();
+    await _firestore.collection(_collection).doc(playerId).update({
+      'photoUrl': url,
+    });
+    return url;
+  }
+
+  /// Remove the photoUrl on the player doc and best-effort delete the storage object.
+  Future<void> removePlayerPhoto(String playerId, {String? currentUrl}) async {
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      try {
+        await _storage.refFromURL(currentUrl).delete();
+      } catch (e) {
+        debugPrint('removePlayerPhoto: storage delete failed (non-fatal): $e');
+      }
+    }
+    await _firestore.collection(_collection).doc(playerId).update({
+      'photoUrl': FieldValue.delete(),
+    });
+  }
+
+  /// Upload a secondary hero image (full-height accent shown beside the name).
+  Future<String> uploadPlayerSecondaryPhoto({
+    required String playerId,
+    required Uint8List bytes,
+    String extension = 'jpg',
+  }) async {
+    final path =
+        'playerImages/$playerId/secondary_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final ref = _storage.ref().child(path);
+    final metadata = SettableMetadata(contentType: 'image/$extension');
+    await ref.putData(bytes, metadata);
+    final url = await ref.getDownloadURL();
+    await _firestore.collection(_collection).doc(playerId).update({
+      'secondaryPhotoUrl': url,
+    });
+    return url;
+  }
+
+  /// Remove secondary hero image.
+  Future<void> removePlayerSecondaryPhoto(String playerId,
+      {String? currentUrl}) async {
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      try {
+        await _storage.refFromURL(currentUrl).delete();
+      } catch (e) {
+        debugPrint(
+            'removePlayerSecondaryPhoto: storage delete failed (non-fatal): $e');
+      }
+    }
+    await _firestore.collection(_collection).doc(playerId).update({
+      'secondaryPhotoUrl': FieldValue.delete(),
+    });
+  }
+
+  /// Persist the opacity (0..1) of the secondary hero image.
+  Future<void> updatePlayerSecondaryOpacity(
+      String playerId, double opacity) async {
+    final clamped = opacity.clamp(0.0, 1.0);
+    await _firestore.collection(_collection).doc(playerId).update({
+      'secondaryPhotoOpacity': clamped,
+    });
+  }
 
   // Create a new player
   Future<String?> addPlayer(Player player) async {
@@ -106,6 +185,7 @@ class PlayerService {
   Stream<List<Player>> getAllPlayers() {
     return _firestore
         .collection(_collection)
+        .limit(2000)
         .snapshots()
         .map((snapshot) {
           try {

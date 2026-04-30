@@ -121,25 +121,48 @@ class _GameReportScreenState extends State<GameReportScreen> {
 
   Future<void> _exportPdf() async {
     try {
-      // Resolve referee and delegate names
+      // Resolve referee and delegate names + license types
       final refereeService = RefereeService();
       final delegateService = DelegateService();
-      
+
       String? referee1Name;
       String? referee2Name;
       String? delegateName;
-      
+      String? referee1License;
+      String? referee2License;
+      String? delegateLicense;
+
       if (widget.game.referee1Id != null && widget.game.referee1Id!.isNotEmpty) {
         final ref = await refereeService.getRefereeById(widget.game.referee1Id!);
         referee1Name = ref?.fullName;
+        referee1License = ref?.licenseType;
       }
       if (widget.game.referee2Id != null && widget.game.referee2Id!.isNotEmpty) {
         final ref = await refereeService.getRefereeById(widget.game.referee2Id!);
         referee2Name = ref?.fullName;
+        referee2License = ref?.licenseType;
       }
       if (widget.game.delegateId != null && widget.game.delegateId!.isNotEmpty) {
         final del = await delegateService.getDelegateById(widget.game.delegateId!);
         delegateName = del?.fullName;
+        delegateLicense = del?.licenseType;
+      }
+
+      // Fetch Spielerpass verification status from gameReports
+      Map<String, bool> spielerpassChecks = {};
+      try {
+        final reportDoc = await FirebaseFirestore.instance
+            .collection('gameReports')
+            .doc(widget.game.id)
+            .get();
+        if (reportDoc.exists) {
+          final raw = reportDoc.data()?['spielerpassChecks'] as Map<String, dynamic>?;
+          if (raw != null) {
+            spielerpassChecks = raw.map((k, v) => MapEntry(k, v == true));
+          }
+        }
+      } catch (e) {
+        debugPrint('Could not load spielerpassChecks: $e');
       }
 
       final pdfService = SpielberichtPdfService();
@@ -156,6 +179,10 @@ class _GameReportScreenState extends State<GameReportScreen> {
         referee1Name: referee1Name,
         referee2Name: referee2Name,
         delegateName: delegateName,
+        referee1License: referee1License,
+        referee2License: referee2License,
+        delegateLicense: delegateLicense,
+        spielerpassChecks: spielerpassChecks,
       );
       await Printing.sharePdf(
         bytes: pdfBytes,

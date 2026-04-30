@@ -93,22 +93,83 @@ class LiveScoringService {
     }
   }
 
-  // Save game state to Firestore
+  // Persist clock + run-state for a game atomically.
+  //
+  // IMPORTANT: This method does NOT write teamAScore / teamBScore. Score
+  // changes are routed exclusively through [_applyScoreIncrement] using
+  // FieldValue.increment so that two scoring tablets editing the same game
+  // concurrently can never overwrite each other's goal with a stale
+  // cached score (T38).
   Future<void> _saveGameState(GameState state) async {
     try {
-      await _firestore.collection('gameStates').doc(state.gameId).set({
-        'minutes': state.gameTime.minutes,
-        'seconds': state.gameTime.seconds,
-        'currentPeriod': state.gameTime.currentPeriod,
-        'halfDurationMinutes': state.gameTime.halfDurationMinutes,
-        'isRunning': state.isRunning,
-        'currentHalf': state.currentHalf,
-        'teamAScore': state.teamAScore,
-        'teamBScore': state.teamBScore,
-        'updatedAt': FieldValue.serverTimestamp(),
+      final docRef = _firestore.collection('gameStates').doc(state.gameId);
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(docRef);
+        final clockPatch = <String, dynamic>{
+          'minutes': state.gameTime.minutes,
+          'seconds': state.gameTime.seconds,
+          'currentPeriod': state.gameTime.currentPeriod,
+          'halfDurationMinutes': state.gameTime.halfDurationMinutes,
+          'isRunning': state.isRunning,
+          'currentHalf': state.currentHalf,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (snap.exists) {
+          tx.update(docRef, clockPatch);
+        } else {
+          // First write for this game — seed scores at 0; future score
+          // writes go through _applyScoreIncrement.
+          tx.set(docRef, {
+            ...clockPatch,
+            'teamAScore': 0,
+            'teamBScore': 0,
+          });
+        }
       });
     } catch (e) {
-      debugPrint('âŒ Error saving game state: $e');
+      debugPrint('âŒ Error saving game state: $e');
+    }
+  }
+
+  /// Atomically adjusts the cached score for one team by [delta] and
+  /// refreshes the clock fields. Uses runTransaction + FieldValue.increment
+  /// so concurrent goal events from multiple tablets cannot overwrite each
+  /// other (T38).
+  Future<void> _applyScoreIncrement({
+    required String gameId,
+    required bool isTeamA,
+    required int delta,
+    required GameState clockState,
+  }) async {
+    try {
+      final docRef = _firestore.collection('gameStates').doc(gameId);
+      await _firestore.runTransaction((tx) async {
+        final snap = await tx.get(docRef);
+        final scoreField = isTeamA ? 'teamAScore' : 'teamBScore';
+        final clockPatch = <String, dynamic>{
+          'minutes': clockState.gameTime.minutes,
+          'seconds': clockState.gameTime.seconds,
+          'currentPeriod': clockState.gameTime.currentPeriod,
+          'halfDurationMinutes': clockState.gameTime.halfDurationMinutes,
+          'isRunning': clockState.isRunning,
+          'currentHalf': clockState.currentHalf,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (snap.exists) {
+          tx.update(docRef, {
+            ...clockPatch,
+            scoreField: FieldValue.increment(delta),
+          });
+        } else {
+          tx.set(docRef, {
+            ...clockPatch,
+            'teamAScore': isTeamA && delta > 0 ? delta : 0,
+            'teamBScore': !isTeamA && delta > 0 ? delta : 0,
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('âŒ Error applying score increment: $e');
     }
   }
 
@@ -216,29 +277,43 @@ class LiveScoringService {
       final docRef = await _firestore.collection('gameEvents').add(event.toJson());
       final savedEvent = event.copyWith(id: docRef.id);
 
-      // Update scores if it's a scoring event
+      // Update scores if it's a scoring event.
+      // Score writes go through _applyScoreIncrement (atomic) so a
+      // simultaneous goal from another scoring tablet is never lost.
+      final isScoring = eventType == GameEventType.goal ||
+          eventType == GameEventType.sevenMeterHit;
       int newTeamAScore = currentState.teamAScore;
       int newTeamBScore = currentState.teamBScore;
-      
-      if (eventType == GameEventType.goal || eventType == GameEventType.sevenMeterHit) {
-        if (teamId == (currentState.events.isNotEmpty 
-            ? _getTeamAId(currentState) 
-            : teamId)) {
+      bool? scoringIsTeamA;
+      if (isScoring) {
+        scoringIsTeamA = teamId == (currentState.events.isNotEmpty
+            ? _getTeamAId(currentState)
+            : teamId);
+        if (scoringIsTeamA == true) {
           newTeamAScore++;
         } else {
           newTeamBScore++;
         }
       }
 
-      // Update local state and broadcast
+      // Update local state and broadcast (optimistic UI)
       final updatedEvents = [...currentState.events, savedEvent];
       final updatedState = currentState.copyWith(
         events: updatedEvents,
         teamAScore: newTeamAScore,
         teamBScore: newTeamBScore,
       );
-      
-      await _saveGameState(updatedState);
+
+      if (isScoring && scoringIsTeamA != null) {
+        await _applyScoreIncrement(
+          gameId: gameId,
+          isTeamA: scoringIsTeamA,
+          delta: 1,
+          clockState: updatedState,
+        );
+      } else {
+        await _saveGameState(updatedState);
+      }
       _updateGameState(gameId, updatedState);
       
       debugPrint('âœ… Game event added: ${eventType.toString()} by $playerName');
@@ -293,21 +368,34 @@ class LiveScoringService {
       if (teamEvents.isEmpty) return;
       
       final lastEvent = teamEvents.last;
-      
+      final wasScoring = lastEvent.eventType == GameEventType.goal ||
+          lastEvent.eventType == GameEventType.sevenMeterHit;
+
       // Remove from Firestore
       await _firestore.collection('gameEvents').doc(lastEvent.id).delete();
-      
+
       // Update local state
       final updatedEvents = currentState.events
           .where((e) => e.id != lastEvent.id)
           .toList();
-      
-      // Recalculate scores
+
+      // Recalculate scores locally for UI
       final updatedState = _recalculateScores(
         currentState.copyWith(events: updatedEvents),
       );
-      
-      await _saveGameState(updatedState);
+
+      if (wasScoring) {
+        final teamAId = _getTeamAId(currentState);
+        final isTeamA = teamAId == null ? true : lastEvent.teamId == teamAId;
+        await _applyScoreIncrement(
+          gameId: gameId,
+          isTeamA: isTeamA,
+          delta: -1,
+          clockState: updatedState,
+        );
+      } else {
+        await _saveGameState(updatedState);
+      }
       _updateGameState(gameId, updatedState);
       
       debugPrint('âœ… Last event removed: ${lastEvent.eventType.toString()}');

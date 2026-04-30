@@ -9,7 +9,9 @@ import '../services/season_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
+import '../utils/app_toast.dart';
 import 'tournament_results_screen.dart';
+import 'season_stats_screen.dart';
 
 class SeasonManagementScreen extends StatefulWidget {
   const SeasonManagementScreen({super.key});
@@ -96,25 +98,11 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   void _showErrorToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.error,
-      style: ToastificationStyle.fillColored,
-      title: const Text('Fehler'),
-      description: Text(message),
-      autoCloseDuration: const Duration(seconds: 3),
-    );
+    AppToast.error(context, message);
   }
 
   void _showSuccessToast(String message) {
-    toastification.show(
-      context: context,
-      type: ToastificationType.success,
-      style: ToastificationStyle.fillColored,
-      title: const Text('Erfolg'),
-      description: Text(message),
-      autoCloseDuration: const Duration(seconds: 3),
-    );
+    AppToast.success(context, message);
   }
 
   // Check if points have been distributed for a tournament
@@ -470,6 +458,20 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
             child: const ListTile(
               leading: Icon(Icons.edit, color: Colors.blue),
               title: Text('Bearbeiten'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SeasonStatsScreen(season: season),
+                ),
+              );
+            },
+            child: const ListTile(
+              leading: Icon(Icons.bar_chart, color: Colors.indigo),
+              title: Text('Saisonstatistik'),
             ),
           ),
           SimpleDialogOption(
@@ -944,11 +946,11 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
   }
 
   int _getCalculatedTournamentPoints(Tournament tournament) {
-    return 0;
+    return tournament.manualPoints ?? 0;
   }
 
   bool _hasManualPoints(Tournament tournament) {
-    return false;
+    return tournament.manualPoints != null;
   }
 
   Widget _buildCriteriaAndTeamsInfo(Tournament tournament) {

@@ -40,7 +40,7 @@ class WebNotificationService {
   String get permissionStatus {
     if (!kIsWeb) return 'unsupported';
     try {
-      return html.Notification.permission;
+      return html.Notification.permission ?? 'default';
     } catch (_) {
       return 'unsupported';
     }

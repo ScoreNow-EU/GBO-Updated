@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/game.dart';
 import '../models/game_event.dart';
 import '../services/game_service.dart';
+import 'stats_aggregator.dart';
 
 /// Aggregated player statistics across a tournament
 class PlayerTournamentStats {
@@ -232,59 +233,6 @@ class TournamentStatsService {
 
   /// Aggregate per-player stats from events
   List<PlayerTournamentStats> _aggregatePlayerStats(List<GameEvent> events) {
-    final Map<String, PlayerTournamentStats> statsMap = {};
-    final Set<String> playerGames = {}; // "playerId_gameId"
-
-    for (final event in events) {
-      // Use playerId if non-empty, otherwise playerName as key
-      final pid = (event.playerId != null && event.playerId!.isNotEmpty)
-          ? event.playerId!
-          : event.playerName;
-      if (pid.isEmpty) continue;
-
-      statsMap.putIfAbsent(pid, () => PlayerTournamentStats(
-        playerId: event.playerId ?? '',
-        playerName: event.playerName,
-        teamId: event.teamId,
-        teamName: event.teamName,
-      ));
-
-      final stat = statsMap[pid]!;
-
-      // Track games played
-      final gameKey = '${pid}_${event.gameId}';
-      if (!playerGames.contains(gameKey)) {
-        playerGames.add(gameKey);
-        stat.gamesPlayed++;
-      }
-
-      switch (event.eventType) {
-        case GameEventType.goal:
-          stat.goals++;
-          break;
-        case GameEventType.sevenMeterHit:
-          stat.sevenMeterGoals++;
-          break;
-        case GameEventType.sevenMeterMiss:
-          stat.sevenMeterMisses++;
-          break;
-        case GameEventType.yellowCard:
-          stat.yellowCards++;
-          break;
-        case GameEventType.twoMinuteSuspension:
-          stat.twoMinuteSuspensions++;
-          break;
-        case GameEventType.redCard:
-          stat.redCards++;
-          break;
-        case GameEventType.blueCard:
-          stat.blueCards++;
-          break;
-        default:
-          break;
-      }
-    }
-
-    return statsMap.values.toList();
+    return StatsAggregator.aggregatePlayerStats(events);
   }
 }

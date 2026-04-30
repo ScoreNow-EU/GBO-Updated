@@ -15,6 +15,7 @@ class KanbanTask {
   String title;
   String description;
   String priority; // low, medium, high
+  List<String> labels;
   DateTime createdAt;
 
   KanbanTask({
@@ -22,14 +23,17 @@ class KanbanTask {
     required this.title,
     this.description = '',
     this.priority = 'medium',
+    List<String>? labels,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+  })  : labels = labels ?? [],
+        createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'title': title,
         'description': description,
         'priority': priority,
+        'labels': labels,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -38,6 +42,10 @@ class KanbanTask {
         title: j['title'] as String,
         description: (j['description'] as String?) ?? '',
         priority: (j['priority'] as String?) ?? 'medium',
+        labels: (j['labels'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            [],
         createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
       );
 }
@@ -319,12 +327,15 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
     final titleCtrl = TextEditingController(text: task.title);
     final descCtrl = TextEditingController(text: task.description);
     String priority = task.priority;
+    final labels = List<String>.from(task.labels);
+    final labelCtrl = TextEditingController();
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Aufgabe bearbeiten'),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
           content: SizedBox(
             width: 400,
             child: Column(
@@ -372,6 +383,73 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Labels',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final l in labels)
+                      Chip(
+                        label: Text(l, style: const TextStyle(fontSize: 11)),
+                        visualDensity: VisualDensity.compact,
+                        onDeleted: () =>
+                            setDialogState(() => labels.remove(l)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: labelCtrl,
+                        decoration: const InputDecoration(
+                          hintText: 'z.B. Bug, Feature, UX',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (_) {
+                          final raw = labelCtrl.text.trim();
+                          if (raw.isEmpty) return;
+                          if (labels.any((l) =>
+                              l.toLowerCase() == raw.toLowerCase())) {
+                            return;
+                          }
+                          setDialogState(() {
+                            labels.add(raw);
+                            labelCtrl.clear();
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Label hinzufügen',
+                      onPressed: () {
+                        final raw = labelCtrl.text.trim();
+                        if (raw.isEmpty) return;
+                        if (labels.any((l) =>
+                            l.toLowerCase() == raw.toLowerCase())) {
+                          return;
+                        }
+                        setDialogState(() {
+                          labels.add(raw);
+                          labelCtrl.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -387,7 +465,6 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Löschen'),
             ),
-            const Spacer(),
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Abbrechen')),
@@ -397,6 +474,9 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                   task.title = titleCtrl.text.trim();
                   task.description = descCtrl.text.trim();
                   task.priority = priority;
+                  task.labels
+                    ..clear()
+                    ..addAll(labels);
                 });
                 _saveBoard();
                 Navigator.pop(ctx);
@@ -864,10 +944,23 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      task.title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w500, fontSize: 13),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '#${task.id}',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                              fontFamily: 'monospace'),
+                        ),
+                        Text(
+                          task.title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 13),
+                        ),
+                      ],
                     ),
                   ),
                   if (otherColumns.isNotEmpty)
@@ -892,6 +985,33 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                   overflow: TextOverflow.ellipsis,
                   style:
                       TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+              if (task.labels.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    for (final l in task.labels)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                              color: Colors.deepPurple.shade200, width: 0.5),
+                        ),
+                        child: Text(
+                          l,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.deepPurple.shade700,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ],

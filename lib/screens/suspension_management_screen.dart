@@ -33,9 +33,7 @@ class _SuspensionManagementScreenState extends State<SuspensionManagementScreen>
       if (_showOnlyActive) {
         _suspensions = await _suspensionService.getAllActiveSuspensions();
       } else {
-        // Load all suspensions (active + inactive)
-        _suspensions = await _suspensionService.getAllActiveSuspensions();
-        // TODO: Add getAllSuspensions method if needed for history
+        _suspensions = await _suspensionService.getAllSuspensions();
       }
     } catch (e) {
       debugPrint('Error loading suspensions: $e');

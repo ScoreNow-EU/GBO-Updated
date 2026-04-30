@@ -341,7 +341,15 @@ class _KioskScreenState extends State<KioskScreen> {
       ?..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     final lastPenalties = recentPenalties?.take(3).toList() ?? [];
 
-    return Container(
+    final semanticsLabel =
+        'Live-Spiel: ${game.teamAName} gegen ${game.teamBName}, Spielstand $scoreA zu $scoreB'
+        '${gameTime != null ? ', $half. Halbzeit, Spielzeit ${gameTime.displayTime}' : ''}.';
+
+    return Semantics(
+      label: semanticsLabel,
+      liveRegion: true,
+      container: true,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       decoration: BoxDecoration(
@@ -477,6 +485,7 @@ class _KioskScreenState extends State<KioskScreen> {
           ],
         ],
       ),
+    ),
     );
   }
 
@@ -542,7 +551,17 @@ class _KioskScreenState extends State<KioskScreen> {
     final isCompleted = game.status == GameStatus.completed;
     final result = game.result;
 
-    return Container(
+    final time = _formatTime(game.scheduledTime);
+    final scorePart = isCompleted && result != null
+        ? 'Endstand ${result.finalScore}'
+        : 'Geplant um $time';
+    final semanticsLabel =
+        '${game.teamAName} gegen ${game.teamBName}, $scorePart.';
+
+    return Semantics(
+      label: semanticsLabel,
+      container: true,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
@@ -611,6 +630,7 @@ class _KioskScreenState extends State<KioskScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

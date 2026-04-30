@@ -13,6 +13,9 @@ class Player {
   final String? jerseyNumber;
   final String gender; // 'männlich', 'weiblich', 'divers'
   final bool isActive;
+  final String? photoUrl;
+  final String? secondaryPhotoUrl;
+  final double secondaryPhotoOpacity;
   final DateTime createdAt;
 
   Player({
@@ -27,6 +30,9 @@ class Player {
     this.jerseyNumber,
     required this.gender,
     this.isActive = true,
+    this.photoUrl,
+    this.secondaryPhotoUrl,
+    this.secondaryPhotoOpacity = 0.6,
     required this.createdAt,
   });
 
@@ -63,6 +69,9 @@ class Player {
       'jerseyNumber': jerseyNumber,
       'gender': gender,
       'isActive': isActive,
+      'photoUrl': photoUrl,
+      'secondaryPhotoUrl': secondaryPhotoUrl,
+      'secondaryPhotoOpacity': secondaryPhotoOpacity,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -96,6 +105,11 @@ class Player {
         jerseyNumber: data['jerseyNumber'],
         gender: gender,
         isActive: data['isActive'] ?? true,
+        photoUrl: data['photoUrl'],
+        secondaryPhotoUrl: data['secondaryPhotoUrl'],
+        secondaryPhotoOpacity: (data['secondaryPhotoOpacity'] is num)
+            ? (data['secondaryPhotoOpacity'] as num).toDouble()
+            : 0.6,
         createdAt: data['createdAt'] != null 
             ? (data['createdAt'] as Timestamp).toDate() 
             : DateTime.now(),
@@ -118,6 +132,9 @@ class Player {
     String? jerseyNumber,
     String? gender,
     bool? isActive,
+    String? photoUrl,
+    String? secondaryPhotoUrl,
+    double? secondaryPhotoOpacity,
   }) {
     return Player(
       id: id,
@@ -131,6 +148,9 @@ class Player {
       jerseyNumber: jerseyNumber ?? this.jerseyNumber,
       gender: gender ?? this.gender,
       isActive: isActive ?? this.isActive,
+      photoUrl: photoUrl ?? this.photoUrl,
+      secondaryPhotoUrl: secondaryPhotoUrl ?? this.secondaryPhotoUrl,
+      secondaryPhotoOpacity: secondaryPhotoOpacity ?? this.secondaryPhotoOpacity,
       createdAt: createdAt,
     );
   }

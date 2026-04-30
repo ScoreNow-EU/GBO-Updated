@@ -19,6 +19,7 @@ import 'package:timeline_tile/timeline_tile.dart';
 import '../models/user.dart';
 import 'tournament_edit_screen.dart';
 import 'tournament_link_editor_screen.dart';
+import 'tournament_games_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TournamentDetailScreen extends StatefulWidget {
@@ -923,9 +924,12 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               Center(
                 child: TextButton.icon(
                   onPressed: () {
-                    // TODO: Navigate to detailed games view
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Detaillierte Spieleansicht wird implementiert')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TournamentGamesScreen(
+                          tournament: widget.tournament,
+                        ),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.list),

@@ -1,307 +1,450 @@
-﻿[
-    {
-        "id":  "backlog",
-        "title":  "Backlog",
-        "tasks":  [
-                      {
-                          "id":  "t13",
-                          "title":  "Nominatim/OSRM ersetzen",
-                          "description":  "geocoding_service.dart nutzt Nominatim (1000/Tag Limit) und OSRM Demo-Server (explizit nicht fÃ¼r Produktion). Eigene Instanz hosten oder kommerziellen Anbieter nutzen.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t16",
-                          "title":  "Pool/KO-Runden Editing",
-                          "description":  "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) â€” alles noch TODO-Stubs.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t22",
-                          "title":  "Kanban Board nur im Dev-Modus anzeigen",
-                          "description":  "kanban_board_screen.dart braucht localhost:8099 Server. Feature ist in der Navigation sichtbar fÃ¼r alle, sollte nur im Dev/Admin-Modus oder hinter kDebugMode stehen.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t28",
-                          "title":  "Kanban: User-Picker \u0026 Label-Feature",
-                          "description":  "task_detail_dialog.dart: User-Picker (Z.662) und Label-HinzufÃ¼gen (Z.1217) sind TODO-Stubs.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t29",
-                          "title":  "Onboarding / Erste-Schritte-Flow",
-                          "description":  "Kein First-Run-Erlebnis fÃ¼r neue Nutzer. Kurze EinfÃ¼hrung der Rolle/Features beim ersten Login wÃ¤re hilfreich.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      }
-                  ]
-    },
-    {
-        "id":  "todo",
-        "title":  "To Do",
-        "tasks":  [
-                      {
-                          "id":  "t05",
-                          "title":  "Clipboard Copy fixen",
-                          "description":  "managed_account_screen.dart: Zwei TODO-Stellen (Zeile 1083 und 1837) fÃ¼r Clipboard-Copy. Clipboard.setData implementieren.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t06",
-                          "title":  "Season Points Override persistieren",
-                          "description":  "season_management_screen.dart Zeile 1138: Punkte-Override ist nur UI, wird nie in Firestore gespeichert. Firestore-Update implementieren.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t07",
-                          "title":  "Tournament Detail â€” Spiele-Navigation",
-                          "description":  "tournament_detail_screen.dart Zeile 926: \u0027Spiele anzeigen\u0027-Button ist TODO-Stub. Navigation zu TournamentGamesScreen einbauen.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t08",
-                          "title":  "getAllSuspensions implementieren",
-                          "description":  "suspension_service.dart: getAllSuspensions()-Methode fehlt. suspension_management_screen.dart (Zeile 38) braucht die Methode fÃ¼r historische Sperren-Ansicht.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t09",
-                          "title":  "PDF Spielbericht vervollstÃ¤ndigen",
-                          "description":  "spielbericht_pdf_service.dart: Spieler-Statistiken (Tore, Karten), Schiedsrichter/Delegierten-Namen, Spielerpass-Verifikationsstatus zur PDF hinzufÃ¼gen.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t10",
-                          "title":  "SaisonÃ¼bergreifende Statistiken",
-                          "description":  "Turnier-Ã¼bergreifende TorschÃ¼tzenliste, kumulative Team-Statistiken, Saison-TorjÃ¤ger. Aktuell nur pro Turnier. tournament_stats_service.dart erweitern oder neuen season_stats_service.dart erstellen.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t11",
-                          "title":  "Saison-Kalenderansicht",
-                          "description":  "Teams brauchen kompletten Saison-Ãœberblick (alle Spieltage mit Datum, Ort, Gegner). Aktuell nur einzelne anstehende Turniere sichtbar. Player-Dashboard oder neuen Screen erweitern.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t12",
-                          "title":  "Barrierefreiheit (a11y)",
-                          "description":  "Keine Semantics-Widgets fÃ¼r Screenreader. Kritisch fÃ¼r Rollstuhlsport-App! Semantics zu wichtigen interaktiven Elementen hinzufÃ¼gen, Kontrast prÃ¼fen. PrioritÃ¤t: Scoring Tablet, Player Dashboard, Public Scoreboard.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t14",
-                          "title":  "Integrationstests",
-                          "description":  "Test-Coverage ~0%. Kritische Workflows testen: Scoring-Flow (Tore/Karten/Zeit), Squad-Submission mit Sperren-PrÃ¼fung, Sign-Off-Chain, Protest-Workflow.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t15",
-                          "title":  "Error Handling vereinheitlichen",
-                          "description":  "Einige Screens zeigen Toasts bei Fehlern, andere versagen still. Einheitliche Toast/Snackbar-Utility erstellen und in allen Screens nutzen.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t17",
-                          "title":  "Leere catch-BlÃ¶cke fixen",
-                          "description":  "14 catch(_){} die Fehler verschlucken: game_report_screen (Z.90,109,115), tournament_edit_screen (Z.2777,2933,7796,7803,7827,8871), kiosk_screen (Z.148,158), rangliste_screen (Z.78), tournament_detail_screen (Z.186).",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t18",
-                          "title":  "debugPrint/print fÃ¼r Produktion aufrÃ¤umen",
-                          "description":  "40+ debugPrint-Aufrufe, 8 raw print() in main.dart. Mit kDebugMode wrappen oder entfernen. HauptsÃ¤chlich: tournament_edit_screen, apple_pay_service, main.dart.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t19",
-                          "title":  "TO-Software Temporary Fixes beheben",
-                          "description":  "to_software_screen.dart: Court-ID-Format-Workaround (Z.432, alle Spiele auf ersten Court) und Spieltag-Mismatch-Fix (Z.1813).",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t20",
-                          "title":  "Firestore Indexes deployen",
-                          "description":  "Dokumentenverwaltung scheitert mit \u0027Query requires an index\u0027. firestore.indexes.json vorhanden, muss deployed werden: firebase deploy --only firestore:indexes.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t27",
-                          "title":  "Globaler Error Boundary",
-                          "description":  "Kein globaler Error Handler. FlutterError.onError und PlatformDispatcher.onError setzen mit nutzerfreundlichem Fehler-Screen statt weiÃŸem Absturz.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t21",
-                          "title":  "PWA Ladescreen Timeout",
-                          "description":  "web/index.html: Wenn Flutter nicht lÃ¤dt, dreht der Spinner ewig. Nach ~10s eine \u0027Seite neu laden\u0027-Meldung anzeigen.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t23",
-                          "title":  "Preloader erweitern",
-                          "description":  "preloader_service.dart (Z.84): Nur Teams und Turniere werden vorgeladen. Referees, Delegates, Kampfgericht und Presets fehlen.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t24",
-                          "title":  "App-Info / Ãœber-Seite",
-                          "description":  "Keine Versionsanzeige im UI. version_helper.dart existiert, wird aber nirgends genutzt. Version im Profil-Screen einbauen.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t25",
-                          "title":  "Daten-Backup/Restore",
-                          "description":  "CSV-Export existiert (5 Typen via tournament_export_service), aber kein Import/Restore. FÃ¼r Saisonwechsel und Datensicherung sinnvoll.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t26",
-                          "title":  "Formular-Validierung ergÃ¤nzen",
-                          "description":  "Einige Screens haben Email-Validierung (bulk_add_delegates, generate_sign_in_codes), viele andere nicht. Konsistente Validierung fÃ¼r Email, Pflichtfelder.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T10:01:00Z"
-                      },
-                      {
-                          "id":  "t38",
-                          "title":  "Firestore Transactions fÃ¼r Scoring",
-                          "description":  "live_scoring_service._saveGameState() nutzt plain .set() ohne Transaction. Zwei Scoring-Tablets gleichzeitig = Race Condition, ein Tor kann verloren gehen. runTransaction() verwenden.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      },
-                      {
-                          "id":  "t39",
-                          "title":  "Firestore Query Limits / Pagination",
-                          "description":  "Mehrere Screens laden komplette Collections mit .snapshots() ohne .limit() â€” players, referees, delegates, tournaments. Funktioniert bei kleinen Daten, wird teuer und langsam bei Wachstum.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      },
-                      {
-                          "id":  "t40",
-                          "title":  "Open Graph Meta Tags",
-                          "description":  "Keine og:title/og:image/og:description Meta-Tags in web/index.html. Turnier-Links in WhatsApp, Slack usw. zeigen leere Vorschau ohne Titel oder Bild.",
-                          "priority":  "low",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      }
-                  ]
-    },
-    {
-        "id":  "in_progress",
-        "title":  "In Arbeit",
-        "tasks":  [
-
-                  ]
-    },
-    {
-        "id":  "done",
-        "title":  "Erledigt",
-        "tasks":  [
-                      {
-                          "id":  "t30",
-                          "title":  "Scoring: Unicode/Encoding Fehler behoben",
-                          "description":  "Triple-encoded UTF-8 in scoring_tablet_screen.dart gefixt (deutsche Umlaute). 74 Umlaut + 25 Emoji-Ersetzungen.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-01T10:00:00Z"
-                      },
-                      {
-                          "id":  "t31",
-                          "title":  "Scoring: 3x 2-Min = Rote Karte (statt 2x)",
-                          "description":  "Schwelle von \u003e= 1 auf \u003e= 2 geÃ¤ndert in _addPlayerEvent. Dialog auf \u0027Nach drei Hinausstellungen\u0027 aktualisiert.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-01T10:00:00Z"
-                      },
-                      {
-                          "id":  "t32",
-                          "title":  "Scoring: Blaue Karte trotz Roter mÃ¶glich",
-                          "description":  "Spieler-Auswahl erlaubt jetzt rot-gesperrte Spieler. Blaue-Karte-Button aktiv. Guard blockiert nicht-blaue Events.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-01T10:00:00Z"
-                      },
-                      {
-                          "id":  "t33",
-                          "title":  "Scoring: Durchlaufender Timer",
-                          "description":  "Timer lÃ¤uft durchgehend: 0â†’15 dann 15â†’30. startSecondHalf startet bei halfDurationMinutes statt 0.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-01T10:00:00Z"
-                      },
-                      {
-                          "id":  "t34",
-                          "title":  "Kanban Board eingerichtet",
-                          "description":  "Kanban-Screen, Navigation, lokaler HTTP-Server, JSON-Datei. Persistenz Ã¼ber Datei statt localStorage.",
-                          "priority":  "medium",
-                          "createdAt":  "2026-04-01T10:00:00Z"
-                      },
-                      {
-                          "id":  "t35",
-                          "title":  "GDPR: Impressum \u0026 Datenschutz",
-                          "description":  "Deutsches Recht: Impressum (TMG Â§5) und DatenschutzerklÃ¤rung (DSGVO Art.13) sind PFLICHT auf jeder Ã¶ffentlichen Website. Kein Impressum, keine Privacy-Policy, kein Cookie-Consent, keine Account-LÃ¶schmÃ¶glichkeit vorhanden. Rechtlich nicht konform. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      },
-                      {
-                          "id":  "t36",
-                          "title":  "HTTP Security Headers in firebase.json",
-                          "description":  "firebase.json hat keine Security-Headers. Fehlt: Content-Security-Policy (XSS-Schutz), X-Frame-Options (Clickjacking), HSTS (HTTPS-Zwang), X-Content-Type-Options (MIME-Sniffing). In hosting.headers Array ergÃ¤nzen. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      },
-                      {
-                          "id":  "t37",
-                          "title":  "robots.txt erstellen",
-                          "description":  "Kein robots.txt vorhanden â€” Suchmaschinen kÃ¶nnen /admin, /scoring-tablet, /obs-graphics indexieren. web/robots.txt mit Disallow fÃ¼r interne Routen und Allow fÃ¼r /public erstellen. 5-Minuten-Fix. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T11:00:00Z"
-                      },
-                      {
-                          "id":  "t01",
-                          "title":  "FCM Web Push fixen",
-                          "description":  "VAPID Key ist null in fcm_service.dart (Zeile 22). Permission-Flow prÃ¼fen, Token muss in Firestore fcmTokens-Array gespeichert werden. Ohne das funktionieren keine Web-Notifications. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t02",
-                          "title":  "Public Scoreboard Routing fixen",
-                          "description":  "/public?t={id} lÃ¤dt Home statt Scoreboard. Hash-Fragment-Konflikt in _generateRoute (main.dart Zeilen 219-244). usePathUrlStrategy() einsetzen oder Route-Parsing fixen. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t03",
-                          "title":  "Kiosk Mode Routing fixen",
-                          "description":  "Gleiche Ursache wie Public Scoreboard. /kiosk?t={id} zeigt Startseite statt KioskScreen. Auto-Rotation Timer lÃ¤uft nie auf dem richtigen Screen. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      },
-                      {
-                          "id":  "t04",
-                          "title":  "OBS Graphics â€” echte Daten einbinden",
-                          "description":  "obs_graphics_screen.dart: Standings-View (Zeile 599) und Player-Data-View (Zeile 700) haben TODO-Platzhalter. TournamentStatsService anbinden. ERLEDIGT 2026-04-10.",
-                          "priority":  "high",
-                          "createdAt":  "2026-04-09T10:00:00Z"
-                      }
-                  ]
-    }
+[
+  {
+    "id": "backlog",
+    "title": "Backlog",
+    "tasks": [
+      {
+        "id": "t13",
+        "title": "Nominatim/OSRM ersetzen",
+        "description": "geocoding_service.dart nutzt Nominatim (1000/Tag Limit) und OSRM Demo-Server (explizit nicht fÃ¼r Produktion). Eigene Instanz hosten oder kommerziellen Anbieter nutzen.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t16",
+        "title": "Pool/KO-Runden Editing",
+        "description": "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) â€” alles noch TODO-Stubs.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t22",
+        "title": "Kanban Board nur im Dev-Modus anzeigen",
+        "description": "kanban_board_screen.dart braucht localhost:8099 Server. Feature ist in der Navigation sichtbar fÃ¼r alle, sollte nur im Dev/Admin-Modus oder hinter kDebugMode stehen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t29",
+        "title": "Onboarding / Erste-Schritte-Flow",
+        "description": "Kein First-Run-Erlebnis fÃ¼r neue Nutzer. Kurze EinfÃ¼hrung der Rolle/Features beim ersten Login wÃ¤re hilfreich.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t42",
+        "title": "Livestreaming",
+        "description": "Eine Möglichkeit erstellen, Livestreams in den Turnieren einzubetten. Livestreams wären von Youtube/Twitch/Etc.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t43",
+        "title": "Livestreaming Automation",
+        "description": "Automatisierung der Livestream-Erstellung auf YouTube. Mit einem Klick soll ein Stream erstellt werden, welcher mit OBS/vMix angesteuert werden kann und mit t42 eingeblendet wird,",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t44",
+        "title": "Location-Navigation",
+        "description": "Detailierter Lageplan mit Umrissen, Hallenplan, sowie Standort. Beim Scannen eines QR Codes wird der Standort aktualisiert.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t45",
+        "title": "Scouting System",
+        "description": "Ein System, welches Scouter Accounts erfordert, womit man detailierte Statistiken eintragen kann.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t46",
+        "title": "Schiedsrichter-Beobachtungen",
+        "description": "Beobachtungen von Schiedsrichtern von Delegates/Admin, mittels Punkten, kommentaren, usw.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t47",
+        "title": "Vereins-Beobachtungen",
+        "description": "Schiedsrichter-Beobachtungen von Spielteams, durchgeführt von Team Offiziellen. Abgespeckte version von t46 aber als zusatz.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t48",
+        "title": "Sponsoring",
+        "description": "Sponsor-Logos als Werbung über verschiedene Seiten einblendbar machen, wie Turniere, Rangliste, etc. Bitte NICHT an Funktionsseiten auf Rollenbasis.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t49",
+        "title": "Feedback-Modul",
+        "description": "Feedback von Spielern an Turniere und Schiedsrichter ermöglichen, z.B. durch Sternebewertungen und Kommentare. Feedback sollte moderiert werden können und nicht öffentlich einsehbar sein.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t50",
+        "title": "Stories",
+        "description": "Instagram-Like Stories im Hochkantformat mit beliebigen hochladbaren Clips. Ggf. Kombinierbar mit t43 zum Automatischen Hochladen auf 'nicht gelistet' auf YouTube.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t51",
+        "title": "Automatische Clip Generierung",
+        "description": "Automatische Erstellung und hochladen von Clips. Scouter Account drückt live einen Highlight Knopf. Dann kann der den Teil zuschneiden. Ähnlich zum Twitch-Clip",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "todo",
+    "title": "To Do",
+    "tasks": [
+      {
+        "id": "t05",
+        "title": "Clipboard Copy fixen",
+        "description": "managed_account_screen.dart: Zwei TODO-Stellen (Zeile 1083 und 1837) fÃ¼r Clipboard-Copy. Clipboard.setData implementieren.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t17",
+        "title": "Leere catch-BlÃ¶cke fixen",
+        "description": "14 catch(_){} die Fehler verschlucken: game_report_screen (Z.90,109,115), tournament_edit_screen (Z.2777,2933,7796,7803,7827,8871), kiosk_screen (Z.148,158), rangliste_screen (Z.78), tournament_detail_screen (Z.186).",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t18",
+        "title": "debugPrint/print fÃ¼r Produktion aufrÃ¤umen",
+        "description": "40+ debugPrint-Aufrufe, 8 raw print() in main.dart. Mit kDebugMode wrappen oder entfernen. HauptsÃ¤chlich: tournament_edit_screen, apple_pay_service, main.dart.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t19",
+        "title": "TO-Software Temporary Fixes beheben",
+        "description": "to_software_screen.dart: Court-ID-Format-Workaround (Z.432, alle Spiele auf ersten Court) und Spieltag-Mismatch-Fix (Z.1813).",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t27",
+        "title": "Globaler Error Boundary",
+        "description": "Kein globaler Error Handler. FlutterError.onError und PlatformDispatcher.onError setzen mit nutzerfreundlichem Fehler-Screen statt weiÃŸem Absturz.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t21",
+        "title": "PWA Ladescreen Timeout",
+        "description": "web/index.html: Wenn Flutter nicht lÃ¤dt, dreht der Spinner ewig. Nach ~10s eine 'Seite neu laden'-Meldung anzeigen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t23",
+        "title": "Preloader erweitern",
+        "description": "preloader_service.dart (Z.84): Nur Teams und Turniere werden vorgeladen. Referees, Delegates, Kampfgericht und Presets fehlen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t24",
+        "title": "App-Info / Ãœber-Seite",
+        "description": "Keine Versionsanzeige im UI. version_helper.dart existiert, wird aber nirgends genutzt. Version im Profil-Screen einbauen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t25",
+        "title": "Daten-Backup/Restore",
+        "description": "CSV-Export existiert (5 Typen via tournament_export_service), aber kein Import/Restore. FÃ¼r Saisonwechsel und Datensicherung sinnvoll.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t26",
+        "title": "Formular-Validierung ergÃ¤nzen",
+        "description": "Einige Screens haben Email-Validierung (bulk_add_delegates, generate_sign_in_codes), viele andere nicht. Konsistente Validierung fÃ¼r Email, Pflichtfelder.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t40",
+        "title": "Open Graph Meta Tags",
+        "description": "Keine og:title/og:image/og:description Meta-Tags in web/index.html. Turnier-Links in WhatsApp, Slack usw. zeigen leere Vorschau ohne Titel oder Bild.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "in_progress",
+    "title": "In Arbeit",
+    "tasks": [
+      {
+        "id": "t14",
+        "title": "Integrationstests",
+        "description": "Test-Coverage ~0%. Kritische Workflows testen: Scoring-Flow (Tore/Karten/Zeit), Squad-Submission mit Sperren-PrÃ¼fung, Sign-Off-Chain, Protest-Workflow.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "done",
+    "title": "Erledigt",
+    "tasks": [
+      {
+        "id": "t30",
+        "title": "Scoring: Unicode/Encoding Fehler behoben",
+        "description": "Triple-encoded UTF-8 in scoring_tablet_screen.dart gefixt (deutsche Umlaute). 74 Umlaut + 25 Emoji-Ersetzungen.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-01T10:00:00.000Z"
+      },
+      {
+        "id": "t31",
+        "title": "Scoring: 3x 2-Min = Rote Karte (statt 2x)",
+        "description": "Schwelle von >= 1 auf >= 2 geÃ¤ndert in _addPlayerEvent. Dialog auf 'Nach drei Hinausstellungen' aktualisiert.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-01T10:00:00.000Z"
+      },
+      {
+        "id": "t32",
+        "title": "Scoring: Blaue Karte trotz Roter mÃ¶glich",
+        "description": "Spieler-Auswahl erlaubt jetzt rot-gesperrte Spieler. Blaue-Karte-Button aktiv. Guard blockiert nicht-blaue Events.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-01T10:00:00.000Z"
+      },
+      {
+        "id": "t33",
+        "title": "Scoring: Durchlaufender Timer",
+        "description": "Timer lÃ¤uft durchgehend: 0â†’15 dann 15â†’30. startSecondHalf startet bei halfDurationMinutes statt 0.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-01T10:00:00.000Z"
+      },
+      {
+        "id": "t34",
+        "title": "Kanban Board eingerichtet",
+        "description": "Kanban-Screen, Navigation, lokaler HTTP-Server, JSON-Datei. Persistenz Ã¼ber Datei statt localStorage.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-01T10:00:00.000Z"
+      },
+      {
+        "id": "t35",
+        "title": "GDPR: Impressum & Datenschutz",
+        "description": "Deutsches Recht: Impressum (TMG Â§5) und DatenschutzerklÃ¤rung (DSGVO Art.13) sind PFLICHT auf jeder Ã¶ffentlichen Website. Kein Impressum, keine Privacy-Policy, kein Cookie-Consent, keine Account-LÃ¶schmÃ¶glichkeit vorhanden. Rechtlich nicht konform. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "t36",
+        "title": "HTTP Security Headers in firebase.json",
+        "description": "firebase.json hat keine Security-Headers. Fehlt: Content-Security-Policy (XSS-Schutz), X-Frame-Options (Clickjacking), HSTS (HTTPS-Zwang), X-Content-Type-Options (MIME-Sniffing). In hosting.headers Array ergÃ¤nzen. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "t37",
+        "title": "robots.txt erstellen",
+        "description": "Kein robots.txt vorhanden â€” Suchmaschinen kÃ¶nnen /admin, /scoring-tablet, /obs-graphics indexieren. web/robots.txt mit Disallow fÃ¼r interne Routen und Allow fÃ¼r /public erstellen. 5-Minuten-Fix. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "t01",
+        "title": "FCM Web Push fixen",
+        "description": "VAPID Key ist null in fcm_service.dart (Zeile 22). Permission-Flow prÃ¼fen, Token muss in Firestore fcmTokens-Array gespeichert werden. Ohne das funktionieren keine Web-Notifications. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t02",
+        "title": "Public Scoreboard Routing fixen",
+        "description": "/public?t={id} lÃ¤dt Home statt Scoreboard. Hash-Fragment-Konflikt in _generateRoute (main.dart Zeilen 219-244). usePathUrlStrategy() einsetzen oder Route-Parsing fixen. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t03",
+        "title": "Kiosk Mode Routing fixen",
+        "description": "Gleiche Ursache wie Public Scoreboard. /kiosk?t={id} zeigt Startseite statt KioskScreen. Auto-Rotation Timer lÃ¤uft nie auf dem richtigen Screen. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t04",
+        "title": "OBS Graphics â€” echte Daten einbinden",
+        "description": "obs_graphics_screen.dart: Standings-View (Zeile 599) und Player-Data-View (Zeile 700) haben TODO-Platzhalter. TournamentStatsService anbinden. ERLEDIGT 2026-04-10.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t09",
+        "title": "PDF Spielbericht vervollstÃ¤ndigen",
+        "description": "spielbericht_pdf_service.dart: Spieler-Statistiken (Tore, Karten), Schiedsrichter/Delegierten-Namen, Spielerpass-Verifikationsstatus zur PDF hinzufÃ¼gen.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t10",
+        "title": "SaisonÃ¼bergreifende Statistiken",
+        "description": "Turnier-Ã¼bergreifende TorschÃ¼tzenliste, kumulative Team-Statistiken, Saison-TorjÃ¤ger. Aktuell nur pro Turnier. tournament_stats_service.dart erweitern oder neuen season_stats_service.dart erstellen.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t41",
+        "title": "Player Profile",
+        "description": "Übersicht über den Spieler mit Bild, Statistiken und Infos.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t42",
+        "title": "Team Profile",
+        "description": "Übersicht über das Team mit Logo, Statistiken und Infos.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t43",
+        "title": "Team Logo",
+        "description": "Teams können ein Logo hochladen und anzeigen.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t11",
+        "title": "Saison-Kalenderansicht",
+        "description": "Teams brauchen kompletten Saison-Ãœberblick (alle Spieltage mit Datum, Ort, Gegner). Aktuell nur einzelne anstehende Turniere sichtbar. Player-Dashboard oder neuen Screen erweitern.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t12",
+        "title": "Barrierefreiheit (a11y)",
+        "description": "Keine Semantics-Widgets fÃ¼r Screenreader. Kritisch fÃ¼r Rollstuhlsport-App! Semantics zu wichtigen interaktiven Elementen hinzufÃ¼gen, Kontrast prÃ¼fen. PrioritÃ¤t: Scoring Tablet, Player Dashboard, Public Scoreboard.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t20",
+        "title": "Firestore Indexes deployen",
+        "description": "Dokumentenverwaltung scheitert mit 'Query requires an index'. firestore.indexes.json vorhanden, muss deployed werden: firebase deploy --only firestore:indexes.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t38",
+        "title": "Firestore Transactions fÃ¼r Scoring",
+        "description": "live_scoring_service._saveGameState() nutzt plain .set() ohne Transaction. Zwei Scoring-Tablets gleichzeitig = Race Condition, ein Tor kann verloren gehen. runTransaction() verwenden.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "t39",
+        "title": "Firestore Query Limits / Pagination",
+        "description": "Mehrere Screens laden komplette Collections mit .snapshots() ohne .limit() â€” players, referees, delegates, tournaments. Funktioniert bei kleinen Daten, wird teuer und langsam bei Wachstum.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "t28",
+        "title": "Kanban: User-Picker & Label-Feature",
+        "description": "task_detail_dialog.dart: User-Picker (Z.662) und Label-HinzufÃ¼gen (Z.1217) sind TODO-Stubs.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t06",
+        "title": "Season Points Override persistieren",
+        "description": "season_management_screen.dart Zeile 1138: Punkte-Override ist nur UI, wird nie in Firestore gespeichert. Firestore-Update implementieren.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t07",
+        "title": "Tournament Detail â€” Spiele-Navigation",
+        "description": "tournament_detail_screen.dart Zeile 926: 'Spiele anzeigen'-Button ist TODO-Stub. Navigation zu TournamentGamesScreen einbauen.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t08",
+        "title": "getAllSuspensions implementieren",
+        "description": "suspension_service.dart: getAllSuspensions()-Methode fehlt. suspension_management_screen.dart (Zeile 38) braucht die Methode fÃ¼r historische Sperren-Ansicht.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t15",
+        "title": "Error Handling vereinheitlichen",
+        "description": "Einige Screens zeigen Toasts bei Fehlern, andere versagen still. Einheitliche Toast/Snackbar-Utility erstellen und in allen Screens nutzen.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      }
+    ]
+  }
 ]

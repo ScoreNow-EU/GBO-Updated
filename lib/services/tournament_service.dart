@@ -28,6 +28,7 @@ class TournamentService {
 
     return _firestore
         .collection(_collection)
+        .limit(1000)
         .snapshots()
         .map((snapshot) {
           List<Tournament> tournaments = snapshot.docs
@@ -126,6 +127,22 @@ class TournamentService {
     await _firestore.collection(_collection).add(tournament.toMap());
     // Invalidate cache
     _invalidateCache();
+  }
+
+  /// Persist the manual season-points override for a tournament.
+  /// Pass `null` to clear the override and revert to the calculated value.
+  Future<bool> setManualPoints(String tournamentId, int? points) async {
+    try {
+      await _firestore
+          .collection(_collection)
+          .doc(tournamentId)
+          .update({'manualPoints': points});
+      _invalidateCache();
+      return true;
+    } catch (e) {
+      debugPrint('Error setting manualPoints for $tournamentId: $e');
+      return false;
+    }
   }
 
   // Update method to ensure season is set correctly
