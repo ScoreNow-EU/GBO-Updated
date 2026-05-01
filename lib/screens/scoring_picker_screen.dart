@@ -373,16 +373,6 @@ class _ScoringPickerScreenState extends State<ScoringPickerScreen> {
                           color: Colors.teal.shade800,
                         ),
                       ),
-                      if (court.description.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          court.description,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.teal.shade600,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

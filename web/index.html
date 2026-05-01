@@ -37,6 +37,22 @@
   <meta name="theme-color" content="#e63946">
   <meta name="msapplication-TileColor" content="#e63946">
 
+  <!-- Open Graph (Facebook, WhatsApp, Slack, LinkedIn, Telegram) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Rollstuhlhandball Bundesliga">
+  <meta property="og:title" content="Rollstuhlhandball Bundesliga">
+  <meta property="og:description" content="Live-Ergebnisse, Tabellen und Spielpl\u00e4ne der Rollstuhlhandball Bundesliga.">
+  <meta property="og:image" content="icons/Icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:locale" content="de_DE">
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Rollstuhlhandball Bundesliga">
+  <meta name="twitter:description" content="Live-Ergebnisse, Tabellen und Spielpl\u00e4ne der Rollstuhlhandball Bundesliga.">
+  <meta name="twitter:image" content="icons/Icon-512.png">
+
   <title>Rollstuhlhandball Bundesliga - Tournament Management</title>
   <link rel="manifest" href="manifest.json">
   
@@ -163,12 +179,32 @@
     // Create sparkles when page loads
 
     // Hide loading indicator when Flutter app loads
+    var __flutterFirstFrameFired = false;
     window.addEventListener('flutter-first-frame', function () {
+      __flutterFirstFrameFired = true;
       const loading = document.getElementById('loading');
       if (loading) {
         loading.style.display = 'none';
       }
     });
+
+    // PWA load timeout: if Flutter hasn't rendered after 12s, show a
+    // recoverable error message with a reload button instead of leaving
+    // the user staring at an infinite spinner.
+    setTimeout(function () {
+      if (__flutterFirstFrameFired) return;
+      const loading = document.getElementById('loading');
+      if (!loading) return;
+      loading.innerHTML =
+        '<div style="text-align:center;font-family:Arial,sans-serif;color:#1a1a1a;padding:24px;max-width:480px;">' +
+          '<div style="font-size:48px;margin-bottom:12px;">\u26a0\ufe0f</div>' +
+          '<h2 style="margin:0 0 8px 0;">Die Seite konnte nicht geladen werden</h2>' +
+          '<p style="margin:0 0 20px 0;opacity:0.85;">Bitte pr\u00fcfe deine Internetverbindung und versuche es erneut.</p>' +
+          '<button onclick="window.location.reload()" ' +
+            'style="background:#c10003;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:16px;cursor:pointer;font-weight:600;">' +
+            'Seite neu laden</button>' +
+        '</div>';
+    }, 12000);
 
     // Function to update version display
     window.updateVersionDisplay = function(version) {

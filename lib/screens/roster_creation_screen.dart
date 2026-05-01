@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/player.dart';
+import '../utils/validators.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../services/tournament_service.dart';
@@ -238,13 +239,7 @@ class _RosterCreationScreenState extends State<RosterCreationScreen> {
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value?.trim().isEmpty == true) return 'Pflichtfeld';
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
-                      return 'Ungültige E-Mail';
-                    }
-                    return null;
-                  },
+                  validator: Validators.email,
                   onChanged: (_) => _onPlayerDataChanged(index),
                 ),
               ),

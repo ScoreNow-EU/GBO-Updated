@@ -72,7 +72,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
         games = gamesList;
         _loadScheduledGames();
       });
-      debugPrint('ðŸŽ® TO Software: Loaded ${games.length} games for tournament ${widget.tournament.name}');
+      debugPrint('Ã°Å¸Å½Â® TO Software: Loaded ${games.length} games for tournament ${widget.tournament.name}');
     } catch (e) {
       debugPrint('Error initializing games: $e');
     }
@@ -126,7 +126,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
     
     // If switching to schedule view, ensure games are loaded
     if (section == 'schedule_view') {
-      debugPrint('ðŸ”„ Switching to Schedule View - triggering game reload');
+      debugPrint('Ã°Å¸â€â€ž Switching to Schedule View - triggering game reload');
       _loadScheduledGames();
     }
   }
@@ -388,7 +388,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               ),
               const Spacer(),
               Text(
-                '${courts.length} Courts â€¢ ${games.length} Games',
+                '${courts.length} Courts Ã¢â‚¬Â¢ ${games.length} Games',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -420,38 +420,42 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
             Expanded(
               child: Row(
                 children: courts.map((court) {
-                  // Get real games assigned to this court
-                  // Handle both exact matches and court ID format mismatches
+                  // Get real games assigned to this court.
+                  // Direct id match is the canonical case; fall back to
+                  // matching by court name so historical games scheduled
+                  // before the court-id format was stabilised still render.
                   final courtGames = games.where((game) {
                     if (game.courtId == null) return false;
-                    
-                    // Direct match
                     if (game.courtId == court.id) return true;
-                    
-                    // Handle court ID format mismatch (e.g., tournamentId_court_timestamp vs actual court ID)
-                    // For now, assign all games to the first court as a temporary fix
-                    final courtIndex = courts.indexOf(court);
-                    final allGameCourtIds = games.map((g) => g.courtId).where((id) => id != null).toSet();
-                    if (allGameCourtIds.length == 1 && courtIndex == 0) {
-                      return true; // Assign all games to first court temporarily
+
+                    // Name fallback: only when the game's courtId does not
+                    // match ANY current court (would otherwise duplicate games
+                    // across courts when ids overlap).
+                    final allCourtIds = courts.map((c) => c.id).toSet();
+                    if (allCourtIds.contains(game.courtId)) return false;
+
+                    final fallbackName = _courtNameFor(game.courtId!);
+                    if (fallbackName != null &&
+                        fallbackName.toLowerCase() == court.name.toLowerCase()) {
+                      return true;
                     }
-                    
+
                     return false;
                   }).toList();
                   
-                  debugPrint('ðŸ TO Software: Court "${court.name}" (${court.id}): ${courtGames.length} games found');
+                  debugPrint('Ã°Å¸ÂÂ TO Software: Court "${court.name}" (${court.id}): ${courtGames.length} games found');
                   if (courtGames.isNotEmpty) {
                     for (final game in courtGames) {
-                      debugPrint('  ðŸ“ Game: ${game.teamAName} vs ${game.teamBName} (${game.id})');
+                      debugPrint('  Ã°Å¸â€œÂ Game: ${game.teamAName} vs ${game.teamBName} (${game.id})');
                     }
                   }
                   
                   // Debug output (only for first court to avoid spam)
                   if (courts.indexOf(court) == 0) {
-                    debugPrint('ðŸŽ® Total games loaded: ${games.length}');
+                    debugPrint('Ã°Å¸Å½Â® Total games loaded: ${games.length}');
                     if (games.isNotEmpty) {
-                      debugPrint('ðŸ” All game court IDs: ${games.map((g) => g.courtId).toSet()}');
-                      debugPrint('ðŸ” Available court IDs: ${courts.map((c) => c.id).toSet()}');
+                      debugPrint('Ã°Å¸â€Â All game court IDs: ${games.map((g) => g.courtId).toSet()}');
+                      debugPrint('Ã°Å¸â€Â Available court IDs: ${courts.map((c) => c.id).toSet()}');
                     }
                   }
                   return Flexible(
@@ -870,7 +874,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   Widget _buildScheduleView() {
     // Ensure games are loaded when building schedule view
     if (games.isNotEmpty && (_scheduledGames.isEmpty && _unscheduledGames.isEmpty)) {
-      debugPrint('ðŸ”„ Schedule View: No categorized games found, triggering reload');
+      debugPrint('Ã°Å¸â€â€ž Schedule View: No categorized games found, triggering reload');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadScheduledGames();
       });
@@ -900,7 +904,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
               ),
               const Spacer(),
               Text(
-                '${courts.length} Courts â€¢ ${_scheduledGames.length} Scheduled â€¢ ${_unscheduledGames.length} Unscheduled',
+                '${courts.length} Courts Ã¢â‚¬Â¢ ${_scheduledGames.length} Scheduled Ã¢â‚¬Â¢ ${_unscheduledGames.length} Unscheduled',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -1190,15 +1194,6 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                           court.name,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
-                        ),
-                        if (court.description.isNotEmpty)
-                          Text(
-                            court.description.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                            textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -1754,14 +1749,14 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
     _scheduledGames.clear();
     _unscheduledGames.clear();
     
-    debugPrint('ðŸ“… TO Software: Loading scheduled games for ${games.length} total games');
-    debugPrint('ðŸ“… Selected day index: $_selectedDayIndex');
+    debugPrint('Ã°Å¸â€œâ€¦ TO Software: Loading scheduled games for ${games.length} total games');
+    debugPrint('Ã°Å¸â€œâ€¦ Selected day index: $_selectedDayIndex');
     
     final tournamentDays = _getTournamentDays();
-    debugPrint('ðŸ“… Tournament days: ${tournamentDays.map((d) => '${d.day}.${d.month}.${d.year}').join(', ')}');
+    debugPrint('Ã°Å¸â€œâ€¦ Tournament days: ${tournamentDays.map((d) => '${d.day}.${d.month}.${d.year}').join(', ')}');
     
     for (final game in games) {
-      debugPrint('ðŸ“… Processing game: ${game.teamAName} vs ${game.teamBName}');
+      debugPrint('Ã°Å¸â€œâ€¦ Processing game: ${game.teamAName} vs ${game.teamBName}');
       debugPrint('    - scheduledTime: ${game.scheduledTime}');
       debugPrint('    - courtId: ${game.courtId}');
       debugPrint('    - status: ${game.status}');
@@ -1807,26 +1802,36 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
           final timeSlot = '$startTime-$endTimeStr';
           final key = "${matchedCourtId}_${timeSlot}_$dayIndex";
           _scheduledGames[key] = game;
-          debugPrint('ðŸ“… âœ… Scheduled game: ${game.teamAName} vs ${game.teamBName} on day $dayIndex at $timeSlot (court: $matchedCourtId)');
+          debugPrint('Ã°Å¸â€œâ€¦ Ã¢Å“â€¦ Scheduled game: ${game.teamAName} vs ${game.teamBName} on day $dayIndex at $timeSlot (court: $matchedCourtId)');
         } else {
-          debugPrint('ðŸ“… âŒ Game date ${gameDate.day}.${gameDate.month}.${gameDate.year} does not match any tournament day');
-          // TEMPORARY FIX: For games that don't match tournament days, 
-          // put them in the current selected day to show them
-          final startTime = '${game.scheduledTime!.hour.toString().padLeft(2, '0')}:${game.scheduledTime!.minute.toString().padLeft(2, '0')}';
-          final endTime = game.scheduledTime!.add(Duration(minutes: _timeSlotDuration));
-          final endTimeStr = '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
-          final timeSlot = '$startTime-$endTimeStr';
-          final key = "${matchedCourtId}_${timeSlot}_$_selectedDayIndex";
-          _scheduledGames[key] = game;
-          debugPrint('ðŸ“… ðŸ”§ TEMP FIX: Showing game on selected day $_selectedDayIndex (court: $matchedCourtId)');
+          // No matching tournament day. Skip the game and surface a warning —
+          // the previous behaviour silently dropped it onto the selected day,
+          // which masked stale or mis-scheduled data.
+          debugPrint(
+            '⚠️ to-software: game ${game.id} (${game.teamAName} vs ${game.teamBName}) '
+            'has scheduledTime ${gameDate.toIso8601String()} which falls outside '
+            'the tournament day range — skipping.',
+          );
+          _unscheduledGames.add(game);
         }
       } else {
         _unscheduledGames.add(game);
-        debugPrint('ðŸ“… âž• Unscheduled game: ${game.teamAName} vs ${game.teamBName} (missing scheduledTime or courtId)');
+        debugPrint('Ã°Å¸â€œâ€¦ Ã¢Å¾â€¢ Unscheduled game: ${game.teamAName} vs ${game.teamBName} (missing scheduledTime or courtId)');
       }
     }
     
-    debugPrint('ðŸ“… Final result: ${_scheduledGames.length} scheduled games, ${_unscheduledGames.length} unscheduled games');
+    debugPrint('Ã°Å¸â€œâ€¦ Final result: ${_scheduledGames.length} scheduled games, ${_unscheduledGames.length} unscheduled games');
+  }
+
+  /// Best-effort recovery for legacy court ids whose embedded label still
+  /// matches a current court name (e.g. ids like "court_<ts>_A" or
+  /// "<tournamentId>_court_<ts>"). Returns null when no hint can be derived.
+  String? _courtNameFor(String courtId) {
+    final lastSegment = courtId.split('_').last.trim();
+    if (lastSegment.isEmpty || RegExp(r'^[0-9]+$').hasMatch(lastSegment)) {
+      return null;
+    }
+    return lastSegment;
   }
 
   List<DateTime> _getTournamentDays() {
@@ -2438,7 +2443,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
             children: [
               Icon(_getStatusIcon(newStatus), color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text('${game.teamAName} vs ${game.teamBName} â†’ ${_getStatusText(newStatus)}'),
+              Text('${game.teamAName} vs ${game.teamBName} Ã¢â€ â€™ ${_getStatusText(newStatus)}'),
             ],
           ),
           backgroundColor: _getStatusColor(newStatus),
@@ -2446,9 +2451,9 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
         ),
       );
       
-      debugPrint('âœ… Game status updated: ${game.teamAName} vs ${game.teamBName} â†’ ${_getStatusText(newStatus)}');
+      debugPrint('Ã¢Å“â€¦ Game status updated: ${game.teamAName} vs ${game.teamBName} Ã¢â€ â€™ ${_getStatusText(newStatus)}');
     } catch (e) {
-      debugPrint('âŒ Error updating game status: $e');
+      debugPrint('Ã¢ÂÅ’ Error updating game status: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(

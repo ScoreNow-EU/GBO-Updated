@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tournament.dart';
 import '../models/tournament_link.dart';
@@ -198,7 +198,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   bool _isEditingCourt = false; // State for editing mode
   Court? _selectedCourtForEditing;
   final _courtNameController = TextEditingController();
-  final _courtDescriptionController = TextEditingController();
   String _courtLabel = 'A'; // Default label for new courts
 
   bool _isLoading = false;
@@ -763,12 +762,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   _buildDrawerNavItem('pools', 'Pools', Icons.workspaces, screenWidth),
                   _buildDrawerNavItem('links', 'Links & Social Media', Icons.link, screenWidth),
                   _buildDrawerNavItem('games', 'Spiele', Icons.sports_handball, screenWidth),
-                  _buildDrawerNavItem('scheduling', 'Spielplanung', Icons.schedule, screenWidth),
                   _buildDrawerNavItem('courts', 'Plätze', Icons.place, screenWidth),
                   _buildDrawerNavItem('referees', 'Schiedsrichter', Icons.sports_hockey, screenWidth),
                   _buildDrawerNavItem('kampfgericht', 'Kampfgericht', Icons.gavel, screenWidth),
                   _buildDrawerNavItem('delegates', 'Delegierte', Icons.person_outline, screenWidth),
-                  _buildDrawerNavItem('assignment', 'Zuordnung', Icons.auto_fix_high, screenWidth),
+                  // Zuordnung tab hidden per ticket 1777589051169
                   _buildDrawerNavItem('stats', 'Statistiken', Icons.bar_chart, screenWidth),
                   _buildDrawerNavItem('sponsors', 'Sponsoren', Icons.handshake, screenWidth),
                   _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
@@ -881,12 +879,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 _buildNavItem('pools', 'Pools', Icons.workspaces),
                 _buildNavItem('links', 'Links & Social Media', Icons.link),
                 _buildNavItem('games', 'Spiele', Icons.sports_handball),
-                _buildNavItem('scheduling', 'Spielplanung', Icons.schedule),
                 _buildNavItem('courts', 'Plätze', Icons.place),
                 _buildNavItem('referees', 'Schiedsrichter', Icons.sports_hockey),
                 _buildNavItem('kampfgericht', 'Kampfgericht', Icons.gavel),
                 _buildNavItem('delegates', 'Delegierte', Icons.person_outline),
-                _buildNavItem('assignment', 'Zuordnung', Icons.auto_fix_high),
+                // Zuordnung tab hidden per ticket 1777589051169
                 _buildNavItem('stats', 'Statistiken', Icons.bar_chart),
                 _buildNavItem('sponsors', 'Sponsoren', Icons.handshake),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
@@ -949,8 +946,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Links & Social Media';
       case 'games':
         return 'Spiele';
-      case 'scheduling':
-        return 'Spielplanung';
       case 'courts':
         return 'Plätze';
       case 'referees':
@@ -959,8 +954,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Kampfgericht';
       case 'delegates':
         return 'Delegierte';
-      case 'assignment':
-        return 'Zuordnung';
       case 'stats':
         return 'Statistiken';
       case 'sponsors':
@@ -996,8 +989,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildLinksTab();
       case 'games':
         return _buildGamesTab();
-      case 'scheduling':
-        return _buildSchedulingTab();
       case 'courts':
         return _buildCourtsTab();
       case 'referees':
@@ -1006,8 +997,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildKampfgerichtTab();
       case 'delegates':
         return _buildDelegatesTab();
-      case 'assignment':
-        return _buildAssignmentTab();
+      // 'assignment' tab hidden per ticket 1777589051169
       case 'stats':
         if (widget.tournament == null) {
           return Center(
@@ -1222,8 +1212,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         );
       case 'games':
         return _buildGamesTab();
-      case 'scheduling':
-        return _buildSchedulingTab();
       case 'courts':
         return _buildCourtsTab();
       case 'referees':
@@ -1232,8 +1220,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildKampfgerichtTab();
       case 'delegates':
         return _buildDelegatesTab();
-      case 'assignment':
-        return _buildAssignmentTab();
+      // 'assignment' tab hidden per ticket 1777589051169
       case 'stats':
         if (widget.tournament == null) {
           return Center(
@@ -2278,7 +2265,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                       children: [
                         const SizedBox(width: 44),
                         const Expanded(child: Text('Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                        const SizedBox(width: 140, child: Text('Typ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
                         const SizedBox(width: 48),
                       ],
                     ),
@@ -2311,21 +2297,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                                 child: Text(
                                   court.name,
                                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                              // Type chip
-                              SizedBox(
-                                width: 140,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    court.description.isNotEmpty ? court.description : '-',
-                                    style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
-                                  ),
                                 ),
                               ),
                               // Delete
@@ -2451,7 +2422,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       _selectedCourtForEditing = court;
       _isEditingCourt = true;
       _courtNameController.text = court.name;
-      _courtDescriptionController.text = court.description;
       _courtLabel = court.name;
     });
   }
@@ -2510,17 +2480,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
-              
-              // Description
-              TextFormField(
-                controller: _courtDescriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Beschreibung',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
             ],
           ),
         ),
@@ -2550,7 +2509,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               
               final updatedCourt = _selectedCourtForEditing!.copyWith(
                 name: _courtNameController.text.trim(),
-                description: _courtDescriptionController.text.trim(),
               );
               
               final success = await _courtService.updateCourt(updatedCourt);
@@ -2592,7 +2550,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   void _cancelCourtEditing() {
     // Reset form
     _courtNameController.clear();
-    _courtDescriptionController.clear();
     setState(() {
       _isEditingCourt = false;
     });
@@ -2601,7 +2558,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   void _showCourtDetailsDialog() {
     // Reset form for new court
     _courtNameController.text = _courtLabel;
-    _courtDescriptionController.clear();
 
     showDialog(
       context: context,
@@ -2619,17 +2575,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   border: OutlineInputBorder(),
                   hintText: 'z.B. A, B, 1, 2, etc.',
                 ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Description
-              TextFormField(
-                controller: _courtDescriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Beschreibung',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
               ),
             ],
           ),
@@ -2658,7 +2603,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               final court = Court(
                 id: '',
                 name: _courtNameController.text.trim(),
-                description: _courtDescriptionController.text.trim(),
               );
               
               final courtId = await _courtService.createCourt(court);
@@ -7793,14 +7737,18 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       try {
         final players = await _playerService.getPlayersByIds(teamAMatches.first.rosterPlayerIds);
         for (final p in players) teamAPlayerNames.add('${p.firstName} ${p.lastName}');
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ tournament edit: load team A roster failed: $e');
+      }
     }
     final teamBMatches = _allTeams.where((t) => t.id == game.teamBId);
     if (teamBMatches.isNotEmpty && teamBMatches.first.rosterPlayerIds.isNotEmpty) {
       try {
         final players = await _playerService.getPlayersByIds(teamBMatches.first.rosterPlayerIds);
         for (final p in players) teamBPlayerNames.add('${p.firstName} ${p.lastName}');
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ tournament edit: load team B roster failed: $e');
+      }
     }
 
     // Load existing events from Firestore
@@ -7824,7 +7772,9 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           ));
         }
         events.sort((a, b) => a.minute.compareTo(b.minute));
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ tournament edit: load existing game events failed: $e');
+      }
     }
 
     if (!mounted) return;
@@ -8868,8 +8818,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                               final tournamentTeams = _allTeams.where((t) => _selectedTeamIds.contains(t.id)).toList();
                               String? teamAId;
                               String? teamBId;
-                              try { teamAId = tournamentTeams.firstWhere((t) => t.name.toLowerCase() == teamAName.toLowerCase()).id; } catch (_) {}
-                              try { teamBId = tournamentTeams.firstWhere((t) => t.name.toLowerCase() == teamBName.toLowerCase()).id; } catch (_) {}
+                              try { teamAId = tournamentTeams.firstWhere((t) => t.name.toLowerCase() == teamAName.toLowerCase()).id; } catch (e) { debugPrint('⚠️ tournament edit: no team match for "$teamAName": $e'); }
+                              try { teamBId = tournamentTeams.firstWhere((t) => t.name.toLowerCase() == teamBName.toLowerCase()).id; } catch (e) { debugPrint('⚠️ tournament edit: no team match for "$teamBName": $e'); }
 
                               final game = Game(
                                 id: '',
@@ -9968,15 +9918,6 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
-                        if (court.description.isNotEmpty)
-                          Text(
-                            court.description.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
                       ],
                     ),
                   ),
@@ -11373,7 +11314,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               final name = nameController.text.trim();
               if (name.isEmpty) return;
               final newCourt = Court(
-                id: '${widget.tournament?.id ?? 'new'}_court_${DateTime.now().millisecondsSinceEpoch}',
+                id: 'court_${DateTime.now().millisecondsSinceEpoch}_${_tournamentCourts.length}',
                 name: name,
                 );
                 setState(() {
@@ -11392,9 +11333,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   void _addTournamentCourt() {
     final courtName = String.fromCharCode(65 + _tournamentCourts.length); // A, B, C, etc.
     final newCourt = Court(
-      id: '${widget.tournament?.id ?? 'new'}_court_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'court_${DateTime.now().millisecondsSinceEpoch}_${_tournamentCourts.length}',
       name: courtName,
-      description: 'Court for ${widget.tournament?.name ?? 'Tournament'}',
     );
     
     setState(() {
@@ -12537,7 +12477,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
           city: teamData['city'] as String,
           bundesland: 'Demo State',
           teamManager: teamData['teamManager'] as String,
-          rosterPlayerIds: teamData['playerIds'] as List<String>,
+          rosterPlayerIds: List<String>.from(teamData['playerIds'] as List),
           createdAt: DateTime.now(),
         );
 

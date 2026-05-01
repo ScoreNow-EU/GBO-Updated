@@ -93,34 +93,77 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              const Text(
-                'Teams verwalten',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.indigo.shade600, Colors.indigo.shade400],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: () => _showTeamDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Neues Team'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black87,
-                  foregroundColor: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.indigo.withOpacity(0.18),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.groups_2_rounded, color: Colors.white, size: 28),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Teams verwalten',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_filteredTeams.length} / ${_teams.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () => _showTeamDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Neues Team'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.indigo.shade700,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          // Search and filters
+          const SizedBox(height: 20),
           _buildSearchAndFilters(),
           const SizedBox(height: 16),
           Expanded(
-            child: _isLoading 
+            child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _buildTeamsList(),
           ),
@@ -163,25 +206,47 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   }
 
   Widget _buildSearchAndFilters() {
-    return Column(
-      children: [
-        TextField(
-          decoration: InputDecoration(
-            hintText: 'Team suchen...',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-          },
+        ],
+      ),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Team oder Stadt suchen...',
+          prefixIcon: Icon(Icons.search, color: Colors.indigo.shade400),
+          suffixIcon: _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => setState(() => _searchQuery = ''),
+                ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.indigo.shade300, width: 1.5),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-
-      ],
+        onChanged: (value) => setState(() => _searchQuery = value),
+      ),
     );
   }
 
@@ -231,105 +296,203 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   }
 
   Widget _buildTeamCard(Team team, {required bool isMobile}) {
+    final initial = team.name.isNotEmpty ? team.name[0].toUpperCase() : '?';
+    final accent = _accentForTeam(team);
+    final secondary = team.secondaryColor != null
+        ? Color(team.secondaryColor!)
+        : accent.withOpacity(0.85);
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _editTeam(team),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Accent stripe + avatar stack
+              Container(
+                width: 4,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                width: isMobile ? 50 : 46,
+                height: isMobile ? 50 : 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [secondary, accent],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: (team.logoUrl != null && team.logoUrl!.isNotEmpty)
+                    ? ClipOval(
+                        child: Image.network(
+                          team.logoUrl!,
+                          fit: BoxFit.cover,
+                          width: isMobile ? 50 : 46,
+                          height: isMobile ? 50 : 46,
+                          errorBuilder: (_, __, ___) => Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        initial,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              // Team info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team.name,
+                      style: TextStyle(
+                        fontSize: isMobile ? 17 : 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _chip(Icons.location_on_outlined,
+                            '${team.city}, ${team.bundesland}'),
+                        _chip(Icons.group_outlined,
+                            '${team.rosterPlayerIds.length} Spieler'),
+                        if ((team.teamManager ?? '').isNotEmpty)
+                          _chip(Icons.person_outline, team.teamManager!),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Actions
+              if (isMobile)
+                PopupMenuButton<String>(
+                  onSelected: (value) => _handleTeamAction(value, team),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 18),
+                          SizedBox(width: 8),
+                          Text('Bearbeiten'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 18, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Löschen',
+                              style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      onPressed: () => _editTeam(team),
+                      icon: Icon(Icons.edit_outlined,
+                          size: 20, color: Colors.indigo.shade400),
+                      tooltip: 'Team bearbeiten',
+                    ),
+                    IconButton(
+                      onPressed: () => _deleteTeam(team),
+                      icon: Icon(Icons.delete_outline,
+                          size: 20, color: Colors.red.shade400),
+                      tooltip: 'Team löschen',
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Team avatar
-            TeamAvatar(
-              teamName: team.name,
-              size: isMobile ? 45 : 40,
+    );
+  }
+
+  Color _accentForTeam(Team team) {
+    if (team.primaryColor != null) return Color(team.primaryColor!);
+    const palette = <Color>[
+      Color(0xFF3F51B5),
+      Color(0xFF009688),
+      Color(0xFFE91E63),
+      Color(0xFFFF9800),
+      Color(0xFF4CAF50),
+      Color(0xFF9C27B0),
+      Color(0xFF2196F3),
+      Color(0xFFF44336),
+    ];
+    final hash = team.id.hashCode.abs();
+    return palette[hash % palette.length];
+  }
+
+  Widget _chip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.grey.shade700),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(width: 12),
-            
-            // Team info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    team.name,
-                    style: TextStyle(
-                      fontSize: isMobile ? 16 : 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${team.city}, ${team.bundesland}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: isMobile ? 14 : 12,
-                    ),
-                  ),
-                  Text(
-                    team.city,
-                    style: TextStyle(
-                      color: Colors.blue[600],
-                      fontSize: isMobile ? 12 : 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Actions
-            if (isMobile)
-              PopupMenuButton<String>(
-                onSelected: (value) => _handleTeamAction(value, team),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 18),
-                        SizedBox(width: 8),
-                        Text('Bearbeiten'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('L�schen', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () => _editTeam(team),
-                    icon: const Icon(Icons.edit, size: 18),
-                    tooltip: 'Team bearbeiten',
-                  ),
-                  IconButton(
-                    onPressed: () => _deleteTeam(team),
-                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                    tooltip: 'Team l�schen',
-                  ),
-                ],
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

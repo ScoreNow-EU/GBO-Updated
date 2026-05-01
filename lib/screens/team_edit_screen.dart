@@ -7,6 +7,7 @@ import '../services/player_service.dart';
 import '../services/team_manager_service.dart';
 import '../widgets/team_avatar.dart';
 import '../widgets/state_dropdown.dart';
+import '../widgets/player_edit_dialog.dart';
 
 class TeamEditScreen extends StatefulWidget {
   final String teamId;
@@ -36,6 +37,8 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
   final _cityController = TextEditingController();
   
   String _selectedBundesland = 'Bayern';
+  Color? _primaryColor;
+  Color? _secondaryColor;
 
   @override
   void initState() {
@@ -61,6 +64,11 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           _nameController.text = team.name;
           _cityController.text = team.city;
           _selectedBundesland = team.bundesland;
+          _primaryColor =
+              team.primaryColor != null ? Color(team.primaryColor!) : null;
+          _secondaryColor = team.secondaryColor != null
+              ? Color(team.secondaryColor!)
+              : null;
         });
         
         // Load team players using rosterPlayerIds
@@ -123,13 +131,11 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     if (_team == null) {
       return Scaffold(
         backgroundColor: Colors.grey.shade50,
-        body: const Center(
-          child: Text('Team nicht gefunden'),
-        ),
+        body: const Center(child: Text('Team nicht gefunden')),
       );
     }
 
@@ -137,10 +143,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       backgroundColor: Colors.grey.shade50,
       body: Row(
         children: [
-          // Side navigation
           _buildSideNavigation(),
-          
-          // Main content
           Expanded(
             child: Container(
               color: Colors.grey[100],
@@ -173,7 +176,6 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             ),
             child: Stack(
               children: [
-                // Close button — return to teams overview
                 Positioned(
                   top: 0,
                   right: 0,
@@ -221,11 +223,10 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
-                _buildNavItem('basic', 'Basisdaten', Icons.info_outline),
+                _buildNavItem('basic', 'Details', Icons.info_outline),
                 _buildNavItem('roster', 'Kader', Icons.group),
-                _buildNavItem('officials', 'Team Officials', Icons.supervisor_account),
+                _buildNavItem('officials', 'Manager', Icons.supervisor_account),
                 _buildNavItem('tournaments', 'Turniere', Icons.sports_handball),
-                _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
           ),
@@ -377,6 +378,59 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.palette_outlined,
+                          size: 18, color: Colors.black54),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Team-Farben',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildColorField(
+                          label: 'Primärfarbe',
+                          color: _primaryColor,
+                          onPick: () async {
+                            final picked = await _pickColor(
+                                context, _primaryColor ?? Colors.indigo);
+                            if (picked != null) {
+                              setState(() => _primaryColor = picked);
+                            }
+                          },
+                          onClear: () => setState(() => _primaryColor = null),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildColorField(
+                          label: 'Sekundärfarbe',
+                          color: _secondaryColor,
+                          onPick: () async {
+                            final picked = await _pickColor(
+                                context, _secondaryColor ?? Colors.amber);
+                            if (picked != null) {
+                              setState(() => _secondaryColor = picked);
+                            }
+                          },
+                          onClear: () =>
+                              setState(() => _secondaryColor = null),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -463,7 +517,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Team Officials'),
+          _buildSectionTitle('Manager'),
           const SizedBox(height: 16),
           
           Card(
@@ -776,15 +830,14 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
 
     try {
       debugPrint('ðŸ Saving team data with roster: ${_team!.rosterPlayerIds}');
-      final updatedTeam = Team(
-        id: _team!.id,
+      final updatedTeam = _team!.copyWith(
         name: _nameController.text.trim(),
-        teamManager: _team!.teamManager,
-        logoUrl: _team!.logoUrl,
         city: _cityController.text.trim(),
         bundesland: _selectedBundesland,
-        rosterPlayerIds: _team!.rosterPlayerIds, // âœ… FIXED: Include roster data!
-        createdAt: _team!.createdAt,
+        primaryColor: _primaryColor?.value,
+        secondaryColor: _secondaryColor?.value,
+        clearPrimaryColor: _primaryColor == null,
+        clearSecondaryColor: _secondaryColor == null,
       );
 
       final success = await _teamService.updateTeam(_team!.id, updatedTeam);
@@ -811,8 +864,18 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     _showAddExistingPlayerDialog();
   }
 
-  void _editPlayer(Player player) {
-    _showEditPlayerDialog(player);
+  void _editPlayer(Player player) async {
+    final updated = await PlayerEditDialog.show(
+      context,
+      player: player,
+      teamContext: true,
+    );
+    if (updated != null && mounted) {
+      setState(() {
+        final idx = _players.indexWhere((p) => p.id == updated.id);
+        if (idx >= 0) _players[idx] = updated;
+      });
+    }
   }
 
   void _removePlayer(Player player) async {
@@ -1758,4 +1821,169 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       ),
     );
   }
-} 
+
+  Widget _buildColorField({
+    required String label,
+    required Color? color,
+    required VoidCallback onPick,
+    required VoidCallback onClear,
+  }) {
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(8),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          suffixIcon: color == null
+              ? const Icon(Icons.colorize, size: 18)
+              : IconButton(
+                  tooltip: 'Zurücksetzen',
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: onClear,
+                ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color ?? Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              color == null
+                  ? 'Nicht gesetzt'
+                  : '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Color?> _pickColor(BuildContext context, Color initial) async {
+    const swatches = <Color>[
+      Color(0xFF1E40AF), Color(0xFF2563EB), Color(0xFF3B82F6),
+      Color(0xFF0EA5E9), Color(0xFF06B6D4), Color(0xFF14B8A6),
+      Color(0xFF10B981), Color(0xFF22C55E), Color(0xFF84CC16),
+      Color(0xFFEAB308), Color(0xFFF59E0B), Color(0xFFF97316),
+      Color(0xFFEF4444), Color(0xFFDC2626), Color(0xFFE11D48),
+      Color(0xFFEC4899), Color(0xFFD946EF), Color(0xFFA855F7),
+      Color(0xFF8B5CF6), Color(0xFF6366F1), Color(0xFF4F46E5),
+      Color(0xFF1F2937), Color(0xFF374151), Color(0xFF6B7280),
+      Color(0xFFD1D5DB), Color(0xFFFFFFFF), Color(0xFF000000),
+    ];
+    Color selected = initial;
+    final hexController = TextEditingController(
+      text:
+          '#${initial.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+    );
+
+    return showDialog<Color>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Farbe wählen'),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: swatches
+                        .map((c) => GestureDetector(
+                              onTap: () => setLocal(() {
+                                selected = c;
+                                hexController.text =
+                                    '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+                              }),
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: c.value == selected.value
+                                        ? Colors.black
+                                        : Colors.grey.shade300,
+                                    width: c.value == selected.value ? 2.5 : 1,
+                                  ),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: selected,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: hexController,
+                          decoration: const InputDecoration(
+                            labelText: 'HEX',
+                            hintText: '#RRGGBB',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          onSubmitted: (v) {
+                            final parsed = _parseHexColor(v);
+                            if (parsed != null) {
+                              setLocal(() => selected = parsed);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Abbrechen'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final parsed = _parseHexColor(hexController.text);
+                  Navigator.of(ctx).pop(parsed ?? selected);
+                },
+                child: const Text('Übernehmen'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Color? _parseHexColor(String input) {
+    var hex = input.trim().replaceAll('#', '');
+    if (hex.length == 6) hex = 'FF$hex';
+    if (hex.length != 8) return null;
+    final value = int.tryParse(hex, radix: 16);
+    if (value == null) return null;
+    return Color(value);
+  }
+}

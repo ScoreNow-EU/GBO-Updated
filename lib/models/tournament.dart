@@ -680,10 +680,12 @@ class Tournament {
         ? _convertToDateTime(map['registrationDeadline'])
         : null,
       pools: map['pools'] != null
-        ? Map<String, List<String>>.from(map['pools'])
+        ? (map['pools'] as Map).map((key, value) =>
+            MapEntry(key.toString(), List<String>.from(value as List? ?? const [])))
         : {},
       poolMetadata: map['poolMetadata'] != null
-        ? Map<String, Map<String, dynamic>>.from(map['poolMetadata'])
+        ? (map['poolMetadata'] as Map).map((key, value) =>
+            MapEntry(key.toString(), Map<String, dynamic>.from(value as Map)))
         : {},
       results: map['results'] != null
         ? _parseResults(map['results'])

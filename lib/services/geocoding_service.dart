@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Service for geocoding German addresses via OpenStreetMap Nominatim
@@ -112,7 +113,7 @@ class GeocodingService {
       _geocodeCache[cacheKey] = null;
       return null;
     } catch (e) {
-      print('Geocoding error: $e');
+      debugPrint('Geocoding error: $e');
       return null;
     }
   }
@@ -156,7 +157,7 @@ class GeocodingService {
       _distanceCache[cacheKey] = null;
       return null;
     } catch (e) {
-      print('OSRM distance calculation error: $e');
+      debugPrint('OSRM distance calculation error: $e');
       return null;
     }
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
+import '../utils/validators.dart';
+import '../utils/version_helper.dart';
 import '../models/user.dart' as app_user;
 import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
@@ -194,15 +196,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         labelText: 'E-Mail',
                         border: OutlineInputBorder(),
                       ),
-                      validator: (value) {
-                        if (value?.isEmpty == true) {
-                          return 'Bitte geben Sie Ihre E-Mail-Adresse ein';
-                        }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
-                          return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
-                        }
-                        return null;
-                      },
+                      validator: Validators.email,
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -414,8 +408,56 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+
+            // About this app
+            _buildAboutCard(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAboutCard() {
+    return _buildSectionCard(
+      title: 'Über die App',
+      child: FutureBuilder<String>(
+        future: VersionHelper.getFullAppVersion(),
+        builder: (context, snapshot) {
+          final version = snapshot.data ?? '…';
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Rollstuhlhandball Bundesliga',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Version $version',
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '© Rollstuhlhandball Bundesliga',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => showLicensePage(
+                    context: context,
+                    applicationName: 'Rollstuhlhandball Bundesliga',
+                    applicationVersion: version,
+                  ),
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Open-Source-Lizenzen anzeigen'),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

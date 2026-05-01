@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import '../utils/validators.dart';
 import '../services/auth_service.dart';
 import '../services/team_service.dart';
 import '../models/team.dart';
@@ -84,7 +85,7 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
     }
 
     // Basic email validation
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(_emailController.text)) {
+    if (!Validators.isValidEmail(_emailController.text)) {
       _showErrorToast('Bitte geben Sie eine gültige Email-Adresse ein');
       return;
     }

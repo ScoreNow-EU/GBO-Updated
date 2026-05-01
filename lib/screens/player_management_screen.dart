@@ -7,6 +7,7 @@ import '../models/team.dart';
 import '../services/player_service.dart';
 import '../services/team_service.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/player_edit_dialog.dart';
 import 'bulk_add_players_screen.dart';
 import 'csv_player_processing_screen.dart';
 
@@ -541,20 +542,19 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
     }
   }
 
-  void _showAddPlayerDialog() {
-    _clearFormControllers();
-    _showPlayerDialog(isEdit: false);
+  void _showAddPlayerDialog() async {
+    final created = await PlayerEditDialog.show(context, player: null);
+    if (created != null) {
+      // Stream-based list refreshes automatically; nothing else to do.
+    }
   }
 
-  void _showEditPlayerDialog(Player player) {
-    _firstNameController.text = player.firstName;
-    _lastNameController.text = player.lastName;
-    _emailController.text = player.email ?? '';
-    _phoneController.text = player.phone ?? '';
-    _positionController.text = player.classification ?? '';
-    _jerseyNumberController.text = player.jerseyNumber ?? '';
-    _spielerpassController.text = player.spielerpassNummer ?? '';
-    _showPlayerDialog(isEdit: true, player: player);
+  void _showEditPlayerDialog(Player player) async {
+    final updated =
+        await PlayerEditDialog.show(context, player: player);
+    if (updated != null) {
+      // Stream-based list refreshes automatically.
+    }
   }
 
   void _showPlayerDialog({required bool isEdit, Player? player}) {

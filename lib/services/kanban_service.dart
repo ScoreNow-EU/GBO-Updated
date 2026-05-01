@@ -99,11 +99,25 @@ class KanbanService {
     return null;
   }
 
+  /// Allocates the next sequential task ID in the form `t<number>` using a
+  /// transactional counter doc (`kanban_meta/task_counter`). Counter starts
+  /// at 52 (max existing legacy `t##` ID is t51 in planning/kanban_board.json).
+  Future<String> _allocateNextTaskId() async {
+    final counterRef = _firestore.collection('kanban_meta').doc('task_counter');
+    return _firestore.runTransaction<String>((txn) async {
+      final snap = await txn.get(counterRef);
+      final current = (snap.data()?['nextId'] as int?) ?? 52;
+      txn.set(counterRef, {'nextId': current + 1});
+      return 't$current';
+    });
+  }
+
   Future<String?> createTask(KanbanTask task) async {
     try {
+      final newId = await _allocateNextTaskId();
       // Ensure the task is assigned to the default board
       final taskWithBoard = KanbanTask(
-        id: task.id,
+        id: newId,
         title: task.title,
         description: task.description,
         type: task.type,
@@ -130,7 +144,8 @@ class KanbanService {
         boardId: _defaultBoardId, // Force to default board
         position: task.position,
       );
-      final docRef = await _firestore.collection(_tasksCollection).add(taskWithBoard.toFirestore());
+      final docRef = _firestore.collection(_tasksCollection).doc(newId);
+      await docRef.set(taskWithBoard.toFirestore());
       return docRef.id;
     } catch (e) {
       debugPrint('Error creating task: $e');

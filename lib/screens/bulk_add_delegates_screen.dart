@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/delegate.dart';
+import '../utils/validators.dart';
 import '../services/delegate_service.dart';
 
 class BulkAddDelegatesScreen extends StatefulWidget {
@@ -222,7 +223,7 @@ class _BulkAddDelegatesScreenState extends State<BulkAddDelegatesScreen> {
         final lastName = nameParts.skip(1).join(' ');
 
         // Email validation
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(email)) {
+        if (!Validators.isValidEmail(email)) {
           errors.add('Zeile ${i + 1}: Ungültige E-Mail-Adresse');
           continue;
         }

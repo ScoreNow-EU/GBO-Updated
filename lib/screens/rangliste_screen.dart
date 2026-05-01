@@ -75,7 +75,9 @@ class _RanglisteScreenState extends State<RanglisteScreen> {
         try {
           final date = DateTime.parse(dateStr);
           years.add(date.year.toString());
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('⚠️ rangliste: invalid points-history date "$dateStr": $e');
+        }
       }
     }
     

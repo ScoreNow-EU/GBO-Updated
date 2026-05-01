@@ -13,6 +13,10 @@ class Team {
   final List<String> rosterPlayerIds;
   final int totalPoints; // Sum of tournament placement points (7,6,5,4,3,2,1,0)
   final List<Map<String, dynamic>> pointsHistory; // Array of tournaments with points earned
+  /// Primary brand color stored as ARGB int (e.g. `0xFF3F51B5`).
+  final int? primaryColor;
+  /// Secondary / accent brand color stored as ARGB int.
+  final int? secondaryColor;
   final DateTime createdAt;
 
   Team({
@@ -28,6 +32,8 @@ class Team {
     this.rosterPlayerIds = const [],
     this.totalPoints = 0,
     this.pointsHistory = const [],
+    this.primaryColor,
+    this.secondaryColor,
     required this.createdAt,
   });
 
@@ -44,6 +50,8 @@ class Team {
       'rosterPlayerIds': rosterPlayerIds,
       'totalPoints': totalPoints,
       'pointsHistory': pointsHistory,
+      'primaryColor': primaryColor,
+      'secondaryColor': secondaryColor,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -64,6 +72,8 @@ class Team {
       rosterPlayerIds: List<String>.from(data['rosterPlayerIds'] ?? []),
       totalPoints: data['totalPoints'] ?? 0,
       pointsHistory: List<Map<String, dynamic>>.from(data['pointsHistory'] ?? []),
+      primaryColor: (data['primaryColor'] as num?)?.toInt(),
+      secondaryColor: (data['secondaryColor'] as num?)?.toInt(),
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate() 
           : DateTime.now(),
@@ -82,6 +92,10 @@ class Team {
     List<String>? rosterPlayerIds,
     int? totalPoints,
     List<Map<String, dynamic>>? pointsHistory,
+    int? primaryColor,
+    int? secondaryColor,
+    bool clearPrimaryColor = false,
+    bool clearSecondaryColor = false,
   }) {
     return Team(
       id: id,
@@ -96,6 +110,9 @@ class Team {
       rosterPlayerIds: rosterPlayerIds ?? this.rosterPlayerIds,
       totalPoints: totalPoints ?? this.totalPoints,
       pointsHistory: pointsHistory ?? this.pointsHistory,
+      primaryColor: clearPrimaryColor ? null : (primaryColor ?? this.primaryColor),
+      secondaryColor:
+          clearSecondaryColor ? null : (secondaryColor ?? this.secondaryColor),
       createdAt: createdAt,
     );
   }

@@ -5,6 +5,7 @@ import 'team_service.dart';
 import 'tournament_service.dart';
 import 'referee_service.dart';
 import 'delegate_service.dart';
+import 'kampfgericht_service.dart';
 import 'preset_service.dart';
 
 class PreloaderService {
@@ -28,6 +29,7 @@ class PreloaderService {
   TournamentService? _tournamentService;
   RefereeService? _refereeService;
   DelegateService? _delegateService;
+  KampfgerichtService? _kampfgerichtService;
   PresetService? _presetService;
 
   // Getter for services with Firebase check
@@ -49,6 +51,11 @@ class PreloaderService {
   DelegateService? get delegateService {
     if (!isFirebaseAvailable) return null;
     return _delegateService ??= DelegateService();
+  }
+
+  KampfgerichtService? get kampfgerichtService {
+    if (!isFirebaseAvailable) return null;
+    return _kampfgerichtService ??= KampfgerichtService();
   }
 
   PresetService? get presetService {
@@ -79,10 +86,23 @@ class PreloaderService {
           futures.add(tournamentService!.initializeSampleData());
           futures.add(tournamentService!.preloadTournaments());
         }
-        
-        // Only preload services that have preload methods implemented
-        // TODO: Add preload methods to other services when implemented
-        
+
+        // Trigger fetches that prime each service's internal cache.
+        // We ignore the returned lists — first consumers will read from
+        // the cache populated here.
+        if (refereeService != null) {
+          futures.add(refereeService!.getAllReferees());
+        }
+        if (delegateService != null) {
+          futures.add(delegateService!.getAllDelegates());
+        }
+        if (kampfgerichtService != null) {
+          futures.add(kampfgerichtService!.getAllMembers());
+        }
+        if (presetService != null) {
+          futures.add(presetService!.getPresets());
+        }
+
         // Wait for all preloads to complete (or timeout after 30 seconds)
         await Future.wait(futures).timeout(
           const Duration(seconds: 30),

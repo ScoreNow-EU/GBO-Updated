@@ -145,7 +145,9 @@ class _KioskScreenState extends State<KioskScreen> {
           isRunning: isRunning,
           events: events,
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ kiosk: live state for game ${game.id} failed: $e');
+      }
     }
     if (mounted) setState(() => _liveStates = newStates);
   }
@@ -155,7 +157,9 @@ class _KioskScreenState extends State<KioskScreen> {
     try {
       final standings = await _statsService.getOverallTeamStats(_tournament!.id);
       if (mounted) setState(() => _standings = standings);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('⚠️ kiosk: refresh standings failed: $e');
+    }
   }
 
   void _rotateView() {

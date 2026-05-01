@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
 import '../models/referee.dart';
+import '../utils/validators.dart';
 import '../services/referee_service.dart';
 
 class BulkAddRefereesScreen extends StatefulWidget {
@@ -264,15 +265,7 @@ class _BulkAddRefereesScreenState extends State<BulkAddRefereesScreen> {
                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   keyboardType: TextInputType.emailAddress,
-                  validator: isLast ? null : (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'E-Mail eingeben';
-                    }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
-                      return 'Gültige E-Mail eingeben';
-                    }
-                    return null;
-                  },
+                  validator: isLast ? null : Validators.email,
                 ),
               ),
             ],

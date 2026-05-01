@@ -687,8 +687,8 @@ class _SideNavigationState extends State<SideNavigation> {
           _buildNavigationItemColored(
             icon: Icons.badge,
             title: 'Spielerpass-Kontrolle',
-            key: 'delegate_dashboard',
-            isSelected: false,
+            key: 'spielerpass_kontrolle',
+            isSelected: widget.selectedSection == 'spielerpass_kontrolle',
             selectedColor: Colors.indigo.shade900,
           ),
           _buildNavigationItemColored(
@@ -1023,6 +1023,12 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Datenverwaltung',
             key: 'admin_data_management',
             isSelected: widget.selectedSection == 'admin_data_management',
+          ),
+          _buildAdminItem(
+            icon: Icons.backup,
+            title: 'Backup & Restore',
+            key: 'admin_backup',
+            isSelected: widget.selectedSection == 'admin_backup',
           ),
           _buildAdminItem(
             icon: Icons.view_kanban,

@@ -184,7 +184,9 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
               _gamesFingerprint = newFp;
               setState(() => _cachedGames = newGames);
             }
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('⚠️ tournament detail: games refresh failed: $e');
+          }
         });
       } catch (e) {
         debugPrint('Error preloading games: $e');

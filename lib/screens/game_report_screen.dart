@@ -87,7 +87,9 @@ class _GameReportScreenState extends State<GameReportScreen> {
         if (widget.game.teamBId != null) {
           _squadB = await _gameSquadService.getSquadForGame(widget.game.id, widget.game.teamBId!);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ game report: load squads failed: $e');
+      }
 
       // Load confirmation state
       try {
@@ -106,13 +108,17 @@ class _GameReportScreenState extends State<GameReportScreen> {
           }
           _isLocked = data['isLocked'] ?? false;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ game report: load confirmation state failed: $e');
+      }
 
       // Check for open protests
       try {
         final protestService = ProtestService();
         _hasOpenProtests = await protestService.hasOpenProtests(widget.game.id);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('⚠️ game report: protest check failed: $e');
+      }
     } catch (e) {
       debugPrint('Error loading game report data: $e');
     }

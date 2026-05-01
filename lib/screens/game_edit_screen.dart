@@ -448,11 +448,6 @@ class _GameEditScreenState extends State<GameEditScreen> {
                     court.name,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  if (court.description.isNotEmpty)
-                    Text(
-                      court.description,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    ),
                 ],
               ),
             );

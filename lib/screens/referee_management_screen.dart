@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:toastification/toastification.dart';
+import '../utils/validators.dart';
 import '../models/referee.dart';
 import '../services/referee_service.dart';
 import '../utils/responsive_helper.dart';
@@ -802,15 +803,7 @@ class _RefereeManagementScreenState extends State<RefereeManagementScreen> {
                         controller: _emailController,
                         decoration: const InputDecoration(labelText: 'E-Mail *'),
                         keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Bitte geben Sie eine E-Mail-Adresse ein';
-                          }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
-                            return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
-                          }
-                          return null;
-                        },
+                        validator: Validators.email,
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(

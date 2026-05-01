@@ -3,12 +3,10 @@
 class Court {
   final String id;
   final String name;
-  final String description;
 
   Court({
     required this.id,
     required this.name,
-    this.description = '',
   });
 
   // Convert to Map for Firestore
@@ -16,7 +14,6 @@ class Court {
     return {
       'id': id,
       'name': name,
-      'description': description,
     };
   }
 
@@ -25,7 +22,6 @@ class Court {
     return Court(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
-      description: map['description'] ?? '',
     );
   }
 
@@ -33,12 +29,10 @@ class Court {
   Court copyWith({
     String? id,
     String? name,
-    String? description,
   }) {
     return Court(
       id: id ?? this.id,
       name: name ?? this.name,
-      description: description ?? this.description,
     );
   }
 

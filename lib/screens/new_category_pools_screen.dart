@@ -1552,6 +1552,9 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                   pool['gamesGenerated'] == true
                     ? '${pool['gameCount']} Spiele neu generieren'
                     : 'Spiele generieren',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  softWrap: false,
                   style: TextStyle(
                     color: pool['gamesGenerated'] == true ? Colors.orange[700] : Colors.blue[700],
                   ),
@@ -2035,6 +2038,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                               teamCount: teamCount,
                               gameMode: gameMode,
                               columnIndex: columnIndex,
+                              autofill: autofillTeams,
                             );
                           },
                           child: const Text('Pool erstellen'),
@@ -2056,20 +2060,33 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     required int teamCount,
     required String gameMode,
     required int columnIndex,
+    bool autofill = false,
   }) {
     setState(() {
       final poolId = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
+      // Prepare team slots, optionally pre-filled with random available teams.
+      final List<Team?> teamSlots = List<Team?>.filled(teamCount, null);
+      if (autofill) {
+        final available = List<Team>.from(_getAvailableTeams())..shuffle();
+        final take = available.take(teamCount).toList();
+        for (int i = 0; i < take.length; i++) {
+          teamSlots[i] = take[i];
+          _teamPositions[take[i].id] =
+              'pool_${_selectedCategory}_$poolId';
+        }
+      }
+
       _createdNodes.add({
         'id': poolId,
         'type': 'pool',
         'name': name,
         'teamCount': teamCount,
         'gameMode': gameMode,
-        'teams': List<Team?>.filled(teamCount, null),
+        'teams': teamSlots,
         'column': columnIndex,
       });
-      
+
       _saveState();
       _saveTournament();
     });
@@ -2982,6 +2999,29 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                               final team = index < assignedTeams.length ? assignedTeams[index] : null;
                               
                               return DragTarget<Map<String, dynamic>>(
+                                onWillAccept: (data) {
+                                  if (data == null) return false;
+                                  // Block direct pool -> KO drag; teams must
+                                  // first go back to the sidebar.
+                                  if (data['origin'] == 'pool') {
+                                    return false;
+                                  }
+                                  return true;
+                                },
+                                onLeave: (data) {
+                                  if (data != null && data['origin'] == 'pool') {
+                                    toastification.show(
+                                      context: context,
+                                      type: ToastificationType.warning,
+                                      style: ToastificationStyle.fillColored,
+                                      title: const Text('Nicht erlaubt'),
+                                      description: const Text(
+                                        'Teams können nicht direkt aus einem Pool in eine KO-Runde verschoben werden. Bitte zuerst zurück in die Seitenleiste ziehen.',
+                                      ),
+                                      autoCloseDuration: const Duration(seconds: 3),
+                                    );
+                                  }
+                                },
                                 onAccept: (data) {
                                   if (data.containsKey('team')) {
                                     final droppedTeam = data['team'] as Team;

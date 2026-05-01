@@ -73,6 +73,19 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   List<Game> _currentGames = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
+
+  /// True when this user has no managed account but is allowed to use the
+  /// scoring tablet via a fallback role and must manually pick a tournament
+  /// and court before games are shown.
+  bool _needsManualSelection = false;
+
+  /// Whether the current user has a privileged role that allows seeing
+  /// games beyond the tablet's strict court assignment (Admin, Delegate,
+  /// or Team-RHD). Used to gate the "show all games" fallback.
+  bool get _hasFallbackRole => widget.user.roles.any((r) =>
+      r == app_user.UserRole.admin ||
+      r == app_user.UserRole.delegate ||
+      r == app_user.UserRole.teamRHD);
   DateTime? _lastRefresh;
   
   // Animation controllers
@@ -214,11 +227,30 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       
       final allAccounts = await _managedAccountService.getAllManagedAccounts().first;
       debugPrint(' Found ${allAccounts.length} managed accounts total');
-      
-      _managedAccount = allAccounts.firstWhere(
-        (account) => account.email == widget.user.email,
-        orElse: () => throw Exception('Managed account not found for email: ${widget.user.email}'),
-      );
+
+      ManagedAccount? account;
+      for (final a in allAccounts) {
+        if (a.email == widget.user.email) {
+          account = a;
+          break;
+        }
+      }
+
+      if (account == null) {
+        // No managed account: allow privileged users (admin/delegate/teamRHD)
+        // to manually pick a tournament + court instead of failing.
+        if (_hasFallbackRole) {
+          debugPrint(' No managed account for ${widget.user.email}, '
+              'falling back to manual tournament/court selection.');
+          if (mounted) {
+            setState(() => _needsManualSelection = true);
+          }
+          return;
+        }
+        throw Exception('Managed account not found for email: ${widget.user.email}');
+      }
+
+      _managedAccount = account;
 
       debugPrint(' Managed account found:');
       debugPrint('   - Email: ${_managedAccount!.email}');
@@ -259,7 +291,23 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       debugPrint('Error loading managed account data: $e');
       _showErrorToast('Fehler beim Laden der Account-Daten: ${e.toString()}');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Called from the manual selection UI after the privileged user has
+  /// picked a tournament + court.
+  Future<void> _applyManualSelection(Tournament tournament, Court court) async {
+    setState(() {
+      _assignedTournament = tournament;
+      _assignedCourt = court;
+      _needsManualSelection = false;
+      _isLoading = true;
+    });
+    try {
+      await _loadGames();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -312,11 +360,15 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         }
       }
       
-      // If still no matches, show ALL games for debugging (remove this in production)
+      // If still no matches, show ALL games for users with fallback role
       if (courtGames.isEmpty) {
-        debugPrint('[DEBUG]  Still no court matches found. For debugging, showing all games:');
-        courtGames = allGames;
-        debugPrint('[DEBUG]  DEBUG MODE: Showing all ${courtGames.length} games');
+        if (_hasFallbackRole) {
+          debugPrint('[DEBUG] No court matches; user has fallback role -> showing all games.');
+          courtGames = allGames;
+          debugPrint('[DEBUG] FALLBACK MODE: Showing all ${courtGames.length} games');
+        } else {
+          debugPrint('[DEBUG] No court matches and no fallback role; showing empty list.');
+        }
       }
       
       debugPrint('[DEBUG] Final result: ${courtGames.length} games for court "${_assignedCourt!.name}"');
@@ -398,8 +450,8 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
         }
       }
       
-      // If still no matches, show ALL games for debugging
-      if (courtGames.isEmpty) {
+      // If still no matches, show ALL games only for users with fallback role
+      if (courtGames.isEmpty && _hasFallbackRole) {
         courtGames = allGames;
       }
       
@@ -541,12 +593,89 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       return _buildLoadingScreen();
     }
 
+    if (_needsManualSelection) {
+      return _buildSelectionScreen();
+    }
+
     // Show games list by default, scoring interface only after game selection
     if (!_isInScoringMode) {
       return _buildGamesListInterface();
     } else {
       return _buildScoringInterface();
     }
+  }
+
+  /// Picker shown to privileged users (admin/delegate/teamRHD) who don't have
+  /// a managed account assignment. Lets them choose tournament + court so
+  /// the regular games list and scoring flow can be used.
+  Widget _buildSelectionScreen() {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        title: const Text('Turnier & Court wählen'),
+      ),
+      body: StreamBuilder<List<Tournament>>(
+        stream: _tournamentService.getTournaments(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Fehler beim Laden der Turniere: ${snapshot.error}'),
+              ),
+            );
+          }
+          final tournaments = (snapshot.data ?? const <Tournament>[])
+              .where((t) => t.courts.isNotEmpty)
+              .toList()
+            ..sort((a, b) => b.startDate.compareTo(a.startDate));
+
+          if (tournaments.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Keine Turniere mit Courts gefunden.'),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: tournaments.length,
+            itemBuilder: (context, index) {
+              final t = tournaments[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ExpansionTile(
+                  title: Text(
+                    t.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${t.courts.length} Court(s) · ${t.location}',
+                  ),
+                  children: t.courts.map((c) {
+                    return ListTile(
+                      leading: const Icon(Icons.sports_handball),
+                      title: Text(c.name),
+                      subtitle: Text('Court-ID: ${c.id}'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _applyManualSelection(t, c),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildGamesListInterface() {

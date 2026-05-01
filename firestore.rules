@@ -212,6 +212,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Error Reports (write-only sink for global error boundary) ─────
+    // Anyone (auth or unauth) may create a single error doc; size capped
+    // via field length checks. Only admins may read/delete via console.
+    match /errorReports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.error is string
+                    && request.resource.data.error.size() <= 4100
+                    && (!('stack' in request.resource.data)
+                        || request.resource.data.stack.size() <= 4100);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // ── Deny all other collections by default ─────────────────────────
     match /{document=**} {
       allow read, write: if false;

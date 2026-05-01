@@ -4,44 +4,12 @@
     "title": "Backlog",
     "tasks": [
       {
-        "id": "t13",
-        "title": "Nominatim/OSRM ersetzen",
-        "description": "geocoding_service.dart nutzt Nominatim (1000/Tag Limit) und OSRM Demo-Server (explizit nicht fÃ¼r Produktion). Eigene Instanz hosten oder kommerziellen Anbieter nutzen.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-09T10:00:00.000Z"
-      },
-      {
-        "id": "t16",
-        "title": "Pool/KO-Runden Editing",
-        "description": "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) â€” alles noch TODO-Stubs.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-09T10:00:00.000Z"
-      },
-      {
-        "id": "t22",
-        "title": "Kanban Board nur im Dev-Modus anzeigen",
-        "description": "kanban_board_screen.dart braucht localhost:8099 Server. Feature ist in der Navigation sichtbar fÃ¼r alle, sollte nur im Dev/Admin-Modus oder hinter kDebugMode stehen.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
         "id": "t29",
         "title": "Onboarding / Erste-Schritte-Flow",
         "description": "Kein First-Run-Erlebnis fÃ¼r neue Nutzer. Kurze EinfÃ¼hrung der Rolle/Features beim ersten Login wÃ¤re hilfreich.",
         "priority": "low",
         "labels": [],
         "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
-        "id": "t42",
-        "title": "Livestreaming",
-        "description": "Eine Möglichkeit erstellen, Livestreams in den Turnieren einzubetten. Livestreams wären von Youtube/Twitch/Etc.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
         "id": "t43",
@@ -100,6 +68,22 @@
         "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
+        "id": "t51",
+        "title": "Automatische Clip Generierung",
+        "description": "Automatische Erstellung und hochladen von Clips. Scouter Account drückt live einen Highlight Knopf. Dann kann der den Teil zuschneiden. Ähnlich zum Twitch-Clip",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t42",
+        "title": "Livestreaming",
+        "description": "Eine Möglichkeit erstellen, Livestreams in den Turnieren einzubetten. Livestreams wären von Youtube/Twitch/Etc.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
         "id": "t50",
         "title": "Stories",
         "description": "Instagram-Like Stories im Hochkantformat mit beliebigen hochladbaren Clips. Ggf. Kombinierbar mit t43 zum Automatischen Hochladen auf 'nicht gelistet' auf YouTube.",
@@ -108,12 +92,20 @@
         "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
-        "id": "t51",
-        "title": "Automatische Clip Generierung",
-        "description": "Automatische Erstellung und hochladen von Clips. Scouter Account drückt live einen Highlight Knopf. Dann kann der den Teil zuschneiden. Ähnlich zum Twitch-Clip",
-        "priority": "low",
+        "id": "t13",
+        "title": "Nominatim/OSRM ersetzen",
+        "description": "geocoding_service.dart nutzt Nominatim (1000/Tag Limit) und OSRM Demo-Server (explizit nicht fÃ¼r Produktion). Eigene Instanz hosten oder kommerziellen Anbieter nutzen.",
+        "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t16",
+        "title": "Pool/KO-Runden Editing",
+        "description": "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) â€” alles noch TODO-Stubs.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
       }
     ]
   },
@@ -122,92 +114,60 @@
     "title": "To Do",
     "tasks": [
       {
-        "id": "t05",
-        "title": "Clipboard Copy fixen",
-        "description": "managed_account_screen.dart: Zwei TODO-Stellen (Zeile 1083 und 1837) fÃ¼r Clipboard-Copy. Clipboard.setData implementieren.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T10:00:00.000Z"
-      },
-      {
-        "id": "t17",
-        "title": "Leere catch-BlÃ¶cke fixen",
-        "description": "14 catch(_){} die Fehler verschlucken: game_report_screen (Z.90,109,115), tournament_edit_screen (Z.2777,2933,7796,7803,7827,8871), kiosk_screen (Z.148,158), rangliste_screen (Z.78), tournament_detail_screen (Z.186).",
+        "id": "1777589884995",
+        "title": "Team Management - Turniere",
+        "description": "Placeholder",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T00:58:04.995"
       },
       {
-        "id": "t18",
-        "title": "debugPrint/print fÃ¼r Produktion aufrÃ¤umen",
-        "description": "40+ debugPrint-Aufrufe, 8 raw print() in main.dart. Mit kDebugMode wrappen oder entfernen. HauptsÃ¤chlich: tournament_edit_screen, apple_pay_service, main.dart.",
+        "id": "1777589918768",
+        "title": "Team Manager Verwaltung",
+        "description": "Outsource bitte in Team Management",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T00:58:38.768"
       },
       {
-        "id": "t19",
-        "title": "TO-Software Temporary Fixes beheben",
-        "description": "to_software_screen.dart: Court-ID-Format-Workaround (Z.432, alle Spiele auf ersten Court) und Spieltag-Mismatch-Fix (Z.1813).",
+        "id": "1777589955566",
+        "title": "Verwaltete Accounts",
+        "description": "Entferne Sanitäter",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T00:59:15.566"
       },
       {
-        "id": "t27",
-        "title": "Globaler Error Boundary",
-        "description": "Kein globaler Error Handler. FlutterError.onError und PlatformDispatcher.onError setzen mit nutzerfreundlichem Fehler-Screen statt weiÃŸem Absturz.",
+        "id": "1777590018401",
+        "title": "\"Einmalone Codes erstellen\"",
+        "description": "Bitte \"Einmalcodes erstellen\" nennen; passwort bitte wirklich zufällig generieren und nicht 8 aufeinanderfolgende Buchstaben",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T01:00:18.401"
       },
       {
-        "id": "t21",
-        "title": "PWA Ladescreen Timeout",
-        "description": "web/index.html: Wenn Flutter nicht lÃ¤dt, dreht der Spinner ewig. Nach ~10s eine 'Seite neu laden'-Meldung anzeigen.",
-        "priority": "low",
+        "id": "1777590036676",
+        "title": "Preset Verwaltung",
+        "description": "Entfernen",
+        "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T01:00:36.676"
       },
       {
-        "id": "t23",
-        "title": "Preloader erweitern",
-        "description": "preloader_service.dart (Z.84): Nur Teams und Turniere werden vorgeladen. Referees, Delegates, Kampfgericht und Presets fehlen.",
-        "priority": "low",
+        "id": "1777590068999",
+        "title": "Saison Management",
+        "description": "Anpassen an unser RHBL System.",
+        "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
+        "createdAt": "2026-05-01T01:01:08.999"
       },
       {
-        "id": "t24",
-        "title": "App-Info / Ãœber-Seite",
-        "description": "Keine Versionsanzeige im UI. version_helper.dart existiert, wird aber nirgends genutzt. Version im Profil-Screen einbauen.",
-        "priority": "low",
+        "id": "1777590112212",
+        "title": "Rangliste - Team Details",
+        "description": "sollte das Team aus dem Teams reiter anzeigen, kein extra reiter dafür. Selbiges mit Kader.",
+        "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
-        "id": "t25",
-        "title": "Daten-Backup/Restore",
-        "description": "CSV-Export existiert (5 Typen via tournament_export_service), aber kein Import/Restore. FÃ¼r Saisonwechsel und Datensicherung sinnvoll.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
-        "id": "t26",
-        "title": "Formular-Validierung ergÃ¤nzen",
-        "description": "Einige Screens haben Email-Validierung (bulk_add_delegates, generate_sign_in_codes), viele andere nicht. Konsistente Validierung fÃ¼r Email, Pflichtfelder.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
-        "id": "t40",
-        "title": "Open Graph Meta Tags",
-        "description": "Keine og:title/og:image/og:description Meta-Tags in web/index.html. Turnier-Links in WhatsApp, Slack usw. zeigen leere Vorschau ohne Titel oder Bild.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T11:00:00.000Z"
+        "createdAt": "2026-05-01T01:01:52.212"
       }
     ]
   },
@@ -444,6 +404,188 @@
         "priority": "medium",
         "labels": [],
         "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t17",
+        "title": "Leere catch-BlÃ¶cke fixen",
+        "description": "14 catch(_){} die Fehler verschlucken: game_report_screen (Z.90,109,115), tournament_edit_screen (Z.2777,2933,7796,7803,7827,8871), kiosk_screen (Z.148,158), rangliste_screen (Z.78), tournament_detail_screen (Z.186).",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t18",
+        "title": "debugPrint/print fÃ¼r Produktion aufrÃ¤umen",
+        "description": "40+ debugPrint-Aufrufe, 8 raw print() in main.dart. Mit kDebugMode wrappen oder entfernen. HauptsÃ¤chlich: tournament_edit_screen, apple_pay_service, main.dart.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t19",
+        "title": "TO-Software Temporary Fixes beheben",
+        "description": "to_software_screen.dart: Court-ID-Format-Workaround (Z.432, alle Spiele auf ersten Court) und Spieltag-Mismatch-Fix (Z.1813).",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t27",
+        "title": "Globaler Error Boundary",
+        "description": "Kein globaler Error Handler. FlutterError.onError und PlatformDispatcher.onError setzen mit nutzerfreundlichem Fehler-Screen statt weiÃŸem Absturz.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t05",
+        "title": "Clipboard Copy fixen",
+        "description": "managed_account_screen.dart: Zwei TODO-Stellen (Zeile 1083 und 1837) fÃ¼r Clipboard-Copy. Clipboard.setData implementieren.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t21",
+        "title": "PWA Ladescreen Timeout",
+        "description": "web/index.html: Wenn Flutter nicht lÃ¤dt, dreht der Spinner ewig. Nach ~10s eine 'Seite neu laden'-Meldung anzeigen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t23",
+        "title": "Preloader erweitern",
+        "description": "preloader_service.dart (Z.84): Nur Teams und Turniere werden vorgeladen. Referees, Delegates, Kampfgericht und Presets fehlen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t24",
+        "title": "App-Info / Ãœber-Seite",
+        "description": "Keine Versionsanzeige im UI. version_helper.dart existiert, wird aber nirgends genutzt. Version im Profil-Screen einbauen.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t25",
+        "title": "Daten-Backup/Restore",
+        "description": "CSV-Export existiert (5 Typen via tournament_export_service), aber kein Import/Restore. FÃ¼r Saisonwechsel und Datensicherung sinnvoll.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t26",
+        "title": "Formular-Validierung ergÃ¤nzen",
+        "description": "Einige Screens haben Email-Validierung (bulk_add_delegates, generate_sign_in_codes), viele andere nicht. Konsistente Validierung fÃ¼r Email, Pflichtfelder.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T10:01:00.000Z"
+      },
+      {
+        "id": "t40",
+        "title": "Open Graph Meta Tags",
+        "description": "Keine og:title/og:image/og:description Meta-Tags in web/index.html. Turnier-Links in WhatsApp, Slack usw. zeigen leere Vorschau ohne Titel oder Bild.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-09T11:00:00.000Z"
+      },
+      {
+        "id": "1777589212561",
+        "title": "Error Firebase",
+        "description": "Error: TypeError: Instance of 'JSArray<dynamic>': type 'List<dynamic>' is not a subtype of type 'List<String>' \nNach ein wenig nutzung. Kommt in Turnier-Bezogenen Seiten auf.",
+        "priority": "high",
+        "labels": [],
+        "createdAt": "2026-05-01T00:46:52.561"
+      },
+      {
+        "id": "1777588624075",
+        "title": "Delegate - Spielerpass-Kontrolle",
+        "description": "Spielerpass-Kontrolle im Navbar öffnet nichts.",
+        "priority": "medium",
+        "labels": [
+          "Bug"
+        ],
+        "createdAt": "2026-05-01T00:37:04.075"
+      },
+      {
+        "id": "1777588727136",
+        "title": "Live-Scoring Roles",
+        "description": "Wenn ein User eine Scorer Tablet Rolle hat und kein Zugewiesenes Turnier/Court hat, soll dieser alle Spiele sehen können. Erfordert Admin oder Delegate oder Team RHD Rolle Zusätzlich",
+        "priority": "medium",
+        "labels": [
+          "Bug"
+        ],
+        "createdAt": "2026-05-01T00:38:47.136"
+      },
+      {
+        "id": "1777588826286",
+        "title": "Tournament Editor - Pools",
+        "description": "Autofill beim Erstellen der Pools funktioniert nicht. Overflow wenn \"Spiele generieren\" Button erscheint.",
+        "priority": "medium",
+        "labels": [
+          "Bug"
+        ],
+        "createdAt": "2026-05-01T00:40:26.286"
+      },
+      {
+        "id": "1777588948462",
+        "title": "Tournament Editor - Pools 2",
+        "description": "Beim Erstellen Eines Pools, dann Teams in die Runde hinzufügen, dann KO Runde Erstellen, Teams aus der Runde in die KO Runde bewegen funktioniert und gibt fehlermeldungen. Sollte an sich verhindert werden.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:42:28.462"
+      },
+      {
+        "id": "1777588994090",
+        "title": "Tournament Editor - Spielplanung",
+        "description": "Verstecke Tab \"Spielplanung\"",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:43:14.090"
+      },
+      {
+        "id": "1777589016094",
+        "title": "Tournament Editor - Plätze",
+        "description": "Typ sollte entfernt werden",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:43:36.094"
+      },
+      {
+        "id": "1777589051169",
+        "title": "Tournament Editor - Zuordnung",
+        "description": "Verstecke Tab \"Zuordnung\"",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:44:11.169"
+      },
+      {
+        "id": "1777589804801",
+        "title": "Team Management",
+        "description": "Erweitere Team Management (Navbar) mit Weiteren Daten, die sonst irgendwo gesammelt werden. Redesign notwendig",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:56:44.801"
+      },
+      {
+        "id": "1777589864269",
+        "title": "Kaderverwaltung",
+        "description": "Beim Klick auf einem Spieler nur noch ein modell zum Bearbeiten nehmen, sei es aus dem Team oder Global. Teils fehlende Daten. Bilder sollen hier eingepflegt werden und nicht in der Public-facing seite.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:57:44.269"
+      },
+      {
+        "id": "1777590161831",
+        "title": "Kanban Ticketid",
+        "description": "Ticketid bitte mit #t00, wobei 00 die zahl ist, die immer weiter inkrementiert. keine random firebase ids.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:02:41.831"
       }
     ]
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:toastification/toastification.dart';
 import '../models/managed_account.dart';
 import '../models/tournament.dart';
@@ -1080,7 +1081,7 @@ ${_selectedTournament != null ? 'Turnier: ${_selectedTournament!.name}' : ''}
 ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
 ''';
     
-    // TODO: Implement clipboard copy
+    Clipboard.setData(ClipboardData(text: data));
     toastification.show(
       context: context,
       type: ToastificationType.success,
@@ -1509,18 +1510,6 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                   ),
               ],
             ),
-            if (court.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                court.description,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1531,7 +1520,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    court.description.isNotEmpty ? court.description.toUpperCase() : 'COURT',
+                    'COURT',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -1834,7 +1823,7 @@ Status: ${_currentAccount.isActive ? 'Aktiv' : 'Inaktiv'}
 ${_currentAccount.notes?.isNotEmpty == true ? 'Notizen: ${_currentAccount.notes}' : ''}
 ''';
     
-    // TODO: Implement clipboard copy
+    Clipboard.setData(ClipboardData(text: data));
     toastification.show(
       context: context,
       type: ToastificationType.success,

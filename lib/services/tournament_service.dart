@@ -728,7 +728,7 @@ class TournamentService {
       }
 
       // Add to general teamIds
-      List<String> updatedTeamIds = List.from(tournament.teamIds);
+      List<String> updatedTeamIds = List<String>.from(tournament.teamIds);
       if (!updatedTeamIds.contains(teamId)) {
         updatedTeamIds.add(teamId);
       }
@@ -764,7 +764,7 @@ class TournamentService {
 
       if (!tournament.teamIds.contains(teamId)) return false;
 
-      List<String> updatedTeamIds = List.from(tournament.teamIds);
+      List<String> updatedTeamIds = List<String>.from(tournament.teamIds);
       updatedTeamIds.remove(teamId);
 
       await _firestore.collection(_collection).doc(tournamentId).update({

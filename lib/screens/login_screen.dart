@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../utils/validators.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:toastification/toastification.dart';
 
@@ -739,15 +740,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 fillColor: Colors.grey.shade50,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Bitte geben Sie Ihre E-Mail-Adresse ein';
-                }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[a-zA-Z]{2,}$').hasMatch(value)) {
-                  return 'Bitte geben Sie eine gültige E-Mail-Adresse ein';
-                }
-                return null;
-              },
+              validator: Validators.email,
             ),
             if (!_isOneTimeCodeMode) ...[
               const SizedBox(height: 20),

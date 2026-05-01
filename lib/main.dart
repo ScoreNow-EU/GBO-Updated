@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -12,19 +14,47 @@ import 'screens/home_screen.dart';
 import 'screens/obs_graphics_screen.dart';
 import 'screens/public_scoreboard_screen.dart';
 import 'screens/kiosk_screen.dart';
+import 'services/error_reporter_service.dart';
 import 'services/preloader_service.dart';
 import 'utils/app_colors.dart';
 import 'utils/version_helper.dart';
 import 'utils/web_helper.dart';
 import 'utils/debug_filter.dart';
 import 'utils/route_logger.dart';
+import 'widgets/error_boundary_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  usePathUrlStrategy();
-  
-  // Initialize debug filter to silence unwanted messages
-  DebugFilter.initialize();
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    usePathUrlStrategy();
+
+    // Forward Flutter framework errors to our reporter.
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      ErrorReporterService.report(
+        details.exception,
+        details.stack,
+        context: 'FlutterError: ${details.context?.toDescription() ?? ''}',
+      );
+    };
+
+    // Forward platform/native errors as well (web JS errors, native uncaught).
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      ErrorReporterService.report(error, stack, context: 'PlatformDispatcher');
+      return true;
+    };
+
+    // Replace Flutter's red error widget with our boundary screen in release.
+    if (!kDebugMode) {
+      ErrorWidget.builder = (FlutterErrorDetails details) =>
+          ErrorBoundaryScreen(
+            error: details.exception,
+            stackTrace: details.stack,
+          );
+    }
+
+    // Initialize debug filter to silence unwanted messages
+    DebugFilter.initialize();
   
   // Note: Can't override print directly in Dart, relying on DebugFilter and JavaScript filter instead
   
@@ -34,7 +64,7 @@ void main() async {
       await Firebase.initializeApp(
         options: FirebaseConfig.currentPlatform,
       );
-      print('Firebase initialized successfully');
+      debugPrint('Firebase initialized successfully');
       
       // Enable Firestore offline persistence
       FirebaseFirestore.instance.settings = const Settings(
@@ -42,12 +72,12 @@ void main() async {
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
     } catch (e) {
-      print('Firebase initialization error: $e');
+      debugPrint('Firebase initialization error: $e');
       // For now, continue without Firebase but show error
-      print('App will continue but Firebase features may not work');
+      debugPrint('App will continue but Firebase features may not work');
     }
   } else {
-    print('Firebase initialization skipped for this platform');
+    debugPrint('Firebase initialization skipped for this platform');
   }
   
   // Preload essential data for faster loading (only if Firebase is working)
@@ -55,7 +85,7 @@ void main() async {
     final preloader = PreloaderService();
     preloader.preloadEssentialData(); // Don't await - let it load in background
   } catch (e) {
-    print('Preloader error: $e - continuing without preloading');
+    debugPrint('Preloader error: $e - continuing without preloading');
   }
   
   // Update web version display (only on web platform)
@@ -64,11 +94,14 @@ void main() async {
       final version = await VersionHelper.getAppVersion();
       WebHelper.updateVersionDisplay(version);
     } catch (e) {
-      print('Error updating web version display: $e');
+      debugPrint('Error updating web version display: $e');
     }
   }
   
-  runApp(const RHBLApp());
+    runApp(const RHBLApp());
+  }, (Object error, StackTrace stack) {
+    ErrorReporterService.report(error, stack, context: 'runZonedGuarded');
+  });
 }
 
 class RHBLApp extends StatelessWidget {
@@ -83,9 +116,9 @@ class RHBLApp extends StatelessWidget {
     try {
       analytics = FirebaseAnalytics.instance;
       observer = FirebaseAnalyticsObserver(analytics: analytics!);
-      print('Analytics initialized successfully');
+      debugPrint('Analytics initialized successfully');
     } catch (e) {
-      print('Analytics initialization error: $e');
+      debugPrint('Analytics initialization error: $e');
     }
   }
 
