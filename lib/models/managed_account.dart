@@ -2,14 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ManagedAccountType {
   scoringTablet,
-  medic,
 }
 
 class ManagedAccount {
   final String id;
   final String name;
   final String email;
-  final String password; // Temporary password for tablet/medic login
+  final String password; // Temporary password for tablet login
   final ManagedAccountType type;
   final String? tournamentId; // Assigned tournament
   final String? courtId; // For scoring tablets - assigned court
@@ -42,8 +41,6 @@ class ManagedAccount {
     switch (type) {
       case ManagedAccountType.scoringTablet:
         return 'Scoring Tablet';
-      case ManagedAccountType.medic:
-        return 'Sanitäter';
     }
   }
 
@@ -51,8 +48,6 @@ class ManagedAccount {
     switch (type) {
       case ManagedAccountType.scoringTablet:
         return 'Punktetablet';
-      case ManagedAccountType.medic:
-        return 'Sanitäter';
     }
   }
 

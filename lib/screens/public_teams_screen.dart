@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../services/team_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/season_points.dart';
 import 'team_detail_screen.dart';
 
 /// Public-facing teams browser. Shown as a top-level nav item.
@@ -36,7 +37,8 @@ class _PublicTeamsScreenState extends State<PublicTeamsScreen>
     _teamService.getTeams().listen((teams) {
       if (!mounted) return;
       final sorted = List<Team>.from(teams)
-        ..sort((a, b) => b.totalPoints.compareTo(a.totalPoints));
+        ..sort((a, b) => computeBest3Points(b.pointsHistory)
+            .compareTo(computeBest3Points(a.pointsHistory)));
       setState(() {
         _all = sorted;
         _loading = false;
@@ -354,6 +356,14 @@ class _TeamCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasLogo = team.logoUrl != null && team.logoUrl!.isNotEmpty;
+    final teamPrimary = team.primaryColor != null
+        ? Color(team.primaryColor!)
+        : AppColors.gradientColors[0];
+    final teamSecondary = team.secondaryColor != null
+        ? Color(team.secondaryColor!)
+        : AppColors.gradientColors[3];
+    final hasOwnColors =
+        team.primaryColor != null || team.secondaryColor != null;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -383,8 +393,8 @@ class _TeamCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.gradientColors[0].withOpacity(0.18),
-                        AppColors.gradientColors[3].withOpacity(0.08),
+                        teamPrimary.withOpacity(0.18),
+                        teamSecondary.withOpacity(0.08),
                         Colors.transparent,
                       ],
                     ),
@@ -443,13 +453,18 @@ class _TeamCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFc10003), Color(0xFFe63946)],
+                            gradient: LinearGradient(
+                              colors: hasOwnColors
+                                  ? [teamPrimary, teamSecondary]
+                                  : const [
+                                      Color(0xFFc10003),
+                                      Color(0xFFe63946),
+                                    ],
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            '${team.totalPoints} Pkt.',
+                            '${computeBest3Points(team.pointsHistory)} Pkt.',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -524,9 +539,12 @@ class _TeamCard extends StatelessWidget {
               // Red top-accent line
               Positioned(
                 top: 0, left: 0, right: 0, height: 2,
-                child: const DecoratedBox(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                    gradient: hasOwnColors
+                        ? LinearGradient(
+                            colors: [teamPrimary, teamSecondary])
+                        : AppColors.primaryGradient,
                   ),
                 ),
               ),

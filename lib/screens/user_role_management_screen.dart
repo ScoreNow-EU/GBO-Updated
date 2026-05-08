@@ -36,7 +36,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
     'Team Manager',
     'Delegate',
     'Scoring Tablet',
-    'Sanitäter',
     'Series Organizer',
     'Spieler',
   ];
@@ -468,8 +467,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Colors.green;
       case app_user.UserRole.scoringTablet:
         return Colors.purple;
-      case app_user.UserRole.sanitater:
-        return Colors.teal;
       case app_user.UserRole.seriesOrganizer:
         return Colors.indigo;
       case app_user.UserRole.spieler:
@@ -495,8 +492,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return Icons.badge;
       case app_user.UserRole.scoringTablet:
         return Icons.tablet_android;
-      case app_user.UserRole.sanitater:
-        return Icons.medical_services;
       case app_user.UserRole.seriesOrganizer:
         return Icons.event_note;
       case app_user.UserRole.spieler:
@@ -651,10 +646,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.scoringTablet:
         color = Colors.purple;
         icon = Icons.tablet_android;
-        break;
-      case app_user.UserRole.sanitater:
-        color = Colors.teal;
-        icon = Icons.medical_services;
         break;
       case app_user.UserRole.seriesOrganizer:
         color = Colors.indigo;
@@ -812,10 +803,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         color = Colors.purple;
         icon = Icons.tablet_android;
         break;
-      case app_user.UserRole.sanitater:
-        color = Colors.teal;
-        icon = Icons.medical_services;
-        break;
       case app_user.UserRole.seriesOrganizer:
         color = Colors.indigo;
         icon = Icons.event_note;
@@ -869,8 +856,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         return 'Delegate';
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
-      case app_user.UserRole.sanitater:
-        return 'Sanitäter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:
@@ -920,9 +905,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
         case 'Scoring Tablet':
           filterRole = app_user.UserRole.scoringTablet;
           break;
-        case 'Sanitäter':
-          filterRole = app_user.UserRole.sanitater;
-          break;
         case 'Series Organizer':
           filterRole = app_user.UserRole.seriesOrganizer;
           break;
@@ -951,7 +933,6 @@ class _UserRoleManagementScreenState extends State<UserRoleManagementScreen> {
       case app_user.UserRole.user:
       case app_user.UserRole.delegate:
       case app_user.UserRole.scoringTablet:
-      case app_user.UserRole.sanitater:
       case app_user.UserRole.seriesOrganizer:
       case app_user.UserRole.spieler:
       case app_user.UserRole.tournamentOrganizer:

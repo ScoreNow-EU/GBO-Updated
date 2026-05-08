@@ -3,6 +3,7 @@ import '../services/tournament_service.dart';
 import '../services/auth_service.dart';
 import '../utils/responsive_helper.dart';
 import 'tournament_timeline.dart';
+import 'stories_strip.dart';
 
 class TournamentOverview extends StatefulWidget {
   const TournamentOverview({super.key});
@@ -60,6 +61,9 @@ class _TournamentOverviewState extends State<TournamentOverview> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Stories strip (visible only when stories exist)
+              const StoriesStrip(),
+
               // Filters - responsive layout
               if (isMobile) ...[
                 // Season filter

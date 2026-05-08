@@ -8,8 +8,6 @@ import '../models/game.dart';
 import '../services/game_service.dart';
 import '../services/tournament_service.dart'; // Add tournament service
 
-import '../screens/preset_selection_screen.dart';
-
 class CustomBracketBuilder extends StatefulWidget {
   final List<CustomBracketNode> initialNodes;
   final Function(List<CustomBracketNode>) onBracketChanged;
@@ -18,7 +16,6 @@ class CustomBracketBuilder extends StatefulWidget {
   final Function(Team, CustomBracketNode) onTeamDrop;
   final Map<String, List<String>> poolTeams; // poolId -> list of team IDs
   final List<Team> allTeams; // All teams for pool display
-  final Function(String, List<String>)? onPresetTeamsLoaded; // callback for preset team assignments
   final Function(String, String)? onTeamRemove; // callback for team removal (poolId, teamId)
   final Map<String, List<String>> placeholderTeams; // poolId -> list of placeholder team IDs
   final Tournament tournament; // Add tournament reference
@@ -33,7 +30,6 @@ class CustomBracketBuilder extends StatefulWidget {
     required this.onTeamDrop,
     this.poolTeams = const {},
     this.allTeams = const [],
-    this.onPresetTeamsLoaded,
     this.onTeamRemove,
     this.placeholderTeams = const {},
     required this.tournament,
@@ -292,12 +288,6 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
             const SizedBox(width: 8),
           ],
 
-          // Template buttons
-          IconButton(
-            icon: const Icon(Icons.account_tree_outlined),
-            tooltip: 'Template laden',
-            onPressed: _openPresetSelection,
-          ),
           // Selected node actions
           if (selectedNode != null) ...[
             IconButton(
@@ -2206,38 +2196,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     );
   }
 
-  void _openPresetSelection() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PresetSelectionScreen(
-          divisionName: widget.divisionName,
-          onPresetSelected: (templateNodes, presetPoolTeams) {
-            setState(() {
-              nodes = List.from(templateNodes);
-              selectedNode = null;
-              connectingFromNode = null;
-            });
-            
-            // Load preset team assignments and preserve them
-            _loadPresetTeamAssignments(presetPoolTeams);
-            
-            _notifyBracketChanged();
-            
-            toastification.show(
-              context: context,
-              type: ToastificationType.success,
-              style: ToastificationStyle.fillColored,
-              title: const Text('Erfolg'),
-              description: const Text('Preset erfolgreich geladen!'),
-              alignment: Alignment.topRight,
-              autoCloseDuration: const Duration(seconds: 2),
-              showProgressBar: false,
-            );
-          },
-        ),
-      ),
-    );
-  }
+  void _openPresetSelection() {}
 
   void _showRenameDialog(CustomBracketNode node) {
     final titleController = TextEditingController(text: node.title);
@@ -2629,19 +2588,7 @@ class _CustomBracketBuilderState extends State<CustomBracketBuilder> {
     );
   }
 
-  void _loadPresetTeamAssignments(Map<String, List<String>> presetPoolTeams) {
-    // This method loads preset team assignments and treats them as placeholders
-    // These placeholders will be replaced when real teams are dropped
-    for (String poolId in presetPoolTeams.keys) {
-      final teamIds = presetPoolTeams[poolId] ?? [];
-      if (teamIds.isNotEmpty) {
-        // Create a callback to notify parent about the preset team assignments
-        if (widget.onPresetTeamsLoaded != null) {
-          widget.onPresetTeamsLoaded!(poolId, teamIds);
-        }
-      }
-    }
-  }
+  void _loadPresetTeamAssignments(Map<String, List<String>> presetPoolTeams) {}
 
   void _showMatchEditDialog(CustomBracketNode node) {
     final titleController = TextEditingController(text: node.title);

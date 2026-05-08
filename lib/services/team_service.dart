@@ -3,6 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/team.dart';
+import '../utils/season_points.dart';
 
 class TeamService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,24 +16,8 @@ class TeamService {
   static const Duration _cacheTimeout = Duration(minutes: 5);
 
   // Calculate best 3 total points from points history
-  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) {
-    // Sort points history by points in descending order
-    final sortedPoints = List<Map<String, dynamic>>.from(pointsHistory);
-    sortedPoints.sort((a, b) {
-      final pointsA = a['points'] as int? ?? 0;
-      final pointsB = b['points'] as int? ?? 0;
-      return pointsB.compareTo(pointsA); // Descending order
-    });
-    
-    // Take only the best 3 results
-    final best3Results = sortedPoints.take(3).toList();
-    
-    // Sum up the points from the best 3 results
-    return best3Results.fold<int>(
-      0,
-      (sum, entry) => sum + (entry['points'] as int? ?? 0),
-    );
-  }
+  int _calculateBest3TotalPoints(List<Map<String, dynamic>> pointsHistory) =>
+      computeBest3Points(pointsHistory);
 
   // Get all teams as Future (for one-time fetch)
   Future<List<Team>> getAllTeams() async {

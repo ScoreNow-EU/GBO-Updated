@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/team.dart';
 import '../models/player.dart';
 import '../models/team_manager.dart';
@@ -34,11 +36,14 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
   
   // Controllers for base data form
   final _nameController = TextEditingController();
+  final _clubNameController = TextEditingController();
   final _cityController = TextEditingController();
   
   String _selectedBundesland = 'Bayern';
   Color? _primaryColor;
   Color? _secondaryColor;
+  String? _logoUrl;
+  bool _isUploadingLogo = false;
 
   @override
   void initState() {
@@ -49,6 +54,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _clubNameController.dispose();
     _cityController.dispose();
     super.dispose();
   }
@@ -62,6 +68,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         setState(() {
           _team = team;
           _nameController.text = team.name;
+          _clubNameController.text = team.clubName ?? '';
           _cityController.text = team.city;
           _selectedBundesland = team.bundesland;
           _primaryColor =
@@ -69,6 +76,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
           _secondaryColor = team.secondaryColor != null
               ? Color(team.secondaryColor!)
               : null;
+          _logoUrl = team.logoUrl;
         });
         
         // Load team players using rosterPlayerIds
@@ -351,6 +359,17 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // Club name (optional)
+                  TextField(
+                    controller: _clubNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Vereinsname',
+                      hintText: 'z.B. SV Beispielstadt',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   
                   // City
                   TextField(
@@ -431,6 +450,100 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: const [
+                      Icon(Icons.image_outlined,
+                          size: 18, color: Colors.black54),
+                      SizedBox(width: 8),
+                      Text(
+                        'Team-Logo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: (_logoUrl != null && _logoUrl!.isNotEmpty)
+                            ? Image.network(
+                                _logoUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.shield_outlined,
+                                color: Colors.grey,
+                                size: 36,
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed:
+                                  _isUploadingLogo ? null : _uploadTeamLogo,
+                              icon: _isUploadingLogo
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.upload, size: 18),
+                              label: Text(
+                                _logoUrl != null && _logoUrl!.isNotEmpty
+                                    ? 'Logo ersetzen'
+                                    : 'Logo hochladen',
+                              ),
+                            ),
+                            if (_logoUrl != null && _logoUrl!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: _isUploadingLogo
+                                    ? null
+                                    : _removeTeamLogo,
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.red),
+                                label: const Text(
+                                  'Entfernen',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'PNG/JPG, max ~2 MB empfohlen.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -438,6 +551,67 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _uploadTeamLogo() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null) return;
+
+      setState(() => _isUploadingLogo = true);
+
+      final sanitizedName =
+          file.name.replaceAll(RegExp(r'[^\w\.\-]'), '_');
+      final storagePath =
+          'teamLogos/${widget.teamId}/logo_${DateTime.now().millisecondsSinceEpoch}_$sanitizedName';
+      final ref = FirebaseStorage.instance.ref().child(storagePath);
+      final metadata =
+          SettableMetadata(contentType: 'image/${file.extension ?? 'png'}');
+      await ref.putData(file.bytes!, metadata);
+      final downloadUrl = await ref.getDownloadURL();
+
+      // Best-effort: delete previous logo if it was a Storage URL
+      final previous = _logoUrl;
+      if (previous != null && previous.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance.refFromURL(previous).delete();
+        } catch (e) {
+          debugPrint('Could not delete previous team logo: $e');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _logoUrl = downloadUrl;
+          _isUploadingLogo = false;
+        });
+        _showSuccess('Logo hochgeladen. Klicke "Speichern" um zu übernehmen.');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingLogo = false);
+        _showError('Upload fehlgeschlagen: $e');
+      }
+    }
+  }
+
+  Future<void> _removeTeamLogo() async {
+    final previous = _logoUrl;
+    setState(() => _logoUrl = null);
+    if (previous != null && previous.isNotEmpty) {
+      try {
+        await FirebaseStorage.instance.refFromURL(previous).delete();
+      } catch (e) {
+        debugPrint('Could not delete team logo from storage: $e');
+      }
+    }
+    _showSuccess('Logo entfernt. Klicke "Speichern" um zu übernehmen.');
   }
 
   Widget _buildRosterTab() {
@@ -832,12 +1006,17 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
       debugPrint('ðŸ Saving team data with roster: ${_team!.rosterPlayerIds}');
       final updatedTeam = _team!.copyWith(
         name: _nameController.text.trim(),
+        clubName: _clubNameController.text.trim().isEmpty
+            ? null
+            : _clubNameController.text.trim(),
+        clearClubName: _clubNameController.text.trim().isEmpty,
         city: _cityController.text.trim(),
         bundesland: _selectedBundesland,
         primaryColor: _primaryColor?.value,
         secondaryColor: _secondaryColor?.value,
         clearPrimaryColor: _primaryColor == null,
         clearSecondaryColor: _secondaryColor == null,
+        logoUrl: _logoUrl,
       );
 
       final success = await _teamService.updateTeam(_team!.id, updatedTeam);

@@ -20,26 +20,12 @@ class ManagedAccountScreen extends StatefulWidget {
 class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
   final ManagedAccountService _managedAccountService = ManagedAccountService();
   final TournamentService _tournamentService = TournamentService();
-  
-  String _selectedTab = 'tablets'; // 'tablets' or 'medics'
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Set initial tab based on optional index parameter
-    if (widget.initialTabIndex != null) {
-      switch (widget.initialTabIndex) {
-        case 0:
-          _selectedTab = 'tablets';
-          break;
-        case 1:
-          _selectedTab = 'medics';
-          break;
-        default:
-          _selectedTab = 'tablets';
-      }
-    }
   }
 
   @override
@@ -52,7 +38,6 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
       body: Column(
         children: [
           _buildHeader(screenWidth, isDesktop),
-          _buildTabBar(),
           Expanded(
             child: _buildContent(),
           ),
@@ -99,7 +84,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Verwalten Sie Scoring-Tablets und Sanitäter-Accounts',
+                  'Verwalten Sie Scoring-Tablet-Accounts',
                   style: TextStyle(
                     fontSize: isDesktop ? 16 : 14,
                     color: Colors.grey.shade600,
@@ -133,65 +118,9 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      color: Colors.white,
-      child: Row(
-        children: [
-          _buildTab('tablets', 'Scoring Tablets', Icons.tablet_android),
-          _buildTab('medics', 'Sanitäter', Icons.medical_services),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTab(String tabKey, String title, IconData icon) {
-    final isSelected = _selectedTab == tabKey;
-    
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _selectedTab = tabKey),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: isSelected ? const Color(0xFFffd665) : Colors.transparent,
-                width: 3,
-              ),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? const Color(0xFFffd665) : Colors.grey.shade600,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.black87 : Colors.grey.shade600,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildContent() {
-    final accountType = _selectedTab == 'tablets' 
-        ? ManagedAccountType.scoringTablet 
-        : ManagedAccountType.medic;
-
     return StreamBuilder<List<ManagedAccount>>(
-      stream: _managedAccountService.getManagedAccountsByType(accountType),
+      stream: _managedAccountService.getManagedAccountsByType(ManagedAccountType.scoringTablet),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -215,8 +144,6 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
   }
 
   Widget _buildEmptyState() {
-    final isTablets = _selectedTab == 'tablets';
-    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -228,15 +155,15 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isTablets ? Icons.tablet_android : Icons.medical_services,
+              Icons.tablet_android,
               size: 64,
               color: Colors.grey.shade400,
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            isTablets ? 'Keine Scoring Tablets vorhanden' : 'Keine Sanitäter-Accounts vorhanden',
-            style: const TextStyle(
+          const Text(
+            'Keine Scoring Tablets vorhanden',
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -244,9 +171,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isTablets
-                ? 'Erstellen Sie Tablet-Accounts für die Live-Punktevergabe'
-                : 'Erstellen Sie Sanitäter-Accounts für Notfallbenachrichtigungen',
+            'Erstellen Sie Tablet-Accounts für die Live-Punktevergabe',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -265,9 +190,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
               ),
             ),
             icon: const Icon(Icons.add),
-            label: Text(
-              isTablets ? 'Erstes Tablet erstellen' : 'Ersten Sanitäter-Account erstellen',
-            ),
+            label: const Text('Erstes Tablet erstellen'),
           ),
         ],
       ),
@@ -340,7 +263,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
               ),
             ),
           ),
-          if (_selectedTab == 'tablets') ...[
+          if (true) ...[
             const Expanded(
               flex: 2,
               child: Text(
@@ -436,21 +359,14 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
               ),
             ),
           ),
-          if (_selectedTab == 'tablets') ...[
-            Expanded(
-              flex: 2,
-              child: _buildTournamentInfo(account),
-            ),
-            Expanded(
-              flex: 1,
-              child: _buildCourtInfo(account),
-            ),
-          ] else ...[
-            Expanded(
-              flex: 2,
-              child: _buildTournamentInfo(account),
-            ),
-          ],
+          Expanded(
+            flex: 2,
+            child: _buildTournamentInfo(account),
+          ),
+          Expanded(
+            flex: 1,
+            child: _buildCourtInfo(account),
+          ),
           Expanded(
             flex: 1,
             child: _buildStatusChip(account),
@@ -616,9 +532,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
     showDialog(
       context: context,
       builder: (context) => _CreateAccountDialog(
-        accountType: _selectedTab == 'tablets' 
-            ? ManagedAccountType.scoringTablet 
-            : ManagedAccountType.medic,
+        accountType: ManagedAccountType.scoringTablet,
         managedAccountService: _managedAccountService,
         tournamentService: _tournamentService,
         onSuccess: () {
@@ -760,8 +674,6 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
     
     if (widget.accountType == ManagedAccountType.scoringTablet && _selectedCourt != null) {
       return 'Scoring Tablet ${_selectedCourt!.name} (${_selectedTournament!.name})';
-    } else if (widget.accountType == ManagedAccountType.medic) {
-      return 'Sanitäter (${_selectedTournament!.name})';
     }
     return '';
   }
@@ -797,11 +709,9 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
             color: const Color(0xFFffd665).withOpacity(0.2),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            widget.accountType == ManagedAccountType.scoringTablet
-                ? Icons.tablet_android
-                : Icons.medical_services,
-            color: const Color(0xFFffd665),
+          child: const Icon(
+            Icons.tablet_android,
+            color: Color(0xFFffd665),
             size: 24,
           ),
         ),
@@ -818,7 +728,7 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                 ),
               ),
               Text(
-                widget.accountType == ManagedAccountType.scoringTablet ? 'Punktetablet' : 'Sanitäter',
+                'Punktetablet',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -1214,110 +1124,6 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                 ),
               ],
             ),
-          )
-        else
-          // For medics, show preview
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Account-Vorschau',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _selectedTournament == null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.medical_services,
-                                  size: 48,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Bitte wählen Sie ein Turnier aus',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Account wird erstellt:',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.green.shade200),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.medical_services,
-                                            color: Colors.green.shade600,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              _generateAccountName(),
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.green.shade700,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'Automatisch generierte E-Mail und Passwort',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.green.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
           ),
       ],
     );
@@ -1681,11 +1487,9 @@ class _AccountDetailsDialogState extends State<_AccountDetailsDialog> {
                     color: const Color(0xFFffd665).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    widget.account.type == ManagedAccountType.scoringTablet
-                        ? Icons.tablet_android
-                        : Icons.medical_services,
-                    color: const Color(0xFFffd665),
+                  child: const Icon(
+                    Icons.tablet_android,
+                    color: Color(0xFFffd665),
                     size: 24,
                   ),
                 ),
@@ -1729,7 +1533,7 @@ class _AccountDetailsDialogState extends State<_AccountDetailsDialog> {
                   _buildDetailRow('Passwort', _currentAccount.password),
                   _buildDetailRow('Code', _currentAccount.oneTimeCode ?? 'Nicht verfügbar'),
                   _buildDetailRow('Code-Status', _currentAccount.isOneTimeCodeUsed ? 'Bereits verwendet' : 'Verfügbar'),
-                  _buildDetailRow('Typ', _currentAccount.type == ManagedAccountType.scoringTablet ? 'Punktetablet' : 'Sanitäter'),
+                  _buildDetailRow('Typ', 'Punktetablet'),
                   _buildDetailRow('Status', _currentAccount.isActive ? 'Aktiv' : 'Inaktiv'),
                   if (_currentAccount.notes?.isNotEmpty == true)
                     _buildDetailRow('Notizen', _currentAccount.notes!),
@@ -1818,7 +1622,7 @@ E-Mail: ${_currentAccount.email}
 Passwort: ${_currentAccount.password}
 Einmaliger Code: ${_currentAccount.oneTimeCode ?? 'Nicht verfügbar'}
 Code-Status: ${_currentAccount.isOneTimeCodeUsed ? 'Bereits verwendet' : 'Verfügbar'}
-Typ: ${_currentAccount.type == ManagedAccountType.scoringTablet ? 'Punktetablet' : 'Sanitäter'}
+Typ: Punktetablet
 Status: ${_currentAccount.isActive ? 'Aktiv' : 'Inaktiv'}
 ${_currentAccount.notes?.isNotEmpty == true ? 'Notizen: ${_currentAccount.notes}' : ''}
 ''';

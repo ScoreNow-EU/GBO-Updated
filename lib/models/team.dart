@@ -96,11 +96,12 @@ class Team {
     int? secondaryColor,
     bool clearPrimaryColor = false,
     bool clearSecondaryColor = false,
+    bool clearClubName = false,
   }) {
     return Team(
       id: id,
       name: name ?? this.name,
-      clubName: clubName ?? this.clubName,
+      clubName: clearClubName ? null : (clubName ?? this.clubName),
       teamManager: teamManager ?? this.teamManager,
       logoUrl: logoUrl ?? this.logoUrl,
       city: city ?? this.city,

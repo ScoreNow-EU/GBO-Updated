@@ -24,7 +24,7 @@ import 'utils/route_logger.dart';
 import 'widgets/error_boundary_screen.dart';
 
 void main() async {
-  runZonedGuarded<Future<void>>(() async {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     usePathUrlStrategy();
 

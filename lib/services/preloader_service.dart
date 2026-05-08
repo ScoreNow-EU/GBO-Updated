@@ -6,7 +6,6 @@ import 'tournament_service.dart';
 import 'referee_service.dart';
 import 'delegate_service.dart';
 import 'kampfgericht_service.dart';
-import 'preset_service.dart';
 
 class PreloaderService {
   static final PreloaderService _instance = PreloaderService._internal();
@@ -30,7 +29,6 @@ class PreloaderService {
   RefereeService? _refereeService;
   DelegateService? _delegateService;
   KampfgerichtService? _kampfgerichtService;
-  PresetService? _presetService;
 
   // Getter for services with Firebase check
   TeamService? get teamService {
@@ -56,11 +54,6 @@ class PreloaderService {
   KampfgerichtService? get kampfgerichtService {
     if (!isFirebaseAvailable) return null;
     return _kampfgerichtService ??= KampfgerichtService();
-  }
-
-  PresetService? get presetService {
-    if (!isFirebaseAvailable) return null;
-    return _presetService ??= PresetService();
   }
 
   // Preload essential data in the background
@@ -98,9 +91,6 @@ class PreloaderService {
         }
         if (kampfgerichtService != null) {
           futures.add(kampfgerichtService!.getAllMembers());
-        }
-        if (presetService != null) {
-          futures.add(presetService!.getPresets());
         }
 
         // Wait for all preloads to complete (or timeout after 30 seconds)

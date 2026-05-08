@@ -824,8 +824,6 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.green.shade100;
       case app_user.UserRole.scoringTablet:
         return Colors.purple.shade100;
-      case app_user.UserRole.sanitater:
-        return Colors.teal.shade100;
       case app_user.UserRole.seriesOrganizer:
         return Colors.indigo.shade100;
       case app_user.UserRole.spieler:
@@ -851,8 +849,6 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return Colors.green.shade700;
       case app_user.UserRole.scoringTablet:
         return Colors.purple.shade700;
-      case app_user.UserRole.sanitater:
-        return Colors.teal.shade700;
       case app_user.UserRole.seriesOrganizer:
         return Colors.indigo.shade700;
       case app_user.UserRole.spieler:
@@ -878,8 +874,6 @@ class _CustomNotificationScreenState extends State<CustomNotificationScreen> {
         return 'DELEGATE';
       case app_user.UserRole.scoringTablet:
         return 'SCORING TABLET';
-      case app_user.UserRole.sanitater:
-        return 'SANITÄTER';
       case app_user.UserRole.seriesOrganizer:
         return 'SERIES ORGANIZER';
       case app_user.UserRole.spieler:

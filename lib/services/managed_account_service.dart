@@ -1,4 +1,5 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_core/firebase_core.dart' as firebase_core;
@@ -91,9 +92,7 @@ class ManagedAccountService {
       if (!managedDoc.exists) return; // not a managed account
 
       final account = ManagedAccount.fromFirestore(managedDoc);
-      final userRole = account.type == ManagedAccountType.scoringTablet
-          ? app_user.UserRole.scoringTablet
-          : app_user.UserRole.sanitater;
+      final userRole = app_user.UserRole.scoringTablet;
       final newUser = app_user.User(
         id: uid,
         email: account.email,
@@ -152,9 +151,7 @@ class ManagedAccountService {
         
         // Also create a users collection document with the correct role
         // so the sidebar and role checks work properly
-        final userRole = account.type == ManagedAccountType.scoringTablet
-            ? app_user.UserRole.scoringTablet
-            : app_user.UserRole.sanitater;
+        final userRole = app_user.UserRole.scoringTablet;
         final userDoc = app_user.User(
           id: uid,
           email: accountWithCode.email,
@@ -392,7 +389,7 @@ class ManagedAccountService {
 
   // Generate unique email for managed account
   String generateUniqueEmail(ManagedAccountType type, String tournamentName, {String? courtName}) {
-    final prefix = type == ManagedAccountType.scoringTablet ? 'tablet' : 'medic';
+    const prefix = 'tablet';
     final tournamentSlug = tournamentName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     
     if (type == ManagedAccountType.scoringTablet && courtName != null) {
@@ -406,28 +403,23 @@ class ManagedAccountService {
 
   // Generate secure temporary password
   String generateTemporaryPassword() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = DateTime.now().millisecondsSinceEpoch;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    final random = Random.secure();
     var password = '';
-    
-    for (int i = 0; i < 8; i++) {
-      password += chars[(random + i) % chars.length];
+    for (int i = 0; i < 12; i++) {
+      password += chars[random.nextInt(chars.length)];
     }
-    
     return password;
   }
 
   // Generate one-time login code
   String generateOneTimeCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
     var code = '';
-    
-    // Generate 6-digit code
     for (int i = 0; i < 6; i++) {
-      code += chars[(timestamp + i * 17) % chars.length];
+      code += chars[random.nextInt(chars.length)];
     }
-    
     return code;
   }
 

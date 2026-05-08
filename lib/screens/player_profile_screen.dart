@@ -35,6 +35,19 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
   List<Suspension> _suspensions = [];
   bool _canEdit = false;
 
+  // ── Team-color theming (with RHD fallback) ─────────────────────────
+  Color get _teamPrimary => _team?.primaryColor != null
+      ? Color(_team!.primaryColor!)
+      : _teamPrimary;
+  Color get _teamSecondary => _team?.secondaryColor != null
+      ? Color(_team!.secondaryColor!)
+      : AppColors.gradientColors[3];
+  bool get _hasOwnColors =>
+      _team?.primaryColor != null || _team?.secondaryColor != null;
+  LinearGradient get _teamGradient => _hasOwnColors
+      ? LinearGradient(colors: [_teamPrimary, _teamSecondary])
+      : AppColors.primaryGradient;
+
   @override
   void initState() {
     super.initState();
@@ -197,7 +210,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                   max: 1.0,
                   divisions: 19,
                   label: '${(opacity * 100).round()}%',
-                  activeColor: AppColors.primaryColor,
+                  activeColor: _teamPrimary,
                   onChanged: (v) => setLocal(() => opacity = v),
                 ),
               ],
@@ -224,7 +237,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
             if (hasImage)
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor),
+                    backgroundColor: _teamPrimary),
                 onPressed: () async {
                   Navigator.of(ctx).pop();
                   await _playerService.updatePlayerSecondaryOpacity(
@@ -367,7 +380,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
             children: [
               // Base black
               const ColoredBox(color: Color(0xFF0a0a0a)),
-              // Diagonal red→gold mood lighting from top-left
+              // Diagonal mood lighting from top-left (team or RHD fallback)
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -375,9 +388,9 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        AppColors.gradientColors[0].withOpacity(0.55),
-                        AppColors.gradientColors[1].withOpacity(0.25),
-                        AppColors.gradientColors[2].withOpacity(0.10),
+                        _teamPrimary.withOpacity(0.55),
+                        _teamPrimary.withOpacity(0.25),
+                        _teamSecondary.withOpacity(0.10),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.25, 0.5, 0.85],
@@ -473,11 +486,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                 ),
               // Secondary full-height accent image (replaces team logo).
               if (hasSecondary)
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  width: (w * 0.55).clamp(360.0, 720.0).toDouble(),
+                Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
                       opacity: p.secondaryPhotoOpacity.clamp(0.0, 1.0),
@@ -490,14 +499,18 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                             Colors.black,
                             Colors.black,
                           ],
-                          stops: [0.0, 0.25, 1.0],
+                          stops: [0.0, 0.45, 1.0],
                         ).createShader(rect),
                         blendMode: BlendMode.dstIn,
-                        child: Image.network(
-                          p.secondaryPhotoUrl!,
-                          fit: BoxFit.cover,
+                        child: Align(
                           alignment: Alignment.centerRight,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          child: Image.network(
+                            p.secondaryPhotoUrl!,
+                            fit: BoxFit.fitHeight,
+                            alignment: Alignment.centerRight,
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
+                          ),
                         ),
                       ),
                     ),
@@ -550,8 +563,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                 left: 0,
                 right: 0,
                 height: 3,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(gradient: _teamGradient),
                 ),
               ),
               // Team chip top-left — more opaque, moved upward
@@ -569,7 +582,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.85),
                         border: Border.all(
-                            color: AppColors.primaryColor.withOpacity(0.8)),
+                            color: _teamPrimary.withOpacity(0.8)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -577,7 +590,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                           Container(
                               width: 6,
                               height: 6,
-                              color: AppColors.primaryColor),
+                              color: _teamPrimary),
                           const SizedBox(width: 8),
                           Text(
                             _team!.name.toUpperCase(),
@@ -647,8 +660,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                             Container(
                               height: 4,
                               width: 96,
-                              decoration: const BoxDecoration(
-                                gradient: AppColors.primaryGradient,
+                              decoration: BoxDecoration(
+                                gradient: _teamGradient,
                               ),
                             ),
                           ],
@@ -712,7 +725,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.55),
         border: Border.all(
-          color: AppColors.primaryColor.withOpacity(0.5),
+          color: _teamPrimary.withOpacity(0.5),
           width: 1.5,
         ),
       ),
@@ -782,7 +795,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
             value,
             style: TextStyle(
               fontFamily: 'MyriadPro',
-              color: isAccent ? AppColors.primaryColor : Colors.white,
+              color: isAccent ? _teamPrimary : Colors.white,
               fontSize: 30,
               fontWeight: FontWeight.w900,
               height: 1,
@@ -811,14 +824,14 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.primaryColor.withOpacity(0.14),
-          border: Border.all(color: AppColors.primaryColor.withOpacity(0.35)),
+          color: _teamPrimary.withOpacity(0.14),
+          border: Border.all(color: _teamPrimary.withOpacity(0.35)),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           p.classification!.toUpperCase(),
           style: TextStyle(
-            color: AppColors.primaryColor,
+            color: _teamPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 11,
             letterSpacing: 1.5,
@@ -923,12 +936,12 @@ return Container(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.primaryColor.withOpacity(0.18),
+                    _teamPrimary.withOpacity(0.18),
                     Colors.transparent,
                   ],
                 ),
                 border: Border(
-                  left: BorderSide(color: AppColors.primaryColor, width: 3),
+                  left: BorderSide(color: _teamPrimary, width: 3),
                 ),
               ),
               child: Row(
@@ -951,7 +964,7 @@ return Container(
                       Text(
                         'TORE',
                         style: TextStyle(
-                          color: AppColors.primaryColor,
+                          color: _teamPrimary,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 2,
@@ -1039,16 +1052,16 @@ return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(0.1),
+                  color: _teamPrimary.withOpacity(0.1),
                   border: Border(
                     left: BorderSide(
-                        color: AppColors.primaryColor, width: 3),
+                        color: _teamPrimary, width: 3),
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.block,
-                        color: AppColors.primaryColor, size: 20),
+                        color: _teamPrimary, size: 20),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -1090,11 +1103,13 @@ return Container(
         Container(
           width: 4,
           height: 24,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFe63946), Color(0xFFffd765)],
+              colors: _hasOwnColors
+                  ? [_teamPrimary, _teamSecondary]
+                  : const [Color(0xFFe63946), Color(0xFFffd765)],
             ),
           ),
         ),

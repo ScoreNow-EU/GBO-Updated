@@ -8,7 +8,10 @@ import '../services/game_service.dart';
 import '../services/tournament_service.dart';
 import '../services/game_squad_service.dart';
 import '../services/auth_service.dart';
+import '../models/user.dart' as app_user;
+import '../services/referee_observation_service.dart';
 import 'squad_selection_screen.dart';
+import 'referee_observation_form_screen.dart';
 
 class TeamGamesView extends StatefulWidget {
   final Team team;
@@ -24,7 +27,9 @@ class _TeamGamesViewState extends State<TeamGamesView> {
   final TournamentService _tournamentService = TournamentService();
   final GameSquadService _gameSquadService = GameSquadService();
   final AuthService _authService = AuthService();
+  final RefereeObservationService _observationService = RefereeObservationService();
 
+  app_user.User? _currentUser;
   List<Game> _upcomingGames = [];
   List<Tournament> _tournaments = [];
   Map<String, GameSquad> _gameSquads = {}; // gameId -> GameSquad
@@ -33,7 +38,13 @@ class _TeamGamesViewState extends State<TeamGamesView> {
   @override
   void initState() {
     super.initState();
+    _loadUser();
     _loadGames();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await _authService.getCurrentUser();
+    if (mounted) setState(() => _currentUser = user);
   }
 
   Future<void> _loadGames() async {
@@ -332,6 +343,29 @@ class _TeamGamesViewState extends State<TeamGamesView> {
                           ],
                         ),
                       ],
+                      // Observation button for completed/live games
+                      if (_currentUser != null &&
+                          (game.status == GameStatus.inProgress ||
+                              game.status == GameStatus.completed)) ...[
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.assignment_ind, size: 16),
+                            label: const Text('Beobachtung'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.indigo,
+                              side: const BorderSide(color: Colors.indigo),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                            ),
+                            onPressed: () =>
+                                _openObservationForm(game, tournament),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -339,6 +373,47 @@ class _TeamGamesViewState extends State<TeamGamesView> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openObservationForm(
+      Game game, Tournament tournament) async {
+    final user = _currentUser!;
+    final refereeIds = [
+      if (game.referee1Id != null) game.referee1Id!,
+      if (game.referee2Id != null) game.referee2Id!,
+    ];
+    // We don't store referee names on Game model, use IDs as fallback
+    final refereeNames = refereeIds.isEmpty ? ['Unbekannt'] : refereeIds;
+
+    final existing = await _observationService
+        .getObservationsBySubmitter(user.id)
+        .first
+        .then((list) => list
+            .where((o) =>
+                o.gameId == game.id && o.templateType == 'team')
+            .toList());
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RefereeObservationFormScreen(
+          gameId: game.id,
+          tournamentId: tournament.id,
+          gameName: game.displayName,
+          gameDate: game.scheduledTime != null
+              ? '${game.scheduledTime!.day}.${game.scheduledTime!.month}.${game.scheduledTime!.year}'
+              : '',
+          refereeIds: refereeIds,
+          refereeNames: refereeNames,
+          submitterId: user.id,
+          submitterName: user.fullName,
+          submitterRole: 'teamManager',
+          templateType: 'team',
+          existingObservation: existing.isNotEmpty ? existing.first : null,
+        ),
       ),
     );
   }

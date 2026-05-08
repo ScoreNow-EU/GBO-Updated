@@ -8,7 +8,6 @@ enum UserRole {
   referee,
   delegate,
   scoringTablet,
-  sanitater,
   seriesOrganizer,
   spieler,
   tournamentOrganizer,

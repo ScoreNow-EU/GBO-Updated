@@ -1,9 +1,12 @@
 ﻿import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/player.dart';
+import '../models/tournament.dart';
 import '../services/player_service.dart';
+import '../services/tournament_service.dart';
 import '../utils/responsive_helper.dart';
 import '../utils/app_colors.dart';
+import '../utils/season_points.dart';
 import 'package:toastification/toastification.dart';
 import 'player_profile_screen.dart';
 
@@ -21,6 +24,7 @@ class TeamDetailsScreen extends StatefulWidget {
 
 class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
   final PlayerService _playerService = PlayerService();
+  final TournamentService _tournamentService = TournamentService();
   
   List<Player> rosterPlayers = [];
   bool isLoading = true;
@@ -67,6 +71,11 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
     return Colors.blue; // Single league (RHBL)
   }
 
+  /// Team's own primary color, fallback to RHBL accent.
+  Color get _accentColor => widget.team.primaryColor != null
+      ? Color(widget.team.primaryColor!)
+      : AppColors.primaryColor;
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -82,7 +91,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: _accentColor,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         leading: IconButton(
@@ -110,6 +119,10 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
                     _buildRosterSection(),
                     const SizedBox(height: 24),
                   ],
+                  
+                  // Upcoming / Active Tournaments
+                  _buildUpcomingTournaments(),
+                  const SizedBox(height: 24),
                   
                   // Tournament History
                   _buildTournamentHistory(),
@@ -143,10 +156,10 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: _accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(40),
               border: Border.all(
-                color: AppColors.primaryColor.withOpacity(0.3),
+                color: _accentColor.withOpacity(0.3),
                 width: 3,
               ),
             ),
@@ -225,11 +238,11 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
+                  color: _accentColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${widget.team.totalPoints} Pkt',
+                  '${computeBest3Points(widget.team.pointsHistory)} Pkt',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -347,16 +360,16 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
+              color: _accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(25),
               border: Border.all(
-                color: AppColors.primaryColor.withOpacity(0.3),
+                color: _accentColor.withOpacity(0.3),
                 width: 2,
               ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person,
-              color: AppColors.primaryColor,
+              color: _accentColor,
               size: 28,
             ),
           ),
@@ -409,6 +422,124 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildUpcomingTournaments() {
+    return StreamBuilder<List<Tournament>>(
+      stream: _tournamentService.getTournamentsForTeam(widget.team.id),
+      builder: (context, snapshot) {
+        final tournaments = (snapshot.data ?? [])
+            .where((t) => t.status != 'completed')
+            .toList()
+          ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Anstehende Turniere',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const Center(child: CircularProgressIndicator())
+              else if (tournaments.isEmpty)
+                Text(
+                  'Keine anstehenden Turniere',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                )
+              else
+                ...tournaments.map(_buildUpcomingTournamentRow),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUpcomingTournamentRow(Tournament tournament) {
+    final dateStr =
+        '${tournament.startDate.day.toString().padLeft(2, '0')}.${tournament.startDate.month.toString().padLeft(2, '0')}.${tournament.startDate.year}';
+    final statusLabel = tournament.status == 'ongoing' ? 'Läuft' : 'Anstehend';
+    final statusColor = tournament.status == 'ongoing'
+        ? Colors.green
+        : Colors.blue;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event, color: statusColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tournament.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: statusColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -620,9 +751,9 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
   }
 
   Widget _buildDefaultTeamIcon() {
-    return const Icon(
+    return Icon(
       Icons.sports_handball,
-      color: AppColors.primaryColor,
+      color: _accentColor,
       size: 40,
     );
   }

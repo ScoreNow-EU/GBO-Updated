@@ -698,6 +698,13 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'protest_list',
             selectedColor: Colors.indigo.shade900,
           ),
+          _buildNavigationItemColored(
+            icon: Icons.assignment_ind,
+            title: 'Beobachtungen',
+            key: 'referee_observations',
+            isSelected: widget.selectedSection == 'referee_observations',
+            selectedColor: Colors.indigo.shade900,
+          ),
         ],
       ),
     );
@@ -982,12 +989,6 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'delegate_management',
           ),
           _buildAdminItem(
-            icon: Icons.supervisor_account,
-            title: 'Team Manager Verwaltung',
-            key: 'team_manager_management',
-            isSelected: widget.selectedSection == 'team_manager_management',
-          ),
-          _buildAdminItem(
             icon: Icons.people,
             title: 'Kader Verwaltung (Global)',
             key: 'player_management',
@@ -1014,7 +1015,7 @@ class _SideNavigationState extends State<SideNavigation> {
           // ),
           _buildAdminItem(
             icon: Icons.key,
-            title: 'Einmalone Codes erstellen',
+            title: 'Einmalcodes erstellen',
             key: 'generate_sign_in_codes',
             isSelected: widget.selectedSection == 'generate_sign_in_codes',
           ),
@@ -1053,13 +1054,6 @@ class _SideNavigationState extends State<SideNavigation> {
           
           // Expandable admin items
           if (_isAdminExpanded) ...[
-            if (defaultTargetPlatform != TargetPlatform.iOS)
-              _buildAdminItem(
-                icon: Icons.architecture,
-                title: 'Preset Verwaltung',
-                key: 'preset_management',
-                isSelected: widget.selectedSection == 'preset_management',
-              ),
             _buildAdminItem(
               icon: Icons.notifications_active,
               title: 'Benachrichtigung Senden',
@@ -1077,6 +1071,30 @@ class _SideNavigationState extends State<SideNavigation> {
               title: 'Städte Migration',
               key: 'city_migration',
               isSelected: widget.selectedSection == 'city_migration',
+            ),
+            _buildAdminItem(
+              icon: Icons.smart_display,
+              title: 'YouTube-Verbindung',
+              key: 'youtube_connect',
+              isSelected: widget.selectedSection == 'youtube_connect',
+            ),
+            _buildAdminItem(
+              icon: Icons.video_library,
+              title: 'Stories',
+              key: 'stories',
+              isSelected: widget.selectedSection == 'stories',
+            ),
+            _buildAdminItem(
+              icon: Icons.description,
+              title: 'Beobachtungs-Vorlagen',
+              key: 'observation_templates',
+              isSelected: widget.selectedSection == 'observation_templates',
+            ),
+            _buildAdminItem(
+              icon: Icons.assignment_ind,
+              title: 'Beobachtungen',
+              key: 'referee_observations',
+              isSelected: widget.selectedSection == 'referee_observations',
             ),
             _buildAdminItem(
               icon: Icons.image,

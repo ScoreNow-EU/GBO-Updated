@@ -138,8 +138,6 @@ class _GenerateSignInCodesScreenState extends State<GenerateSignInCodesScreen> {
         return 'Coach';
       case app_user.UserRole.scoringTablet:
         return 'Scoring Tablet';
-      case app_user.UserRole.sanitater:
-        return 'Sanitäter';
       case app_user.UserRole.seriesOrganizer:
         return 'Series Organizer';
       case app_user.UserRole.spieler:

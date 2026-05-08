@@ -16,9 +16,7 @@ import '../screens/team_management_screen.dart';
 import '../screens/referee_management_screen.dart';
 import '../screens/kampfgericht_management_screen.dart';
 import '../screens/delegate_management_screen.dart';
-import '../screens/team_manager_management_screen.dart';
 import '../screens/player_management_screen.dart';
-import '../screens/preset_management_screen.dart';
 import '../screens/team_detail_screen.dart';
 import '../screens/custom_notification_screen.dart';
 import '../screens/user_role_management_screen.dart';
@@ -30,6 +28,8 @@ import '../screens/rangliste_screen.dart';
 import '../screens/public_teams_screen.dart';
 import '../screens/season_calendar_screen.dart';
 import '../screens/city_migration_screen.dart';
+import '../screens/admin/youtube_connect_screen.dart';
+import '../screens/admin/stories_screen.dart';
 import '../screens/tournament_creation_wizard.dart';
 import '../screens/tournament_edit_screen.dart';
 import '../screens/tournament_approval_screen.dart';
@@ -57,6 +57,8 @@ import '../screens/player_transfer_screen.dart';
 import '../screens/document_management_screen.dart';
 import '../widgets/offline_banner.dart';
 import '../services/web_notification_service.dart';
+import '../screens/admin/observation_template_screen.dart';
+import '../screens/referee_observation_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -197,9 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'team_management',
       'referee_management',
       'delegate_management',
-      'team_manager_management',
       'player_management',
-      'preset_management',
       'custom_notifications',
       'user_role_management',
       'city_migration',
@@ -342,8 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
             !section.contains('_overview') && 
             !section.contains('_tournaments') && 
             !section.contains('_settings') &&
-            section != 'team_management' &&
-            section != 'team_manager_management') {
+            section != 'team_management') {
           setState(() {
             selectedSection = '${section}_overview';
           });
@@ -393,8 +392,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Teams';
       case 'saisonkalender':
         return 'Saisonkalender';
-      case 'preset_management':
-        return 'Preset Verwaltung';
       case 'tournament_management':
         return 'Tournament Management';
       case 'tournament_approval':
@@ -407,8 +404,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Kampfgericht Verwaltung';
       case 'delegate_management':
         return 'Delegierte Verwaltung';
-      case 'team_manager_management':
-        return 'Team Manager Verwaltung';
       case 'player_management':
         return 'Kader Verwaltung';
       case 'custom_notifications':
@@ -419,6 +414,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Saison Management';
       case 'city_migration':
         return 'Städte Migration';
+      case 'youtube_connect':
+        return 'YouTube-Verbindung';
+      case 'stories':
+        return 'Stories';
       case 'new_tournament':
         return 'Neues Turnier';
       case 'generate_sign_in_codes':
@@ -453,6 +452,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Live Scoring';
       case 'kanban_board':
         return 'Kanban Board';
+      case 'observation_templates':
+        return 'Beobachtungs-Vorlagen';
+      case 'referee_observations':
+        return 'Beobachtungen';
       default:
         // Handle team detail sections
         if (selectedSection.startsWith('team_')) {
@@ -475,8 +478,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const PublicTeamsScreen();
       case 'saisonkalender':
         return const SeasonCalendarScreen();
-      case 'preset_management':
-        return const PresetManagementScreen();
       case 'tournament_management':
         return TournamentManagementScreen(currentUser: _currentUser);
       case 'tournament_approval':
@@ -491,8 +492,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const KampfgerichtManagementScreen();
       case 'delegate_management':
         return const DelegateManagementScreen();
-      case 'team_manager_management':
-        return const TeamManagerManagementScreen();
       case 'player_management':
         return const PlayerManagementScreen();
       case 'custom_notifications':
@@ -503,6 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
         return const SeasonManagementScreen();
       case 'city_migration':
         return const CityMigrationScreen();
+      case 'youtube_connect':
+        return const YoutubeConnectScreen();
+      case 'stories':
+        return const StoriesAdminScreen();
       case 'managed_accounts':
         return const ManagedAccountScreen();
       case 'profile_settings':
@@ -559,6 +562,16 @@ class _HomeScreenState extends State<HomeScreen> {
             : const Center(child: Text('Bitte melden Sie sich an.'));
       case 'kanban_board':
         return const KanbanBoardScreen();
+      case 'observation_templates':
+        return const ObservationTemplateScreen();
+      case 'referee_observations':
+        final isDelegate = _currentUser?.roles.contains(app_user.UserRole.delegate) == true;
+        final isAdmin = _currentUser?.roles.contains(app_user.UserRole.admin) == true;
+        return RefereeObservationListScreen(
+          // Delegates and admins see all observations; others see only their own
+          submitterId: (isDelegate || isAdmin) ? null : _currentUser?.id,
+          title: 'Beobachtungen',
+        );
     }
 
     // Handle referee tournament sections
@@ -582,8 +595,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Handle team detail sections (after specific admin sections)
     if (selectedSection.startsWith('team_') && 
-        !selectedSection.startsWith('team_management') && 
-        !selectedSection.startsWith('team_manager_management')) {
+        !selectedSection.startsWith('team_management')) {
       final parts = selectedSection.split('_');
       debugPrint('🏠 HomeScreen - selectedSection: $selectedSection');
       debugPrint('🏠 HomeScreen - parts: $parts');

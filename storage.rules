@@ -33,5 +33,20 @@ service firebase.storage {
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
     }
+    match /story-uploads/{uid}/{filename} {
+      // Temporary staging area (legacy path, kept for safety).
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 500 * 1024 * 1024;
+      allow read: if false;
+    }
+    match /stories/{storyId}/{filename} {
+      // Story videos uploaded directly by admin/teamRHD.
+      // Public read so the <video> element can play without auth.
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 500 * 1024 * 1024;
+      allow delete: if request.auth != null;
+    }
   }
 }

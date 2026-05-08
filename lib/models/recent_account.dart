@@ -33,7 +33,6 @@ class RecentAccount {
       'referee': 'Schiedsrichter',
       'delegate': 'Delegat',
       'scoringTablet': 'Punktetablet',
-      'sanitater': 'Sanitäter',
       'seriesOrganizer': 'Serienorganisator',
       'spieler': 'Spieler',
       'tournamentOrganizer': 'Turnierorganisator',

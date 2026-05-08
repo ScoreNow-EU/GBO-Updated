@@ -20,6 +20,7 @@ import '../models/user.dart';
 import 'tournament_edit_screen.dart';
 import 'tournament_link_editor_screen.dart';
 import 'tournament_games_screen.dart';
+import '../widgets/livestream_embed.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TournamentDetailScreen extends StatefulWidget {
@@ -265,6 +266,12 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         children: [
           _buildTournamentHeader(),
           SizedBox(height: isMobile ? 24 : 32),
+          if (widget.tournament.livestreamEnabled &&
+              widget.tournament.livestreamUrl != null &&
+              widget.tournament.livestreamUrl!.isNotEmpty) ...[
+            _buildLivestreamSection(),
+            SizedBox(height: isMobile ? 24 : 32),
+          ],
           _buildResultsSection(),
           SizedBox(height: isMobile ? 24 : 32),
           _buildCriteriaSection(),
@@ -2093,6 +2100,42 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLivestreamSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = ResponsiveHelper.isMobile(screenWidth);
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.live_tv, color: Colors.red),
+              SizedBox(width: 8),
+              Text(
+                'Livestream',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LivestreamEmbed(url: widget.tournament.livestreamUrl!),
+        ],
+      ),
     );
   }
 

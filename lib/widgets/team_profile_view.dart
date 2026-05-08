@@ -4,6 +4,7 @@ import '../models/team.dart';
 import '../services/player_service.dart';
 import '../services/team_stats_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/season_points.dart';
 import '../screens/player_profile_screen.dart';
 
 /// Premium "Profile" panel for a team.
@@ -26,6 +27,19 @@ class _TeamProfileViewState extends State<TeamProfileView>
   Object? _error;
   late final AnimationController _anim;
   late final Animation<double> _fade;
+
+  // Team accent (primary/secondary) with RHD fallback.
+  Color get _teamPrimary => widget.team.primaryColor != null
+      ? Color(widget.team.primaryColor!)
+      : AppColors.primaryColor;
+  Color get _teamSecondary => widget.team.secondaryColor != null
+      ? Color(widget.team.secondaryColor!)
+      : AppColors.gradientColors[3];
+  bool get _hasOwnColors =>
+      widget.team.primaryColor != null || widget.team.secondaryColor != null;
+  LinearGradient get _teamGradient => _hasOwnColors
+      ? LinearGradient(colors: [_teamPrimary, _teamSecondary])
+      : AppColors.primaryGradient;
 
   @override
   void initState() {
@@ -64,9 +78,22 @@ class _TeamProfileViewState extends State<TeamProfileView>
           Future.value(<Player>[]),
       ]);
       if (!mounted) return;
+      final players = results[1] as List<Player>;
+      players.sort((a, b) {
+        final an = int.tryParse(a.jerseyNumber ?? '');
+        final bn = int.tryParse(b.jerseyNumber ?? '');
+        if (an == null && bn == null) {
+          return '${a.lastName} ${a.firstName}'
+              .toLowerCase()
+              .compareTo('${b.lastName} ${b.firstName}'.toLowerCase());
+        }
+        if (an == null) return 1;
+        if (bn == null) return -1;
+        return an.compareTo(bn);
+      });
       setState(() {
         _stats = results[0] as TeamCareerStats;
-        _players = results[1] as List<Player>;
+        _players = players;
         _loading = false;
       });
     } catch (e) {
@@ -139,7 +166,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Diagonal red→gold mood lighting
+            // Diagonal mood lighting in team's primary/secondary (RHD fallback)
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -147,9 +174,9 @@ class _TeamProfileViewState extends State<TeamProfileView>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.gradientColors[0].withOpacity(0.65),
-                      AppColors.gradientColors[1].withOpacity(0.30),
-                      AppColors.gradientColors[2].withOpacity(0.10),
+                      _teamPrimary.withOpacity(0.65),
+                      _teamPrimary.withOpacity(0.30),
+                      _teamSecondary.withOpacity(0.10),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.3, 0.55, 0.85],
@@ -207,11 +234,11 @@ class _TeamProfileViewState extends State<TeamProfileView>
                 ),
               ),
             ),
-            // Top red gradient line
+            // Top accent line (team gradient or RHD fallback)
             Positioned(
               top: 0, left: 0, right: 0, height: 3,
-              child: const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: _teamGradient),
               ),
             ),
             // Content
@@ -232,8 +259,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.5),
                             border: Border.all(
-                                color: AppColors.primaryColor
-                                    .withOpacity(0.6)),
+                                color: _teamPrimary.withOpacity(0.6)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -241,7 +267,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
                               Container(
                                   width: 6,
                                   height: 6,
-                                  color: AppColors.primaryColor),
+                                  color: _teamPrimary),
                               const SizedBox(width: 8),
                               const Text(
                                 'TEAM',
@@ -256,7 +282,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
                           ),
                         ),
                         const Spacer(),
-                        _pointsMedallion(t.totalPoints),
+                        _pointsMedallion(computeBest3Points(t.pointsHistory)),
                       ],
                     ),
                     const Spacer(),
@@ -306,8 +332,8 @@ class _TeamProfileViewState extends State<TeamProfileView>
                               Container(
                                 height: 4,
                                 width: 56,
-                                decoration: const BoxDecoration(
-                                  gradient: AppColors.primaryGradient,
+                                decoration: BoxDecoration(
+                                  gradient: _teamGradient,
                                 ),
                               ),
                             ],
@@ -456,7 +482,11 @@ class _TeamProfileViewState extends State<TeamProfileView>
                 SizedBox(
                   width: 140,
                   height: 220,
-                  child: _PlayerCard(player: p),
+                  child: _PlayerCard(
+                    player: p,
+                    teamPrimary: _teamPrimary,
+                    teamGradient: _teamGradient,
+                  ),
                 ),
             ],
           ),
@@ -493,7 +523,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: AppColors.primaryColor),
+          Icon(icon, size: 18, color: _teamPrimary),
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,12 +571,12 @@ class _TeamProfileViewState extends State<TeamProfileView>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primaryColor.withOpacity(0.18),
+                _teamPrimary.withOpacity(0.18),
                 Colors.transparent,
               ],
             ),
             border: Border(
-              left: BorderSide(color: AppColors.primaryColor, width: 3),
+              left: BorderSide(color: _teamPrimary, width: 3),
             ),
           ),
           child: Row(
@@ -569,7 +599,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
                   Text(
                     'PUNKTE',
                     style: TextStyle(
-                      color: AppColors.primaryColor,
+                      color: _teamPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 2,
@@ -596,7 +626,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
             Container(width: 1, height: 64, color: Colors.white.withOpacity(0.06)),
             Expanded(child: _wdlBlock('U', s.draws, const Color(0xFFf59e0b))),
             Container(width: 1, height: 64, color: Colors.white.withOpacity(0.06)),
-            Expanded(child: _wdlBlock('N', s.losses, AppColors.primaryColor)),
+            Expanded(child: _wdlBlock('N', s.losses, _teamPrimary)),
           ],
         ),
         const SizedBox(height: 24),
@@ -758,7 +788,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
             Text(
               '${p.totalGoals}',
               style: TextStyle(
-                color: AppColors.primaryColor,
+                color: _teamPrimary,
                 fontWeight: FontWeight.w900,
                 fontSize: 20,
                 letterSpacing: -0.5,
@@ -786,9 +816,11 @@ class _TeamProfileViewState extends State<TeamProfileView>
         Container(
           width: 4,
           height: 24,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFFe63946), Color(0xFFffd765)],
+              colors: _hasOwnColors
+                  ? [_teamPrimary, _teamSecondary]
+                  : const [Color(0xFFe63946), Color(0xFFffd765)],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -893,7 +925,13 @@ class _HexPainter extends CustomPainter {
 
 class _PlayerCard extends StatelessWidget {
   final Player player;
-  const _PlayerCard({required this.player});
+  final Color teamPrimary;
+  final LinearGradient teamGradient;
+  const _PlayerCard({
+    required this.player,
+    required this.teamPrimary,
+    required this.teamGradient,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -926,14 +964,14 @@ class _PlayerCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Subtle gradient tint
+                    // Subtle gradient tint (team primary or RHD fallback)
                     DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            AppColors.primaryColor.withOpacity(0.12),
+                            teamPrimary.withOpacity(0.12),
                             Colors.transparent,
                           ],
                         ),
@@ -1048,8 +1086,8 @@ class _PlayerCard extends StatelessWidget {
             // Top accent strip
             Positioned(
               top: 0, left: 0, right: 0, height: 2,
-              child: const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: teamGradient),
               ),
             ),
             // Jersey badge
@@ -1060,8 +1098,8 @@ class _PlayerCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 3),
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.primaryGradient,
+                  decoration: BoxDecoration(
+                    gradient: teamGradient,
                   ),
                   child: Text(
                     player.jerseyNumber!,

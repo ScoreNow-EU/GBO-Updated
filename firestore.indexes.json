@@ -95,6 +95,22 @@
         { "fieldPath": "selectedByUserId", "order": "ASCENDING" },
         { "fieldPath": "selectionTime", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "referee_observations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "submitterId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referee_observations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "refereeIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

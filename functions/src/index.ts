@@ -5,6 +5,16 @@ import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {solveAssignment} from "./solver";
 
+// Re-export YouTube live-broadcast + Stories functions
+export {
+  youtubeOAuthCallback,
+  createYoutubeBroadcast,
+  getYoutubeAuthUrl,
+  initiateYoutubeUpload,
+  finalizeStory,
+  processStoryUpload,
+} from "./youtube";
+
 // Initialize Firebase Admin SDK (once, at module level)
 if (admin.apps.length === 0) {
   admin.initializeApp();

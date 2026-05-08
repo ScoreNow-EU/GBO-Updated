@@ -7,6 +7,7 @@ import '../widgets/team_avatar.dart';
 
 import 'team_form_screen.dart';
 import 'team_edit_screen.dart';
+import 'team_manager_management_screen.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -64,12 +65,37 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = ResponsiveHelper.isMobile(screenWidth);
-    
-    if (isMobile) {
-      return _buildMobileLayout();
-    } else {
-      return _buildDesktopLayout();
-    }
+
+    final teamsTab = isMobile ? _buildMobileLayout() : _buildDesktopLayout();
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Material(
+            color: Colors.grey.shade50,
+            elevation: 0,
+            child: const TabBar(
+              labelColor: Colors.indigo,
+              unselectedLabelColor: Colors.black54,
+              indicatorColor: Colors.indigo,
+              tabs: [
+                Tab(icon: Icon(Icons.groups_2_rounded), text: 'Teams'),
+                Tab(icon: Icon(Icons.supervisor_account), text: 'Team Manager'),
+              ],
+            ),
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            teamsTab,
+            const TeamManagerManagementScreen(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMobileLayout() {

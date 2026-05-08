@@ -35,6 +35,9 @@ import 'new_category_pools_screen.dart';
 import 'tournament_link_editor_screen.dart';
 import 'game_report_screen.dart';
 import 'tournament_stats_screen.dart';
+import '../widgets/livestream_embed.dart';
+import '../services/livestream_service.dart';
+import '../models/livestream_credentials.dart';
 import '../models/game_event.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:typed_data';
@@ -171,6 +174,13 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   // Sponsor logos (download URLs from Firebase Storage)
   List<String> _sponsorLogos = [];
   bool _isUploadingSponsor = false;
+
+  // Livestream (t42 / t43)
+  bool _livestreamEnabled = false;
+  final _livestreamUrlController = TextEditingController();
+  String? _livestreamYoutubeBroadcastId;
+  bool _isCreatingBroadcast = false;
+  LivestreamCredentials? _lastBroadcastCreds;
 
   // Team management
   List<Team> _allTeams = [];
@@ -321,6 +331,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     _refereeSearchController.dispose();
     _delegateSearchController.dispose();
     _kampfgerichtSearchController.dispose();
+    _livestreamUrlController.dispose();
     super.dispose();
   }
 
@@ -376,6 +387,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
       
       // Load sponsor logos
       _sponsorLogos = List<String>.from(tournament.sponsorLogos);
+
+      // Load livestream settings
+      _livestreamEnabled = tournament.livestreamEnabled;
+      _livestreamUrlController.text = tournament.livestreamUrl ?? '';
+      _livestreamYoutubeBroadcastId = tournament.livestreamYoutubeBroadcastId;
       
       // Load tournament links
       _links = List<TournamentLink>.from(tournament.links);
@@ -769,6 +785,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   // Zuordnung tab hidden per ticket 1777589051169
                   _buildDrawerNavItem('stats', 'Statistiken', Icons.bar_chart, screenWidth),
                   _buildDrawerNavItem('sponsors', 'Sponsoren', Icons.handshake, screenWidth),
+                  _buildDrawerNavItem('livestream', 'Livestream', Icons.live_tv, screenWidth),
                   _buildDrawerNavItem('settings', 'Einstellungen', Icons.settings, screenWidth),
                 ],
               ),
@@ -886,6 +903,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                 // Zuordnung tab hidden per ticket 1777589051169
                 _buildNavItem('stats', 'Statistiken', Icons.bar_chart),
                 _buildNavItem('sponsors', 'Sponsoren', Icons.handshake),
+                _buildNavItem('livestream', 'Livestream', Icons.live_tv),
                 _buildNavItem('settings', 'Einstellungen', Icons.settings),
               ],
             ),
@@ -958,6 +976,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return 'Statistiken';
       case 'sponsors':
         return 'Sponsoren';
+      case 'livestream':
+        return 'Livestream';
       case 'settings':
         return 'Einstellungen';
       default:
@@ -1012,6 +1032,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildSettingsTab();
       case 'sponsors':
         return _buildSponsorsTab();
+      case 'livestream':
+        return _buildLivestreamTab();
       default:
         return _buildBasicDataTab();
     }
@@ -1235,6 +1257,8 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         return _buildSettingsTab();
       case 'sponsors':
         return _buildSponsorsTab();
+      case 'livestream':
+        return _buildLivestreamTab();
       default:
         return _buildBasicDataTab();
     }
@@ -2708,6 +2732,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         rejectionReason: widget.tournament!.rejectionReason,
         hostClubTeamId: _hostClubTeamId,
         sponsorLogos: _sponsorLogos,
+        livestreamEnabled: _livestreamEnabled,
+        livestreamUrl: _livestreamUrlController.text.trim().isNotEmpty
+            ? _livestreamUrlController.text.trim()
+            : null,
+        livestreamYoutubeBroadcastId: _livestreamYoutubeBroadcastId,
         venueStreet: _venueStreetController.text.trim().isNotEmpty ? _venueStreetController.text.trim() : null,
         venueHouseNumber: _venueHouseNumberController.text.trim().isNotEmpty ? _venueHouseNumberController.text.trim() : null,
         venuePlz: _venuePlzController.text.trim().isNotEmpty ? _venuePlzController.text.trim() : null,
@@ -2863,6 +2892,11 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
         rejectionReason: widget.tournament?.rejectionReason,
         hostClubTeamId: _hostClubTeamId,
         sponsorLogos: _sponsorLogos,
+        livestreamEnabled: _livestreamEnabled,
+        livestreamUrl: _livestreamUrlController.text.trim().isNotEmpty
+            ? _livestreamUrlController.text.trim()
+            : null,
+        livestreamYoutubeBroadcastId: _livestreamYoutubeBroadcastId,
         venueStreet: _venueStreetController.text.trim().isNotEmpty ? _venueStreetController.text.trim() : null,
         venueHouseNumber: _venueHouseNumberController.text.trim().isNotEmpty ? _venueHouseNumberController.text.trim() : null,
         venuePlz: _venuePlzController.text.trim().isNotEmpty ? _venuePlzController.text.trim() : null,
@@ -6048,6 +6082,417 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     setState(() => _sponsorLogos.removeAt(index));
     // Auto-save after deletion
     await _autoSaveTournament();
+  }
+
+  /// Calls the `createYoutubeBroadcast` cloud function and reflects the
+  /// result in the form (URL field + broadcast-id chip). Shows a dialog
+  /// with RTMP-URL + Stream-Key for the streaming setup.
+  Future<void> _createYoutubeBroadcast() async {
+    if (widget.tournament == null) return;
+    final service = LivestreamService();
+    final connected = await service.isYoutubeConnected();
+    if (!connected) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('YouTube nicht verbunden'),
+          content: const Text(
+              'Bitte zuerst im Admin-Bereich unter "YouTube-Verbindung" '
+              'den zentralen RHBL-Kanal verbinden.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final defaultTitle =
+        '${widget.tournament!.name} – ${widget.tournament!.startDate.toLocal().toIso8601String().split('T').first}';
+    String chosenPrivacy = 'unlisted';
+    final titleController = TextEditingController(text: defaultTitle);
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('YouTube-Stream erstellen'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Titel',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: chosenPrivacy,
+                decoration: const InputDecoration(
+                  labelText: 'Sichtbarkeit',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                      value: 'unlisted', child: Text('Nicht gelistet')),
+                  DropdownMenuItem(
+                      value: 'public', child: Text('Öffentlich')),
+                  DropdownMenuItem(
+                      value: 'private', child: Text('Privat')),
+                ],
+                onChanged: (v) => setLocal(() {
+                  if (v != null) chosenPrivacy = v;
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Erstellen'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (shouldCreate != true) {
+      titleController.dispose();
+      return;
+    }
+    final title = titleController.text.trim();
+    titleController.dispose();
+
+    setState(() => _isCreatingBroadcast = true);
+    try {
+      final now = DateTime.now().toUtc();
+      final tournamentStart = widget.tournament!.startDate.toUtc();
+      // YouTube requires the start time to be in the future. If the tournament
+      // date is in the past (or within the next minute), fall back to +5 min.
+      final scheduledStart = tournamentStart.isAfter(now.add(const Duration(minutes: 1)))
+          ? tournamentStart
+          : now.add(const Duration(minutes: 5));
+      final creds = await service.createBroadcast(
+        tournamentId: widget.tournament!.id,
+        title: title.isEmpty ? null : title,
+        scheduledStartTime: scheduledStart,
+        privacyStatus: chosenPrivacy,
+      );
+      if (!mounted) return;
+      setState(() {
+        _livestreamEnabled = true;
+        _livestreamUrlController.text = creds.watchUrl;
+        _livestreamYoutubeBroadcastId = creds.broadcastId;
+        _lastBroadcastCreds = creds;
+        _isCreatingBroadcast = false;
+      });
+      await _showBroadcastResultDialog(creds);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isCreatingBroadcast = false);
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Fehler'),
+          content: Text('Stream konnte nicht erstellt werden:\n$e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _showBroadcastResultDialog(LivestreamCredentials c) async {
+    bool revealKey = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Stream erstellt ✓'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _credRow(context, 'Watch-URL', c.watchUrl),
+                _credRow(context, 'RTMP-URL', c.rtmpUrl),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _credRow(
+                        context,
+                        'Stream-Key',
+                        revealKey
+                            ? c.streamKey
+                            : '•' * c.streamKey.length.clamp(8, 32),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: revealKey ? 'Verbergen' : 'Anzeigen',
+                      icon: Icon(revealKey
+                          ? Icons.visibility_off
+                          : Icons.visibility),
+                      onPressed: () =>
+                          setLocal(() => revealKey = !revealKey),
+                    ),
+                    IconButton(
+                      tooltip: 'Kopieren',
+                      icon: const Icon(Icons.copy),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                            ClipboardData(text: c.streamKey));
+                        if (!ctx.mounted) return;
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Stream-Key kopiert')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const Divider(height: 28),
+                const Text(
+                  'OBS einrichten',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '1.  OBS öffnen → Einstellungen → Stream\n'
+                  '2.  Dienst: „YouTube – RTMPS" (oder „Benutzerdefiniert")\n'
+                  '3.  Server: RTMP-URL von oben einfügen\n'
+                  '4.  Stream-Key: Stream-Key von oben einfügen\n'
+                  '5.  OK → Streaming starten\n\n'
+                  'Wichtig: Starte den Stream erst kurz vor Spielbeginn. '
+                  'Starte NICHT einen neuen Broadcast – der Broadcast ist '
+                  'bereits auf YouTube angelegt. OBS verbindet sich '
+                  'automatisch mit dem bestehenden Broadcast.',
+                  style: TextStyle(fontSize: 12, height: 1.6),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Die Zugangsdaten bleiben im Livestream-Tab sichtbar '
+                  'solange dieses Fenster offen ist.',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Fertig'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _credRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 12)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: SelectableText(
+                  value,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Kopieren',
+                icon: const Icon(Icons.copy, size: 18),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: value));
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('$label kopiert')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLivestreamTab() {
+    final urlText = _livestreamUrlController.text.trim();
+    final hasValidUrl = urlText.isNotEmpty &&
+        (urlText.contains('youtube.com/watch') ||
+            urlText.contains('youtu.be/') ||
+            urlText.contains('youtube.com/live/') ||
+            urlText.contains('youtube.com/embed/'));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.live_tv, color: Colors.red, size: 24),
+                      SizedBox(width: 12),
+                      Text(
+                        'Livestream',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Binde einen YouTube-Livestream in die Turnier-Detailseite ein.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Livestream aktivieren'),
+                    subtitle: const Text(
+                        'Wenn aktiv, wird der Stream auf der Turnierseite angezeigt.'),
+                    value: _livestreamEnabled,
+                    onChanged: (v) => setState(() => _livestreamEnabled = v),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _livestreamUrlController,
+                    decoration: const InputDecoration(
+                      labelText: 'YouTube-Livestream-URL',
+                      hintText: 'https://www.youtube.com/watch?v=...',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.link),
+                    ),
+                    keyboardType: TextInputType.url,
+                    onChanged: (_) => setState(() {}),
+                    validator: (value) {
+                      if (!_livestreamEnabled) return null;
+                      final v = value?.trim() ?? '';
+                      if (v.isEmpty) return 'Bitte eine URL angeben';
+                      if (!(v.contains('youtube.com/watch') ||
+                          v.contains('youtu.be/') ||
+                          v.contains('youtube.com/live/') ||
+                          v.contains('youtube.com/embed/'))) {
+                        return 'Bitte eine gültige YouTube-URL angeben';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _isCreatingBroadcast
+                            ? null
+                            : _createYoutubeBroadcast,
+                        icon: _isCreatingBroadcast
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              )
+                            : const Icon(Icons.auto_awesome),
+                        label: const Text(
+                            'YouTube-Stream automatisch erstellen'),
+                      ),
+                      if (_livestreamYoutubeBroadcastId != null) ...[
+                        const SizedBox(width: 12),
+                        Chip(
+                          avatar: const Icon(Icons.check_circle,
+                              color: Colors.green, size: 18),
+                          label: Text(
+                              'Broadcast-ID: ${_livestreamYoutubeBroadcastId!}'),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (_lastBroadcastCreds != null) ...[
+                    const SizedBox(height: 20),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.settings_input_antenna,
+                            size: 18, color: Colors.red),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'OBS-Zugangsdaten',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Anleitung'),
+                          onPressed: () =>
+                              _showBroadcastResultDialog(_lastBroadcastCreds!),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _credRow(context, 'RTMP-URL', _lastBroadcastCreds!.rtmpUrl),
+                    _StreamKeyRow(
+                      streamKey: _lastBroadcastCreds!.streamKey,
+                      credRowBuilder: _credRow,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (_livestreamEnabled && hasValidUrl) ...[
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Vorschau',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    LivestreamEmbed(url: urlText),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildSettingsTab() {
@@ -12883,12 +13328,47 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
                   ),
                 ),
               ),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _delegateSubTab = 'planner'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _delegateSubTab == 'planner' ? Colors.deepOrange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.assignment_ind,
+                          size: 18,
+                          color: _delegateSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Zuordnung',
+                          style: TextStyle(
+                            color: _delegateSubTab == 'planner' ? Colors.white : Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         // Content
         Expanded(
-          child: _buildDelegateSelectionContent(),
+          child: _delegateSubTab == 'planner'
+              ? _buildDelegatePlannerContent()
+              : _buildDelegateSelectionContent(),
         ),
       ],
     );
@@ -13049,6 +13529,57 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
 }
 
 /// Lightweight stats class for Ligapunkte calculation in _autoWriteLigapunkte.
+/// Inline stream-key row with reveal/hide toggle for the Livestream tab.
+class _StreamKeyRow extends StatefulWidget {
+  final String streamKey;
+  final Widget Function(BuildContext, String, String) credRowBuilder;
+
+  const _StreamKeyRow({
+    required this.streamKey,
+    required this.credRowBuilder,
+  });
+
+  @override
+  State<_StreamKeyRow> createState() => _StreamKeyRowState();
+}
+
+class _StreamKeyRowState extends State<_StreamKeyRow> {
+  bool _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: widget.credRowBuilder(
+            context,
+            'Stream-Key',
+            _revealed
+                ? widget.streamKey
+                : '•' * widget.streamKey.length.clamp(8, 32),
+          ),
+        ),
+        IconButton(
+          tooltip: _revealed ? 'Verbergen' : 'Anzeigen',
+          icon: Icon(_revealed ? Icons.visibility_off : Icons.visibility),
+          onPressed: () => setState(() => _revealed = !_revealed),
+        ),
+        IconButton(
+          tooltip: 'Kopieren',
+          icon: const Icon(Icons.copy),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: widget.streamKey));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Stream-Key kopiert')),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _LPTeamStats {
   final String id;
   final String name;

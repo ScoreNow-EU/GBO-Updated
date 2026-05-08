@@ -6,6 +6,7 @@ import '../services/referee_service.dart';
 import '../services/tournament_service.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart' as app_user;
+import 'referee_observation_list_screen.dart';
 
 class RefereeDashboardScreen extends StatefulWidget {
   const RefereeDashboardScreen({super.key});
@@ -161,6 +162,33 @@ class _RefereeDashboardScreenState extends State<RefereeDashboardScreen> {
               _buildEmptyCard('Keine anstehenden Turniere.')
             else
               ..._upcomingTournaments.map(_buildAvailabilityCard),
+
+            const SizedBox(height: 24),
+
+            // Referee observations
+            _buildSectionHeader('Meine Beobachtungen', Icons.assignment_ind),
+            const SizedBox(height: 12),
+            if (_referee != null)
+              Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  leading: const Icon(Icons.assignment_ind, color: Colors.indigo),
+                  title: const Text('Beobachtungen anzeigen'),
+                  subtitle: const Text('Bewertungen durch Delegates'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RefereeObservationListScreen(
+                        refereeId: _referee!.id,
+                        title: 'Meine Beobachtungen',
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              _buildEmptyCard('Schiedsrichter-Profil nicht verknüpft.'),
           ],
         ),
       ),

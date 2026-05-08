@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'dart:async';
 import '../models/game.dart';
+import '../models/team.dart';
 import '../models/tournament.dart';
 import '../services/game_service.dart';
+import '../services/team_service.dart';
 import '../services/tournament_service.dart';
 
 class LiveGamesTicker extends StatefulWidget {
@@ -14,6 +16,7 @@ class LiveGamesTicker extends StatefulWidget {
 
 class _LiveGamesTickerState extends State<LiveGamesTicker> {
   final GameService _gameService = GameService();
+  final TeamService _teamService = TeamService();
   final TournamentService _tournamentService = TournamentService();
   final ScrollController _scrollController = ScrollController();
   Timer? _autoScrollTimer;
@@ -38,21 +41,14 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
       if (_scrollController.hasClients) {
         final maxScroll = _scrollController.position.maxScrollExtent;
         final currentScroll = _scrollController.offset;
-        
         if (currentScroll >= maxScroll) {
-          // Reset to start
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
+          _scrollController.animateTo(0,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut);
         } else {
-          // Scroll forward
-          _scrollController.animateTo(
-            currentScroll + 300,
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-          );
+          _scrollController.animateTo(currentScroll + 300,
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut);
         }
       }
     });
@@ -60,305 +56,338 @@ class _LiveGamesTickerState extends State<LiveGamesTicker> {
 
   Future<void> _loadGames() async {
     try {
-      debugPrint('ðŸŽ® LiveGamesTicker: Loading games...');
-      // Get all tournaments
-      final tournaments = await _tournamentService.getTournamentsWithCache().first;
-      debugPrint('ðŸŽ® LiveGamesTicker: Found ${tournaments.length} tournaments');
-      
-      // Get ongoing and upcoming tournaments
-      final relevantTournaments = tournaments.where((t) => 
-        t.approvalStatus == 'approved' &&
-        (t.status == 'ongoing' || t.status == 'upcoming')
-      ).toList();
-      debugPrint('ðŸŽ® LiveGamesTicker: ${relevantTournaments.length} relevant tournaments (approved, ongoing/upcoming)');
+      final results = await Future.wait([
+        _tournamentService.getTournamentsWithCache().first,
+        _teamService.getTeamsWithCache().first,
+      ]);
+      final tournaments = results[0] as List<Tournament>;
+      final teams = {for (final t in results[1] as List<Team>) t.id: t};
 
-      List<GameWithTournament> gamesWithTournaments = [];
+      final relevantTournaments = tournaments
+          .where((t) =>
+              t.approvalStatus == 'approved' &&
+              (t.status == 'ongoing' || t.status == 'upcoming'))
+          .toList();
 
+      final List<GameWithTournament> result = [];
       for (final tournament in relevantTournaments) {
-        // Get games for this tournament
-        final games = await _gameService.getGamesForTournament(tournament.id).first;
-        debugPrint('ðŸŽ® LiveGamesTicker: Tournament "${tournament.name}" has ${games.length} games');
-        
-        // Filter for live and upcoming games (no time limit)
-        final relevantGames = games.where((game) {
+        final games =
+            await _gameService.getGamesForTournament(tournament.id).first;
+        for (final game in games) {
           final isLive = game.status == GameStatus.inProgress;
-          final isUpcoming = game.status == GameStatus.scheduled && game.scheduledTime != null;
-          return isLive || isUpcoming;
-        }).toList();
-        
-        debugPrint('ðŸŽ® LiveGamesTicker: ${relevantGames.length} live/upcoming games in "${tournament.name}"');
-
-        for (final game in relevantGames) {
-          gamesWithTournaments.add(GameWithTournament(
-            game: game,
-            tournament: tournament,
-          ));
-          debugPrint('ðŸŽ® LiveGamesTicker: Added game: ${game.teamAName} vs ${game.teamBName} (${game.status}, scheduled: ${game.scheduledTime})');
+          final isUpcoming =
+              game.status == GameStatus.scheduled && game.scheduledTime != null;
+          if (isLive || isUpcoming) {
+            result.add(GameWithTournament(
+              game: game,
+              tournament: tournament,
+              teamALogoUrl: game.teamAId != null ? teams[game.teamAId]?.logoUrl : null,
+              teamBLogoUrl: game.teamBId != null ? teams[game.teamBId]?.logoUrl : null,
+            ));
+          }
         }
       }
 
-      // Sort: live games first, then by scheduled time
-      gamesWithTournaments.sort((a, b) {
-        final aIsLive = a.game.status == GameStatus.inProgress;
-        final bIsLive = b.game.status == GameStatus.inProgress;
-        
-        if (aIsLive && !bIsLive) return -1;
-        if (!aIsLive && bIsLive) return 1;
-        
+      result.sort((a, b) {
+        final aLive = a.game.status == GameStatus.inProgress;
+        final bLive = b.game.status == GameStatus.inProgress;
+        if (aLive && !bLive) return -1;
+        if (!aLive && bLive) return 1;
         if (a.game.scheduledTime == null) return 1;
         if (b.game.scheduledTime == null) return -1;
-        
         return a.game.scheduledTime!.compareTo(b.game.scheduledTime!);
       });
 
-      debugPrint('ðŸŽ® LiveGamesTicker: Total games to display: ${gamesWithTournaments.length}');
-
-      if (mounted) {
-        setState(() {
-          _gamesWithTournaments = gamesWithTournaments;
-        });
-      }
+      if (mounted) setState(() => _gamesWithTournaments = result);
     } catch (e) {
-      debugPrint('âŒ LiveGamesTicker: Error loading games: $e');
+      debugPrint('LiveGamesTicker: Error loading games: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1a1a2e),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      height: 160,
+      color: const Color(0xFF0e1120),
       child: _gamesWithTournaments.isEmpty
           ? Center(
               child: Text(
                 'Keine Live- oder anstehende Spiele',
-                style: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               ),
             )
           : ListView.builder(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: _gamesWithTournaments.length,
-              itemBuilder: (context, index) {
-                final item = _gamesWithTournaments[index];
-                return _buildGameCard(item);
-              },
+              itemBuilder: (context, index) =>
+                  _buildGameCard(_gamesWithTournaments[index]),
             ),
     );
   }
 
   Widget _buildGameCard(GameWithTournament item) {
     final game = item.game;
-    final tournament = item.tournament;
     final isLive = game.status == GameStatus.inProgress;
-    final isFinished = game.status == GameStatus.completed;
+    final hasScore =
+        isLive || game.status == GameStatus.completed;
+
+    final scoreA = hasScore ? (game.result?.teamAScore ?? 0) : null;
+    final scoreB = hasScore ? (game.result?.teamBScore ?? 0) : null;
+    final aLeading =
+        scoreA != null && scoreB != null && scoreA > scoreB;
+    final bLeading =
+        scoreA != null && scoreB != null && scoreB > scoreA;
 
     return Container(
-      width: 200,
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      padding: const EdgeInsets.all(12),
+      width: 220,
+      margin: const EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
-        color: isLive 
-            ? const Color(0xFF2d4059)
-            : const Color(0xFF16213e),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF161b2e),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isLive 
-              ? Colors.red.shade400
-              : Colors.grey.shade700,
-          width: isLive ? 2 : 1,
+          color: isLive
+              ? const Color(0xFFe53935)
+              : const Color(0xFF252c42),
+          width: isLive ? 1.5 : 1,
         ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top row: Time/Live indicator and Tournament
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Live indicator or time
-              if (isLive)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Text(
-                  _formatGameTime(game.scheduledTime),
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              
-              // Tournament name
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade900.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(
-                      color: Colors.orange.shade800,
-                      width: 0.5,
-                    ),
-                  ),
-                  child: Text(
-                    tournament.name,
-                    style: TextStyle(
-                      color: Colors.orange.shade300,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
+          // Tournament header
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0e1120),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(9)),
+            ),
+            child: Text(
+              item.tournament.name,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
               ),
-            ],
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-
-          const SizedBox(height: 8),
-
-          // Team A row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  game.teamAName,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: isLive ? FontWeight.bold : FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+          // Teams
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Column(
+              children: [
+                _TeamRow(
+                    name: game.teamAName,
+                    logoUrl: item.teamALogoUrl,
+                    score: scoreA,
+                    bold: aLeading || isLive),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: _StatusRow(
+                      isLive: isLive,
+                      scheduledTime: game.scheduledTime),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isFinished 
-                      ? Colors.grey.shade800
-                      : const Color(0xFF0f3460),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${game.result?.teamAScore ?? 0}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 4),
-          
-          // Team B row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  game.teamBName,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: isLive ? FontWeight.bold : FontWeight.w500,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isFinished 
-                      ? Colors.grey.shade800
-                      : const Color(0xFF0f3460),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '${game.result?.teamBScore ?? 0}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+                _TeamRow(
+                    name: game.teamBName,
+                    logoUrl: item.teamBLogoUrl,
+                    score: scoreB,
+                    bold: bLeading),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  String _formatGameTime(DateTime? time) {
-    if (time == null) return 'BALD';
-    
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final gameDay = DateTime(time.year, time.month, time.day);
-    
-    if (gameDay == today) {
-      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${time.day}.${time.month}. ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+// ---------------------------------------------------------------------------
+
+class _TeamRow extends StatelessWidget {
+  final String name;
+  final String? logoUrl;
+  final int? score;
+  final bool bold;
+
+  const _TeamRow(
+      {required this.name, this.logoUrl, required this.score, this.bold = false});
+
+  static String _initials(String name) {
+    final words = name.trim().split(RegExp(r'\s+'));
+    if (words.isEmpty) return '';
+    if (words.length == 1) {
+      return words[0]
+          .substring(0, words[0].length.clamp(0, 2))
+          .toUpperCase();
     }
+    return '${words[0][0]}${words[1][0]}'.toUpperCase();
+  }
+
+  Widget _initialsWidget() {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFF252c42),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        _initials(name),
+        style: const TextStyle(
+          color: Colors.white60,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: logoUrl != null && logoUrl!.isNotEmpty
+              ? Image.network(
+                  logoUrl!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => _initialsWidget(),
+                )
+              : _initialsWidget(),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            name,
+            style: TextStyle(
+              color: bold ? Colors.white : Colors.white60,
+              fontSize: 12,
+              fontWeight:
+                  bold ? FontWeight.w700 : FontWeight.w400,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (score != null) ...[
+          const SizedBox(width: 6),
+          Text(
+            '$score',
+            style: TextStyle(
+              color: bold ? Colors.white : Colors.white60,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
+
+// ---------------------------------------------------------------------------
+
+class _StatusRow extends StatelessWidget {
+  final bool isLive;
+  final DateTime? scheduledTime;
+
+  const _StatusRow(
+      {required this.isLive, required this.scheduledTime});
+
+  String _formatTime(DateTime? time) {
+    if (time == null) return 'BALD';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final gameDay =
+        DateTime(time.year, time.month, time.day);
+    if (gameDay == today) {
+      return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    }
+    return '${time.day}.${time.month}. ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(
+              color: Colors.grey.shade800,
+              thickness: 0.5,
+              endIndent: 6),
+        ),
+        if (isLive)
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFe53935),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Text(
+            _formatTime(scheduledTime),
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        Expanded(
+          child: Divider(
+              color: Colors.grey.shade800,
+              thickness: 0.5,
+              indent: 6),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 class GameWithTournament {
   final Game game;
   final Tournament tournament;
+  final String? teamALogoUrl;
+  final String? teamBLogoUrl;
 
   GameWithTournament({
     required this.game,
     required this.tournament,
+    this.teamALogoUrl,
+    this.teamBLogoUrl,
   });
 }

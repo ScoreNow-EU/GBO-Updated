@@ -39,6 +39,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Configuration documents (admin only) ────────────────────────
+    // youtube_oauth contains the league-wide YouTube refresh token.
+    // Only admins can read/write; clients use a callable function to
+    // create broadcasts and never need direct access.
+    match /config/{configId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── Tournaments (public read for scoreboard) ────────────────────
     match /tournaments/{tournamentId} {
       allow read: if true;
@@ -140,6 +148,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── Stories (public read, admin/teamRHD write) ────────────────────
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAuthenticated() && isAdminOrTeamRHD();
+    }
+
     // ── Seasons ───────────────────────────────────────────────────────
     match /seasons/{seasonId} {
       allow read: if isAuthenticated();
@@ -223,6 +239,54 @@ service cloud.firestore {
                         || request.resource.data.stack.size() <= 4100);
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    // ── Team Managers ─────────────────────────────────────────────────
+    match /team_managers/{managerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
+    }
+
+    // ── Players ───────────────────────────────────────────────────────
+    match /players/{playerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdminOrTeamRHD();
+      allow update: if isAuthenticated() && isAdminOrTeamRHD();
+      allow delete: if isAdmin();
+    }
+
+    // ── Managed Accounts ──────────────────────────────────────────────
+    match /managed_accounts/{accountId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isAdmin();
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Observation Templates (admin write, any auth read) ────────────
+    match /observation_templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Referee Observations ──────────────────────────────────────────
+    match /referee_observations/{observationId} {
+      allow read: if isAdmin()
+                  || hasRole('delegate')
+                  || (hasRole('teamManager') && resource.data.submitterId == request.auth.uid)
+                  || (hasRole('referee') && request.auth.uid in resource.data.refereeIds);
+      allow create: if isAuthenticated()
+                    && (hasRole('delegate') || hasRole('teamManager'));
+      allow update: if isAdmin()
+                    || (resource.data.submitterId == request.auth.uid
+                        && resource.data.status == 'draft');
+      allow delete: if isAdmin()
+                    || (resource.data.submitterId == request.auth.uid
+                        && resource.data.status == 'draft');
     }
 
     // ── Deny all other collections by default ─────────────────────────

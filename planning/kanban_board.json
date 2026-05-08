@@ -1,53 +1,13 @@
-[
+﻿[
   {
     "id": "backlog",
     "title": "Backlog",
     "tasks": [
       {
-        "id": "t29",
-        "title": "Onboarding / Erste-Schritte-Flow",
-        "description": "Kein First-Run-Erlebnis fÃ¼r neue Nutzer. Kurze EinfÃ¼hrung der Rolle/Features beim ersten Login wÃ¤re hilfreich.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-09T10:01:00.000Z"
-      },
-      {
-        "id": "t43",
-        "title": "Livestreaming Automation",
-        "description": "Automatisierung der Livestream-Erstellung auf YouTube. Mit einem Klick soll ein Stream erstellt werden, welcher mit OBS/vMix angesteuert werden kann und mit t42 eingeblendet wird,",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
         "id": "t44",
         "title": "Location-Navigation",
         "description": "Detailierter Lageplan mit Umrissen, Hallenplan, sowie Standort. Beim Scannen eines QR Codes wird der Standort aktualisiert.",
         "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
-        "id": "t45",
-        "title": "Scouting System",
-        "description": "Ein System, welches Scouter Accounts erfordert, womit man detailierte Statistiken eintragen kann.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
-        "id": "t46",
-        "title": "Schiedsrichter-Beobachtungen",
-        "description": "Beobachtungen von Schiedsrichtern von Delegates/Admin, mittels Punkten, kommentaren, usw.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
-        "id": "t47",
-        "title": "Vereins-Beobachtungen",
-        "description": "Schiedsrichter-Beobachtungen von Spielteams, durchgeführt von Team Offiziellen. Abgespeckte version von t46 aber als zusatz.",
-        "priority": "low",
         "labels": [],
         "createdAt": "2026-04-30T22:01:00.000Z"
       },
@@ -68,25 +28,17 @@
         "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
+        "id": "t52",
+        "title": "Kampfgericht Spielzuordnung",
+        "description": "Im Turnier-Edit-Screen fehlt ein Planer zum Zuweisen von Kampfgericht-Mitgliedern (Zeitnehmer, Sekretär) zu einzelnen Spielen. Das Modell hat bereits timekeeperId und scorekeeperId. Analog zum Delegierten-Planer einen Drag-and-Drop-Planer im Kampfgericht-Tab implementieren.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-05T00:00:00.000Z"
+      },
+      {
         "id": "t51",
         "title": "Automatische Clip Generierung",
         "description": "Automatische Erstellung und hochladen von Clips. Scouter Account drückt live einen Highlight Knopf. Dann kann der den Teil zuschneiden. Ähnlich zum Twitch-Clip",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
-        "id": "t42",
-        "title": "Livestreaming",
-        "description": "Eine Möglichkeit erstellen, Livestreams in den Turnieren einzubetten. Livestreams wären von Youtube/Twitch/Etc.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
-      {
-        "id": "t50",
-        "title": "Stories",
-        "description": "Instagram-Like Stories im Hochkantformat mit beliebigen hochladbaren Clips. Ggf. Kombinierbar mit t43 zum Automatischen Hochladen auf 'nicht gelistet' auf YouTube.",
         "priority": "low",
         "labels": [],
         "createdAt": "2026-04-30T22:01:00.000Z"
@@ -114,60 +66,36 @@
     "title": "To Do",
     "tasks": [
       {
-        "id": "1777589884995",
-        "title": "Team Management - Turniere",
-        "description": "Placeholder",
-        "priority": "medium",
+        "id": "t45",
+        "title": "Scouting System",
+        "description": "Ein System, welches Scouter Accounts erfordert, womit man detailierte Statistiken eintragen kann.",
+        "priority": "low",
         "labels": [],
-        "createdAt": "2026-05-01T00:58:04.995"
+        "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
-        "id": "1777589918768",
-        "title": "Team Manager Verwaltung",
-        "description": "Outsource bitte in Team Management",
-        "priority": "medium",
+        "id": "t29",
+        "title": "Onboarding / Erste-Schritte-Flow",
+        "description": "Kein First-Run-Erlebnis fÃ¼r neue Nutzer. Kurze EinfÃ¼hrung der Rolle/Features beim ersten Login wÃ¤re hilfreich.",
+        "priority": "low",
         "labels": [],
-        "createdAt": "2026-05-01T00:58:38.768"
+        "createdAt": "2026-04-09T10:01:00.000Z"
       },
       {
-        "id": "1777589955566",
-        "title": "Verwaltete Accounts",
-        "description": "Entferne Sanitäter",
-        "priority": "medium",
+        "id": "t47",
+        "title": "Vereins-Beobachtungen",
+        "description": "Schiedsrichter-Beobachtungen von Spielteams, durchgeführt von Team Offiziellen. Abgespeckte version von t46 aber als zusatz.",
+        "priority": "low",
         "labels": [],
-        "createdAt": "2026-05-01T00:59:15.566"
+        "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
-        "id": "1777590018401",
-        "title": "\"Einmalone Codes erstellen\"",
-        "description": "Bitte \"Einmalcodes erstellen\" nennen; passwort bitte wirklich zufällig generieren und nicht 8 aufeinanderfolgende Buchstaben",
+        "id": "t46",
+        "title": "Schiedsrichter-Beobachtungen",
+        "description": "Beobachtungen von Schiedsrichtern von Delegates/Admin, mittels Punkten, kommentaren, usw.",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-05-01T01:00:18.401"
-      },
-      {
-        "id": "1777590036676",
-        "title": "Preset Verwaltung",
-        "description": "Entfernen",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-05-01T01:00:36.676"
-      },
-      {
-        "id": "1777590068999",
-        "title": "Saison Management",
-        "description": "Anpassen an unser RHBL System.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-05-01T01:01:08.999"
-      },
-      {
-        "id": "1777590112212",
-        "title": "Rangliste - Team Details",
-        "description": "sollte das Team aus dem Teams reiter anzeigen, kein extra reiter dafür. Selbiges mit Kader.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-05-01T01:01:52.212"
+        "createdAt": "2026-04-30T22:01:00.000Z"
       }
     ]
   },
@@ -586,6 +514,94 @@
         "priority": "medium",
         "labels": [],
         "createdAt": "2026-05-01T01:02:41.831"
+      },
+      {
+        "id": "1777589884995",
+        "title": "Team Management - Turniere",
+        "description": "Placeholder",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:58:04.995"
+      },
+      {
+        "id": "1777589918768",
+        "title": "Team Manager Verwaltung",
+        "description": "Outsource bitte in Team Management",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:58:38.768"
+      },
+      {
+        "id": "1777589955566",
+        "title": "Verwaltete Accounts",
+        "description": "Entferne Sanitäter",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T00:59:15.566"
+      },
+      {
+        "id": "1777590018401",
+        "title": "\"Einmalone Codes erstellen\"",
+        "description": "Bitte \"Einmalcodes erstellen\" nennen; passwort bitte wirklich zufällig generieren und nicht 8 aufeinanderfolgende Buchstaben",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:00:18.401"
+      },
+      {
+        "id": "1777590036676",
+        "title": "Preset Verwaltung",
+        "description": "Entfernen",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:00:36.676"
+      },
+      {
+        "id": "1777590068999",
+        "title": "Saison Management",
+        "description": "Anpassen an unser RHBL System.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:01:08.999"
+      },
+      {
+        "id": "1777590112212",
+        "title": "Rangliste - Team Details",
+        "description": "sollte das Team aus dem Teams reiter anzeigen, kein extra reiter dafür. Selbiges mit Kader.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:01:52.212"
+      },
+      {
+        "id": "t42",
+        "title": "Livestreaming",
+        "description": "Eine Möglichkeit erstellen, Livestreams in den Turnieren einzubetten. Livestreams wären von Youtube/Twitch/Etc.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t43",
+        "title": "Livestreaming Automation",
+        "description": "Automatisierung der Livestream-Erstellung auf YouTube. Mit einem Klick soll ein Stream erstellt werden, welcher mit OBS/vMix angesteuert werden kann und mit t42 eingeblendet wird,",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "1777633552540",
+        "title": "Team Details Screen Farben",
+        "description": "Farben der Teams sollen anstelle des RHD Gradients genutzt werden. Fallback ist immernoch RHD Gradient",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T13:05:52.540"
+      },
+      {
+        "id": "t50",
+        "title": "Stories",
+        "description": "Instagram-Like Stories im Hochkantformat mit beliebigen hochladbaren Clips. Ggf. Kombinierbar mit t43 zum Automatischen Hochladen auf 'nicht gelistet' auf YouTube.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
       }
     ]
   }

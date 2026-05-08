@@ -483,6 +483,11 @@ class Tournament {
   /// When non-null, takes precedence over the auto-calculated value.
   final int? manualPoints;
 
+  // Livestream (t42 / t43)
+  final bool livestreamEnabled;
+  final String? livestreamUrl;
+  final String? livestreamYoutubeBroadcastId;
+
   static String determineSeason(DateTime startDate) {
     return startDate.year.toString();
   }
@@ -525,6 +530,9 @@ class Tournament {
     this.halfDurationMinutes = 15,
     this.sponsorLogos = const [],
     this.manualPoints,
+    this.livestreamEnabled = false,
+    this.livestreamUrl,
+    this.livestreamYoutubeBroadcastId,
   }) : 
     pools = pools ?? {},
     poolMetadata = poolMetadata ?? {},
@@ -612,6 +620,9 @@ class Tournament {
       'halfDurationMinutes': halfDurationMinutes,
       'sponsorLogos': sponsorLogos,
       'manualPoints': manualPoints,
+      'livestreamEnabled': livestreamEnabled,
+      'livestreamUrl': livestreamUrl,
+      'livestreamYoutubeBroadcastId': livestreamYoutubeBroadcastId,
     };
   }
 
@@ -704,6 +715,9 @@ class Tournament {
           : (map['manualPoints'] is num
               ? (map['manualPoints'] as num).toInt()
               : null),
+      livestreamEnabled: map['livestreamEnabled'] ?? false,
+      livestreamUrl: map['livestreamUrl'],
+      livestreamYoutubeBroadcastId: map['livestreamYoutubeBroadcastId'],
       links: map['links'] != null
         ? (map['links'] as List).map((link) => TournamentLink.fromFirestore(link)).toList()
         : [],
@@ -773,6 +787,9 @@ class Tournament {
     int? halfDurationMinutes,
     List<String>? sponsorLogos,
     int? manualPoints,
+    bool? livestreamEnabled,
+    String? livestreamUrl,
+    String? livestreamYoutubeBroadcastId,
   }) {
     return Tournament(
       id: id ?? this.id,
@@ -812,6 +829,10 @@ class Tournament {
       halfDurationMinutes: halfDurationMinutes ?? this.halfDurationMinutes,
       sponsorLogos: sponsorLogos ?? List.from(this.sponsorLogos),
       manualPoints: manualPoints ?? this.manualPoints,
+      livestreamEnabled: livestreamEnabled ?? this.livestreamEnabled,
+      livestreamUrl: livestreamUrl ?? this.livestreamUrl,
+      livestreamYoutubeBroadcastId:
+          livestreamYoutubeBroadcastId ?? this.livestreamYoutubeBroadcastId,
     );
   }
 } 
