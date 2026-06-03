@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:toastification/toastification.dart';
+import '../utils/app_colors.dart';
 import '../models/coach_auth_request.dart';
 import '../services/coach_auth_monitoring_service.dart';
 import '../services/face_id_service.dart';
@@ -434,12 +435,12 @@ class _CoachAuthOverlayState extends State<CoachAuthOverlay>
                                   width: 80,
                                   height: 80,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFffd665).withOpacity(0.2),
+                                    color: AppColors.rhdGold.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(40),
                                   ),
                                   child: Icon(
                                     _biometricTypeName == 'Face ID' ? Icons.face : Icons.fingerprint,
-                                    color: const Color(0xFFffd665),
+                                    color: AppColors.rhdGold,
                                     size: 40,
                                   ),
                                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 class RHBLLoader extends StatefulWidget {
   final double size;
@@ -42,8 +43,8 @@ class _RHBLLoaderState extends State<RHBLLoader>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFFffd665).withOpacity(0.1),
-              const Color(0xFFffd665).withOpacity(0.3),
+              AppColors.rhdGold.withOpacity(0.1),
+              AppColors.rhdGold.withOpacity(0.3),
             ],
           ),
         ),
@@ -126,12 +127,12 @@ class _RHBLLoaderState extends State<RHBLLoader>
             Color(0xFF000000), // Black end at 30%
             Colors.transparent, // Transparent start at 30.01%
             Colors.transparent, // Transparent end at 35%
-            Color(0xFFc10003), // Red start at 35.01%
-            Color(0xFFc10003), // Red end at 65%
+            AppColors.primaryColor, // Red start at 35.01%
+            AppColors.primaryColor, // Red end at 65%
             Colors.transparent, // Transparent start at 65.01%
             Colors.transparent, // Transparent end at 70%
-            Color(0xFFffd765), // Yellow start at 70.01%
-            Color(0xFFffd765), // Yellow end at 100%
+            AppColors.rhdGold, // Yellow start at 70.01%
+            AppColors.rhdGold, // Yellow end at 100%
           ],
         ),
       ),

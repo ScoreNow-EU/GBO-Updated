@@ -430,7 +430,7 @@ class _PlayerManagementScreenState extends State<PlayerManagementScreen> {
 
   void _showCSVUploadDialog() async {
     try {
-      FilePickerResult? result = await FilePicker.pickFiles(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );

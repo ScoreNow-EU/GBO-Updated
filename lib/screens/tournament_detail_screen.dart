@@ -1508,6 +1508,94 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
       });
 
     final totalTeams = sorted.length;
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    // On mobile, show a compact table with fewer columns
+    if (isMobile) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          border: Border(top: BorderSide(color: Colors.grey[200]!)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: Colors.grey.shade200,
+              child: Row(
+                children: [
+                  const SizedBox(width: 24, child: Text('#', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                  const SizedBox(width: 6),
+                  const Expanded(child: Text('Team', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                  SizedBox(width: 28, child: Text('Sp', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700), textAlign: TextAlign.center)),
+                  SizedBox(width: 46, child: Text('Tore', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700), textAlign: TextAlign.center)),
+                  SizedBox(width: 28, child: Text('+/-', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700), textAlign: TextAlign.center)),
+                  SizedBox(width: 32, child: Text('Pkt', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700), textAlign: TextAlign.center)),
+                ],
+              ),
+            ),
+            ...sorted.asMap().entries.map((entry) {
+              final rank = entry.key + 1;
+              final t = entry.value;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: rank <= 2 ? Colors.green.withOpacity(0.04) : Colors.white,
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: rank <= 2 ? Colors.green.shade100 : Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$rank',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: rank <= 2 ? Colors.green.shade800 : Colors.grey.shade700),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(t.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                    SizedBox(width: 28, child: Text('${t.played}', style: const TextStyle(fontSize: 11), textAlign: TextAlign.center)),
+                    SizedBox(width: 46, child: Text('${t.goalsFor}:${t.goalsAgainst}', style: const TextStyle(fontSize: 11), textAlign: TextAlign.center)),
+                    SizedBox(
+                      width: 28,
+                      child: Text(
+                        t.goalDiff >= 0 ? '+${t.goalDiff}' : '${t.goalDiff}',
+                        style: TextStyle(fontSize: 11, color: t.goalDiff >= 0 ? Colors.green.shade700 : Colors.red.shade700),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 32,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${t.points}',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -2382,7 +2470,9 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
         color: Colors.grey.shade50,
         border: Border(top: BorderSide(color: Colors.grey[200]!)),
       ),
-      child: SingleChildScrollView(
+      child: MediaQuery.of(context).size.width < 768
+          ? _buildMobilePlayerStats(sorted)
+          : SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(Colors.blue.shade50),
@@ -2461,6 +2551,78 @@ class _TournamentDetailScreenState extends State<TournamentDetailScreen>
             );
           }),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobilePlayerStats(List<PlayerTournamentStats> sorted) {
+    return Column(
+      children: List.generate(sorted.length, (index) {
+        final p = sorted[index];
+        final rank = index + 1;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: rank == 1 ? const Color(0xFFFFF8E1)
+                 : rank == 2 ? Colors.grey[50]
+                 : rank == 3 ? const Color(0xFFFFF3E0)
+                 : Colors.white,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: Text('$rank',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 12,
+                    color: rank == 1 ? const Color(0xFFFFD700)
+                         : rank == 2 ? const Color(0xFFC0C0C0)
+                         : rank == 3 ? const Color(0xFFCD7F32)
+                         : Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.playerName,
+                      style: TextStyle(fontSize: 12, fontWeight: rank <= 3 ? FontWeight.bold : FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(p.teamName,
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              // Compact stat badges
+              _statBadge('${p.totalGoals}', Icons.sports_handball, Colors.blue[700]!),
+              if (p.sevenMeterGoals > 0) _statBadge('${p.sevenMeterGoals}', Icons.adjust, Colors.teal[700]!),
+              if (p.twoMinuteSuspensions > 0) _statBadge('${p.twoMinuteSuspensions}', Icons.timer, Colors.orange[800]!),
+              if (p.yellowCards > 0) _statBadge('${p.yellowCards}', Icons.square, Colors.amber[800]!),
+              if (p.redCards > 0) _statBadge('${p.redCards}', Icons.square, Colors.red),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _statBadge(String value, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 2),
+          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+        ],
       ),
     );
   }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../utils/app_colors.dart';
 
 import '../models/user.dart' as app_user;
 import 'side_navigation.dart';
@@ -14,6 +16,8 @@ class ResponsiveLayout extends StatefulWidget {
   final VoidCallback? onBackPressed;
   final bool hideAppBar; // New parameter to hide AppBar when body has its own
   final Widget? ticker; // Optional ticker widget to show at top (desktop only)
+  final Color? appBarBackgroundColor; // Custom AppBar background (mobile)
+  final Color? appBarForegroundColor; // Custom AppBar foreground/icons (mobile)
 
   const ResponsiveLayout({
     super.key,
@@ -27,6 +31,8 @@ class ResponsiveLayout extends StatefulWidget {
     this.onBackPressed,
     this.hideAppBar = false,
     this.ticker,
+    this.appBarBackgroundColor,
+    this.appBarForegroundColor,
   });
 
   @override
@@ -45,23 +51,36 @@ class _ResponsiveLayoutState extends State<ResponsiveLayout> {
     if (widget.title is String) {
       titleWidget = Text(
         widget.title as String,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: widget.appBarForegroundColor ?? Colors.black87,
         ),
       );
     } else {
       titleWidget = widget.title as Widget;
     }
 
+    final appBarBg = widget.appBarBackgroundColor ?? Colors.white;
+    final appBarFg = widget.appBarForegroundColor ?? Colors.black87;
+    final statusBarBrightness = ThemeData.estimateBrightnessForColor(appBarBg) == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark;
+
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: AppColors.lightGrey,
       appBar: (isMobile && !widget.hideAppBar) ? AppBar(
         title: titleWidget,
-        backgroundColor: Colors.white,
+        backgroundColor: appBarBg,
+        foregroundColor: appBarFg,
         elevation: 1,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarBrightness: statusBarBrightness == Brightness.light ? Brightness.dark : Brightness.light,
+          statusBarIconBrightness: statusBarBrightness,
+        ),
+        iconTheme: IconThemeData(color: appBarFg),
         leading: widget.showBackButton
           ? IconButton(
               icon: const Icon(Icons.arrow_back),

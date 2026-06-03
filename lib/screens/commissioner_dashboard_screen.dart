@@ -107,7 +107,7 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Hallo, ${_currentUser?.fullName ?? 'Kommissar'}',
+                  'Hallo, ${_currentUser?.fullName ?? 'Leitende Stelle'}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -134,13 +134,14 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossAxisCount = constraints.maxWidth > 800 ? 3 : 2;
+        final isMobile = constraints.maxWidth < 768;
         return GridView.count(
           crossAxisCount: crossAxisCount,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.4,
+          crossAxisSpacing: isMobile ? 10 : 16,
+          mainAxisSpacing: isMobile ? 10 : 16,
+          childAspectRatio: isMobile ? 1.15 : 1.4,
           children: [
             _buildDashboardCard(
               'Sperren',

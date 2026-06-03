@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:html' as html;
+import 'notification_helper_stub.dart'
+    if (dart.library.html) 'notification_helper_web.dart';
 
 /// Browser-native notification service for web.
 /// Uses the Notification API to show score updates when games change.
@@ -27,7 +28,7 @@ class WebNotificationService {
     if (!kIsWeb) return false;
 
     try {
-      final permission = await html.Notification.requestPermission();
+      final permission = await requestNotificationPermission();
       _permissionGranted = permission == 'granted';
       return _permissionGranted;
     } catch (e) {
@@ -40,7 +41,7 @@ class WebNotificationService {
   String get permissionStatus {
     if (!kIsWeb) return 'unsupported';
     try {
-      return html.Notification.permission ?? 'default';
+      return getNotificationPermission();
     } catch (_) {
       return 'unsupported';
     }
@@ -51,10 +52,9 @@ class WebNotificationService {
     if (!kIsWeb || !_permissionGranted) return;
 
     try {
-      html.Notification(
+      createBrowserNotification(
         title,
         body: body,
-        icon: '/icons/Icon-192.png',
         tag: tag,
       );
     } catch (e) {

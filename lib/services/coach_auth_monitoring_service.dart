@@ -95,7 +95,7 @@ class CoachAuthMonitoringService {
     );
     
     await _localNotifications.initialize(
-      settings: settings,
+      settings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
     
@@ -265,10 +265,10 @@ class CoachAuthMonitoringService {
       );
       
       await _localNotifications.show(
-        id: request.hashCode,
-        title: title,
-        body: body,
-        notificationDetails: details,
+        request.hashCode,
+        title,
+        body,
+        details,
         payload: jsonEncode({
           'requestId': request.id,
           'type': 'coach_auth_request',

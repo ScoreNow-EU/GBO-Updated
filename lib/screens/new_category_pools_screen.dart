@@ -1286,6 +1286,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                             });
                           });
                           // TODO: Implement pool editing
+                          _showPoolEditDialog(pool);
                         },
                       ),
                     ],
@@ -2092,6 +2093,336 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     });
   }
 
+  // Edit an existing pool node
+  void _showPoolEditDialog(Map<String, dynamic> pool) {
+    String poolName = pool['name'] as String;
+    int teamCount = pool['teamCount'] as int;
+    String gameMode = pool['gameMode'] as String? ?? 'single_round_robin';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Container(
+                width: 450,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pool bearbeiten',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Pool Name', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: poolName,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Pool A',
+                      ),
+                      onChanged: (value) => poolName = value,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Anzahl Teams', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: teamCount,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      items: [2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) {
+                        return DropdownMenuItem(value: count, child: Text('$count Teams'));
+                      }).toList(),
+                      onChanged: (value) => setDialogState(() => teamCount = value!),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Spielmodus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    RadioListTile<String>(
+                      title: const Text('Einfache Runde (jeder gegen jeden)'),
+                      value: 'single_round_robin',
+                      groupValue: gameMode,
+                      onChanged: (value) => setDialogState(() => gameMode = value!),
+                    ),
+                    RadioListTile<String>(
+                      title: const Text('Hin- und Rückspiel (doppelte Runde)'),
+                      value: 'double_round_robin',
+                      groupValue: gameMode,
+                      onChanged: (value) => setDialogState(() => gameMode = value!),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Abbrechen'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _updatePoolNode(pool['id'], poolName, teamCount, gameMode);
+                          },
+                          child: const Text('Speichern'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _updatePoolNode(String poolId, String name, int teamCount, String gameMode) {
+    setState(() {
+      final nodeIndex = _createdNodes.indexWhere((n) => n['id'] == poolId);
+      if (nodeIndex == -1) return;
+
+      final node = _createdNodes[nodeIndex];
+      final oldTeamCount = node['teamCount'] as int;
+      final List<Team?> oldTeams = node['teams'] as List<Team?>;
+
+      // Resize team slots if count changed
+      final List<Team?> newTeams = List<Team?>.filled(teamCount, null);
+      for (int i = 0; i < teamCount && i < oldTeams.length; i++) {
+        newTeams[i] = oldTeams[i];
+      }
+      // Release teams that no longer fit
+      if (teamCount < oldTeamCount) {
+        for (int i = teamCount; i < oldTeams.length; i++) {
+          if (oldTeams[i] != null) {
+            _teamPositions[oldTeams[i]!.id] = 'sidebar';
+          }
+        }
+      }
+
+      _createdNodes[nodeIndex] = {
+        ...node,
+        'name': name,
+        'teamCount': teamCount,
+        'gameMode': gameMode,
+        'teams': newTeams,
+      };
+
+      _saveState();
+      _saveTournament();
+    });
+  }
+
+  // Edit an existing KO round node
+  void _showKORoundEditDialog(Map<String, dynamic> node) {
+    String roundName = node['name'] as String;
+    int teamCount = node['teamCount'] as int;
+    final Map<int, String> roundBestOf = Map<int, String>.from(
+      (node['roundBestOf'] as Map).map((k, v) => MapEntry(k is int ? k : int.parse(k.toString()), v.toString())),
+    );
+    final rounds = (log(teamCount) / log(2)).ceil();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Container(
+                width: 450,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'KO-Runde bearbeiten',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Rundenname', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: roundName,
+                      decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'KO Runde 1'),
+                      onChanged: (value) => roundName = value,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Best-of pro Runde', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    ...List.generate(rounds, (i) {
+                      final teamsInRound = teamCount ~/ pow(2, i);
+                      final matchesInRound = teamsInRound ~/ 2;
+                      final roundLabel = i == rounds - 1 ? 'Finale' : 'Runde ${i + 1} ($matchesInRound Spiele)';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: DropdownButtonFormField<String>(
+                          value: roundBestOf[i] ?? 'one',
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            labelText: roundLabel,
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'one', child: Text('Best of 1')),
+                            DropdownMenuItem(value: 'three', child: Text('Best of 3')),
+                            DropdownMenuItem(value: 'five', child: Text('Best of 5')),
+                          ],
+                          onChanged: (value) => setDialogState(() => roundBestOf[i] = value!),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Abbrechen'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _updateKORoundNode(node['id'], roundName, roundBestOf);
+                          },
+                          child: const Text('Speichern'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _updateKORoundNode(String nodeId, String name, Map<int, String> roundBestOf) {
+    setState(() {
+      final nodeIndex = _createdNodes.indexWhere((n) => n['id'] == nodeId);
+      if (nodeIndex == -1) return;
+
+      _createdNodes[nodeIndex] = {
+        ..._createdNodes[nodeIndex],
+        'name': name,
+        'roundBestOf': roundBestOf,
+      };
+
+      _saveState();
+      _saveTournament();
+    });
+  }
+
+  // 1v1 node configuration and creation
+  void _show1v1ConfigurationDialog(int columnIndex) {
+    String matchName = '1v1 Spiel ${_createdNodes.where((n) => n['type'] == '1v1').length + 1}';
+    String bestOf = 'one';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Container(
+                width: 450,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '1 vs 1 Spiel konfigurieren',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Einzelnes Spiel zwischen zwei Teams:',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Spielname', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: matchName,
+                      decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Finale'),
+                      onChanged: (value) => matchName = value,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Modus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: bestOf,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'one', child: Text('Best of 1')),
+                        DropdownMenuItem(value: 'three', child: Text('Best of 3')),
+                        DropdownMenuItem(value: 'five', child: Text('Best of 5')),
+                      ],
+                      onChanged: (value) => setDialogState(() => bestOf = value!),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Abbrechen'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _add1v1Node(name: matchName, bestOf: bestOf, columnIndex: columnIndex);
+                          },
+                          child: const Text('Spiel erstellen'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _add1v1Node({required String name, required String bestOf, required int columnIndex}) {
+    setState(() {
+      final nodeId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      _createdNodes.add({
+        'id': nodeId,
+        'type': '1v1',
+        'name': name,
+        'teamCount': 2,
+        'bestOf': bestOf,
+        'column': columnIndex,
+        'teams': List<Team?>.filled(2, null),
+      });
+
+      _saveState();
+      _saveTournament();
+    });
+  }
+
   void _showKORoundConfigurationDialog(int columnIndex) {
     int teamCount = 4;
     String roundName = 'KO Runde ${_createdNodes.where((node) => node['type'] == 'ko').length + 1}';
@@ -2461,15 +2792,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
     } else if (type == 'ko') {
       _showKORoundConfigurationDialog(columnIndex);
     } else if (type == '1v1') {
-      // TODO: Implement 1v1 node type
-      toastification.show(
-        context: context,
-        type: ToastificationType.success,
-        style: ToastificationStyle.fillColored,
-        title: const Text('1 vs 1 Spiel Knoten erstellt'),
-        description: const Text('Der Knoten wurde erfolgreich hinzugefÃƒÂ¼gt'),
-        autoCloseDuration: const Duration(seconds: 3),
-      );
+      _show1v1ConfigurationDialog(columnIndex);
     }
   }
 
@@ -2909,6 +3232,7 @@ class _NewCategoryPoolsScreenState extends State<NewCategoryPoolsScreen> {
                             });
                           });
                           // TODO: Implement KO round editing
+                          _showKORoundEditDialog(node);
                         },
                       ),
                     ],

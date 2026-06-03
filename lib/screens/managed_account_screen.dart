@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 import '../models/managed_account.dart';
 import '../models/tournament.dart';
@@ -60,12 +61,12 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFffd665).withOpacity(0.2),
+              color: AppColors.rhdGold.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.tablet_android,
-              color: Color(0xFFffd665),
+              color: AppColors.rhdGold,
               size: 28,
             ),
           ),
@@ -103,7 +104,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
     return ElevatedButton.icon(
       onPressed: () => _showCreateDialog(),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFffd665),
+        backgroundColor: AppColors.rhdGold,
         foregroundColor: Colors.black87,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(
@@ -182,7 +183,7 @@ class _ManagedAccountScreenState extends State<ManagedAccountScreen> {
           ElevatedButton.icon(
             onPressed: () => _showCreateDialog(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFffd665),
+              backgroundColor: AppColors.rhdGold,
               foregroundColor: Colors.black87,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -706,12 +707,12 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFffd665).withOpacity(0.2),
+            color: AppColors.rhdGold.withOpacity(0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
             Icons.tablet_android,
-            color: Color(0xFFffd665),
+            color: AppColors.rhdGold,
             size: 24,
           ),
         ),
@@ -874,9 +875,9 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFffd665).withOpacity(0.1),
+                        color: AppColors.rhdGold.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFffd665).withOpacity(0.3)),
+                        border: Border.all(color: AppColors.rhdGold.withOpacity(0.3)),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -884,7 +885,7 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                           Icon(
                             Icons.pin,
                             size: 28,
-                            color: const Color(0xFFffd665),
+                            color: AppColors.rhdGold,
                           ),
                           const SizedBox(height: 8),
                           SelectableText(
@@ -938,7 +939,7 @@ class _CreateAccountDialogState extends State<_CreateAccountDialog> {
                 widget.onSuccess();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFffd665),
+                backgroundColor: AppColors.rhdGold,
                 foregroundColor: Colors.black87,
               ),
               child: const Text('Fertig'),
@@ -1146,7 +1147,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFffd665) : Colors.grey.shade200,
+            color: isSelected ? AppColors.rhdGold : Colors.grey.shade200,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
@@ -1168,7 +1169,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? const Color(0xFFffd665) : Colors.black87,
+                      color: isSelected ? AppColors.rhdGold : Colors.black87,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -1178,7 +1179,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFffd665),
+                      color: AppColors.rhdGold,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1258,7 +1259,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFffd665) : Colors.grey.shade200,
+            color: isSelected ? AppColors.rhdGold : Colors.grey.shade200,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
@@ -1278,13 +1279,13 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: isSelected 
-                        ? const Color(0xFFffd665).withOpacity(0.2)
+                        ? AppColors.rhdGold.withOpacity(0.2)
                         : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.sports_tennis,
-                    color: isSelected ? const Color(0xFFffd665) : Colors.grey.shade600,
+                    color: isSelected ? AppColors.rhdGold : Colors.grey.shade600,
                     size: 20,
                   ),
                 ),
@@ -1295,7 +1296,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? const Color(0xFFffd665) : Colors.black87,
+                      color: isSelected ? AppColors.rhdGold : Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1305,7 +1306,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFffd665),
+                      color: AppColors.rhdGold,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1369,7 +1370,7 @@ ${_selectedCourt != null ? 'Court: ${_selectedCourt!.name}' : ''}
         ElevatedButton(
           onPressed: _canCreateAccount() ? (_isLoading ? null : _createAccount) : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFffd665),
+            backgroundColor: AppColors.rhdGold,
             foregroundColor: Colors.black87,
           ),
           child: _isLoading
@@ -1484,12 +1485,12 @@ class _AccountDetailsDialogState extends State<_AccountDetailsDialog> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFffd665).withOpacity(0.2),
+                    color: AppColors.rhdGold.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.tablet_android,
-                    color: Color(0xFFffd665),
+                    color: AppColors.rhdGold,
                     size: 24,
                   ),
                 ),
@@ -1569,7 +1570,7 @@ class _AccountDetailsDialogState extends State<_AccountDetailsDialog> {
                 ElevatedButton.icon(
                   onPressed: () => _copyToClipboard(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFffd665),
+                    backgroundColor: AppColors.rhdGold,
                     foregroundColor: Colors.black87,
                   ),
                   icon: const Icon(Icons.copy, size: 16),

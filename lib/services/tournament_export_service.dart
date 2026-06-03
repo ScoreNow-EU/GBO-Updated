@@ -1,6 +1,5 @@
-import 'dart:convert';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'export_helper_stub.dart'
+    if (dart.library.html) 'export_helper_web.dart';
 import '../services/tournament_stats_service.dart';
 import '../services/disciplinary_service.dart';
 import '../services/game_service.dart';
@@ -174,13 +173,6 @@ class TournamentExportService {
   }
 
   void _downloadCsv(String content, String filename) {
-    // Add BOM for Excel UTF-8 compatibility
-    final bytes = [0xEF, 0xBB, 0xBF, ...utf8.encode(content)];
-    final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    downloadCsv(content, filename);
   }
 }

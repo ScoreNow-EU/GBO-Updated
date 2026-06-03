@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 import 'package:toastification/toastification.dart';
 import '../services/face_id_service.dart';
@@ -176,12 +177,12 @@ class _FaceIdDialogState extends State<FaceIdDialog> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFffd665).withOpacity(0.2),
+              color: AppColors.rhdGold.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               _biometricTypeName == 'Face ID' ? Icons.face : Icons.fingerprint,
-              color: const Color(0xFFffd665),
+              color: AppColors.rhdGold,
               size: 24,
             ),
           ),
@@ -294,7 +295,7 @@ class _FaceIdDialogState extends State<FaceIdDialog> {
               ElevatedButton(
                 onPressed: _isAuthenticating ? null : _handleFaceIdActivation,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isAuthenticating ? Colors.grey.shade300 : const Color(0xFFffd665),
+                  backgroundColor: _isAuthenticating ? Colors.grey.shade300 : AppColors.rhdGold,
                   foregroundColor: _isAuthenticating ? Colors.grey.shade600 : Colors.black87,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   shape: RoundedRectangleBorder(

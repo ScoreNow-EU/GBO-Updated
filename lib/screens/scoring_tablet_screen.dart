@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:ui';
+import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 
 import '../models/game.dart';
@@ -793,7 +794,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFffd665),
+                          color: AppColors.rhdGold,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
@@ -1239,7 +1240,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 child: ElevatedButton(
                   onPressed: () => _startScoring(game),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isLive ? Colors.green.shade600 : const Color(0xFFffd665),
+                    backgroundColor: isLive ? Colors.green.shade600 : AppColors.rhdGold,
                     foregroundColor: isLive ? Colors.white : Colors.black87,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -1317,7 +1318,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       width: sidebarWidth,
-      color: const Color(0xFF4A5568),
+      color: AppColors.textGrey,
       child: Column(
         children: [
           // Header with Hamburger
@@ -1326,7 +1327,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             width: double.infinity,
             padding: EdgeInsets.all(_isSidebarExpanded ? 16 : 8),
             decoration: const BoxDecoration(
-              color: Color(0xFF4A5568),
+              color: AppColors.textGrey,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1447,7 +1448,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
   Widget _buildNavigationDrawer(double screenWidth) {
     return Drawer(
       child: Container(
-        color: const Color(0xFF4A5568),
+        color: AppColors.textGrey,
         child: Column(
           children: [
             // Header
@@ -1456,7 +1457,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                color: Color(0xFF4A5568),
+                color: AppColors.textGrey,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1543,7 +1544,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           Builder(
             builder: (context) => IconButton(
               onPressed: () => Scaffold.of(context).openDrawer(),
-              icon: const Icon(Icons.menu, color: Color(0xFF4A5568)),
+              icon: const Icon(Icons.menu, color: AppColors.textGrey),
             ),
           ),
           const SizedBox(width: 12),
@@ -1553,13 +1554,13 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF4A5568),
+                color: AppColors.textGrey,
               ),
             ),
           ),
           IconButton(
             onPressed: _backToGames,
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF4A5568)),
+            icon: const Icon(Icons.arrow_back, color: AppColors.textGrey),
             tooltip: 'Zurück zu Spielen',
           ),
         ],
@@ -1604,7 +1605,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
               height: 52,
               width: 56,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+                color: isSelected ? AppColors.rhdBlack : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -1624,7 +1625,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -1657,7 +1658,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Builder(
@@ -1769,7 +1770,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFffd665),
+                          color: AppColors.rhdGold,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
@@ -2131,7 +2132,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
             icon: const Icon(Icons.arrow_back),
             label: const Text('Zurück zu Spielen'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFffd665),
+              backgroundColor: AppColors.rhdGold,
               foregroundColor: Colors.black87,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
@@ -2932,7 +2933,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFffd665)),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.rhdGold),
               strokeWidth: 3,
             ),
             const SizedBox(height: 24),
@@ -3967,7 +3968,7 @@ class _ScoringTabletScreenState extends State<ScoringTabletScreen> with TickerPr
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFffd665),
+                  color: AppColors.rhdGold,
                   borderRadius: BorderRadius.circular(40),
                 ),
                 child: const Icon(

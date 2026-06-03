@@ -385,10 +385,10 @@ class NotificationMonitoringService {
       if (teamName != null) payloadMap['teamName'] = teamName;
       
       await _localNotifications.show(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title: isTimeSensitive ? "\u26a0\ufe0f $title" : title,
-        body: message,
-        notificationDetails: notificationDetails,
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        isTimeSensitive ? "\u26a0\ufe0f $title" : title,
+        message,
+        notificationDetails,
         payload: jsonEncode(payloadMap),
       );
       
@@ -468,7 +468,7 @@ class NotificationMonitoringService {
       );
       
       await _localNotifications.initialize(
-        settings: initializationSettings,
+        initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
       

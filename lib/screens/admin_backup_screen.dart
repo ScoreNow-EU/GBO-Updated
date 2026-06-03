@@ -1,6 +1,7 @@
-// ignore: avoid_web_libraries_in_flutter
 import 'dart:convert';
-import 'dart:html' as html;
+
+import '../services/export_helper_stub.dart'
+    if (dart.library.html) '../services/export_helper_web.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -60,13 +61,7 @@ class _AdminBackupScreenState extends State<AdminBackupScreen> {
   }
 
   void _downloadJson(String content, String filename) {
-    final bytes = utf8.encode(content);
-    final blob = html.Blob([bytes], 'application/json');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    downloadJson(content, filename);
   }
 
   Future<void> _pickAndPreview() async {
@@ -77,7 +72,7 @@ class _AdminBackupScreenState extends State<AdminBackupScreen> {
       _statusMessage = null;
     });
 
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
       allowMultiple: false,

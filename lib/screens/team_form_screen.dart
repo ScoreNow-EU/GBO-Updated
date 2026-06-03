@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 import '../models/city.dart';
 import '../models/team.dart';
 import '../models/team_manager.dart';
@@ -116,7 +117,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Team bearbeiten' : 'Neues Team'),
-        backgroundColor: const Color(0xFFffd665),
+        backgroundColor: AppColors.rhdGold,
         foregroundColor: Colors.black87,
       ),
       body: Form(
@@ -523,7 +524,7 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFffd665).withOpacity(0.3),
+                                    color: AppColors.rhdGold.withOpacity(0.3),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -552,10 +553,10 @@ class _TeamFormScreenState extends State<TeamFormScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFffd665).withOpacity(0.1),
+              color: AppColors.rhdGold.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: const Color(0xFFffd665).withOpacity(0.3),
+                color: AppColors.rhdGold.withOpacity(0.3),
               ),
             ),
             child: Row(

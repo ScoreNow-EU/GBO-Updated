@@ -436,13 +436,13 @@ class _TournamentCreationWizardState extends State<TournamentCreationWizard> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Color(0xFFe63946),
+                                    color: AppColors.primaryColor,
                                   ),
                                 ),
                               )
                             : null,
                         helperText: _citiesLoading ? 'Städte werden geladen...' : null,
-                        helperStyle: const TextStyle(color: Color(0xFFe63946), fontSize: 12),
+                        helperStyle: const TextStyle(color: AppColors.primaryColor, fontSize: 12),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {

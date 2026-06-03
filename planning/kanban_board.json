@@ -1,4 +1,4 @@
-﻿[
+[
   {
     "id": "backlog",
     "title": "Backlog",
@@ -51,28 +51,7 @@
         "labels": [],
         "createdAt": "2026-04-09T10:00:00.000Z"
       },
-      {
-        "id": "t16",
-        "title": "Pool/KO-Runden Editing",
-        "description": "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) â€” alles noch TODO-Stubs.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-09T10:00:00.000Z"
-      }
-    ]
-  },
-  {
-    "id": "todo",
-    "title": "To Do",
-    "tasks": [
-      {
-        "id": "t45",
-        "title": "Scouting System",
-        "description": "Ein System, welches Scouter Accounts erfordert, womit man detailierte Statistiken eintragen kann.",
-        "priority": "low",
-        "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
-      },
+
       {
         "id": "t29",
         "title": "Onboarding / Erste-Schritte-Flow",
@@ -82,22 +61,65 @@
         "createdAt": "2026-04-09T10:01:00.000Z"
       },
       {
-        "id": "t47",
-        "title": "Vereins-Beobachtungen",
-        "description": "Schiedsrichter-Beobachtungen von Spielteams, durchgeführt von Team Offiziellen. Abgespeckte version von t46 aber als zusatz.",
+        "id": "t45",
+        "title": "Scouting System",
+        "description": "Ein System, welches Scouter Accounts erfordert, womit man detailierte Statistiken eintragen kann.",
         "priority": "low",
         "labels": [],
         "createdAt": "2026-04-30T22:01:00.000Z"
       },
       {
-        "id": "t46",
-        "title": "Schiedsrichter-Beobachtungen",
-        "description": "Beobachtungen von Schiedsrichtern von Delegates/Admin, mittels Punkten, kommentaren, usw.",
+        "id": "t63",
+        "title": "Scoring Tablet: Score Editing",
+        "description": "scoring_tablet_screen.dart Zeile 6879: 'TODO: Implement score editing functionality' – aktuell wird nur ein Toast angezeigt ('wird in einer zukünftigen Version implementiert'). Logik zum nachträglichen Bearbeiten bereits eingetragener Ergebnisse fehlt komplett.",
         "priority": "medium",
         "labels": [],
-        "createdAt": "2026-04-30T22:01:00.000Z"
+        "createdAt": "2026-05-13T00:00:00.000Z"
+      },
+      {
+        "id": "t64",
+        "title": "Login: Kamera-Berechtigung prüfen",
+        "description": "login_screen.dart Zeile 1531: _checkPermission() setzt _hasPermission bedingungslos auf true ohne tatsächliche Kamera-Berechtigung zu prüfen. permission_handler o.ä. einbinden.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-05-13T00:00:00.000Z"
+      },
+      {
+        "id": "t65",
+        "title": "RHBL Default Settings Stub",
+        "description": "tournament_service.dart Zeile 883: updateTournamentsWithDefaultSettings() ist ein leerer Stub mit Kommentar 'Placeholder: update tournaments with default settings for RHBL'. Entweder implementieren oder entfernen falls nicht benötigt.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-05-13T00:00:00.000Z"
       }
     ]
+  },
+  {
+    "id": "todo",
+    "title": "To Do",
+    "tasks": [
+      {
+        "id": "t06",
+        "title": "Season Points Override persistieren",
+        "description": "season_management_screen.dart Zeile 1138: Punkte-Override ist nur UI, wird nie in Firestore gespeichert. Firestore-Update implementieren.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t16",
+        "title": "Pool/KO-Runden Editing",
+        "description": "new_category_pools_screen.dart: Pool editing (Zeile 1288), 1v1 Node Type (Zeile 2447), KO-Runden editing (Zeile 2894) – alles noch TODO-Stubs.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-09T10:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "id": "abnahme",
+    "title": "Warten auf Abnahme",
+    "tasks": []
   },
   {
     "id": "in_progress",
@@ -110,6 +132,30 @@
         "priority": "medium",
         "labels": [],
         "createdAt": "2026-04-09T10:00:00.000Z"
+      },
+      {
+        "id": "t46",
+        "title": "Schiedsrichter-Beobachtungen",
+        "description": "Beobachtungen von Schiedsrichtern von Delegates/Admin, mittels Punkten, kommentaren, usw.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "t47",
+        "title": "Vereins-Beobachtungen",
+        "description": "Schiedsrichter-Beobachtungen von Spielteams, durchgeführt von Team Offiziellen. Abgespeckte version von t46 aber als zusatz.",
+        "priority": "low",
+        "labels": [],
+        "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "1777590161831",
+        "title": "Kanban Ticketid",
+        "description": "Ticketid bitte mit #t00, wobei 00 die zahl ist, die immer weiter inkrementiert. keine random firebase ids.",
+        "priority": "medium",
+        "labels": [],
+        "createdAt": "2026-05-01T01:02:41.831"
       }
     ]
   },
@@ -301,14 +347,7 @@
         "labels": [],
         "createdAt": "2026-04-09T10:01:00.000Z"
       },
-      {
-        "id": "t06",
-        "title": "Season Points Override persistieren",
-        "description": "season_management_screen.dart Zeile 1138: Punkte-Override ist nur UI, wird nie in Firestore gespeichert. Firestore-Update implementieren.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-04-09T10:00:00.000Z"
-      },
+
       {
         "id": "t07",
         "title": "Tournament Detail â€” Spiele-Navigation",
@@ -508,14 +547,6 @@
         "createdAt": "2026-05-01T00:57:44.269"
       },
       {
-        "id": "1777590161831",
-        "title": "Kanban Ticketid",
-        "description": "Ticketid bitte mit #t00, wobei 00 die zahl ist, die immer weiter inkrementiert. keine random firebase ids.",
-        "priority": "medium",
-        "labels": [],
-        "createdAt": "2026-05-01T01:02:41.831"
-      },
-      {
         "id": "1777589884995",
         "title": "Team Management - Turniere",
         "description": "Placeholder",
@@ -602,6 +633,127 @@
         "priority": "low",
         "labels": [],
         "createdAt": "2026-04-30T22:01:00.000Z"
+      },
+      {
+        "id": "1778591342170",
+        "title": "iOS - Tournament Detail View - Alt tabelle",
+        "description": "Alternative Tabelle für Mobilgeräte. Overflow weil zu Groß",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:09:02.171"
+      },
+      {
+        "id": "t53",
+        "title": "iOS - Tournament Detail View - Statistiken",
+        "description": "Andere Ansicht von Statistiken statt 2-Achsen Scrolling",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:31:03.043"
+      },
+      {
+        "id": "t55",
+        "title": "Team Overview - Navbar Farben",
+        "description": "Passe die Navbar (oben mit Dynamic Island) Farben im Team Detail View (den über Navbar - Teams) an die RHD/Teamfarben an.",
+        "priority": "medium",
+        "labels": [
+          "Design",
+          "iOS"
+        ],
+        "createdAt": "2026-05-12T15:33:44.591"
+      },
+      {
+        "id": "t56",
+        "title": "Player Detail View Anpassen",
+        "description": "Alles an Mobile anpassen. Content ist in der dynamic Island, Mobil soll nur Spielerbild angezeigt werden kein zweites bild. Name soll komplett angezeigt werden (Font Size kleiner wenn zu groß)",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:36:35.739"
+      },
+      {
+        "id": "t57",
+        "title": "Saisonkalender",
+        "description": "An Mobil anpassen. Nur die Hälfte wird angezeigt.",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:37:12.971"
+      },
+      {
+        "id": "t58",
+        "title": "Delegate Dashboard - Cards",
+        "description": "Cards mit Zugeordnete Spiele, ... Responsive machen (wenn bildschirm zu klein auf 2x2 statt 1x4)",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:38:58.471"
+      },
+      {
+        "id": "t59",
+        "title": "Delegate - Beobachtung",
+        "description": "Auf Mobil anpassen. Anderer Picker",
+        "priority": "medium",
+        "labels": [
+          "Design",
+          "iOS"
+        ],
+        "createdAt": "2026-05-12T15:39:59.387"
+      },
+      {
+        "id": "t61",
+        "title": "Leitende Stelle - Sperren",
+        "description": "Entferne zweiten Titel, sodass ich nur noch Filter und Neue Sperre sehe",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:42:58.478"
+      },
+      {
+        "id": "t62",
+        "title": "Leitende Stelle - Strafen & Bußgelder",
+        "description": "Entferne zweiten Titel. Filterkarten plus Neue Strafe ist zu breit.",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:43:38.269"
+      },
+      {
+        "id": "t60",
+        "title": "Leitende Stelle - Dashboard",
+        "description": "\"Kommisar\" zu \"Leitende Stelle\", Jede Karte \"Bottom Overflowed by 5.3 Pixels\"",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:41:14.423"
+      },
+      {
+        "id": "t54",
+        "title": "iOS - Tournament Overview - Better Design",
+        "description": "Besseres Design für Unsere Tournament Overview. aktuell mit zu vielen Dividern",
+        "priority": "medium",
+        "labels": [
+          "iOS",
+          "Design"
+        ],
+        "createdAt": "2026-05-12T15:32:16.181"
       }
     ]
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 import '../models/game_squad.dart';
 import '../models/player.dart';
@@ -132,7 +133,7 @@ class _SpielerpassCheckScreenState extends State<SpielerpassCheckScreen> {
           style: const TextStyle(
               color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        backgroundColor: const Color(0xFF1a237e),
+        backgroundColor: AppColors.rhdBlack,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -289,7 +290,7 @@ class _SpielerpassCheckScreenState extends State<SpielerpassCheckScreen> {
                     height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1a237e).withOpacity(0.1),
+                      color: AppColors.rhdBlack.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

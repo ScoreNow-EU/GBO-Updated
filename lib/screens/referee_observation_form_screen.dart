@@ -606,6 +606,148 @@ class _MinorCategoryCardState extends State<_MinorCategoryCard> {
       );
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    // Score section (badge + selector)
+    final scoreSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: accent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: accent.withOpacity(0.3)),
+          ),
+          child: Text(
+            _localScore != null ? '$_localScore / $maxVal' : '– / $maxVal',
+            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        scoreSelector,
+      ],
+    );
+
+    // Details section (name, mängel, notes)
+    final detailsSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          minor.name,
+          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+        if (minor.mangel.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 5,
+            runSpacing: 4,
+            children: minor.mangel.map((mg) {
+              final selected = _localMangelIds.contains(mg.id);
+              return FilterChip(
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                label: Text(mg.description,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: selected ? Colors.white : Colors.black87)),
+                selected: selected,
+                onSelected: widget.readOnly
+                    ? null
+                    : (v) {
+                        setState(() {
+                          v
+                              ? _localMangelIds.add(mg.id)
+                              : _localMangelIds.remove(mg.id);
+                        });
+                        _notify();
+                      },
+                backgroundColor: Colors.grey.shade100,
+                selectedColor: accent,
+                checkmarkColor: Colors.white,
+                side: BorderSide(
+                    color: selected ? accent : Colors.grey.shade300),
+              );
+            }).toList(),
+          ),
+          // Causes for selected Mängel
+          ...minor.mangel
+              .where((mg) =>
+                  _localMangelIds.contains(mg.id) && mg.causes.isNotEmpty)
+              .map((mg) => Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ursachen – ${mg.description}:',
+                          style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 3,
+                          children: mg.causes.map((cause) {
+                            final sel = _localCauses.contains(cause);
+                            return FilterChip(
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 0),
+                              label: Text(cause,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: sel
+                                          ? Colors.white
+                                          : Colors.black87)),
+                              selected: sel,
+                              onSelected: widget.readOnly
+                                  ? null
+                                  : (v) {
+                                      setState(() {
+                                        v
+                                            ? _localCauses.add(cause)
+                                            : _localCauses.remove(cause);
+                                      });
+                                      _notify();
+                                    },
+                              backgroundColor: Colors.grey.shade100,
+                              selectedColor: accent.withOpacity(0.8),
+                              checkmarkColor: Colors.white,
+                              side: BorderSide(
+                                  color: sel ? accent : Colors.grey.shade300),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  )),
+        ],
+        const SizedBox(height: 6),
+        TextField(
+          controller: _notesCtrl,
+          readOnly: widget.readOnly,
+          style: const TextStyle(fontSize: 12),
+          decoration: InputDecoration(
+            hintText: 'Anmerkung (optional)',
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+            border: InputBorder.none,
+            enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.grey.shade200)),
+            focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: accent)),
+          ),
+          onChanged: (_) => _notify(),
+        ),
+      ],
+    );
+
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -616,174 +758,23 @@ class _MinorCategoryCardState extends State<_MinorCategoryCard> {
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left: score buttons
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Score badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: accent.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    _localScore != null
-                        ? '$_localScore / $maxVal'
-                        : '– / $maxVal',
-                    style: TextStyle(
-                        color: accent,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                scoreSelector,
-              ],
-            ),
-            const SizedBox(width: 14),
-            // Right: name, mängel, notes
-            Expanded(
-              child: Column(
+        child: isMobile
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    minor.name,
-                    style: const TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13),
-                  ),
-                  if (minor.mangel.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 5,
-                      runSpacing: 4,
-                      children: minor.mangel.map((mg) {
-                        final selected = _localMangelIds.contains(mg.id);
-                        return FilterChip(
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 0),
-                          label: Text(mg.description,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: selected
-                                      ? Colors.white
-                                      : Colors.black87)),
-                          selected: selected,
-                          onSelected: widget.readOnly
-                              ? null
-                              : (v) {
-                                  setState(() {
-                                    v
-                                        ? _localMangelIds.add(mg.id)
-                                        : _localMangelIds.remove(mg.id);
-                                  });
-                                  _notify();
-                                },
-                          backgroundColor: Colors.grey.shade100,
-                          selectedColor: accent,
-                          checkmarkColor: Colors.white,
-                          side: BorderSide(
-                              color: selected
-                                  ? accent
-                                  : Colors.grey.shade300),
-                        );
-                      }).toList(),
-                    ),
-                    // Causes for selected Mängel
-                    ...minor.mangel
-                        .where((mg) =>
-                            _localMangelIds.contains(mg.id) &&
-                            mg.causes.isNotEmpty)
-                        .map((mg) => Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Ursachen – ${mg.description}:',
-                                    style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Wrap(
-                                    spacing: 4,
-                                    runSpacing: 3,
-                                    children: mg.causes.map((cause) {
-                                      final sel = _localCauses.contains(cause);
-                                      return FilterChip(
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4, vertical: 0),
-                                        label: Text(cause,
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: sel
-                                                    ? Colors.white
-                                                    : Colors.black87)),
-                                        selected: sel,
-                                        onSelected: widget.readOnly
-                                            ? null
-                                            : (v) {
-                                                setState(() {
-                                                  v
-                                                      ? _localCauses.add(cause)
-                                                      : _localCauses
-                                                          .remove(cause);
-                                                });
-                                                _notify();
-                                              },
-                                        backgroundColor: Colors.grey.shade100,
-                                        selectedColor: accent.withOpacity(0.8),
-                                        checkmarkColor: Colors.white,
-                                        side: BorderSide(
-                                            color: sel
-                                                ? accent
-                                                : Colors.grey.shade300),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
-                              ),
-                            )),
-                  ],
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _notesCtrl,
-                    readOnly: widget.readOnly,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: InputDecoration(
-                      hintText: 'Anmerkung (optional)',
-                      hintStyle: TextStyle(
-                          color: Colors.grey.shade400, fontSize: 12),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 4, horizontal: 0),
-                      border: InputBorder.none,
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Colors.grey.shade200)),
-                      focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: accent)),
-                    ),
-                    onChanged: (_) => _notify(),
-                  ),
+                  scoreSection,
+                  const SizedBox(height: 10),
+                  detailsSection,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  scoreSection,
+                  const SizedBox(width: 14),
+                  Expanded(child: detailsSection),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

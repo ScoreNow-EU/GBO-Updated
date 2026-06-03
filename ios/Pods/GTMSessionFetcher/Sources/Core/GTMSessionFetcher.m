@@ -784,6 +784,11 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       // The User-Agent is already cached in memory, so set it synchronously.
       [fetchRequest setValue:cachedUserAgent forHTTPHeaderField:@"User-Agent"];
     } else if (userAgentProvider != nil) {
+      // If this session is held by the fetcher service, clear the session now so that we don't
+      // assume it's still valid after asynchronous User-Agent calculation completes.
+      if (self.canShareSession) {
+        self.session = nil;
+      }
       // The User-Agent is not cached in memory. Fetch it asynchronously.
       [self updateUserAgentAsynchronouslyForRequest:fetchRequest
                                   userAgentProvider:userAgentProvider
@@ -1887,6 +1892,15 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [_service fetcherDidStop:self];
 
   self.authorizer = nil;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    NSURLSession *oldSession = _session;
+    _session = nil;
+    if (_shouldInvalidateSession) {
+      [oldSession finishTasksAndInvalidate];
+    }
+  }  // @synchronized(self)
 }
 
 + (GTMSessionCookieStorage *)staticCookieStorage {

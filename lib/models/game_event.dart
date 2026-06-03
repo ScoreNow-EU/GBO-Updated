@@ -191,8 +191,8 @@ class GameState {
 class GameTime {
   final int minutes;
   final int seconds;
-  final int currentPeriod; // 1 or 2 (for 2x N minute halves)
-  final int halfDurationMinutes;
+  final int currentPeriod; // 1 or 2 (for 2x halves)
+  final int halfDurationMinutes; // configurable, default 15
 
   GameTime({
     this.minutes = 0,
@@ -206,12 +206,11 @@ class GameTime {
   }
 
   String get periodDisplay {
-    final periodEnd = currentPeriod * halfDurationMinutes;
-    return '$currentPeriod. Halbzeit ($displayTime/${periodEnd.toString().padLeft(2, '0')}:00)';
+    return '$currentPeriod. Halbzeit ($displayTime/${halfDurationMinutes.toString().padLeft(2, '0')}:00)';
   }
 
   bool get isHalfTime => minutes >= halfDurationMinutes && currentPeriod == 1;
-  bool get isFullTime => minutes >= halfDurationMinutes * 2 && currentPeriod == 2;
+  bool get isFullTime => minutes >= halfDurationMinutes && currentPeriod == 2;
 
   GameTime copyWith({
     int? minutes,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../utils/app_colors.dart';
 
 class TeamAvatar extends StatelessWidget {
   final String teamName;
@@ -86,7 +87,7 @@ class TeamAvatar extends StatelessWidget {
     Random random = Random(hash);
     
     List<Color> colors = [
-      const Color(0xFFffd665),
+      AppColors.rhdGold,
       Colors.green.shade400,
       Colors.orange.shade400,
       Colors.purple.shade400,

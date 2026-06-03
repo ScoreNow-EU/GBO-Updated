@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 import '../services/face_id_service.dart';
 
@@ -115,12 +116,12 @@ class _AdminFaceIdOverlayState extends State<AdminFaceIdOverlay> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFffd665).withOpacity(0.2),
+                  color: AppColors.rhdGold.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(40),
                 ),
                 child: Icon(
                   _biometricTypeName == 'Face ID' ? Icons.face : Icons.fingerprint,
-                  color: const Color(0xFFffd665),
+                  color: AppColors.rhdGold,
                   size: 40,
                 ),
               ),
@@ -156,7 +157,7 @@ class _AdminFaceIdOverlayState extends State<AdminFaceIdOverlay> {
               child: ElevatedButton(
                 onPressed: _isAuthenticating ? null : _authenticateWithFaceId,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFffd665),
+                  backgroundColor: AppColors.rhdGold,
                   foregroundColor: Colors.black87,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

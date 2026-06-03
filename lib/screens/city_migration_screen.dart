@@ -255,7 +255,7 @@ class _CityMigrationScreenState extends State<CityMigrationScreen> {
 
   Future<void> _importCsvFile() async {
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
         allowMultiple: false,

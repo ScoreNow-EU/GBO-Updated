@@ -95,7 +95,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
   Future<void> _changePhoto() async {
     if (_player == null) return;
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         withData: true,
       );
@@ -132,7 +132,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
   Future<void> _uploadSecondary() async {
     if (_player == null) return;
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         withData: true,
       );
@@ -273,6 +273,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
       );
     }
     final p = _player!;
+    final isMobileScreen = MediaQuery.of(context).size.width < 768;
     return Scaffold(
       backgroundColor: const Color(0xFF0a0a0a),
       extendBodyBehindAppBar: true,
@@ -289,7 +290,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
           child: const BackButton(color: Colors.white),
         ),
         actions: [
-          if (_canEdit)
+          if (_canEdit && !isMobileScreen)
             Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -361,17 +362,17 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
+        final isMobile = w < 768;
+        final topPad = MediaQuery.of(context).padding.top;
         // Massive name — scales with width but capped.
-        final lastNameSize = (w / 6.5).clamp(72.0, 160.0).toDouble();
-        // Player image: fixed 600 x 400 box. The natural image is cropped
-        // (cover, top-aligned) — never shrunk — so a tall portrait shows only
-        // its top portion, and the lower edge fades into the name.
-        const imgWidth = 600.0;
-        const imgHeight = 400.0;
+        final lastNameSize = (w / 6.5).clamp(48.0, 160.0).toDouble();
+        // Player image: responsive on mobile, fixed on desktop.
+        final imgWidth = isMobile ? w : 600.0;
+        final imgHeight = isMobile ? 320.0 : 400.0;
         // Bottom block reserves room for the name + accent.
         final bottomBlockHeight = lastNameSize + 160;
         // Image overlaps slightly into the name area for the "coming out of name" feel.
-        final totalHeight = imgHeight + bottomBlockHeight - lastNameSize * 0.25;
+        final totalHeight = imgHeight + bottomBlockHeight - lastNameSize * 0.25 + (isMobile ? topPad : 0);
 
         return SizedBox(
           height: totalHeight,
@@ -419,8 +420,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
               ),
               // ── Player image (top-aligned, capped at 400 tall, fades into name) ──
               Positioned(
-                top: 8,
-                left: 24,
+                top: isMobile ? topPad : 8,
+                left: isMobile ? 0 : 24,
                 width: imgWidth,
                 height: imgHeight,
                 child: ShaderMask(
@@ -484,8 +485,8 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                     ),
                   ),
                 ),
-              // Secondary full-height accent image (replaces team logo).
-              if (hasSecondary)
+              // Secondary full-height accent image (replaces team logo) — desktop only.
+              if (hasSecondary && !isMobile)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Opacity(
@@ -635,7 +636,10 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                             ),
                             const SizedBox(height: 10),
                             // Last name — MASSIVE, tight
-                            ShaderMask(
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: ShaderMask(
                               shaderCallback: (rect) => const LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -654,6 +658,7 @@ class _PlayerProfileScreenState extends State<PlayerProfileScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                            ),
                             ),
                             const SizedBox(height: 16),
                             // Red underline accent
@@ -1109,7 +1114,7 @@ return Container(
               end: Alignment.bottomCenter,
               colors: _hasOwnColors
                   ? [_teamPrimary, _teamSecondary]
-                  : const [Color(0xFFe63946), Color(0xFFffd765)],
+                  : const [AppColors.primaryColor, AppColors.rhdGold],
             ),
           ),
         ),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
@@ -6,6 +6,7 @@ import 'dart:math';
 import '../services/team_manager_service.dart';
 import '../services/auth_service.dart';
 import '../services/tournament_service.dart';
+import '../services/managed_account_service.dart';
 import '../models/team.dart';
 import '../models/tournament.dart';
 import '../models/user.dart' as app_user;
@@ -80,6 +81,9 @@ class _SideNavigationState extends State<SideNavigation> {
     // Load app user data
     if (_currentUser != null) {
       try {
+        // Ensure managed accounts have a users doc (self-healing migration)
+        await ManagedAccountService().ensureUserDocForCurrentUser(_currentUser!.uid);
+        
         final appUser = await _authService.getUserById(_currentUser!.uid);
         if (mounted) {
           setState(() {
@@ -139,13 +143,13 @@ class _SideNavigationState extends State<SideNavigation> {
     }
 
     try {
-      debugPrint('ðŸ”„ Nav: Loading tournaments for organizer: ${_currentAppUser!.fullName}');
+      print('🔄 Nav: Loading tournaments for organizer: ${_currentAppUser!.fullName}');
       final allTournaments = await _tournamentService.getTournaments().first;
       final organizerTournaments = allTournaments.where((tournament) => 
         tournament.tournamentOrganizerId == _currentAppUser!.id
       ).toList();
       
-      debugPrint('âœ… Nav: Loaded ${organizerTournaments.length} organizer tournaments');
+      print('✅ Nav: Loaded ${organizerTournaments.length} organizer tournaments');
       if (mounted) {
         setState(() {
           _organizerTournaments = organizerTournaments;
@@ -153,7 +157,7 @@ class _SideNavigationState extends State<SideNavigation> {
         });
       }
     } catch (e) {
-      debugPrint('âŒ Nav: Error loading organizer tournaments: $e');
+      print('❌ Nav: Error loading organizer tournaments: $e');
       if (mounted) {
         setState(() {
           _organizerTournaments = [];
@@ -183,23 +187,23 @@ class _SideNavigationState extends State<SideNavigation> {
     try {
       // Debug: Check if team manager exists by email
       final teamManagerByEmail = await _teamManagerService.getTeamManagerByEmail(_currentUser!.email ?? '');
-      debugPrint('Team manager by email: ${teamManagerByEmail?.name}');
+      print('Team manager by email: ${teamManagerByEmail?.name}');
       
       // If team manager exists by email but not linked, try to link
       if (teamManagerByEmail != null && teamManagerByEmail.userId == null) {
-        debugPrint('Attempting to link user to team manager...');
+        print('Attempting to link user to team manager...');
         final linked = await _teamManagerService.linkUserToTeamManager(_currentUser!.email!, _currentUser!.uid);
-        debugPrint('Link successful: $linked');
+        print('Link successful: $linked');
       }
       
       final isManager = await _teamManagerService.isUserTeamManager(_currentUser!.uid);
-      debugPrint('Is user team manager: $isManager');
+      print('Is user team manager: $isManager');
       
       if (isManager) {
         final teams = await _teamManagerService.getTeamsManagedByUser(_currentUser!.uid);
-        debugPrint('Managed teams: ${teams.length}');
+        print('Managed teams: ${teams.length}');
         for (final team in teams) {
-          debugPrint('Team: ${team.name} - ${team.city}');
+          print('Team: ${team.name} - ${team.city}');
         }
         if (mounted) {
           setState(() {
@@ -216,7 +220,7 @@ class _SideNavigationState extends State<SideNavigation> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading team manager data: $e');
+      print('Error loading team manager data: $e');
       if (mounted) {
         setState(() {
           _isTeamManager = false;
@@ -294,19 +298,6 @@ class _SideNavigationState extends State<SideNavigation> {
                   key: 'rangliste',
                   isSelected: widget.selectedSection == 'rangliste',
                 ),
-                _buildNavigationItem(
-                  icon: Icons.shield,
-                  title: 'Teams',
-                  key: 'teams',
-                  isSelected: widget.selectedSection == 'teams' ||
-                      widget.selectedSection.startsWith('team_'),
-                ),
-                _buildNavigationItem(
-                  icon: Icons.calendar_month,
-                  title: 'Saisonkalender',
-                  key: 'saisonkalender',
-                  isSelected: widget.selectedSection == 'saisonkalender',
-                ),
                 
                 const SizedBox(height: 16),
                 
@@ -324,39 +315,20 @@ class _SideNavigationState extends State<SideNavigation> {
                 if (_currentAppUser?.roles.contains(app_user.UserRole.referee) == true && _currentAppUser?.refereeId != null && _refereeProfile != null)
                   const SizedBox(height: 16),
                 
+                // Scoring Tablet Section - Show for admin users and scoring tablet managed accounts
+                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
+                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
+                  _buildScoringTabletSection(),
+                
+                if (_currentAppUser?.roles.contains(app_user.UserRole.admin) == true ||
+                    _currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
+                  const SizedBox(height: 16),
+                
                 // Tournament Organizer Section - Only show if user has tournament organizer role
                 if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
                   _buildTournamentOrganizerSection(),
                 
                 if (_currentAppUser?.roles.contains(app_user.UserRole.tournamentOrganizer) == true)
-                  const SizedBox(height: 16),
-                
-                // Delegate Section - Only show if user has delegate role
-                if (_currentAppUser?.roles.contains(app_user.UserRole.delegate) == true)
-                  _buildDelegateSection(),
-                
-                if (_currentAppUser?.roles.contains(app_user.UserRole.delegate) == true)
-                  const SizedBox(height: 16),
-                
-                // Commissioner Section - Only show if user has teamRHD role
-                if (_currentAppUser?.roles.contains(app_user.UserRole.teamRHD) == true)
-                  _buildCommissionerSection(),
-                
-                if (_currentAppUser?.roles.contains(app_user.UserRole.teamRHD) == true)
-                  const SizedBox(height: 16),
-                
-                // Player Section - Only show if user has spieler role
-                if (_currentAppUser?.roles.contains(app_user.UserRole.spieler) == true)
-                  _buildPlayerSection(),
-                
-                if (_currentAppUser?.roles.contains(app_user.UserRole.spieler) == true)
-                  const SizedBox(height: 16),
-
-                // Scoring Tablet Section - Only show if user has scoringTablet role
-                if (_currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
-                  _buildScoringTabletSection(),
-
-                if (_currentAppUser?.roles.contains(app_user.UserRole.scoringTablet) == true)
                   const SizedBox(height: 16),
                 
                 // Admin Section - Only show if user has admin role
@@ -436,7 +408,7 @@ class _SideNavigationState extends State<SideNavigation> {
           //                 borderRadius: BorderRadius.circular(12),
           //               ),
           //               child: const Text(
-          //                 'ðŸ’',
+          //                 '💝',
           //                 style: TextStyle(fontSize: 16),
           //               ),
           //             ),
@@ -544,12 +516,6 @@ class _SideNavigationState extends State<SideNavigation> {
               isSelected: widget.selectedSection == 'team_${team.id}_roster',
             ),
             _buildTeamSubItem(
-              title: 'Kalender',
-              key: 'team_${team.id}_calendar',
-              icon: Icons.calendar_month,
-              isSelected: widget.selectedSection == 'team_${team.id}_calendar',
-            ),
-            _buildTeamSubItem(
               title: 'Einstellungen',
               key: 'team_${team.id}_settings',
               icon: Icons.settings,
@@ -649,284 +615,6 @@ class _SideNavigationState extends State<SideNavigation> {
     );
   }
 
-  Widget _buildDelegateSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.indigo.shade600,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: const Row(
-              children: [
-                Icon(Icons.account_balance, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'DELEGIERTE(R)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.dashboard,
-            title: 'Dashboard',
-            key: 'delegate_dashboard',
-            isSelected: widget.selectedSection == 'delegate_dashboard',
-            selectedColor: Colors.indigo.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.badge,
-            title: 'Spielerpass-Kontrolle',
-            key: 'spielerpass_kontrolle',
-            isSelected: widget.selectedSection == 'spielerpass_kontrolle',
-            selectedColor: Colors.indigo.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.warning_amber,
-            title: 'Proteste',
-            key: 'protest_list',
-            isSelected: widget.selectedSection == 'protest_list',
-            selectedColor: Colors.indigo.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.assignment_ind,
-            title: 'Beobachtungen',
-            key: 'referee_observations',
-            isSelected: widget.selectedSection == 'referee_observations',
-            selectedColor: Colors.indigo.shade900,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommissionerSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.deepPurple.shade600,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: const Row(
-              children: [
-                Icon(Icons.shield, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'LEITENDE STELLE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.dashboard,
-            title: 'Übersicht',
-            key: 'commissioner_dashboard',
-            isSelected: widget.selectedSection == 'commissioner_dashboard',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.block,
-            title: 'Sperren',
-            key: 'suspension_management',
-            isSelected: widget.selectedSection == 'suspension_management',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.euro,
-            title: 'Strafen & Bußgelder',
-            key: 'fine_management',
-            isSelected: widget.selectedSection == 'fine_management',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.warning_amber,
-            title: 'Proteste',
-            key: 'protest_list',
-            isSelected: widget.selectedSection == 'protest_list',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.calendar_today,
-            title: 'Saison',
-            key: 'season_management',
-            isSelected: widget.selectedSection == 'season_management',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.location_city,
-            title: 'Hallenbörse',
-            key: 'venue_management',
-            isSelected: widget.selectedSection == 'venue_management',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.swap_horiz,
-            title: 'Transfers',
-            key: 'player_transfers',
-            isSelected: widget.selectedSection == 'player_transfers',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.folder_special,
-            title: 'Dokumente',
-            key: 'document_management',
-            isSelected: widget.selectedSection == 'document_management',
-            selectedColor: Colors.deepPurple.shade900,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScoringTabletSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.teal.shade700,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: const Row(
-              children: [
-                Icon(Icons.scoreboard, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'KAMPFGERICHT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.sports_score,
-            title: 'Live Scoring',
-            key: 'scoring_tablet',
-            isSelected: widget.selectedSection == 'scoring_tablet',
-            selectedColor: Colors.teal.shade900,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlayerSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.green.shade600,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: const Row(
-              children: [
-                Icon(Icons.person, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'SPIELER',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.dashboard,
-            title: 'Mein Dashboard',
-            key: 'player_dashboard',
-            isSelected: widget.selectedSection == 'player_dashboard',
-            selectedColor: Colors.green.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.badge,
-            title: 'Mein Spielerpass',
-            key: 'player_dashboard',
-            isSelected: false,
-            selectedColor: Colors.green.shade900,
-          ),
-          _buildNavigationItemColored(
-            icon: Icons.emoji_events,
-            title: 'Turniere',
-            key: 'turniere',
-            isSelected: widget.selectedSection == 'turniere',
-            selectedColor: Colors.green.shade900,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavigationItemColored({
-    required IconData icon,
-    required String title,
-    required String key,
-    required bool isSelected,
-    required Color selectedColor,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      decoration: BoxDecoration(
-        color: isSelected ? selectedColor : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.white : Colors.white70,
-          size: 20,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.white70,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            fontSize: 14,
-          ),
-        ),
-        onTap: () => widget.onSectionChanged(key),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      ),
-    );
-  }
-
   Widget _buildAdminSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -989,6 +677,12 @@ class _SideNavigationState extends State<SideNavigation> {
             isSelected: widget.selectedSection == 'delegate_management',
           ),
           _buildAdminItem(
+            icon: Icons.supervisor_account,
+            title: 'Team Manager Verwaltung',
+            key: 'team_manager_management',
+            isSelected: widget.selectedSection == 'team_manager_management',
+          ),
+          _buildAdminItem(
             icon: Icons.people,
             title: 'Kader Verwaltung (Global)',
             key: 'player_management',
@@ -1015,7 +709,7 @@ class _SideNavigationState extends State<SideNavigation> {
           // ),
           _buildAdminItem(
             icon: Icons.key,
-            title: 'Einmalcodes erstellen',
+            title: 'Einmalone Codes erstellen',
             key: 'generate_sign_in_codes',
             isSelected: widget.selectedSection == 'generate_sign_in_codes',
           ),
@@ -1024,18 +718,6 @@ class _SideNavigationState extends State<SideNavigation> {
             title: 'Datenverwaltung',
             key: 'admin_data_management',
             isSelected: widget.selectedSection == 'admin_data_management',
-          ),
-          _buildAdminItem(
-            icon: Icons.backup,
-            title: 'Backup & Restore',
-            key: 'admin_backup',
-            isSelected: widget.selectedSection == 'admin_backup',
-          ),
-          _buildAdminItem(
-            icon: Icons.view_kanban,
-            title: 'Kanban Board',
-            key: 'kanban_board',
-            isSelected: widget.selectedSection == 'kanban_board',
           ),
           
           // "Mehr" entry after regular items
@@ -1054,6 +736,13 @@ class _SideNavigationState extends State<SideNavigation> {
           
           // Expandable admin items
           if (_isAdminExpanded) ...[
+            if (defaultTargetPlatform != TargetPlatform.iOS)
+              _buildAdminItem(
+                icon: Icons.architecture,
+                title: 'Preset Verwaltung',
+                key: 'preset_management',
+                isSelected: widget.selectedSection == 'preset_management',
+              ),
             _buildAdminItem(
               icon: Icons.notifications_active,
               title: 'Benachrichtigung Senden',
@@ -1067,34 +756,16 @@ class _SideNavigationState extends State<SideNavigation> {
               isSelected: widget.selectedSection == 'season_management',
             ),
             _buildAdminItem(
+              icon: Icons.dashboard,
+              title: 'Kanban Board',
+              key: 'kanban_board',
+              isSelected: widget.selectedSection == 'kanban_board',
+            ),
+            _buildAdminItem(
               icon: Icons.location_city,
               title: 'Städte Migration',
               key: 'city_migration',
               isSelected: widget.selectedSection == 'city_migration',
-            ),
-            _buildAdminItem(
-              icon: Icons.smart_display,
-              title: 'YouTube-Verbindung',
-              key: 'youtube_connect',
-              isSelected: widget.selectedSection == 'youtube_connect',
-            ),
-            _buildAdminItem(
-              icon: Icons.video_library,
-              title: 'Stories',
-              key: 'stories',
-              isSelected: widget.selectedSection == 'stories',
-            ),
-            _buildAdminItem(
-              icon: Icons.description,
-              title: 'Beobachtungs-Vorlagen',
-              key: 'observation_templates',
-              isSelected: widget.selectedSection == 'observation_templates',
-            ),
-            _buildAdminItem(
-              icon: Icons.assignment_ind,
-              title: 'Beobachtungen',
-              key: 'referee_observations',
-              isSelected: widget.selectedSection == 'referee_observations',
             ),
             _buildAdminItem(
               icon: Icons.image,
@@ -1231,6 +902,83 @@ class _SideNavigationState extends State<SideNavigation> {
     );
   }
 
+  Widget _buildScoringTabletSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade700,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Scoring Section Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.scoreboard,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'KAMPFGERICHT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Scoring System Item
+          _buildScoringTabletItem(
+            icon: Icons.tablet_mac,
+            title: 'Scoring System',
+            key: 'scoring_system',
+            isSelected: widget.selectedSection == 'scoring_system',
+          ),
+          
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoringTabletItem({
+    required IconData icon,
+    required String title,
+    required String key,
+    required bool isSelected,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(icon, color: Colors.white, size: 18),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+        onTap: () => widget.onSectionChanged(key),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      ),
+    );
+  }
+
   Widget _buildTournamentOrganizerSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -1344,7 +1092,7 @@ class _SideNavigationState extends State<SideNavigation> {
                 ),
                 // Debug: Print tournament info
                 Builder(builder: (context) {
-                  debugPrint('Creating TO Software button for tournament: ${tournament.id}');
+                  print('Creating TO Software button for tournament: ${tournament.id}');
                   return _buildOrganizerTournamentSubItem(
                     title: 'TO Software',
                     key: 'organizer_tournament_${tournament.id}_to_software',
@@ -1369,7 +1117,7 @@ class _SideNavigationState extends State<SideNavigation> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF1A202C) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -1423,9 +1171,6 @@ class _SideNavigationState extends State<SideNavigation> {
     required bool isSelected,
     required Tournament tournament,
   }) {
-    final isPending = tournament.approvalStatus == 'pending_approval';
-    final isRejected = tournament.approvalStatus == 'rejected';
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
@@ -1450,39 +1195,15 @@ class _SideNavigationState extends State<SideNavigation> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    tournament.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isPending)
-                  Container(
-                    width: 8, height: 8,
-                    margin: const EdgeInsets.only(left: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                if (isRejected)
-                  Container(
-                    width: 8, height: 8,
-                    margin: const EdgeInsets.only(left: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-              ],
+            Text(
+              tournament.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               tournament.location,
@@ -1557,7 +1278,7 @@ class _SideNavigationState extends State<SideNavigation> {
           ],
         ),
         onTap: isComingSoon ? null : () {
-          debugPrint('TO Software clicked with key: $key');
+          print('TO Software clicked with key: $key');
           widget.onSectionChanged(key);
         },
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),

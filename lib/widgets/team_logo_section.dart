@@ -39,7 +39,7 @@ class _TeamLogoSectionState extends State<TeamLogoSection> {
       _localLogoUrl ?? widget.team.logoUrl;
 
   Future<void> _pickAndUpload() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       withData: true,
     );

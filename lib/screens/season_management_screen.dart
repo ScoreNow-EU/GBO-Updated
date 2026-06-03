@@ -1138,14 +1138,19 @@ class _SeasonManagementScreenState extends State<SeasonManagementScreen> {
 
   void _savePointsOverride(Tournament tournament, int newPoints) async {
     try {
-      // TODO: Save the points override to the database
-      // For now, just show a success message
-      _showSuccessToast('Punkte fÃƒÂ¼r ${tournament.name} auf $newPoints gesetzt');
+      // Build the updated overrides map with the new value
+      final updatedOverrides = Map<String, int>.from(tournament.pointsOverrides);
+      // Use tournament ID as key since this is a tournament-level override
+      updatedOverrides[tournament.id] = newPoints;
+
+      final updatedTournament = tournament.copyWith(
+        pointsOverrides: updatedOverrides,
+      );
+      await _tournamentService.updateTournament(updatedTournament);
+
+      _showSuccessToast('Punkte für ${tournament.name} auf $newPoints gesetzt');
       
-      // Update the local tournament data
       setState(() {
-        // In a real implementation, you would update the tournament in the database
-        // For now, we'll simulate the update by reloading tournaments
         _loadTournaments();
       });
     } catch (e) {

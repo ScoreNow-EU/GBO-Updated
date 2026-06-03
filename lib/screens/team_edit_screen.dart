@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import '../utils/app_colors.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/team.dart';
 import '../models/player.dart';
@@ -167,7 +168,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: const Color(0xFF4A5568),
+        color: AppColors.textGrey,
         border: Border(
           right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
@@ -180,7 +181,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
-              color: Color(0xFF4A5568),
+              color: AppColors.textGrey,
             ),
             child: Stack(
               children: [
@@ -250,7 +251,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -295,7 +296,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
               icon: const Icon(Icons.save, size: 18),
               label: const Text('Speichern'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFffd665),
+                backgroundColor: AppColors.rhdGold,
                 foregroundColor: Colors.black87,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -555,7 +556,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
 
   Future<void> _uploadTeamLogo() async {
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: false,
         withData: true,
@@ -627,7 +628,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFffd665).withOpacity(0.2),
+                  color: AppColors.rhdGold.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -905,9 +906,9 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFffd665).withOpacity(0.1),
+        color: AppColors.rhdGold.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFffd665).withOpacity(0.3)),
+        border: Border.all(color: AppColors.rhdGold.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -1771,7 +1772,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: isCurrentManager ? const Color(0xFFffd665) : Colors.grey.shade600,
+                                color: isCurrentManager ? AppColors.rhdGold : Colors.grey.shade600,
                                 borderRadius: BorderRadius.circular(24),
                               ),
                               child: Center(
@@ -1802,7 +1803,7 @@ class _TeamEditScreenState extends State<TeamEditScreen> {
                                     margin: const EdgeInsets.only(top: 4),
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFffd665),
+                                      color: AppColors.rhdGold,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Text(

@@ -272,6 +272,7 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
   Widget _buildRow(_CalendarRow r) {
     final g = r.game;
     final t = r.tournament;
+    final isMobile = MediaQuery.of(context).size.width < 768;
     final time = g.scheduledTime != null
         ? '${g.scheduledTime!.hour.toString().padLeft(2, '0')}:'
             '${g.scheduledTime!.minute.toString().padLeft(2, '0')}'
@@ -296,13 +297,73 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
       label: semanticsLabel.toString(),
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: Colors.grey.shade200),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
+        child: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          time,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 4,
+                        height: 32,
+                        color: g.status == GameStatus.completed
+                            ? Colors.grey
+                            : (g.status == GameStatus.inProgress
+                                ? AppColors.primaryColor
+                                : AppColors.primaryColorAlt),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${g.teamAName}  vs  ${g.teamBName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight:
+                                isHighlighted ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        score ?? _statusLabel(g.status),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: score != null ? Colors.black87 : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 56, top: 4),
+                    child: Text(
+                      '${t.name}${court != '—' ? ' · $court' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
           children: [
             SizedBox(
               width: 48,

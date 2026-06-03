@@ -196,10 +196,10 @@ class CustomNotificationService {
       );
       
       await _localNotifications.show(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title: isTimeSensitive ? "\u26a0\ufe0f $title" : title,
-        body: message,
-        notificationDetails: notificationDetails,
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        isTimeSensitive ? "\u26a0\ufe0f $title" : title,
+        message,
+        notificationDetails,
         payload: payload ?? 'custom_notification',
       );
       

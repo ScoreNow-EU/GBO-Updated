@@ -457,8 +457,8 @@ class _TeamCard extends StatelessWidget {
                               colors: hasOwnColors
                                   ? [teamPrimary, teamSecondary]
                                   : const [
-                                      Color(0xFFc10003),
-                                      Color(0xFFe63946),
+                                      AppColors.primaryColor,
+                                      AppColors.primaryColor,
                                     ],
                             ),
                             borderRadius: BorderRadius.circular(20),

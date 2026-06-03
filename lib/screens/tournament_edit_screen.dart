@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../utils/app_colors.dart';
 import '../models/tournament.dart';
 import '../models/tournament_link.dart';
 import '../models/team.dart';
@@ -725,7 +726,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
   Widget _buildTournamentNavigationDrawer(double screenWidth) {
     return Drawer(
       child: Container(
-        color: const Color(0xFF4A5568),
+        color: AppColors.textGrey,
         child: Column(
           children: [
             // Header
@@ -734,7 +735,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                color: Color(0xFF4A5568),
+                color: AppColors.textGrey,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -839,7 +840,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: const Color(0xFF4A5568),
+        color: AppColors.textGrey,
         border: Border(
           right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
@@ -852,7 +853,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
-              color: Color(0xFF4A5568),
+              color: AppColors.textGrey,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1044,7 +1045,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -1085,7 +1086,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF2D3748) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Builder(
@@ -6014,7 +6015,7 @@ class _TournamentEditScreenState extends State<TournamentEditScreen> {
     }
 
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
         allowMultiple: true,
         withData: true,

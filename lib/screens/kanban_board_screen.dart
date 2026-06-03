@@ -234,12 +234,40 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
     );
   }
 
+  // ── Helpers ──────────────────────────────────
+
+  String _nextTaskId() {
+    int max = 0;
+    for (final col in _columns) {
+      for (final task in col.tasks) {
+        final m = RegExp(r'^t(\d+)$').firstMatch(task.id);
+        if (m != null) {
+          final n = int.tryParse(m.group(1)!) ?? 0;
+          if (n > max) max = n;
+        }
+      }
+    }
+    return 't${(max + 1).toString().padLeft(2, '0')}';
+  }
+
+  List<String> get _allLabels {
+    final seen = <String>{};
+    for (final col in _columns) {
+      for (final task in col.tasks) {
+        seen.addAll(task.labels);
+      }
+    }
+    return (seen.toList()..sort());
+  }
+
   // ── Task CRUD ────────────────────────────────
 
   void _addTask(KanbanColumn column) {
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     String priority = 'medium';
+    final labels = <String>[];
+    final labelCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -248,53 +276,127 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
           title: const Text('Neue Aufgabe'),
           content: SizedBox(
             width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleCtrl,
-                  autofocus: true,
-                  decoration:
-                      const InputDecoration(labelText: 'Titel', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                      labelText: 'Beschreibung', border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Priorität: '),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Niedrig'),
-                      selected: priority == 'low',
-                      selectedColor: Colors.green.shade100,
-                      onSelected: (_) =>
-                          setDialogState(() => priority = 'low'),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    autofocus: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Titel', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                        labelText: 'Beschreibung', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Priorität: '),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('Niedrig'),
+                        selected: priority == 'low',
+                        selectedColor: Colors.green.shade100,
+                        onSelected: (_) =>
+                            setDialogState(() => priority = 'low'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Mittel'),
+                        selected: priority == 'medium',
+                        selectedColor: Colors.orange.shade100,
+                        onSelected: (_) =>
+                            setDialogState(() => priority = 'medium'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Hoch'),
+                        selected: priority == 'high',
+                        selectedColor: Colors.red.shade100,
+                        onSelected: (_) =>
+                            setDialogState(() => priority = 'high'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Labels',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(height: 6),
+                  if (_allLabels.isNotEmpty) ...[                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final l in _allLabels)
+                          FilterChip(
+                            label: Text(l, style: const TextStyle(fontSize: 11)),
+                            selected: labels.contains(l),
+                            visualDensity: VisualDensity.compact,
+                            selectedColor: Colors.deepPurple.shade100,
+                            checkmarkColor: Colors.deepPurple,
+                            onSelected: (selected) => setDialogState(() {
+                              if (selected) {
+                                labels.add(l);
+                              } else {
+                                labels.remove(l);
+                              }
+                            }),
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    ChoiceChip(
-                      label: const Text('Mittel'),
-                      selected: priority == 'medium',
-                      selectedColor: Colors.orange.shade100,
-                      onSelected: (_) =>
-                          setDialogState(() => priority = 'medium'),
-                    ),
-                    const SizedBox(width: 6),
-                    ChoiceChip(
-                      label: const Text('Hoch'),
-                      selected: priority == 'high',
-                      selectedColor: Colors.red.shade100,
-                      onSelected: (_) =>
-                          setDialogState(() => priority = 'high'),
-                    ),
+                    const SizedBox(height: 6),
                   ],
-                ),
-              ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: labelCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Neues Label...',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) {
+                            final raw = labelCtrl.text.trim();
+                            if (raw.isEmpty) return;
+                            if (labels.any((l) =>
+                                l.toLowerCase() == raw.toLowerCase())) return;
+                            setDialogState(() {
+                              labels.add(raw);
+                              labelCtrl.clear();
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        tooltip: 'Label hinzufügen',
+                        onPressed: () {
+                          final raw = labelCtrl.text.trim();
+                          if (raw.isEmpty) return;
+                          if (labels.any((l) =>
+                              l.toLowerCase() == raw.toLowerCase())) return;
+                          setDialogState(() {
+                            labels.add(raw);
+                            labelCtrl.clear();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -306,10 +408,11 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                 if (titleCtrl.text.trim().isEmpty) return;
                 setState(() {
                   column.tasks.add(KanbanTask(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    id: _nextTaskId(),
                     title: titleCtrl.text.trim(),
                     description: descCtrl.text.trim(),
                     priority: priority,
+                    labels: List<String>.from(labels),
                   ));
                 });
                 _saveBoard();
@@ -338,7 +441,8 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
           actionsAlignment: MainAxisAlignment.spaceBetween,
           content: SizedBox(
             width: 400,
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
@@ -393,27 +497,36 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                           fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final l in labels)
-                      Chip(
-                        label: Text(l, style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
-                        onDeleted: () =>
-                            setDialogState(() => labels.remove(l)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
+                if (_allLabels.isNotEmpty) ...[                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final l in _allLabels)
+                        FilterChip(
+                          label: Text(l, style: const TextStyle(fontSize: 11)),
+                          selected: labels.contains(l),
+                          visualDensity: VisualDensity.compact,
+                          selectedColor: Colors.deepPurple.shade100,
+                          checkmarkColor: Colors.deepPurple,
+                          onSelected: (selected) => setDialogState(() {
+                            if (selected) {
+                              labels.add(l);
+                            } else {
+                              labels.remove(l);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: labelCtrl,
                         decoration: const InputDecoration(
-                          hintText: 'z.B. Bug, Feature, UX',
+                          hintText: 'Neues Label...',
                           isDense: true,
                           border: OutlineInputBorder(),
                         ),
@@ -421,9 +534,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                           final raw = labelCtrl.text.trim();
                           if (raw.isEmpty) return;
                           if (labels.any((l) =>
-                              l.toLowerCase() == raw.toLowerCase())) {
-                            return;
-                          }
+                              l.toLowerCase() == raw.toLowerCase())) return;
                           setDialogState(() {
                             labels.add(raw);
                             labelCtrl.clear();
@@ -439,9 +550,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                         final raw = labelCtrl.text.trim();
                         if (raw.isEmpty) return;
                         if (labels.any((l) =>
-                            l.toLowerCase() == raw.toLowerCase())) {
-                          return;
-                        }
+                            l.toLowerCase() == raw.toLowerCase())) return;
                         setDialogState(() {
                           labels.add(raw);
                           labelCtrl.clear();
@@ -451,6 +560,7 @@ class _KanbanBoardScreenState extends State<KanbanBoardScreen> {
                   ],
                 ),
               ],
+              ),
             ),
           ),
           actions: [

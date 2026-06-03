@@ -45,56 +45,93 @@ class _FineManagementScreenState extends State<FineManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Column(
       children: [
         // Header
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.euro, size: 24),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Strafen & Bußgelder',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          child: isMobile
+              ? Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Alle'),
+                      selected: _filter == 'all',
+                      onSelected: (_) {
+                        setState(() => _filter = 'all');
+                        _loadData();
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Offen'),
+                      selected: _filter == 'unpaid',
+                      onSelected: (_) {
+                        setState(() => _filter = 'unpaid');
+                        _loadData();
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Bezahlt'),
+                      selected: _filter == 'paid',
+                      onSelected: (_) {
+                        setState(() => _filter = 'paid');
+                        _loadData();
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Neue Strafe'),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const Icon(Icons.euro, size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Strafen & Bußgelder',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Alle'),
+                      selected: _filter == 'all',
+                      onSelected: (_) {
+                        setState(() => _filter = 'all');
+                        _loadData();
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    ChoiceChip(
+                      label: const Text('Offen'),
+                      selected: _filter == 'unpaid',
+                      onSelected: (_) {
+                        setState(() => _filter = 'unpaid');
+                        _loadData();
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    ChoiceChip(
+                      label: const Text('Bezahlt'),
+                      selected: _filter == 'paid',
+                      onSelected: (_) {
+                        setState(() => _filter = 'paid');
+                        _loadData();
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Neue Strafe'),
+                    ),
+                  ],
                 ),
-              ),
-              // Filter chips
-              ChoiceChip(
-                label: const Text('Alle'),
-                selected: _filter == 'all',
-                onSelected: (_) {
-                  setState(() => _filter = 'all');
-                  _loadData();
-                },
-              ),
-              const SizedBox(width: 4),
-              ChoiceChip(
-                label: const Text('Offen'),
-                selected: _filter == 'unpaid',
-                onSelected: (_) {
-                  setState(() => _filter = 'unpaid');
-                  _loadData();
-                },
-              ),
-              const SizedBox(width: 4),
-              ChoiceChip(
-                label: const Text('Bezahlt'),
-                selected: _filter == 'paid',
-                onSelected: (_) {
-                  setState(() => _filter = 'paid');
-                  _loadData();
-                },
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _showCreateDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Neue Strafe'),
-              ),
-            ],
-          ),
         ),
         const Divider(height: 1),
 

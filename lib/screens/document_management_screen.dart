@@ -28,7 +28,7 @@ class _DocumentManagementScreenState extends State<DocumentManagementScreen> {
   ];
 
   Future<void> _uploadDocument() async {
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'xlsx', 'xls'],
       withData: true,

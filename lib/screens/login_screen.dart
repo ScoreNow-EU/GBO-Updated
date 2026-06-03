@@ -1528,10 +1528,18 @@ class _QRCodeScannerDialogState extends State<_QRCodeScannerDialog> {
   }
 
   Future<void> _checkPermission() async {
-    // TODO: Check camera permission
-    setState(() {
-      _hasPermission = true; // Placeholder
-    });
+    if (kIsWeb) {
+      // On web, camera permissions are handled by the browser when accessing the camera.
+      setState(() {
+        _hasPermission = true;
+      });
+    } else {
+      // On native platforms, camera access requires permission_handler package.
+      // For now, grant permission since the scanner view is a mock UI.
+      setState(() {
+        _hasPermission = true;
+      });
+    }
   }
 
   @override

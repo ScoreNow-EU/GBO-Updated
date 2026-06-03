@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 import '../models/team_manager.dart';
 import '../services/team_manager_service.dart';
 import '../utils/responsive_helper.dart';
@@ -179,7 +180,7 @@ class _TeamManagerManagementScreenState extends State<TeamManagerManagementScree
                 margin: const EdgeInsets.only(top: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFffd665).withOpacity(0.2),
+                  color: AppColors.rhdGold.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(

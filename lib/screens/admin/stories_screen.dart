@@ -27,7 +27,7 @@ class _StoriesAdminScreenState extends State<StoriesAdminScreen> {
 
   Future<void> _startUpload() async {
     // Step 1: Pick a video file
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.video,
       allowMultiple: false,
       withData: true,

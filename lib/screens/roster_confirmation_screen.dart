@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/app_colors.dart';
 import 'package:toastification/toastification.dart';
 
 import '../models/game_squad.dart';
@@ -117,7 +118,7 @@ class _RosterConfirmationScreenState extends State<RosterConfirmationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Kader bestätigen – ${widget.teamName}'),
-        backgroundColor: const Color(0xFF1a237e),
+        backgroundColor: AppColors.rhdBlack,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -194,7 +195,7 @@ class _RosterConfirmationScreenState extends State<RosterConfirmationScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1a237e),
+              color: AppColors.rhdBlack,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -273,7 +274,7 @@ class _RosterConfirmationScreenState extends State<RosterConfirmationScreen> {
                           height: 32,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1a237e).withOpacity(0.1),
+                            color: AppColors.rhdBlack.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -397,7 +398,7 @@ class _RosterConfirmationScreenState extends State<RosterConfirmationScreen> {
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1a237e),
+                  backgroundColor: AppColors.rhdBlack,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),

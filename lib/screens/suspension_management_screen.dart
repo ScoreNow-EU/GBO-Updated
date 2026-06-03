@@ -43,38 +43,59 @@ class _SuspensionManagementScreenState extends State<SuspensionManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Column(
       children: [
-        // Header bar
+        // Header bar - hide title on mobile (shown in AppBar by ResponsiveLayout)
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.block, size: 24),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Sperren-Verwaltung',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          child: isMobile
+              ? Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    FilterChip(
+                      label: Text(_showOnlyActive ? 'Nur aktive' : 'Alle'),
+                      selected: _showOnlyActive,
+                      onSelected: (val) {
+                        setState(() => _showOnlyActive = val);
+                        _loadData();
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Neue Sperre'),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const Icon(Icons.block, size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Sperren-Verwaltung',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    FilterChip(
+                      label: Text(_showOnlyActive ? 'Nur aktive' : 'Alle'),
+                      selected: _showOnlyActive,
+                      onSelected: (val) {
+                        setState(() => _showOnlyActive = val);
+                        _loadData();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Neue Sperre'),
+                    ),
+                  ],
                 ),
-              ),
-              // Filter toggle
-              FilterChip(
-                label: Text(_showOnlyActive ? 'Nur aktive' : 'Alle'),
-                selected: _showOnlyActive,
-                onSelected: (val) {
-                  setState(() => _showOnlyActive = val);
-                  _loadData();
-                },
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _showCreateDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Neue Sperre'),
-              ),
-            ],
-          ),
         ),
         const Divider(height: 1),
 

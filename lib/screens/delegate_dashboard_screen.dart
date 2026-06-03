@@ -312,15 +312,36 @@ class _DelegateDashboardScreenState extends State<DelegateDashboardScreen> {
       return status == null || status['delegateSigned'] != true;
     }).length;
 
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    final cards = [
+      _buildSummaryCard('Zugeordnete Spiele', '${_allAssignedGames.length}', Icons.sports_handball, Colors.blue),
+      _buildSummaryCard('Signatur ausstehend', '$pendingSignOffs', Icons.edit, Colors.orange),
+      _buildSummaryCard('Offene Proteste', '${_openProtests.length}', Icons.warning, Colors.red),
+      _buildSummaryCard('Aktive Sperren', '${_activeSuspensions.length}', Icons.block, Colors.purple),
+    ];
+
+    if (isMobile) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.3,
+        children: cards,
+      );
+    }
+
     return Row(
       children: [
-        Expanded(child: _buildSummaryCard('Zugeordnete Spiele', '${_allAssignedGames.length}', Icons.sports_handball, Colors.blue)),
+        Expanded(child: cards[0]),
         const SizedBox(width: 12),
-        Expanded(child: _buildSummaryCard('Signatur ausstehend', '$pendingSignOffs', Icons.edit, Colors.orange)),
+        Expanded(child: cards[1]),
         const SizedBox(width: 12),
-        Expanded(child: _buildSummaryCard('Offene Proteste', '${_openProtests.length}', Icons.warning, Colors.red)),
+        Expanded(child: cards[2]),
         const SizedBox(width: 12),
-        Expanded(child: _buildSummaryCard('Aktive Sperren', '${_activeSuspensions.length}', Icons.block, Colors.purple)),
+        Expanded(child: cards[3]),
       ],
     );
   }

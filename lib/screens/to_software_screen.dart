@@ -141,7 +141,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
           Container(
             width: 280,
             decoration: const BoxDecoration(
-              color: Color(0xFF4A5568),
+              color: AppColors.textGrey,
             ),
             child: Column(
               children: [
@@ -151,7 +151,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
-                    color: Color(0xFF4A5568),
+                    color: AppColors.textGrey,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -282,7 +282,7 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF1A202C) : Colors.transparent,
+        color: isSelected ? AppColors.rhdBlack : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
@@ -2019,15 +2019,15 @@ class _TOSoftwareScreenState extends State<TOSoftwareScreen> {
   Color _getGameStatusColor(Game game) {
     switch (game.status) {
       case GameStatus.scheduled:
-        return const Color(0xFF4A5568); // Default dark gray
+        return AppColors.textGrey; // Default dark gray
       case GameStatus.inProgress:
         return const Color(0xFF2D5016); // Dark green
       case GameStatus.completed:
-        return const Color(0xFF1A202C); // Very dark gray
+        return AppColors.rhdBlack; // Very dark gray
       case GameStatus.cancelled:
         return const Color(0xFF742A2A); // Dark red
       default:
-        return const Color(0xFF4A5568);
+        return AppColors.textGrey;
     }
   }
 

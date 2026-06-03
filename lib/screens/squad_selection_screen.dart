@@ -161,7 +161,6 @@ class _SquadSelectionScreenState extends State<SquadSelectionScreen> {
         selectedPlayers: _selectedPlayers,
         selectedByUserId: currentUser.uid,
         selectedByName: currentUser.displayName ?? 'Unbekannt',
-        tournamentId: widget.game.tournamentId,
         shouldSign: shouldSign,
       );
 

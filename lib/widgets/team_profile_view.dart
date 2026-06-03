@@ -820,7 +820,7 @@ class _TeamProfileViewState extends State<TeamProfileView>
             gradient: LinearGradient(
               colors: _hasOwnColors
                   ? [_teamPrimary, _teamSecondary]
-                  : const [Color(0xFFe63946), Color(0xFFffd765)],
+                  : const [AppColors.primaryColor, AppColors.rhdGold],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
