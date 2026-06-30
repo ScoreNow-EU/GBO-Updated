@@ -47,7 +47,7 @@ Benötigt ein bestehendes Firebase-Auth-Konto mit Rolle `admin` oder `scoringTab
 Firebase ID Tokens laufen nach **1 Stunde** ab. Neuen Token ohne erneuten Login anfordern:
 
 ```http
-POST https://securetoken.googleapis.com/v1/token?key=FIREBASE_WEB_API_KEY
+POST https://securetoken.googleapis.com/v1/token?key=GBO_WEB_API_KEY
 Content-Type: application/json
 
 {
@@ -385,10 +385,10 @@ Alle Fehler haben das Format: `{ "error": "Beschreibung" }`
 ### 1. Secret setzen
 
 ```bash
-firebase functions:secrets:set FIREBASE_WEB_API_KEY
+firebase functions:secrets:set GBO_WEB_API_KEY
 ```
 
-`FIREBASE_WEB_API_KEY` findest du in der Firebase Console unter  
+`GBO_WEB_API_KEY` findest du in der Firebase Console unter  
 **Projekteinstellungen → Allgemein → Web-API-Schlüssel**.
 
 ### 2. Benutzerrolle vergeben

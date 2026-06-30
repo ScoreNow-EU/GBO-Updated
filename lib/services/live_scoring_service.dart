@@ -10,6 +10,7 @@ class LiveScoringService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Map<String, StreamController<GameState>> _gameStateControllers = {};
   final Map<String, GameState> _stateCache = {}; // in-memory cache to avoid per-tick Firestore reads
+  final Map<String, StreamSubscription<DocumentSnapshot>> _firestoreListeners = {};
   Timer? _gameTimer;
 
   // Get or create a game state controller for a specific game
@@ -23,14 +24,28 @@ class LiveScoringService {
   // Stream game state for a specific game
   Stream<GameState> streamGameState(String gameId) {
     final controller = _getGameStateController(gameId);
-    
+
+    // Initial load
     _loadGameState(gameId).then((state) {
-      _stateCache[gameId] = state; // seed cache on initial load
-      if (!controller.isClosed) {
-        controller.add(state);
-      }
+      _stateCache[gameId] = state;
+      if (!controller.isClosed) controller.add(state);
     });
-    
+
+    // Firestore real-time listener – picks up external writes (e.g. scoreboard API)
+    if (!_firestoreListeners.containsKey(gameId)) {
+      _firestoreListeners[gameId] = _firestore
+          .collection('gameStates')
+          .doc(gameId)
+          .snapshots()
+          .listen((snap) async {
+        if (!snap.exists) return;
+        // Reload full state (includes events) and push to stream
+        final updated = await _loadGameState(gameId);
+        _stateCache[gameId] = updated;
+        if (!controller.isClosed) controller.add(updated);
+      });
+    }
+
     return controller.stream;
   }
 
@@ -532,6 +547,10 @@ class LiveScoringService {
   // Clean up resources
   void dispose() {
     _gameTimer?.cancel();
+    for (final sub in _firestoreListeners.values) {
+      sub.cancel();
+    }
+    _firestoreListeners.clear();
     for (final controller in _gameStateControllers.values) {
       controller.close();
     }

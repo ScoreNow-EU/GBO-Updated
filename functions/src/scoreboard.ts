@@ -15,7 +15,7 @@
  * Base URL: https://REGION-PROJECT.cloudfunctions.net/scoreboardApi/<path>
  *
  * Environment variable required:
- *   FIREBASE_WEB_API_KEY  – Firebase project Web API key
+ *   GBO_WEB_API_KEY  – Firebase project Web API key
  *                           (Console → Project settings → General → Web API key)
  *
  * Firestore collections:
@@ -114,9 +114,9 @@ async function handleLogin(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const apiKey = process.env.FIREBASE_WEB_API_KEY;
+  const apiKey = process.env.GBO_WEB_API_KEY;
   if (!apiKey) {
-    res.status(500).json({error: "Server misconfiguration: FIREBASE_WEB_API_KEY not set"});
+    res.status(500).json({error: "Server misconfiguration: GBO_WEB_API_KEY not set"});
     return;
   }
 
@@ -744,7 +744,7 @@ const ROUTES: RouteTuple[] = [
  *   etc.
  */
 export const scoreboardApi = onRequest(
-  {cors: true, timeoutSeconds: 3600, memory: "256MiB"},
+  {cors: true, timeoutSeconds: 3600, memory: "256MiB", secrets: ["GBO_WEB_API_KEY"]},
   async (req, res) => {
     // Resolve auth once for all requests (login endpoint ignores it)
     const auth = await resolveAuth(req).catch(() => null);
