@@ -20,6 +20,10 @@
         "destination": "/datenschutz.html"
       },
       {
+        "source": "/api/scoreboard/**",
+        "function": "scoreboardApi"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -15,6 +15,9 @@ export {
   processStoryUpload,
 } from "./youtube";
 
+// Re-export Scoreboard API
+export {scoreboardApi} from "./scoreboard";
+
 // Initialize Firebase Admin SDK (once, at module level)
 if (admin.apps.length === 0) {
   admin.initializeApp();
